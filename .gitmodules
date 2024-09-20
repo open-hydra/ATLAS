@@ -1,0 +1,6 @@
+[submodule "lib/PiNeR"]
+	path = lib/PiNeR
+	url = git@github.com:MarcoGrossi92/PiNeR.git
+[submodule "lib/NewCEA"]
+	path = lib/NewCEA
+	url = git@github.com:MarcoGrossi92/NewCEA.git
