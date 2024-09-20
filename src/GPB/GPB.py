@@ -24,7 +24,7 @@ if masterpath is None:
 datapath = masterpath + '/database/'
 ct.add_directory(datapath + 'Thermo')
 ct.add_directory(datapath + 'Chemistry')
-transdir = datapath + 'transport/CEApolynomials.yaml'
+transdir = datapath + 'Transport/CEApolynomials.yaml'
 
 # Input file definition
 inifile = 'input.ini'

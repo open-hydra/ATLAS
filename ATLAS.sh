@@ -25,13 +25,13 @@ fi
 
 if [[ $1 == CEA ]]; then
   #!> CEA
-  $ATLASDIR/lib/CEA_wrapper.sh -run $2
+  $NewCEADIR/bin/FCEA2
 else
   for i in $@; do
     if [[ $i == 'GPB' ]]; then
       source $RCFILE > /dev/null 2>&1
       conda activate ct-env
-      python3 -B $ATLASDIR/GPB/GPB.py
+      python3 -B $ATLASDIR/src/GPB/GPB.py
       conda deactivate
     else
       $ATLASDIR/bin/$i

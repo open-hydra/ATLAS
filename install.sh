@@ -25,7 +25,7 @@ function usage () {
     echo "    Print this usage output and exit"
     echo
     echo "$PROGRAM --build  |-b <master>"
-    echo "    Build the project and libraries via CMake (<master> = standalone,chimera,hydra)"
+    echo "    Build the project and libraries via CMake (<master> = standalone,hydra)"
     echo
     echo "$PROGRAM --compile|-c <build> <program>"
     echo "    Compile a program with a build type (<build> = RELEASE,DEBUG,TESTING)"
@@ -60,7 +60,7 @@ function define_path () {
 }
 
 
-function build_project () {
+function build_fortran_side () {
 
   rm -rf bin build && mkdir -p build
   if [[ $BUILD == standalone ]]; then
@@ -78,6 +78,25 @@ function build_project () {
   cd $DIR/build
   cmake .. -DUSE_OPENMP=OFF -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=RELEASE -DMASTER=$Master
   cmake --build .
+}
+
+function build_python_side () {
+
+  if [[ $SHELL == *"zsh"* ]]; then
+    RCFILE=$HOME/.zshrc
+  elif [[ $SHELL == *"bash"* ]]; then
+    RCFILE=$HOME/.bashrc
+  fi
+  cd $DIR
+  conda env create -f ct-env.yaml
+  source $RCFILE 2>/dev/null
+  conda activate ct-env
+  cd $DIR/lib/PiNeR
+  pip3 install -e .
+  cd $DIR/lib/NewCEA
+  ./install.sh -b
+  pip3 install -e .
+  conda deactivate
 }
 
 function compile () {
@@ -165,15 +184,21 @@ done
 
 if [ "$SETVARS" != "0" ]; then
   define_path
+
 elif [ "$UPDATE" != "0" ]; then
   git submodule update --init --remote
+
 elif [ "$LOAD" != "0" ]; then
   git submodule update --init
+
 elif [[ "$BUILD" != "0" ]]; then
   define_path
-  build_project
+  #build_fortran_side
+  build_python_side
+
 elif [[ "$EXE" != "0" ]]; then
   compile
+
 else
   usage
 fi
