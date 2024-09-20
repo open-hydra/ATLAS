@@ -2,6 +2,41 @@ import numpy as np
 import cantera as ct
 import IO, IO_Legacy
 
+def wilke_mixture_viscosity(y, mu, M):
+    """
+    Calculate the mixture viscosity using Wilke's rule.
+    
+    Parameters:
+    y (list or numpy array): Mole fractions of species.
+    mu (list or numpy array): Viscosities of species (Pa.s or equivalent units).
+    M (list or numpy array): Molecular weights of species (kg/mol or g/mol, but consistent units).
+    
+    Returns:
+    float: Mixture viscosity.
+    """
+    
+    n = len(y)
+    phi = np.zeros((n, n))
+    
+    # Calculate phi_ij for each pair of species
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                phi[i, j] = 1.0
+            else:
+                mu_ratio = (mu[i] / mu[j])**0.5
+                M_ratio = (M[j] / M[i])**0.25
+                term = (1 + mu_ratio * M_ratio)**2
+                phi[i, j] = term / (np.sqrt(8) * (1 + M[i] / M[j])**0.5)
+    
+    # Calculate the mixture viscosity
+    mu_mixture = 0.0
+    for i in range(n):
+        sum_phi = np.sum(y * phi[i, :])
+        mu_mixture += y[i] * mu[i] / sum_phi
+    
+    return mu_mixture
+
 # Formule contenute in chempp, strutturalmente simili a quelle contenute in cantera.
 # Per la conducibilita chempp usa cv_rot=0
     # visc = 5.0/16.0 * sqrt(Pi * mw[k] * Boltzmann * t / Avogadro) /
@@ -71,38 +106,58 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
 
         solution.basis = 'mass'
         identity_matrix = np.eye(solution.n_species)
+        
+        species_names_aux = []
+        viscosity_aux = {}
+        conductivity_aux = {}
+        for n in range(solution.n_species):
+            # Loop over each species
+            species_name = solution.species(n).name
+            species_names_aux.append(species_name)
+
+            viscosity_aux[species_name] = []
+            conductivity_aux[species_name] = []
+
+            for T in temperatures:
+                if (model == 'chempp'):
+                    mu, k = chempp_simplified_law(T,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
+                elif (model == 'cantera'):
+                    solution.TPY = T, ct.one_atm, identity_matrix[n]
+                    mu = solution.viscosity
+                    k = solution.thermal_conductivity
+                elif (model=='CEA'):
+                    for species in kwargs["database"]:
+                        if species['element'] == solution.species(n).name:
+                            mu, k = CEA_polynomials(T,species)
+
+                try:
+                    viscosity_aux[species_name].append(mu)
+                    conductivity_aux[species_name].append(k)
+                except UnboundLocalError:
+                    print(f"Warning: Transport model is not valid for species '{species_name}'.")
+                    print(f"         chempp simplified law is applied!")
+                    mu, k = chempp_simplified_law(T,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
+                    viscosity_aux[species_name].append(mu)
+                    conductivity_aux[species_name].append(k)
 
         if 'mixture' not in solution.name:
-            for n in range(solution.n_species):
-                # Loop over each species
-                species_name = solution.species(n).name
-                species_names.append(species_name)
-                print(species_name)
-
-                viscosity[species_name] = []
-                conductivity[species_name] = []
-
-                for T in temperatures:
-                    if (model == 'chempp'):
-                        mu, k = chempp_simplified_law(T,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
-                    elif (model == 'cantera'):
-                        solution.TPY = T, ct.one_atm, identity_matrix[n]
-                        mu = solution.viscosity
-                        k = solution.thermal_conductivity
-                    elif (model=='CEA'):
-                        for species in kwargs["database"]:
-                            if species['element'] == solution.species(n).name:
-                                mu, k = CEA_polynomials(T,species)
-
-                    try:
-                        viscosity[species_name].append(mu)
-                        conductivity[species_name].append(k)
-                    except UnboundLocalError:
-                        print(f"Warning: Transport model is not valid for species '{species_name}'.")
-                        print(f"         chempp simplified law is applied!")
-                        mu, k = chempp_simplified_law(T,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
-                        viscosity[species_name].append(mu)
-                        conductivity[species_name].append(k)
+            for sp in species_names_aux:
+                species_names.append(sp)
+                viscosity[sp] = viscosity_aux[sp]
+                conductivity[sp] = conductivity_aux[sp]
+        else:
+            # Just one inert mixture
+            mix_name = 'inertMix'
+            species_names.append(mix_name)
+            for i, T in enumerate(temperatures):
+                solution.TP = T, ct.one_atm
+                if (model == 'cantera'):
+                    mu = solution.viscosity
+                    k = solution.thermal_conductivity
+                else:
+                    mu  = wilke_mixture_viscosity(solution.X, viscosity[:][i], solution.molecular_weights)
+                    print(mu)
+                    exit()
 
 
     IO.write_transport_properties(name, T_low, T_max, species_names, viscosity, conductivity)
