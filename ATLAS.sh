@@ -28,10 +28,10 @@ if [[ $1 == CEA ]]; then
   $NewCEADIR/bin/FCEA2
 else
   for i in $@; do
-    if [[ $i == 'GPB' ]]; then
+    if [[ $i == 'GPB' || $i == 'KAnT' ]]; then
       source $RCFILE > /dev/null 2>&1
       conda activate ct-env
-      python3 -B $ATLASDIR/src/GPB/GPB.py
+      python3 -B $ATLASDIR/src/$i/$i.py $2
       conda deactivate
     else
       $ATLASDIR/bin/$i

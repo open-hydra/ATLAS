@@ -1,5 +1,5 @@
 
-units: {length: cm, quantity: mol, activation-energy: cal/mol}
+units: {length: dm, quantity: mol, activation-energy: cal/mol}
 
 phases:
 - name: JL
@@ -146,9 +146,9 @@ reactions:
   rate-constant: {A: 4.4e+11, b: 0, Ea: 30000}
   orders: {CH4: 0.5, O2: 1.25}
 - equation: CH4 + H2O => CO + 3 H2  # Reaction 2
-  rate-constant: {A: 3.0e+08, b: 0, Ea: 30000}
+  rate-constant: {A: 3.00e+08, b: 0, Ea: 30000}
 - equation: CO + H2O <=> CO2 + H2  # Reaction 3
   rate-constant: {A: 2.75e+09, b: 0, Ea: 20000}
 - equation: H2 + 0.5 O2 <=> H2O  # Reaction 4
   rate-constant: {A: 6.80e+15, b: -1.0, Ea: 40000}
-  #orders: {H2: 0.3, O2: 1.55}
+  #orders: {H2: 0.25, O2: 1.5}

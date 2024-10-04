@@ -1,6 +1,7 @@
+from pint import UnitRegistry
 import numpy as np
 import cantera as ct
-import sys, os
+import sys, os, re
 masterpath = os.environ.get("ATLASDIR")
 if masterpath is None:
     print("ATLAS environment variable is not set.")
@@ -8,121 +9,165 @@ if masterpath is None:
 datapath = masterpath + '/database/'
 ct.add_directory(datapath+'Chemistry')
 
-styles = {
-    'gri30.yaml': {'label': 'GRI3.0','linestyle': '-', 'marker': 'o', 'color': 'b', 'markersize': 6},
-    'aramco20.yaml': {'label': 'AramcoMech 2.0','linestyle': '-.', 'marker': '<', 'color': 'g', 'markersize': 6},
-    'aramco30.yaml': {'label': 'AramcoMech 3.0','linestyle': '-.', 'marker': 'd', 'color': 'g', 'markersize': 6},
-    'USCII.yaml': {'label': 'USC-Mech II','linestyle': '--', 'marker': 'o', 'color': 'r', 'markersize': 6},
-    'TSR-13.yaml': {'label': 'TSR-13','linestyle': '--', 'marker': 'd', 'color': 'r', 'markersize': 6},
-    'TSR-11.yaml': {'label': 'TSR-11','linestyle': '--', 'marker': 's', 'color': 'r', 'markersize': 6},
-    'hashemi.yaml': {'label': 'Hashemi','linestyle': ':', 'marker': '^', 'color': 'm', 'markersize': 6},
-    'WD.yaml': {'label': 'WD','linestyle': '-', 'marker': '<', 'color': 'k', 'markersize': 6}
-}
-
 #################################################################################
 
-def ignition_delay(states, species):
+# for convenience:
+def to_si(quant):
+    '''Converts a Pint Quantity to magnitude at base SI units.
+    '''
+    return quant.to_base_units().magnitude
+
+def ignition_delay(states, initial_temp, delta_temp=300.0):
     """
-    This function computes the ignition delay from the occurence of the
-    peak in species' concentration.
+    This function computes the ignition delay based on when the temperature
+    increases by a specified amount (default is 300 K) from the initial temperature.
+
+    Parameters:
+        states (ct.SolutionArray): The array of states with time evolution.
+        initial_temp (float): The initial temperature in Kelvin.
+        delta_temp (float): The temperature increase to define ignition (default is 300 K).
+
+    Returns:
+        float: The ignition delay time.
     """
-    i_ign = states(species).Y.argmax()
-    return states.t[i_ign]
+    target_temp = initial_temp + delta_temp
 
-# Input
-temperatures = np.linspace(1050, 1350, 11)
-mechanisms = ['WD.yaml','gri30.yaml','hashemi.yaml','TSR-13.yaml','aramco30.yaml']
-pressure = 100.0
+    # Find the first time the temperature exceeds the target temperature
+    for i, temp in enumerate(states.T):
+        if temp >= target_temp:
+            return states.t[i]  # Return the corresponding time
+    
+    # If no ignition occurred within the time limits, return NaN
+    return np.nan
 
-# Loop over mechanisms
-for m in range(len(mechanisms)):
 
-    gas = ct.Solution(mechanisms[m])
+def setup_mixture(gas, fuel_comp, oxi_comp, mr):
+    """
+    Set the gas state according to the mixture ratio and component compositions.
 
-    ignition_times = []
-    ignition_temperatures = []
+    Parameters:
+        gas (ct.Solution): Cantera gas object.
+        fuel_comp (dict): Fuel composition as a dictionary, e.g., {'CH4': 1.0}.
+        oxi_comp (dict): Oxidizer composition as a dictionary, e.g., {'O2': 0.21, 'N2': 0.79}.
+        mr (float): Mixture ratio (fuel to oxidizer).
+        
+    Returns:
+        None: Gas composition is set directly in the `gas` object.
+    """
 
-    # Loop over temperatures
-    for temperature in temperatures:
+    # Normalize the fuel and oxidizer compositions (in case they don't sum to 1)
+    total_fuel = sum(fuel_comp.values())
+    total_oxi = sum(oxi_comp.values())
+    
+    if mr == 0:
+        total_fuel = total_fuel + total_oxi
+        total_oxi = total_fuel
+    normalized_fuel_comp = {species: frac / total_fuel for species, frac in fuel_comp.items()}
+    normalized_oxi_comp = {species: frac / total_oxi for species, frac in oxi_comp.items()}
 
-        # Gas state
-        gas.TPX = temperature, pressure*ct.one_atm, "CH4:0.04,O2:0.08,Ar:0.88"
+    # Combined mixture composition
+    combined_comp = {}
+    
+    for species, frac in normalized_fuel_comp.items():
+        combined_comp[species] = frac/(1+mr)
+    
+    for species, frac in normalized_oxi_comp.items():
+        if species in combined_comp:
+            if mr==0:
+                combined_comp[species] += frac
+            else:
+                combined_comp[species] += frac*mr/(1+mr)  # If species is in both, sum the fractions
+        else:
+            if mr==0:
+                combined_comp[species] = frac
+            else:
+                combined_comp[species] = frac*mr/(1+mr) # Oxidizer-only species
+    
+    # Set the gas composition
+    gas.Y = combined_comp
 
-        r = ct.IdealGasReactor(contents=gas, name="Batch Reactor")
-        reactor_network = ct.ReactorNet([r])
 
-        # use the above list to create a DataFrame
-        time_history = ct.SolutionArray(gas, extra="t")
+def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatures):
 
-        reference_species = "co"
+    ureg = UnitRegistry()
+    Q_ = ureg.Quantity
 
-        # This is a starting estimate. If you do not get an ignition within this time, increase it
-        estimated_ignition_delay_time = 0.1
-        t = 0
+    fuel_composition = re.findall(r'{(.*?):(.*?)}', fuel_string)
+    fuel_dict = {species: float(value) for species, value in fuel_composition}
 
-        counter = 1
-        while t < estimated_ignition_delay_time:
-            t = reactor_network.step()
-            if not counter % 10:
-                # We will save only every 10th value. Otherwise, this takes too long
-                # Note that the species concentrations are mass fractions
-                time_history.append(r.thermo.state, t=t)
-            counter += 1
+    oxi_composition = re.findall(r'{(.*?):(.*?)}', oxi_string)
+    oxi_dict = {species: float(value) for species, value in oxi_composition}
 
-            # if len(temperatures)==1 and len(mechanisms)==1:
-            #     if '--plot' in sys.argv[1:]:
-            #         import matplotlib.pyplot as plt
-            #         plt.clf()
-            #         plt.subplot(2, 2, 1)
-            #         plt.plot(times, data[:,0])
-            #         plt.xlabel('Time (ms)')
-            #         plt.ylabel('Temperature, K')
-            #         plt.subplot(2, 2, 2)
-            #         plt.plot(times, data[:,1])
-            #         plt.xlabel('Time (ms)')
-            #         plt.ylabel('T derivative, K/s')
-            #         plt.subplot(2, 2, 3)
-            #         plt.plot(times, data[:,2])
-            #         plt.xlabel('Time (ms)')
-            #         plt.ylabel('CO2 Mass Fraction')
-            #         plt.subplot(2, 2, 4)
-            #         plt.plot(times,data[:,3])
-            #         plt.xlabel('Time (ms)')
-            #         plt.ylabel('CH4 Mass Fraction')
-            #         plt.tight_layout()
-            #         plt.show()
-            # else:
-            #     print("To view a plot of these results, run this script with the option --plot")
+    ignition_times = {}
+    ignition_temperatures = {}
 
-        # We will use the 'oh' species to compute the ignition delay
-        tau = ignition_delay(time_history, reference_species)
+    for model in models:
 
-        print(f"Computed Ignition Delay: {tau:.3e} seconds")
+        # Load the original chemical mechanism
+        original_mechanism = ct.Solution(model+'.yaml')
+        # List of original species
+        original_species = original_mechanism.species()
+        new_species = original_species.copy()
 
-        try:
-            ignition_times.append(tau)
-            ignition_temperatures.append(temperature)
-        except:
-            continue
+        nasa_gas = ct.Species.list_from_file('nasa_gas.yaml')
 
-    if '--plot' in sys.argv[1:]:
-        import matplotlib.pyplot as plt
-        cas = mechanisms[m]
-        reciprocal_temperatures = [1000 / temp for temp in ignition_temperatures]
-        micro_times = [1e+6 * time for time in ignition_times]
-        plt.plot(reciprocal_temperatures, micro_times,
-             label=styles[cas]['label'],
-             linestyle=styles[cas]['linestyle'], 
-             marker=styles[cas]['marker'], 
-             color=styles[cas]['color'], 
-             markersize=styles[cas]['markersize'])
+        # Find and add N2 species from nasa_gas if missing
+        if 'N2' not in original_mechanism.species_names:
+            N2_species = next((species for species in nasa_gas if species.name == 'N2'), None)
+            if N2_species:
+                new_species.append(N2_species)
 
-# Plot the results
-if '--plot' in sys.argv[1:]:
-    plt.ylabel('Ignition Delay Time, ms')
-    plt.xlabel('1000/Temperature, K-1')
-    plt.legend(loc='best')
-    plt.yscale('log')
-    plt.show()
-else:
-    print("To view a plot of these results, run this script with the option --plot")
+        # Find and add Ar species from nasa_gas if missing
+        if 'Ar' not in original_mechanism.species_names:
+            Ar_species = next((species for species in nasa_gas if species.name == 'Ar'), None)
+            if Ar_species:
+                new_species.append(Ar_species)
+
+        # Create a new Solution with the combined species list and the original reactions
+        new_mechanism = ct.Solution(thermo='ideal-gas', kinetics='gas', species=new_species, reactions=original_mechanism.reactions())
+
+        ignition_times[model] = []
+        ignition_temperatures[model] = []
+
+        # Loop over temperatures
+        for temperature in temperatures:
+            for pressure in pressures:
+                pressure_chamber = Q_(pressure, 'bar')
+                for mr in mixture_ratio:
+
+                    setup_mixture(new_mechanism, fuel_dict, oxi_dict, mr)
+                    new_mechanism.TP = temperature, to_si(pressure_chamber)
+
+                    r = ct.IdealGasReactor(contents=new_mechanism, name="Batch Reactor")
+                    reactor_network = ct.ReactorNet([r])
+                    # Set the maximum step size
+                    # rtol = 1.e-1
+                    # atol = 1.e-1
+                    # reactor_network.rtol, reactor_network.atol = rtol, atol
+                    #reactor_network.max_time_step = 1e-5
+
+                    # use the above list to create a DataFrame
+                    time_history = ct.SolutionArray(new_mechanism, extra="t")
+
+                    # This is a starting estimate. If you do not get an ignition within this time, increase it
+                    estimated_ignition_delay_time = 0.1
+                    t = 0
+                    initial_temp = new_mechanism.T
+
+                    counter = 1
+                    while t < estimated_ignition_delay_time:
+                        t = reactor_network.step()
+                        if not counter % 10:
+                            time_history.append(r.thermo.state, t=t)
+                        counter += 1
+
+                    try:
+                        tau = ignition_delay(time_history, initial_temp)
+                        ignition_times[model].append(tau)
+                        ignition_temperatures[model].append(temperature)
+                    except:
+                        ignition_times[model].append(np.nan)
+                        ignition_temperatures[model].append(np.nan)
+                        continue
+
+    return ignition_times

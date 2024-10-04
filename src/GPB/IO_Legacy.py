@@ -54,7 +54,7 @@ def write_transport_properties(T_low, T_max, species_names, viscosity, conductiv
 
 
 
-def write_chemistry_properties (T_low, T_max, phase):
+def write_chemistry_properties (T_low, T_max, phase, further_sp):
 
     # Define temperature range
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
@@ -103,8 +103,14 @@ def write_chemistry_properties (T_low, T_max, phase):
                 
                 file.write(f'{phase.species_index(species_name)+1} {i+1} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
 
+            for j, sp in enumerate(further_sp):
+                reactant_coeff = 0.0
+                product_coeff = 0.0
+                efficiency_coeff = 0.0
+                file.write(f'{phase.n_species+j+1} {i + 1} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
+
             if 'three-body' in reaction.reaction_type or 'falloff' in reaction.reaction_type:
                 reactant_coeff = 1.0; product_coeff = 1.0; efficiency_coeff = 0.0
             else:
                 reactant_coeff = 0.0; product_coeff = 0.0; efficiency_coeff = 0.0
-            file.write(f'{phase.n_species+1} {i+1} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
+            file.write(f'{phase.n_species+len(further_sp)+1} {i+1} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')

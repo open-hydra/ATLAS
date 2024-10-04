@@ -1,21 +1,119 @@
-# Detailed mechanisms for H2/CO/C1-C4
+# Detailed mechanisms for C1-C4
 
-+ **Aramco 1.3** W. K. Metcalfe, S. M. Burke, S. S. Ahmed, H. J. Curran. A Hierarchical and Comparative Kinetic Modeling Study of C1-C2 Hydrocarbon and Oxygenated Fuels. Intl. J. Chemical Kinetics 45 (2013) 638-675. Release date: August 26th 2013.
+## Aramco 2.0 and Aramco 3.0 Mechanisms
 
-+ **Aramco 2.0** Y. Li, C-W. Zhou, K.P. Somers, K. Zhang, H.J. Curran The Oxidation of 2-Butene: A High Pressure Ignition Delay, Kinetic Modeling Study and Reactivity Comparison with Isobutene and 1-Butene Proceedings of the Combustion Institute (2017) 36(1) 403–411.
+**Aramco 2.0** and **Aramco 3.0** are detailed chemical kinetic mechanisms developed for modeling the combustion of hydrocarbon fuels, particularly relevant to aviation and engine applications. These mechanisms provide comprehensive reaction sets for a wide range of fuel compositions, including Jet A, kerosene, and other alkanes.
 
-+ **Aramco 3.0** C-W. Zhou, Y. Li, U. Burke, C. Banyon, K.P. Somers, S. Khan, J.W. Hargis, T. Sikes, E.L. Petersen, M. AlAbbad, A. Farooq, Y. Pan, Y. Zhang, Z. Huang, J. Lopez, Z. Loparo, S.S. Vasu, H.J. Curran. "An experimental and chemical kinetic modeling study of 1,3-butadiene combustion: Ignition delay time and laminar flame speed measurements" Combustion and Flame 197 (2018) 423–438.
+### Key Features
 
-+ **USC Mech II** Hai Wang, Xiaoqing You, Ameya V. Joshi, Scott G. Davis, Alexander Laskin, Fokion Egolfopoulos & Chung K. Law,  USC Mech Version II. High-Temperature Combustion Reaction Model of H2/CO/C1-C4 Compounds. http://ignis.usc.edu/USC_Mech_II.htm, May 2007.
+- **Aramco 2.0**:
+  - **Number of species**: 111
+  - **Number of reactions**: 578 reactions
+  - **Pressure range**: Valid from 1 to 100 atm
+  - **Primary fuels**: Jet A, alkanes, and other hydrocarbons
 
-# CH4
+- **Aramco 3.0**:
+  - **Number of species**: 147
+  - **Number of reactions**: 763 reactions
+  - **Pressure range**: Valid from 1 to 100 atm
+  - **Primary fuels**: Jet A, alkanes, and other hydrocarbons
 
-+ **FFCM-1** https://web.stanford.edu/group/haiwanglab/FFCM1/
++ Aramco 2.0: Y. Li, C-W. Zhou, K.P. Somers, K. Zhang, H.J. Curran The Oxidation of 2-Butene: A High Pressure Ignition Delay, Kinetic Modeling Study and Reactivity Comparison with Isobutene and 1-Butene Proceedings of the Combustion Institute (2017) 36(1) 403–411.
 
-+ **GRI30** http://combustion.berkeley.edu/gri-mech/version30/text30.html
++ Aramco 3.0: C-W. Zhou, Y. Li, U. Burke, C. Banyon, K.P. Somers, S. Khan, J.W. Hargis, T. Sikes, E.L. Petersen, M. AlAbbad, A. Farooq, Y. Pan, Y. Zhang, Z. Huang, J. Lopez, Z. Loparo, S.S. Vasu, H.J. Curran. "An experimental and chemical kinetic modeling study of 1,3-butadiene combustion: Ignition delay time and laminar flame speed measurements" Combustion and Flame 197 (2018) 423–438.
 
-+ **Hashemi2016** H. Hashemi, J. M. Christensen, S. Gersen, H. Levinskyb, S.J. Klippenstein, P. Glarborg, "High-Pressure Oxidation of Methane", Combust. Flame (2016), in Press (doi: 10.1016/j.combustflame.2016.07.016)
+## USC Mech II Mechanism
 
-+ **CH4_Smooke_s16r35** Smooke, Mitchell D., ed. Reduced kinetic mechanisms and asymptotic approximations for methane-air flames: a topical volume. Berlin: Springer-Verlag, 1991.
+**USC Mech II** is a detailed chemical kinetic mechanism developed by the University of Southern California for the simulation of the combustion of small hydrocarbon fuels such as methane, ethane, propane, and butane. It provides accurate predictions of combustion properties for a wide range of applications, including ignition delay times, flame speed, and pollutant formation.
 
-+ **CH4_Kazakov_s22r104** http://combustion.berkeley.edu/drm/
+### Key Features
+
+- **Developer**: University of Southern California
+- **Number of species**: 111
+- **Number of reactions**: 784 reversible reactions
+- **Pressure range**: 1–50 atm
+- **Primary fuels**: Methane (CH₄), ethane (C₂H₆), propane (C₃H₈), butane (C₄H₁₀), and hydrogen (H₂)
+
++ Hai Wang, Xiaoqing You, Ameya V. Joshi, Scott G. Davis, Alexander Laskin, Fokion Egolfopoulos & Chung K. Law,  USC Mech Version II. High-Temperature Combustion Reaction Model of H2/CO/C1-C4 Compounds. http://ignis.usc.edu/USC_Mech_II.htm, May 2007.
+
+## GRI-Mech 3.0 Mechanism
+
+**GRI-Mech 3.0** is a detailed chemical kinetic mechanism developed by the **Gas Research Institute** for the simulation of natural gas combustion. It is specifically designed to model the combustion of methane and its derivatives, providing accurate predictions for various combustion characteristics such as **flame speed**, **ignition delay times**, and **pollutant formation** (e.g., NOx, CO).
+
+### Key Features
+
+- **Developer**: Gas Research Institute
+- **Number of species**: 53
+- **Number of reactions**: 325 reactions
+- **Pressure range**: Valid from atmospheric pressure up to several atmospheres (typically 1 to 50 atm)
+- **Primary fuels**: Methane (CH₄), ethane (C₂H₆), propane (C₃H₈), and other natural gas components
+
++ GRI (1999). GRI-Mech 3.0: A Detailed Chemical Kinetic Mechanism for the Combustion of Natural Gas http://combustion.berkeley.edu/gri-mech/version30/text30.html
+
+# Detailed mechanisms for CH4
+
+## Foundational Fuel Chemistry Model (FFCM-1)
+
+**FFCM-1** (Foundational Fuel Chemistry Model) is a detailed chemical kinetic reaction model developed through a collaboration between Hai Wang's research group at Stanford University and Gregory Smith of SRI International. This model aims to advance the understanding of combustion processes for small hydrocarbon fuels by employing up-to-date kinetic knowledge with well-defined predictive uncertainties.
+
+### Key Features
+
+- **Developer**: Stanford University and SRI International
+- **Number of species**: 53
+- **Number of reactions**: 300+
+- **Pressure range**: Valid from atmospheric pressure up to 50 atm
+- **Primary fuels**: The present release considers the reactions of C0-2 species and combustion targets of H2, H2O2, CO, CH2O, CH4, and a limited set of C2H6 data.  The release should be used for predicting H2, H2/CO, CH2O and CH4 combustion only.
+
++ https://web.stanford.edu/group/haiwanglab/FFCM1/
+
+## DTU Mechanism
+
+The DTU mechanism is a comprehensive chemical kinetic model developed to accurately simulate the oxidation of methane under high-pressure conditions. This mechanism has been formulated to capture critical reactions and pathways that govern the combustion processes of methane, particularly in environments relevant to advanced combustion systems.
+
+## Key Features
+
+- **Developer**: Technical University of Denmark
+- **Number of species**: 68
+- **Number of reactions**: 631
+- **Pressure range**: Suitable for high-pressure applications (up to 100 atm)
+- **Primary fuels**: Methane (CH₄)
+
++ H. Hashemi, J. M. Christensen, S. Gersen, H. Levinskyb, S.J. Klippenstein, P. Glarborg, "High-Pressure Oxidation of Methane", Combust. Flame (2016), in Press (doi: 10.1016/j.combustflame.2016.07.016)
+
++ **smooke** 16 species and 35 reactions. Smooke, Mitchell D., ed. Reduced kinetic mechanisms and asymptotic approximations for methane-air flames: a topical volume. Berlin: Springer-Verlag, 1991.
+
++ **kazakov** 22 species and 104 reactions. http://combustion.berkeley.edu/drm/
+
+# Reduced mechanisms for CH4
+
+## CORIA Mechanism
+
+A RAMEC-based reduced chemical mechanism to encompass a very large range of pressure ( P ∈ [1 , 100] bar) and equivalence ratio ( φ ∈ [0 . 2 , 14] ). Validations are performed for a set of canonical test-cases: auto-ignition delay simulation, one-dimensional laminar premixed ﬂame freely propagating and one-dimensional counterﬂow diffusion ﬂame. A very good agreement is obtained by comparison with the RAMEC detailed mechanism.
+
+### Key Features
+
+- **Developer**: CORIA - CNRS, Normandie Université
+- **Number of species**: 17
+- **Number of reactions**: 44
+- **Pressure range**: Valid from atmospheric pressure up to 100 bar
+- **Primary fuels**: methane
+
++ Monnier, F., & Ribert, G. (2022). Simulation of high-pressure methane-oxygen combustion with a new reduced chemical mechanism. Combustion and Flame, 235, 111735.
+
+## TSR mechanisms
+
+# Global mechanisms for CH4
+
+## Westbrook-Dryer Global Mechanism
+
+The **Westbrook-Dryer Global Mechanism** is a simplified kinetic model designed for the combustion of hydrocarbon fuels. This global mechanism is widely utilized in combustion modeling due to its computational efficiency while still providing a reasonable representation of combustion phenomena.
+
+### Key Features
+
+- **Developer**: Lawrence Livermore National Lab, Princeton University
+- **Number of species**: 5
+- **Number of reactions**: 3
+- **Pressure range**: Suitable for low to moderate pressure environments (1 atm to 30 atm)
+- **Primary fuels**: Typically includes Methane (CH₄), Ethane (C₂H₆), and Propane (C₃H₈)
+
++ Westbrook, C. K., & Dryer, F. L. (1984). Chemical Kinetic Modeling of Hydrocarbon Combustion. Progress in Energy and Combustion Science, 10(1), 1-57.

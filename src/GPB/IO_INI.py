@@ -1,7 +1,23 @@
-from PiNeR import get
+from PiNeR import get, check_section
 import numpy as np
 
-#def count_phases(ini_file):
+#
+def check_phases(ini_file):
+  i = 0
+  types = []
+  while True:
+    i += 1
+    section = 'GPB-Phase'+str(i)
+    exists = check_section(ini_file, section)
+    
+    if not exists:
+      break
+    else:
+      type = get(ini_file, section, 'type', str)
+      if type is None: type = 'ideal-gas'
+      types.append(type)
+
+  return types
 
 #
 def read_CEA(ini_file,section,cea):
@@ -27,11 +43,25 @@ def read_canteraXequilibrium(ini_file, section):
   pressure_string = get(ini_file, section, 'CT-eq-pressure', list)
   if pressure_string is None:
     return
-  fuel_string = get(ini_file, section, 'CT-eq-fuel', list)
-  oxy_string = get(ini_file, section, 'CT-eq-oxydizer', list)
+
+  fuel_string = get(ini_file, section, 'CT-eq-fuel', str)
+  if '{' not in fuel_string: fuel_string = '{'+fuel_string+':1.0}'
+
+  oxi_string = get(ini_file, section, 'CT-eq-oxidizer', str)
+  if '{' not in oxi_string: oxi_string = '{'+oxi_string+':1.0}'
+
   of = get(ini_file, section, 'CT-eq-of', float)
 
-  return fuel_string, oxy_string, pressure_string, of
+  Tf = get(ini_file, section, 'CT-eq-fuel-T', float)
+  if Tf is None: Tf = 100.0
+
+  To = get(ini_file, section, 'CT-eq-oxidizer-T', float)
+  if To is None: To = 100.0
+
+  fuel_string = str(Tf)+fuel_string
+  oxi_string = str(To)+oxi_string
+
+  return fuel_string, oxi_string, pressure_string, of
 
 #
 def read_models(ini_file,section):
@@ -43,12 +73,12 @@ def read_models(ini_file,section):
   transport = get(ini_file, section, 'transport', str)
   reactions = get(ini_file, section, 'reactions', str)
 
-  T1 = get(ini_file, section, 'Tmin', str)
-  T2 = get(ini_file, section, 'Tmax', str)
+  T1 = get(ini_file, section, 'Tmin', int)
+  T2 = get(ini_file, section, 'Tmax', int)
   if T1 is None:
     T1 = 100
   if T2 is None:
-    T2 = 6000
+    T2 = 5000
 
   return name, T1, T2, thermo, transport, reactions
 
@@ -56,6 +86,8 @@ def read_models(ini_file,section):
 def read_inert_species(ini_file,section):
 
   species = get(ini_file, section, 'species', list)
+  if species is None:
+    species = get(ini_file, section, 'add-species', list)
 
   return species
 
@@ -68,8 +100,9 @@ def read_options(ini_file,section):
 
   HG = False
   type = get(ini_file, section, 'type', str)
-  if 'heavy' in type:
-    HG = True
+  if type is not None:
+    if 'heavy' in type:
+      HG = True
 
   return mix, HG
 

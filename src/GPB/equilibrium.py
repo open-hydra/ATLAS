@@ -2,6 +2,7 @@ from pint import UnitRegistry
 import cantera as ct
 import numpy as np
 import os, sys
+import re
 masterpath = os.environ.get("ATLASDIR")
 if masterpath is None:
     print("ATLAS environment variable is not set.")
@@ -123,7 +124,7 @@ def to_si(quant):
     '''
     return quant.to_base_units().magnitude
 
-def equilibrium(model, fuel_string, oxy_string, pressure_string, of):
+def equilibrium(model, fuel_string, oxi_string, pressure_string, of):
 
     ureg = UnitRegistry()
     Q_ = ureg.Quantity
@@ -133,30 +134,22 @@ def equilibrium(model, fuel_string, oxy_string, pressure_string, of):
       pressure_unit = 'bar'
     else:
       pressure_unit = pressure_string[1]
-      
-    fuel_name = fuel_string[0]
-    if len(fuel_string)>1:
-        fuel_temperature = float(fuel_string[1])
-    else:
-        fuel_temperature = 100.0
 
-    oxy_name = oxy_string[0]
-    if len(oxy_string)>1:
-        oxy_temperature = float(oxy_string[1])
-    else:
-        oxy_temperature = 100.0
-
-    temperature_f = Q_(fuel_temperature, 'K')
-    temperature_o = Q_(oxy_temperature, 'K')
+    temperature_f = Q_(float(fuel_string[0]), 'K')
+    temperature_o = Q_(float(oxi_string[0]), 'K')
     pressure_chamber = Q_(pressure, pressure_unit)
 
-    if fuel_name == "CH4(L)" or fuel_name == "H2(L)":
-        fuel = ct.Solution('reactants.yaml', fuel_name)
-    fuel.TP = to_si(temperature_f), to_si(pressure_chamber)
+    fuel_composition = re.findall(r'{(.*?):(.*?)}', fuel_string[1:])
+    fuel_dict = {species: float(value) for species, value in fuel_composition}
 
-    if oxy_name == "O2(L)":
-        oxi = ct.Solution('reactants.yaml', oxy_name)
-    oxi.TP = to_si(temperature_o), to_si(pressure_chamber)
+    oxi_composition = re.findall(r'{(.*?):(.*?)}', oxi_string[1:])
+    oxi_dict = {species: float(value) for species, value in oxi_composition}
+
+    fuel = ct.Solution(thermo='ideal-gas', species=model)
+    fuel.TPY = to_si(temperature_f), to_si(pressure_chamber), fuel_dict
+
+    oxi = ct.Solution(thermo='ideal-gas', species=model)
+    oxi.TPY = to_si(temperature_o), to_si(pressure_chamber), oxi_dict
 
     molar_ratio = of / (oxi.mean_molecular_weight / fuel.mean_molecular_weight)
     moles_oxi = molar_ratio / (1 + molar_ratio)
@@ -169,7 +162,7 @@ def equilibrium(model, fuel_string, oxy_string, pressure_string, of):
     mix = ct.Mixture([(oxi, moles_oxi), (fuel, moles_fuel), (products, 0)])
 
     # Solve for the equilibrium state, at constant enthalpy and pressure
-    mix.equilibrate('HP', solver='gibbs', max_steps=1000)
+    mix.equilibrate('HP', solver='vcs', max_steps=1000)
 
     products()
 

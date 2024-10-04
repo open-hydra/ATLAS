@@ -1,0 +1,18 @@
+ problem   case=MM3SS
+ rocket  equilibrium  nfz=1  tcest,k=3800
+ p,bar=30.543
+ sup,ae/at=   24.7999992
+ react
+ fuel=AL(cr) wt=15  t,k=298.15
+ oxid=NH4CLO4(I) wt=73  t,k=298.15
+ fuel=CTPB  wt=12  t,k=298.15
+ h,j/mol=-4250000  C 579.00 H 984.00 O 22.00 N 5.00
+ only
+ AL             ALCL            ALCL2           ALCL3           ALO
+ ALOCL  ALOH            CO              CO2     O2
+ CL             CL2             H               HCL             H2
+ H2O            NO              N2              O               OH
+ ALO2H  AL2O3(L)
+ output
+ siunits massf transport
+ end

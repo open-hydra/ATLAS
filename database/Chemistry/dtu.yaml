@@ -1173,7 +1173,13 @@ species:
     rotational-relaxation: 1.0
 
 reactions:
-- equation: H + O2 (+ M) <=> HO2 (+ M)  # Reaction 1
+# - equation: H + O2 (+ M) <=> HO2 (+ M)  # Reaction 1, bath: AR
+#   type: falloff
+#   low-P-rate-constant: {A: 9.042e+19, b: -1.50, Ea: 492.2}
+#   high-P-rate-constant: {A: 4.7e+12, b: 0.44, Ea: 0.0}
+#   Troe: {A: 0.5, T3: 1.0e-30, T1: 1.0e+30}
+#   efficiencies: {N2: 1.5, CO: 2.7, CO2: 5.4, H2: 3.0, H2O: 21.0, O2: 1.1}
+- equation: H + O2 (+ M) <=> HO2 (+ M)  # Reaction 1, bath: N2
   type: falloff
   low-P-rate-constant: {A: 6.366e+20, b: -1.72, Ea: 524.8}
   high-P-rate-constant: {A: 4.7e+12, b: 0.44, Ea: 0.0}

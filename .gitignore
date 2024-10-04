@@ -1,0 +1,13 @@
+# test
+test/*.txt
+
+# lib exes
+*.exe
+
+# CMake building directory
+build
+bin
+
+# Miscellanea
+.setvars.sh
+.DS_Store

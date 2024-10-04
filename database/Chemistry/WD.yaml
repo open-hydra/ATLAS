@@ -1,11 +1,11 @@
 
-units: {length: dm, quantity: mol, activation-energy: cal/mol}
+units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
 - name: WD
   thermo: ideal-gas
-  elements: [O, H, C, Ar]
-  species: [CH4, O2, CO2, H2O, CO, Ar]
+  elements: [O, H, C]
+  species: [CH4, O2, CO2, H2O, CO]
   kinetics: gas
   reactions: all
   transport: mixture-averaged
@@ -14,20 +14,6 @@ phases:
     P: 1.01325e+05
 
 species:
-- name: Ar
-  composition: {Ar: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 6000.0]
-    data:
-    - [2.5, 0.0, 0.0, 0.0, 0.0, -745.375, 4.37967491]
-    - [2.5, 0.0, 0.0, 0.0, 0.0, -745.375, 4.37967491]
-  transport:
-    model: gas
-    geometry: atom
-    diameter: 3.33
-    well-depth: 136.5
-  note: REFELEMENTg5/97
 - name: O2
   composition: {O: 2}
   thermo:
@@ -121,9 +107,10 @@ species:
 
 reactions:
 - equation: CH4 + 1.5 O2 => CO + 2 H2O  # Reaction 1
-  rate-constant: {A: 5.0e+11, b: 0, Ea: 47800}
+  rate-constant: {A: 1.59e+13, b: 0, Ea: 47800}
   orders: {CH4: 0.70, O2: 0.80}
 - equation: CO + 0.5 O2 => CO2  # Reaction 2
-  rate-constant: {A: 2.24e+12, b: 0, Ea: 40700}
+  rate-constant: {A: 3.98e+14, b: 0, Ea: 40700}
+  orders: {CO: 1.0, O2: 0.25, H2O: 0.5}
 - equation: CO2 => CO + 0.5 O2  # Reaction 3
-  rate-constant: {A: 5.0e+08, b: -1.0, Ea: 40700}
+  rate-constant: {A: 5.0e+08, b: 0.0, Ea: 40700}
