@@ -45,7 +45,7 @@
 - **Developer**: Gas Research Institute
 - **Number of species**: 53
 - **Number of reactions**: 325 reactions
-- **Temperature range: 1000 to 2500 K
+- **Temperature range**: 1000 to 2500 K
 - **Pressure range**: 10 Torr to 10 atm
 - **Equivalence ratio**: 0.1 to 5
 - **Primary fuels**: Methane (CH₄), ethane (C₂H₆), propane (C₃H₈), and other natural gas components
