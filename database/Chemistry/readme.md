@@ -38,14 +38,16 @@
 
 ## GRI-Mech 3.0 Mechanism
 
-**GRI-Mech 3.0** is a detailed chemical kinetic mechanism developed by the **Gas Research Institute** for the simulation of natural gas combustion. It is specifically designed to model the combustion of methane and its derivatives, providing accurate predictions for various combustion characteristics such as **flame speed**, **ignition delay times**, and **pollutant formation** (e.g., NOx, CO).
+**GRI-Mech 3.0** is a detailed chemical kinetic mechanism developed by the **Gas Research Institute** to simulate natural gas combustion. It is specifically designed to model the combustion of methane and its derivatives, providing accurate predictions for various combustion characteristics such as flame speed, ignition delay times, and pollutant formation (e.g., NOx, CO).
 
 ### Key Features
 
 - **Developer**: Gas Research Institute
 - **Number of species**: 53
 - **Number of reactions**: 325 reactions
-- **Pressure range**: Valid from atmospheric pressure up to several atmospheres (typically 1 to 50 atm)
+- **Temperature range: 1000 to 2500 K
+- **Pressure range**: 10 Torr to 10 atm
+- **Equivalence ratio**: 0.1 to 5
 - **Primary fuels**: Methane (CH₄), ethane (C₂H₆), propane (C₃H₈), and other natural gas components
 
 + GRI (1999). GRI-Mech 3.0: A Detailed Chemical Kinetic Mechanism for the Combustion of Natural Gas http://combustion.berkeley.edu/gri-mech/version30/text30.html
@@ -62,7 +64,7 @@
 - **Number of species**: 53
 - **Number of reactions**: 300+
 - **Pressure range**: Valid from atmospheric pressure up to 50 atm
-- **Primary fuels**: The present release considers the reactions of C0-2 species and combustion targets of H2, H2O2, CO, CH2O, CH4, and a limited set of C2H6 data.  The release should be used for predicting H2, H2/CO, CH2O and CH4 combustion only.
+- **Primary fuels**: The present release considers the reactions of C0-2 species and combustion targets of H2, H2O2, CO, CH2O, CH4, and a limited set of C2H6 data.  The release should only be used for predicting H2, H2/CO, CH2O and CH4 combustion.
 
 + https://web.stanford.edu/group/haiwanglab/FFCM1/
 
@@ -81,8 +83,6 @@ The DTU mechanism is a comprehensive chemical kinetic model developed to accurat
 + H. Hashemi, J. M. Christensen, S. Gersen, H. Levinskyb, S.J. Klippenstein, P. Glarborg, "High-Pressure Oxidation of Methane", Combust. Flame (2016), in Press (doi: 10.1016/j.combustflame.2016.07.016)
 
 + **smooke** 16 species and 35 reactions. Smooke, Mitchell D., ed. Reduced kinetic mechanisms and asymptotic approximations for methane-air flames: a topical volume. Berlin: Springer-Verlag, 1991.
-
-+ **kazakov** 22 species and 104 reactions. http://combustion.berkeley.edu/drm/
 
 # Reduced mechanisms for CH4
 
