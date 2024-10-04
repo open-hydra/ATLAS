@@ -88,13 +88,14 @@ The DTU mechanism is a comprehensive chemical kinetic model developed to accurat
 
 ## CORIA Mechanism
 
-A RAMEC-based reduced chemical mechanism to encompass a very large range of pressure ( P ∈ [1 , 100] bar) and equivalence ratio ( φ ∈ [0 . 2 , 14] ). Validations are performed for a set of canonical test-cases: auto-ignition delay simulation, one-dimensional laminar premixed ﬂame freely propagating and one-dimensional counterﬂow diffusion ﬂame. A very good agreement is obtained by comparison with the RAMEC detailed mechanism.
+A RAMEC-based reduced chemical mechanism to encompass a very large range of pressure and equivalence ratio. Validations are performed for a set of canonical test-cases: auto-ignition delay simulation, one-dimensional laminar premixed ﬂame freely propagating, and one-dimensional counterﬂow diffusion ﬂame. A very good agreement is obtained by comparison with the RAMEC detailed mechanism.
 
 ### Key Features
 
 - **Developer**: CORIA - CNRS, Normandie Université
 - **Number of species**: 17
 - **Number of reactions**: 44
+- **Equivalence ratio**: 0.2 to 14
 - **Pressure range**: Valid from atmospheric pressure up to 100 bar
 - **Primary fuels**: methane
 
