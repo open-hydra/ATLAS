@@ -2,79 +2,79 @@ import cantera as ct
 import numpy as np
 import yaml
 
-def fittatutto (reaction, temperatures,kb_values):
-    from scipy.optimize import curve_fit
+# def fittatutto (reaction, temperatures,kb_values):
+#     from scipy.optimize import curve_fit
 
-    A = reaction.rate.pre_exponential_factor
-    b = reaction.rate.temperature_exponent
-    Ea = reaction.rate.activation_energy  # This is in J/mol (SI units)
+#     A = reaction.rate.pre_exponential_factor
+#     b = reaction.rate.temperature_exponent
+#     Ea = reaction.rate.activation_energy  # This is in J/mol (SI units)
 
-    # Print the parameters
-    print(f"Pre-exponential factor (A): {A:.3e} m^3/mol/s")
-    print(f"Temperature exponent (b): {b}")
-    print(f"Activation energy (Ea): {Ea / 1000:.2f} kJ/mol")  # Convert J/mol to kJ/mol
+#     # Print the parameters
+#     print(f"Pre-exponential factor (A): {A:.3e} m^3/mol/s")
+#     print(f"Temperature exponent (b): {b}")
+#     print(f"Activation energy (Ea): {Ea / 1000:.2f} kJ/mol")  # Convert J/mol to kJ/mol
 
-    # Gas constant in J/(mol*K)
-    R = ct.gas_constant
+#     # Gas constant in J/(mol*K)
+#     R = ct.gas_constant
 
-    # Use logarithmic form to improve fitting stability
-    log_kb_values = np.log(kb_values)
+#     # Use logarithmic form to improve fitting stability
+#     log_kb_values = np.log(kb_values)
 
-    # Define the Arrhenius equation in logarithmic form
-    def log_arrhenius(T, log_A_b, n_b, E_a_b):
-        return log_A_b + n_b * np.log(T) - E_a_b / (R * T)
+#     # Define the Arrhenius equation in logarithmic form
+#     def log_arrhenius(T, log_A_b, n_b, E_a_b):
+#         return log_A_b + n_b * np.log(T) - E_a_b / (R * T)
 
-    # Initial guess for the Arrhenius parameters (log_A_b, n_b, E_a_b)
-    initial_guess = [np.log(1e12), -1.0, 50000]  # Rough initial guesses
+#     # Initial guess for the Arrhenius parameters (log_A_b, n_b, E_a_b)
+#     initial_guess = [np.log(1e12), -1.0, 50000]  # Rough initial guesses
 
-    # Increase the maximum function evaluations to help convergence
-    maxfev = 7000
+#     # Increase the maximum function evaluations to help convergence
+#     maxfev = 7000
 
-    # Add tolerances (ftol, xtol, gtol) for better control of the fit
-    tolerances = {
-        'ftol': 1e-15,  # Adjust this for the absolute error tolerance in the residual sum of squares
-        'xtol': 1e-15,  # Adjust this for the relative error tolerance in the solution
-        'gtol': 1e-15,  # Adjust this for the orthogonality tolerance
-    }
+#     # Add tolerances (ftol, xtol, gtol) for better control of the fit
+#     tolerances = {
+#         'ftol': 1e-15,  # Adjust this for the absolute error tolerance in the residual sum of squares
+#         'xtol': 1e-15,  # Adjust this for the relative error tolerance in the solution
+#         'gtol': 1e-15,  # Adjust this for the orthogonality tolerance
+#     }
 
-    # Fit the curve to the data using the logarithmic form of the Arrhenius equation with adjusted tolerances
-    params, covariance = curve_fit(
-        log_arrhenius, temperatures, log_kb_values, 
-        p0=initial_guess, maxfev=maxfev, method='trf',
-        ftol=tolerances['ftol'], xtol=tolerances['xtol'], gtol=tolerances['gtol']
-    )
+#     # Fit the curve to the data using the logarithmic form of the Arrhenius equation with adjusted tolerances
+#     params, covariance = curve_fit(
+#         log_arrhenius, temperatures, log_kb_values, 
+#         p0=initial_guess, maxfev=maxfev, method='trf',
+#         ftol=tolerances['ftol'], xtol=tolerances['xtol'], gtol=tolerances['gtol']
+#     )
 
-    # Extract fitted parameters and convert log_A_b back to A_b
-    log_A_b_fitted, n_b_fitted, E_a_b_fitted = params
-    A_b_fitted = np.exp(log_A_b_fitted)  # Convert back to A_b from log(A_b)
+#     # Extract fitted parameters and convert log_A_b back to A_b
+#     log_A_b_fitted, n_b_fitted, E_a_b_fitted = params
+#     A_b_fitted = np.exp(log_A_b_fitted)  # Convert back to A_b from log(A_b)
 
-    # Print the fitted Arrhenius parameters
-    print(f"Fitted backward pre-exponential factor (A_b): {A_b_fitted:.3e} m^3/mol/s")
-    print(f"Fitted backward temperature exponent (n_b): {n_b_fitted:.3f}")
-    print(f"Fitted backward activation energy (E_a_b): {E_a_b_fitted / 1000:.3f} kJ/mol")
-    # Convert A_b from m^3/mol/s to cm^3/mol/s
-    A_b_fitted_cm = A_b_fitted * 1e6
-    # Convert E_a_b from kJ/mol to cal/mol
-    E_a_b_fitted_cal = (E_a_b_fitted / 1000) * 239.005736
-    # Print the converted values
-    print(f"Fitted backward pre-exponential factor (A_b): {A_b_fitted_cm:.3e} cm^3/mol/s")
-    print(f"Fitted backward temperature exponent (n_b): {n_b_fitted:.3f}")
-    print(f"Fitted backward activation energy (E_a_b): {E_a_b_fitted_cal:.3f} cal/mol")
-    # Convert activation energy to Kelvin (divide by R)
-    activation_energy_K = E_a_b_fitted / R
-    print(f"Fitted backward activation energy (E_a_b) in Kelvin: {activation_energy_K:.3f} K")
-    # Predicted backward rate constants using the fitted parameters
-    kb_fitted_values = np.exp(log_arrhenius(temperatures, log_A_b_fitted, n_b_fitted, E_a_b_fitted))
-    import matplotlib.pyplot as plt
-    # Plot the original vs fitted backward rate constants
-    #plt.plot(temperatures, kb_values, 'o', label='Original kb values')
-    #plt.plot(temperatures, kb_fitted_values, '-', label='Fitted kb values')
-    plt.plot(temperatures, (kb_fitted_values-kb_values)/kb_values*100, '-', label='Fitted kb values')
-    plt.xlabel('Temperature (K)')
-    plt.ylabel('kb (m^3/mol/s)')
-    plt.legend()
-    plt.title('Original vs Fitted Backward Rate Constants')
-    plt.show()
+#     # Print the fitted Arrhenius parameters
+#     print(f"Fitted backward pre-exponential factor (A_b): {A_b_fitted:.3e} m^3/mol/s")
+#     print(f"Fitted backward temperature exponent (n_b): {n_b_fitted:.3f}")
+#     print(f"Fitted backward activation energy (E_a_b): {E_a_b_fitted / 1000:.3f} kJ/mol")
+#     # Convert A_b from m^3/mol/s to cm^3/mol/s
+#     A_b_fitted_cm = A_b_fitted * 1e6
+#     # Convert E_a_b from kJ/mol to cal/mol
+#     E_a_b_fitted_cal = (E_a_b_fitted / 1000) * 239.005736
+#     # Print the converted values
+#     print(f"Fitted backward pre-exponential factor (A_b): {A_b_fitted_cm:.3e} cm^3/mol/s")
+#     print(f"Fitted backward temperature exponent (n_b): {n_b_fitted:.3f}")
+#     print(f"Fitted backward activation energy (E_a_b): {E_a_b_fitted_cal:.3f} cal/mol")
+#     # Convert activation energy to Kelvin (divide by R)
+#     activation_energy_K = E_a_b_fitted / R
+#     print(f"Fitted backward activation energy (E_a_b) in Kelvin: {activation_energy_K:.3f} K")
+#     # Predicted backward rate constants using the fitted parameters
+#     kb_fitted_values = np.exp(log_arrhenius(temperatures, log_A_b_fitted, n_b_fitted, E_a_b_fitted))
+#     import matplotlib.pyplot as plt
+#     # Plot the original vs fitted backward rate constants
+#     #plt.plot(temperatures, kb_values, 'o', label='Original kb values')
+#     #plt.plot(temperatures, kb_fitted_values, '-', label='Fitted kb values')
+#     plt.plot(temperatures, (kb_fitted_values-kb_values)/kb_values*100, '-', label='Fitted kb values')
+#     plt.xlabel('Temperature (K)')
+#     plt.ylabel('kb (m^3/mol/s)')
+#     plt.legend()
+#     plt.title('Original vs Fitted Backward Rate Constants')
+#     plt.show()
 
 
 
@@ -165,16 +165,12 @@ def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
         for i in range(phase.n_reactions):
             f.write(f"ZONE T=Reaction{i+1}\n")
             f.write(f"I={len(temperatures)}, F=POINT\n")
-            #kb_values = []
             for T in temperatures:
                 phase.TP = T, ct.one_atm
                 forward_rate = phase.forward_rate_constants[i]
                 reverse_rate = phase.reverse_rate_constants[i]
-                #kb_values.append(reverse_rate)
                 f.write(f'{T:<12}  {forward_rate:.20E}    {reverse_rate:.20E}\n')
 
-            # if i==3:
-            #     fittatutto(phase.reaction(i),temperatures,kb_values)
 
     filename_ = name + '-chemistry-stoich.txt'
     with open(filename_, mode='w') as file:

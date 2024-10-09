@@ -11,7 +11,7 @@ input-files: [skeletal_N24_R110.cti]
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: skeletal_N24_R110
+- name: TSR-GP-24
   thermo: ideal-gas
   elements: [H, O, C]
   species: [HO2, H2O2, CO, OH, H2, HCO, CH3O, CH2(S), H, O, C3H2, CH3, C2H2,

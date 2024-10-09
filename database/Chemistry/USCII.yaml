@@ -9,7 +9,7 @@ input-files: [usc.cti]
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: gas
+- name: USC Mech II
   thermo: ideal-gas
   elements: [O, H, C, N, Ar]
   species: [AR, N2, H, O, OH, HO2, H2, H2O, H2O2, O2, C, CH, CH2, CH2*,

@@ -1,80 +1,115 @@
-from pathlib import Path
 import cantera as ct
 import matplotlib.pyplot as plt
+from pint import UnitRegistry
+import os, sys
+import re
+masterpath = os.environ.get("ATLASDIR")
+if masterpath is None:
+    print("ATLAS environment variable is not set.")
+    sys.exit(1)
+datapath = masterpath + '/database/'
+ct.add_directory(datapath+'Thermo')
+ct.add_directory(datapath+'Chemistry')
+
+# for convenience:
+def to_si(quant):
+    '''Converts a Pint Quantity to magnitude at base SI units.
+    '''
+    return quant.to_base_units().magnitude
 
 
-# Input parameters
-p = ct.one_atm  # pressure
-tin_f = 300.0  # fuel inlet temperature
-tin_o = 300.0  # oxidizer inlet temperature
-mdot_o = 0.72  # kg/m^2/s
-mdot_f = 0.24  # kg/m^2/s
+def define_model(model):
+    # Load the original chemical mechanism
+    original_mechanism = ct.Solution(model+'.yaml')
+    # List of original species
+    original_species = original_mechanism.species()
+    new_species = original_species.copy()
 
-comp_o = 'O2:0.21, N2:0.78, AR:0.01'  # air composition
-comp_f = 'C2H6:1'  # fuel composition
+    nasa_gas = ct.Species.list_from_file('gri30.yaml')
 
-width = 0.02  # Distance between inlets is 2 cm
+    # Find and add N2 species from nasa_gas if missing
+    if 'N2' not in original_mechanism.species_names:
+        N2_species = next((species for species in nasa_gas if species.name == 'N2'), None)
+        if N2_species:
+            new_species.append(N2_species)
 
-loglevel = 1  # amount of diagnostic output (0 to 5)
+    # Find and add Ar species from nasa_gas if missing
+    if 'AR' not in original_mechanism.species_names:
+        Ar_species = next((species for species in nasa_gas if species.name == 'AR'), None)
+        if Ar_species:
+            new_species.append(Ar_species)
 
-# Create the gas object used to evaluate all thermodynamic, kinetic, and
-# transport properties.
-gas = ct.Solution('gri30.yaml')
-gas.TP = gas.T, p
+    # Create a new Solution with the combined species list and the original reactions
+    new_mechanism = ct.Solution(thermo='ideal-gas', species=new_species, kinetics='gas', reactions=original_mechanism.reactions())
+    new_mechanism.transport_model = original_mechanism.transport_model
+    new_mechanism.name = original_mechanism.name
 
-# Create an object representing the counterflow flame configuration,
-# which consists of a fuel inlet on the left, the flow in the middle,
-# and the oxidizer inlet on the right.
-f = ct.CounterflowDiffusionFlame(gas, width=width)
+    return new_mechanism
 
-# Set the state of the two inlets
-f.fuel_inlet.mdot = mdot_f
-f.fuel_inlet.X = comp_f
-f.fuel_inlet.T = tin_f
 
-f.oxidizer_inlet.mdot = mdot_o
-f.oxidizer_inlet.X = comp_o
-f.oxidizer_inlet.T = tin_o
+def counterflow(model, fuel_string, oxi_string, pressure, of, mtot, width):
 
-# Set the boundary emissivities
-f.boundary_emissivities = 0.0, 0.0
-# Turn radiation off
-f.radiation_enabled = False
+    ureg = UnitRegistry()
+    Q_ = ureg.Quantity
 
-f.set_refine_criteria(ratio=4, slope=0.2, curve=0.3, prune=0.04)
+    # Input parameters
+    tin_f = Q_(float(fuel_string[0]), 'K')
+    tin_o = Q_(float(oxi_string[0]), 'K')
+    p = Q_(pressure, 'bar')
+    oxi_composition = re.findall(r'{(.*?):(.*?)}', oxi_string[1])
+    oxi_dict = {species: float(value) for species, value in oxi_composition}
+    fuel_composition = re.findall(r'{(.*?):(.*?)}', fuel_string[1])
+    fuel_dict = {species: float(value) for species, value in fuel_composition}
+    mdot_o = mtot*of/(1+of)
+    mdot_f = mtot-mdot_o
 
-# Solve the problem
-f.solve(loglevel, auto=True)
-f.show()
+    loglevel = 0  # amount of diagnostic output (0 to 5)
 
-if "native" in ct.hdf_support():
-    output = Path() / "diffusion_flame.h5"
-else:
-    output = Path() / "diffusion_flame.yaml"
-output.unlink(missing_ok=True)
+    gas = define_model(model)
+    gas.TP = 300.0, to_si(p)
 
-f.save(output)
+    # Create an object representing the counterflow flame configuration,
+    # which consists of a fuel inlet on the left, the flow in the middle,
+    # and the oxidizer inlet on the right.
+    f = ct.CounterflowDiffusionFlame(gas, width=width)
 
-# write the velocity, temperature, and mole fractions to a CSV file
-f.save('diffusion_flame.csv', basis="mole", overwrite=True)
+    # Set the state of the two inlets
+    f.fuel_inlet.mdot = mdot_f
+    f.fuel_inlet.Y = fuel_dict
+    f.fuel_inlet.T = to_si(tin_f)
 
-f.show_stats(0)
+    f.oxidizer_inlet.mdot = mdot_o
+    f.oxidizer_inlet.Y = oxi_dict
+    f.oxidizer_inlet.T = to_si(tin_o)
 
-# Plot Temperature without radiation
-figTemperatureModifiedFlame = plt.figure()
-plt.plot(f.flame.grid, f.T, label='Temperature without radiation')
-plt.title('Temperature of the flame')
-plt.ylim(0,2500)
-plt.xlim(0.000, 0.020)
+    # Set the boundary emissivities
+    f.boundary_emissivities = 0.0, 0.0
+    # Turn radiation on
+    f.radiation_enabled = True
 
-# Turn on radiation and solve again
-f.radiation_enabled = True
-f.solve(loglevel=1, refine_grid=False)
-f.show()
+    f.set_refine_criteria(ratio=2, slope=0.2, curve=0.3, prune=0.04)
 
-# Plot Temperature with radiation
-plt.plot(f.flame.grid, f.T, label='Temperature with radiation')
-plt.legend()
-plt.legend(loc=2)
-plt.show()
-#plt.savefig('./diffusion_flame.pdf')
+    # Solve the problem
+    f.solve(loglevel, auto=True)
+
+    # output = "diffusion_flame.yaml"
+    # output.unlink(missing_ok=True)
+    # f.save(output)
+    # # write the velocity, temperature, and mass fractions to a CSV file
+    # f.save('diffusion_flame.csv', basis="mass", overwrite=True)
+
+    #f.show_stats(0)
+    return f.flame.grid, f.T
+
+
+def run_all(models, fuel_string, oxi_string, pressure, of, mdot, width):
+   
+    x = {}; T = {}
+    for model in models:
+        x[model] = []; T[model] = []
+        print(model)
+        x_, T_ = counterflow(model, fuel_string, oxi_string, pressure, of, mdot, width)
+        x[model] = x_
+        T[model] = T_
+
+    return x, T

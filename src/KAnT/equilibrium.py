@@ -66,7 +66,7 @@ def equilibrium(model, fuel_string, oxi_string, pressure, of):
     return products
 
 
-def run_all_equilibria(models, fuel_string, oxi_string, pressure, mixture_ratio):
+def run_all(models, fuel_string, oxi_string, pressure, mixture_ratio):
    
     Ta = {}
     for model in models:
@@ -78,13 +78,3 @@ def run_all_equilibria(models, fuel_string, oxi_string, pressure, mixture_ratio)
 
     return Ta
 
-# # Create arrays to hold the data
-# tad = np.zeros((len(mech), npoints))
-# yeq = np.zeros((len(mech), len(out_species), npoints))
-
-# for m in range(len(mech)):
-#     for i in range(npoints):
-#         gas = compute_equilibrium(mech=mech[m], pressure=pressure, OF=OF[i], T=Temperature, OFs=4)
-#         tad[m,i] = gas.T
-#         print('At phi = {0:12.4g}, Tad = {1:12.4g}'.format(OF[i], tad[m,i]))
-#         yeq[m, :, i] = gas[out_species].Y

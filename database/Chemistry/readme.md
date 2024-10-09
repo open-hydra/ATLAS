@@ -1,6 +1,6 @@
 # Detailed mechanisms for C1-C4
 
-## Aramco 2.0 and Aramco 3.0 Mechanisms
+## Aramco Mechanisms
 
 **Aramco 2.0** and **Aramco 3.0** are detailed chemical kinetic mechanisms developed for modeling the combustion of hydrocarbon fuels, particularly relevant to aviation and engine applications. These mechanisms provide comprehensive reaction sets for a wide range of fuel compositions, including Jet A, kerosene, and other alkanes.
 
@@ -36,6 +36,21 @@
 
 + Hai Wang, Xiaoqing You, Ameya V. Joshi, Scott G. Davis, Alexander Laskin, Fokion Egolfopoulos & Chung K. Law,  USC Mech Version II. High-Temperature Combustion Reaction Model of H2/CO/C1-C4 Compounds. http://ignis.usc.edu/USC_Mech_II.htm, May 2007.
 
+## UCSD Chemical Kinetic Mechanism
+
+The **UC San Diego (UCSD) Chemical Kinetic Mechanism** is a detailed reaction model for the combustion of hydrocarbon fuels. This mechanism, developed by researchers at the Combustion Research Group at UC San Diego, is widely used in combustion simulations, especially for understanding combustion behavior of various fuels.
+
+### Key Features
+
+- **Developer**: University of California San Diego
+- **Number of species**: 57
+- **Number of reactions**: 268
+- **Pressure range**: Suitable for a wide range of pressures, including high-pressure combustion
+- **Primary fuels**: Methane, Ethane, Propane, Butane, Hydrogen, Syngas, and other hydrocarbons
+
++ "Chemical-Kinetic Mechanisms for Combustion Applications", San Diego Mechanism web page, Mechanical and Aerospace Engineering (Combustion Research), University of California at San Diego (http://combustion.ucsd.edu).
+
+
 ## GRI-Mech 3.0 Mechanism
 
 **GRI-Mech 3.0** is a detailed chemical kinetic mechanism developed by the **Gas Research Institute** to simulate natural gas combustion. It is specifically designed to model the combustion of methane and its derivatives, providing accurate predictions for various combustion characteristics such as flame speed, ignition delay times, and pollutant formation (e.g., NOx, CO).
@@ -52,21 +67,33 @@
 
 + GRI (1999). GRI-Mech 3.0: A Detailed Chemical Kinetic Mechanism for the Combustion of Natural Gas http://combustion.berkeley.edu/gri-mech/version30/text30.html
 
+
+
 # Detailed mechanisms for CH4
 
-## Foundational Fuel Chemistry Model (FFCM-1)
+## Foundational Fuel Chemistry Models
 
-**FFCM-1** (Foundational Fuel Chemistry Model) is a detailed chemical kinetic reaction model developed through a collaboration between Hai Wang's research group at Stanford University and Gregory Smith of SRI International. This model aims to advance the understanding of combustion processes for small hydrocarbon fuels by employing up-to-date kinetic knowledge with well-defined predictive uncertainties.
+The Foundational Fuel Chemistry Model is a detailed chemical kinetic reaction model developed through a collaboration between Hai Wang's research group at Stanford University and Gregory Smith of SRI International. This model aims to advance the understanding of combustion processes for small hydrocarbon fuels by employing up-to-date kinetic knowledge with well-defined predictive uncertainties. The FFCM Version 2 (FFCM-2) extends from the previous FFCM Version 1 (FFCM-1) effort to cover a wider range of relevant C0-C4 fuels.
 
 ### Key Features
 
-- **Developer**: Stanford University and SRI International
-- **Number of species**: 53
-- **Number of reactions**: 300+
-- **Pressure range**: Valid from atmospheric pressure up to 50 atm
-- **Primary fuels**: The present release considers the reactions of C0-2 species and combustion targets of H2, H2O2, CO, CH2O, CH4, and a limited set of C2H6 data.  The release should only be used for predicting H2, H2/CO, CH2O and CH4 combustion.
+- **FFCM-1**
+  - **Developer**: Stanford University and SRI International
+  - **Number of species**: 53
+  - **Number of reactions**: 300+
+  - **Pressure range**: Valid from atmospheric pressure up to 50 atm
+  - **Primary fuels**: C0-2 species and combustion targets of H2, H2O2, CO, CH2O, CH4, and a limited set of C2H6 data.  The release should only be used for predicting H2, H2/CO, CH2O and CH4 combustion.
+
+- **FFCM-2**
+  - **Developer**: Stanford University and SRI International
+  - **Number of species**: 96
+  - **Number of reactions**: 1054
+  - **Pressure range**: Valid from atmospheric pressure up to 50 atm
+  - **Primary fuels**:  C0-C4 fuels
 
 + https://web.stanford.edu/group/haiwanglab/FFCM1/
+
++ https://web.stanford.edu/group/haiwanglab/FFCM2/
 
 ## DTU Mechanism
 
@@ -82,9 +109,22 @@ The DTU mechanism is a comprehensive chemical kinetic model developed to accurat
 
 + H. Hashemi, J. M. Christensen, S. Gersen, H. Levinskyb, S.J. Klippenstein, P. Glarborg, "High-Pressure Oxidation of Methane", Combust. Flame (2016), in Press (doi: 10.1016/j.combustflame.2016.07.016)
 
-+ **smooke** 16 species and 35 reactions. Smooke, Mitchell D., ed. Reduced kinetic mechanisms and asymptotic approximations for methane-air flames: a topical volume. Berlin: Springer-Verlag, 1991.
+
 
 # Reduced mechanisms for CH4
+
+## Smooke Mechanism
+
+A reduced kinetic mechanisms for methane-air flames
+
+### Key Features
+
+- **Developer**:
+- **Number of species**: 16
+- **Number of reactions**: 35
+- **Primary fuels**: methane
+
++ Smooke, Mitchell D., ed. Reduced kinetic mechanisms and asymptotic approximations for methane-air flames: a topical volume. Berlin: Springer-Verlag, 1991.
 
 ## CORIA Mechanism
 

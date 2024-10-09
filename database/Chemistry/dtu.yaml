@@ -6,7 +6,7 @@ input-files: [hashemi2016_methane.cti]
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: gas
+- name: DTU
   thermo: ideal-gas
   elements: [H, O, C, N, Ar, He]
   species: [H, H2, HE, O, OH, H2O, N2, O2, HO2, H2O2, AR, C, CH, CH2, CH2(S),

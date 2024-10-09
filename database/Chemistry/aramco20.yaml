@@ -9,7 +9,7 @@ input-files: [aramco2.cti]
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: gas
+- name: Aramco 2.0
   thermo: ideal-gas
   elements: [C, H, N, O, Ar, He]
   species: [AR, N2, HE, H2, H, O2, O, H2O, OH, OHV, H2O2, HO2, CO, CO2,

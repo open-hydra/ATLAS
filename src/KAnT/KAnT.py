@@ -1,17 +1,15 @@
 ##################################################################
 #          KAnT.py - chemical Kinetic Analyzer and Tester        #
 ##################################################################
-from equilibrium import *
+import equilibrium
 import ignition_delay
+import counterflow_diffusion_flame
 from Read_INI import *
+from Write_TEC import *
 from plot import *
 import cases
 import sys
 import matplotlib.pyplot as plt
-#plt.ion()
-
-# Create a figure and axes object
-fig, ax = plt.subplots()
 
 # Input file definition
 inifile = 'input.ini'
@@ -23,14 +21,21 @@ for analysis in analyses:
     if 'Equilibrium' in analysis:
         fuel, oxi, pressure, of = read_Xequilibrium(inifile,'KAnT-Equilibrium')
         models = read_reactions(inifile,'KAnT-Equilibrium')
-        Ta = run_all_equilibria(models,fuel,oxi,pressure,of)
+        Ta = equilibrium.run_all(models,fuel,oxi,pressure,of)
 
+        # Write output
+        if len(of)>1 and len(pressure)==1:
+            write_1D(models, of, Ta, 'Mixture Ratio', 'Adiabatic Flame Temperature, K')
+        elif len(pressure)>1 and len(of)==1:
+            write_1D(models, pressure, Ta, 'Chamber Pressure, bar', 'Adiabatic Flame Temperature, K')
+
+        # Plot output (if requested)
         if '--plot' in sys.argv:
             if len(of)>1 and len(pressure)==1: 
                 plot_1D(models, of, Ta, 'Mixture Ratio', 'Adiabatic Flame Temperature, K',False)
             elif len(pressure)>1 and len(of)==1:
                 plot_1D(models, pressure, Ta, 'Pressure Chamber, bar', 'Adiabatic Flame Temperature, K',False)
-            else:
+            elif len(pressure)>1 and len(of)>1:
                 plot_2D(of, pressure, Ta)
 
     if 'Ignition' in analysis:
@@ -38,6 +43,15 @@ for analysis in analyses:
         models = read_reactions(inifile,'KAnT-Ignition')
         tau = ignition_delay.run_all(models,fuel,oxi,pressure,of,temperatures)
 
+        # Write output
+        if len(pressure)==1 and len(of)>1 and len(temperatures)==1:
+            write_1D(models, of, tau, 'Mixture Ratio', 'Ignition Delay, s')
+        elif len(pressure)>1 and len(of)==1 and len(temperatures)==1:
+            write_1D(models, pressure, tau, 'Chamber Pressure, bar', 'Ignition Delay, s')
+        elif len(pressure)==1 and len(of)==1 and len(temperatures)>1:
+            write_1D(models, temperatures, tau, 'Initial Temperature, K', 'Ignition Delay, s')
+
+        # Plot output (if requested)
         if '--plot' in sys.argv:
             if len(pressure)==1 and len(of)>1 and len(temperatures)==1: 
                 plot_1D(models, of, tau, 'Mixture Ratio', 'Ignition Delay, s',True)
@@ -45,9 +59,19 @@ for analysis in analyses:
                 plot_1D(models, pressure, tau, 'Chamber Pressure, bar', 'Ignition Delay, s',True)
             elif len(pressure)==1 and len(of)==1 and len(temperatures)>1:
                 plot_1D(models, temperatures, tau, 'Initial Temperature, K', 'Ignition Delay, s',True)
-            else:
-                plot_2D(of, pressure, Ta)
 
             if case is not None: cases.plot_cases(case)
+
+    if 'Counterflow' in analysis:
+        fuel, oxi, pressure, of, mdot, width = read_Xcounterflow(inifile,'KAnT-Counterflow')
+        models = read_reactions(inifile,'KAnT-Counterflow')
+        x, T = counterflow_diffusion_flame.run_all(models, fuel, oxi, pressure, of, mdot, width)
+
+        # Write output
+        write_1D(models, x, T, 'x', 'Temperature, K')
+
+        # Plot output (if requested)
+        if '--plot' in sys.argv:
+            plot_1D(models, x, T, 'x', 'Temperature, K', False)
 
 if '--plot' in sys.argv: plt.show()

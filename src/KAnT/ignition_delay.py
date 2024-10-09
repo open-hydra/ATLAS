@@ -41,6 +41,34 @@ def ignition_delay(states, initial_temp, delta_temp=300.0):
     return np.nan
 
 
+def define_model(model):     
+    # Load the original chemical mechanism
+    original_mechanism = ct.Solution(model+'.yaml')
+    # List of original species
+    original_species = original_mechanism.species()
+    new_species = original_species.copy()
+
+    nasa_gas = ct.Species.list_from_file('nasa_gas.yaml')
+
+    # Find and add N2 species from nasa_gas if missing
+    if 'N2' not in original_mechanism.species_names:
+        N2_species = next((species for species in nasa_gas if species.name == 'N2'), None)
+        if N2_species:
+            new_species.append(N2_species)
+
+    # Find and add Ar species from nasa_gas if missing
+    if 'Ar' not in original_mechanism.species_names:
+        Ar_species = next((species for species in nasa_gas if species.name == 'Ar'), None)
+        if Ar_species:
+            new_species.append(Ar_species)
+
+    # Create a new Solution with the combined species list and the original reactions
+    new_mechanism = ct.Solution(thermo='ideal-gas', kinetics='gas', species=new_species, reactions=original_mechanism.reactions())
+    new_mechanism.name = original_mechanism.name
+
+    return new_mechanism
+
+
 def setup_mixture(gas, fuel_comp, oxi_comp, mr):
     """
     Set the gas state according to the mixture ratio and component compositions.
@@ -103,29 +131,7 @@ def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatu
 
     for model in models:
 
-        # Load the original chemical mechanism
-        original_mechanism = ct.Solution(model+'.yaml')
-        # List of original species
-        original_species = original_mechanism.species()
-        new_species = original_species.copy()
-
-        nasa_gas = ct.Species.list_from_file('nasa_gas.yaml')
-
-        # Find and add N2 species from nasa_gas if missing
-        if 'N2' not in original_mechanism.species_names:
-            N2_species = next((species for species in nasa_gas if species.name == 'N2'), None)
-            if N2_species:
-                new_species.append(N2_species)
-
-        # Find and add Ar species from nasa_gas if missing
-        if 'Ar' not in original_mechanism.species_names:
-            Ar_species = next((species for species in nasa_gas if species.name == 'Ar'), None)
-            if Ar_species:
-                new_species.append(Ar_species)
-
-        # Create a new Solution with the combined species list and the original reactions
-        new_mechanism = ct.Solution(thermo='ideal-gas', kinetics='gas', species=new_species, reactions=original_mechanism.reactions())
-
+        new_mechanism = define_model(model)
         ignition_times[model] = []
         ignition_temperatures[model] = []
 
@@ -136,7 +142,10 @@ def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatu
                 for mr in mixture_ratio:
 
                     setup_mixture(new_mechanism, fuel_dict, oxi_dict, mr)
+                    #new_mechanism.X = 'CH4:0.120, O2:0.185, N2:0.695'
                     new_mechanism.TP = temperature, to_si(pressure_chamber)
+                    #print(new_mechanism.Y)
+                    #exit()
 
                     r = ct.IdealGasReactor(contents=new_mechanism, name="Batch Reactor")
                     reactor_network = ct.ReactorNet([r])

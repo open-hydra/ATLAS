@@ -8,7 +8,7 @@ input-files: [skeletal_N11_R22.inp]
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: skeletal_N11_R22
+- name: TSR-PSR-11
   thermo: ideal-gas
   elements: [H, O, C]
   species: [H2, O2, H, H2O, OH, CH4, CH3, CH2O, CO, O, CO2]

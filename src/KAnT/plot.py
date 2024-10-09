@@ -20,7 +20,11 @@ def plot_1D(models, x, y, xlabel, ylabel, logy):
     for model in models:
         random_styles[model] = get_random_style()  # Store the random style for reuse   
         random_style = random_styles[model]
-        plt.plot(x, y[model],
+        if isinstance(x, np.ndarray):
+            xx = x
+        else:
+            xx = x[model]
+        plt.plot(xx, y[model],
             label=model,  # Label the model by its name
             linestyle=random_style['linestyle'], 
             marker=random_style['marker'], 
@@ -70,6 +74,3 @@ def plot_2D(mixture_ratio, pressure, Ta):
     # Add a legend manually, since `plot_surface()` doesn't support labels directly
     handles = [plt.Line2D([0], [0], color=plt.cm.viridis(i / len(Ta)), lw=4) for i in range(len(Ta))]
     ax.legend(handles, Ta.keys(), loc='upper left')
-
-    # Show the plot
-    plt.show()

@@ -6,7 +6,7 @@ input-files: [CH4_Smooke_s16r35.cti]
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: gas
+- name: Smooke
   thermo: ideal-gas
   elements: [O, H, C, N]
   species: [CH4, H2, O2, O, H, OH, HO2, H2O2, H2O, CO, CH3, CH2O, HCO, CH3O,

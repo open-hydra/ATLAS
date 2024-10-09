@@ -8,7 +8,7 @@ input-files: [skeletal_N13_R46.txt]
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: skeletal_N13_R46
+- name: TSR-CDF-13
   thermo: ideal-gas
   elements: [H, O, C]
   species: [OH, HO2, H2, CO2, CO, H2O, CH4, H, CH3, O2, CH2O, HCO, O]
