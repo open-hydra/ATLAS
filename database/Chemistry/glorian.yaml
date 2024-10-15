@@ -1,0 +1,134 @@
+units:
+  length: cm
+  quantity: mol
+  activation-energy: cal/mol
+  time: s
+
+phases:
+- name: gas
+  species: [Al, O2, AlO, M, Al2O, Al2O2, Al2O3, AlOH, AlH, AlH3, H2O, H2, CO]
+  reactions: all
+
+species:
+# List all species here. Example:
+- name: Al
+  composition: {Al: 1}
+- name: O2
+  composition: {O: 2}
+- name: AlO
+  composition: {Al: 1, O: 1}
+- name: Al2O
+  composition: {Al: 2, O: 1}
+- name: Al2O2
+  composition: {Al: 2, O: 2}
+- name: Al2O3
+  composition: {Al: 2, O: 3}
+- name: AlOH
+  composition: {Al: 1, O: 1, H: 1}
+- name: AlH
+  composition: {Al: 1, H: 1}
+- name: AlH3
+  composition: {Al: 1, H: 3}
+- name: H2O
+  composition: {H: 2, O: 1}
+- name: H2
+  composition: {H: 2}
+- name: CO
+  composition: {C: 1, O: 1}
+
+reactions:
+- equation: "Al + O2 <=> AlO + O"
+  type: elementary
+  rate-constant: {A: 9.7200e+13, b: 0.0, Ea: 15995.0}
+  
+- equation: "Al + O + M <=> AlO + M"
+  type: three-body
+  rate-constant: {A: 3.0000e+17, b: -1.0, Ea: 0.0}
+
+- equation: "AlO + O2 <=> AlO2 + O"
+  type: elementary
+  rate-constant: {A: 4.6200e+14, b: 0.0, Ea: 19886.0}
+
+- equation: "Al2O3 <=> Al2O2 + O"
+  type: elementary
+  rate-constant: {A: 3.0000e+15, b: 0.0, Ea: 9765.0}
+
+- equation: "Al2O3 <=> AlO2 + AlO"
+  type: elementary
+  rate-constant: {A: 3.0000e+15, b: 0.0, Ea: 127000.0}
+
+- equation: "Al2O2 <=> AlO + AlO"
+  type: elementary
+  rate-constant: {A: 1.0000e+15, b: 0.0, Ea: 117900.0}
+
+- equation: "Al2O <=> Al + AlO2"
+  type: elementary
+  rate-constant: {A: 1.0000e+15, b: 0.0, Ea: 148900.0}
+
+- equation: "Al2O2 <=> Al2O + O"
+  type: elementary
+  rate-constant: {A: 1.0000e+15, b: 0.0, Ea: 104250.0}
+
+- equation: "AlO2 <=> AlO + O"
+  type: elementary
+  rate-constant: {A: 1.0000e+15, b: 0.0, Ea: 85550.0}
+
+- equation: "Al2O <=> AlO + Al"
+  type: elementary
+  rate-constant: {A: 1.0000e+15, b: 0.0, Ea: 133200.0}
+
+- equation: "AlOH <=> AlO + H"
+  type: elementary
+  rate-constant: {A: 1.0000e+15, b: 0.0, Ea: 114750.0}
+
+- equation: "AlOH <=> Al + OH"
+  type: elementary
+  rate-constant: {A: 1.0000e+15, b: 0.0, Ea: 132000.0}
+
+- equation: "Al + H2O <=> H + AlOH"
+  type: elementary
+  rate-constant: {A: 1.1400e+12, b: 0.0, Ea: 8798.0}
+
+- equation: "Al + H2O <=> AlO + H2"
+  type: elementary
+  rate-constant: {A: 9.6000e+13, b: 0.0, Ea: 5700.0}
+
+- equation: "AlO + CO2 <=> AlO2 + CO"
+  type: elementary
+  rate-constant: {A: 1.5000e+14, b: 0.0, Ea: -794.8}
+
+- equation: "AlH + CO2 <=> AlO + CO"
+  type: elementary
+  rate-constant: {A: 1.7400e+14, b: 0.0, Ea: 64000.0}
+
+- equation: "AlH3 + H <=> AlH2 + H2"
+  type: elementary
+  rate-constant: {A: 4.7500e+09, b: 0.0, Ea: 0.0}
+
+- equation: "AlH2 + H <=> AlH + H + M"
+  type: three-body
+  rate-constant: {A: 1.4600e+15, b: 0.0, Ea: 46448.0}
+
+- equation: "AlH3 + M <=> AlH + H2 + M"
+  type: three-body
+  rate-constant: {A: 1.4800e+13, b: 0.0, Ea: 61112.0}
+
+- equation: "AlH + H + M <=> AlH + M"
+  type: three-body
+  rate-constant: {A: 1.6000e+17, b: 0.0, Ea: 0.0}
+
+- equation: "AlH + H <=> Al + H2"
+  type: elementary
+  rate-constant: {A: 1.0000e+13, b: 0.0, Ea: 0.0}
+
+- equation: "AlH2 + H <=> AlH + H2"
+  type: elementary
+  rate-constant: {A: 2.0000e+13, b: 0.0, Ea: 0.0}
+
+- equation: "Al <=> Al(L)"
+  type: elementary
+  rate-constant: {A: 1.0000e+14, b: 0.0, Ea: 0.0}
+
+- equation: "Al2O3 <=> Al2O3(L)"
+  type: elementary
+  rate-constant: {A: 1.0000e+14, b: 0.0, Ea: 0.0}
