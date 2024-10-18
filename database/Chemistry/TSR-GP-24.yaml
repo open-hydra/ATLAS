@@ -18,6 +18,7 @@ phases:
     CH2O, C3H3, C2H, H2O, CH3O2, O2, CH2, C2H6, CH4, HCO2, CO2]
   kinetics: gas
   reactions: all
+  transport: mixture-averaged
   state:
     T: 1.0e-03
     P: 2.519076112874399e-04

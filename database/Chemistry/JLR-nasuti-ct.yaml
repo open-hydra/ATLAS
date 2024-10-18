@@ -7,7 +7,7 @@ date: Sun, 28 Jul 2024
 units: {length: dm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: JL_R_nasuti
+- name: JLR-Nasuti
   thermo: ideal-gas
   elements: [O, H, C]
   species: [O2, CH4, H2O, CO, CO2, H2, H, O, OH]
