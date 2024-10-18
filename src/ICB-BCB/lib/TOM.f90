@@ -15,7 +15,7 @@ module TOM
 
   !% 3D vector object. All static components.
   type :: vector_nD_type
-    real(kind=8), allocatable   :: c(:)              !> Average cell length components.
+    real(kind=8)   :: c(5)              !> Average cell length components.
   end type vector_nD_type
   ! - 
 
@@ -59,7 +59,8 @@ module TOM
     private
     procedure, pass(self), public :: extrapolate_nodes
     procedure, pass(self), public :: compute_centers
-    procedure, pass(b), public :: compute_norm_area_volume
+    procedure, pass(b), public :: compute_norm_area
+    procedure, pass(b), public :: compute_volume
     procedure, pass(b), public :: compute_metric_tensor
     procedure, pass(self), public :: compute_bounding
   end type block_type
@@ -67,14 +68,14 @@ module TOM
 
 contains
 
-!>@brief: legacy subroutine from AFFS gridfile to compute interface areas, normal vectors and cell volumes for a block
-subroutine compute_norm_area_volume( b )
+!>@brief: legacy subroutine from AFFS gridfile to compute interface areas and normal vectors for a block
+pure subroutine compute_norm_area( b )
   implicit none
   class(block_type), intent(inout) :: b
   ! Local
-  real(kind=8) :: Ai, snix, sniy, sniz,  Aj, snjx, snjy, snjz, Ak, snkx, snky, snkz, vol
+  real(kind=8) :: Ai, snix, sniy, sniz,  Aj, snjx, snjy, snjz, Ak, snkx, snky, snkz
   integer      :: i, j, k, im, jm, km
-  real(kind=8) :: d1(3), d2(3), d3(3), vx(8), vy(8), vz(8)
+  real(kind=8) :: d1(3), d2(3), d3(3)
   real(kind=8) :: snixx, sniyy, snizz, snjxx, snjyy, snjzz, snkxx, snkyy, snkzz
   real(kind=8) :: scal, signi, signj, signk
 
@@ -87,8 +88,8 @@ subroutine compute_norm_area_volume( b )
 
   !------------------------------------------------------------------------------------------------
   ! i direction
-  d1 = b%node(1,1,1)%c - b%node(1,0,0)%c
-  d2 = b%node(1,0,1)%c - b%node(1,1,0)%c
+  d1 = b%node(1,1,1)%c(1:3) - b%node(1,0,0)%c(1:3)
+  d2 = b%node(1,0,1)%c(1:3) - b%node(1,1,0)%c(1:3)
 
   d3(1)=(d1(2)*d2(3)-d1(3)*d2(2))
   d3(2)=(d1(3)*d2(1)-d1(1)*d2(3))
@@ -98,8 +99,8 @@ subroutine compute_norm_area_volume( b )
   sniyy=d3(2)
   snizz=d3(3)
 
-  d1 = 0.25d0*( b%node(1,1,1)%c + b%node(1,0,1)%c + b%node(1,0,0)%c + b%node(1,1,0)%c )
-  d2 = 0.25d0*( b%node(0,1,1)%c + b%node(0,0,1)%c + b%node(0,0,0)%c + b%node(0,1,0)%c )
+  d1 = 0.25d0*( b%node(1,1,1)%c(1:3) + b%node(1,0,1)%c(1:3) + b%node(1,0,0)%c(1:3) + b%node(1,1,0)%c(1:3) )
+  d2 = 0.25d0*( b%node(0,1,1)%c(1:3) + b%node(0,0,1)%c(1:3) + b%node(0,0,0)%c(1:3) + b%node(0,1,0)%c(1:3) )
 
   d3(1)=d1(1)-d2(1)
   d3(2)=d1(2)-d2(2)
@@ -110,8 +111,8 @@ subroutine compute_norm_area_volume( b )
   signi=sign(1.d0,scal)
 !------------------------------------------------------------------------------------------------
   ! j direction
-  d1 = b%node(0,1,1)%c - b%node(1,1,0)%c
-  d2 = b%node(1,1,1)%c - b%node(0,1,0)%c
+  d1 = b%node(0,1,1)%c(1:3) - b%node(1,1,0)%c(1:3)
+  d2 = b%node(1,1,1)%c(1:3) - b%node(0,1,0)%c(1:3)
 
   d3(1)=(d1(2)*d2(3)-d1(3)*d2(2))
   d3(2)=(d1(3)*d2(1)-d1(1)*d2(3))
@@ -121,8 +122,8 @@ subroutine compute_norm_area_volume( b )
   snjyy=d3(2)
   snjzz=d3(3)
 
-  d1 = 0.25d0*( b%node(1,1,1)%c + b%node(0,1,1)%c + b%node(0,1,0)%c + b%node(1,1,0)%c )
-  d2 = 0.25d0*( b%node(1,0,1)%c + b%node(0,0,1)%c + b%node(0,0,0)%c + b%node(1,0,0)%c )
+  d1 = 0.25d0*( b%node(1,1,1)%c(1:3) + b%node(0,1,1)%c(1:3) + b%node(0,1,0)%c(1:3) + b%node(1,1,0)%c(1:3) )
+  d2 = 0.25d0*( b%node(1,0,1)%c(1:3) + b%node(0,0,1)%c(1:3) + b%node(0,0,0)%c(1:3) + b%node(1,0,0)%c(1:3) )
 
   d3(1)=d1(1)-d2(1)
   d3(2)=d1(2)-d2(2)
@@ -133,8 +134,8 @@ subroutine compute_norm_area_volume( b )
   signj=sign(1.d0,scal)
 !------------------------------------------------------------------------------------------------
   ! k direction
-  d1 = b%node(0,1,1)%c - b%node(1,0,1)%c
-  d2 = b%node(0,0,1)%c - b%node(1,1,1)%c
+  d1 = b%node(0,1,1)%c(1:3) - b%node(1,0,1)%c(1:3)
+  d2 = b%node(0,0,1)%c(1:3) - b%node(1,1,1)%c(1:3)
 
   d3(1)=(d1(2)*d2(3)-d1(3)*d2(2))
   d3(2)=(d1(3)*d2(1)-d1(1)*d2(3))
@@ -144,8 +145,8 @@ subroutine compute_norm_area_volume( b )
   snkyy=d3(2)
   snkzz=d3(3)
 
-  d1 = 0.25d0*( b%node(1,1,1)%c + b%node(0,1,1)%c + b%node(0,0,1)%c + b%node(1,0,1)%c )
-  d2 = 0.25d0*( b%node(1,1,0)%c + b%node(0,1,0)%c + b%node(0,0,0)%c + b%node(1,0,0)%c )
+  d1 = 0.25d0*( b%node(1,1,1)%c(1:3) + b%node(0,1,1)%c(1:3) + b%node(0,0,1)%c(1:3) + b%node(1,0,1)%c(1:3) )
+  d2 = 0.25d0*( b%node(1,1,0)%c(1:3) + b%node(0,1,0)%c(1:3) + b%node(0,0,0)%c(1:3) + b%node(1,0,0)%c(1:3) )
 
   d3(1)=d1(1)-d2(1)
   d3(2)=d1(2)-d2(2)
@@ -165,8 +166,8 @@ subroutine compute_norm_area_volume( b )
   !$omp do collapse(3)
   do k = 1, km ; do j = 1, jm ; do i = 0, im
 
-    d1 = b%node(i,j,k)%c - b%node(i,j-1,k-1)%c
-    d2 = b%node(i,j-1,k)%c - b%node(i,j,k-1)%c
+    d1 = b%node(i,j,k)%c(1:3) - b%node(i,j-1,k-1)%c(1:3)
+    d2 = b%node(i,j-1,k)%c(1:3) - b%node(i,j,k-1)%c(1:3)
 
     d3(1)=(d1(2)*d2(3)-d1(3)*d2(2))*.5d0
     d3(2)=(d1(3)*d2(1)-d1(1)*d2(3))*.5d0
@@ -185,8 +186,10 @@ subroutine compute_norm_area_volume( b )
     end if
 
     !% Assign computed normal and area to metrics object
-    b%dir(1)%f(i,j,k)%a = Ai
-    b%dir(1)%f(i,j,k)%n = [ snix, sniy, sniz ]
+    if (allocated( b%dir(1)%f)) then
+      b%dir(1)%f(i,j,k)%a = Ai
+      b%dir(1)%f(i,j,k)%n = [ snix, sniy, sniz ]
+    endif
     
   end do ; end do ; end do
 
@@ -194,8 +197,8 @@ subroutine compute_norm_area_volume( b )
   !$omp do collapse(3)
   do k = 1, km ; do j = 0, jm ; do  i = 1, im
 
-    d1 = b%node(i-1,j,k)%c - b%node(i,j,k-1)%c
-    d2 = b%node(i,j,k)%c - b%node(i-1,j,k-1)%c
+    d1 = b%node(i-1,j,k)%c(1:3) - b%node(i,j,k-1)%c(1:3)
+    d2 = b%node(i,j,k)%c(1:3) - b%node(i-1,j,k-1)%c(1:3)
 
     d3(1)=(d1(2)*d2(3)-d1(3)*d2(2))*.5d0
     d3(2)=(d1(3)*d2(1)-d1(1)*d2(3))*.5d0
@@ -214,8 +217,10 @@ subroutine compute_norm_area_volume( b )
     end if
 
     !% Assign computed normal and area to metrics object
-    b%dir(2)%f(i,j,k)%A = Aj
-    b%dir(2)%f(i,j,k)%n = [ snjx, snjy, snjz ]
+    if (allocated( b%dir(2)%f)) then
+      b%dir(2)%f(i,j,k)%A = Aj
+      b%dir(2)%f(i,j,k)%n = [ snjx, snjy, snjz ]
+    endif
 
   end do ; end do ; end do
 
@@ -223,8 +228,8 @@ subroutine compute_norm_area_volume( b )
   !$omp do collapse(3)
   do k = 0, km ; do j = 1, jm ; do i = 1, im
 
-    d1 = b%node(i-1,j,k)%c - b%node(i,j-1,k)%c
-    d2 = b%node(i-1,j-1,k)%c - b%node(i,j,k)%c
+    d1 = b%node(i-1,j,k)%c(1:3) - b%node(i,j-1,k)%c(1:3)
+    d2 = b%node(i-1,j-1,k)%c(1:3) - b%node(i,j,k)%c(1:3)
 
     d3(1)=(d1(2)*d2(3)-d1(3)*d2(2))*.5d0
     d3(2)=(d1(3)*d2(1)-d1(1)*d2(3))*.5d0
@@ -243,10 +248,32 @@ subroutine compute_norm_area_volume( b )
     end if
 
     !% Assign computed normal and area to metrics object
-    b%dir(3)%f(i,j,k)%A = Ak
-    b%dir(3)%f(i,j,k)%n = [ snkx, snky, snkz ]
+    if (allocated( b%dir(3)%f)) then
+      b%dir(3)%f(i,j,k)%A = Ak
+      b%dir(3)%f(i,j,k)%n = [ snkx, snky, snkz ]
+    endif
 
   end do ; end do ; end do
+
+end subroutine compute_norm_area
+
+
+!>@brief: legacy subroutine from AFFS gridfile to compute cell volumes for a block
+pure subroutine compute_volume( b, gc )
+  implicit none
+  class(block_type), intent(inout) :: b
+  integer, intent(in) :: gc
+  ! Local
+  real(kind=8) :: vol
+  integer      :: i, j, k, im, jm, km
+  real(kind=8) :: vx(8), vy(8), vz(8)
+
+  ! Peliminary operations
+  im = b%dim(1)
+  jm = b%dim(2)
+  km = b%dim(3)
+
+  allocate(b%vol(1-gc:im+gc,1-gc:jm+gc,1-gc:km+gc))
 
   ! cell volume computation
   !$omp do collapse(3)
@@ -290,8 +317,8 @@ subroutine compute_norm_area_volume( b )
         + tvol(vx,vy,vz,5,8,2,3)
 
     if( vol <= 0d0 ) then
-      write(*,*) 'Negative volume in i,j,k', i, j, k
-      stop
+      !write(*,*) 'Negative volume in i,j,k', i, j, k
+      return
     endif
 
     !% Assign computed volume to metrics object
@@ -318,11 +345,11 @@ subroutine compute_norm_area_volume( b )
 
     end function tvol
 
-  end subroutine compute_norm_area_volume
+  end subroutine compute_volume
 
 
   !>@brief: legacy subroutine from AFFS gridfile to compute metric tensor
-  subroutine compute_metric_tensor( b )
+  pure subroutine compute_metric_tensor( b )
     implicit none
     class(block_type), intent(inout) :: b 
     ! Local
@@ -340,20 +367,20 @@ subroutine compute_norm_area_volume( b )
     do j = 0, jm+1
     do i = 0, im+1
 
-      A(1,:) = b%node(i  ,j  ,k  )%c - b%node(i-1,j  ,k  )%c + &
-               b%node(i  ,j-1,k  )%c - b%node(i-1,j-1,k  )%c + &
-               b%node(i  ,j  ,k-1)%c - b%node(i-1,j  ,k-1)%c + &
-               b%node(i  ,j-1,k-1)%c - b%node(i-1,j-1,k-1)%c
+      A(1,:) = b%node(i  ,j  ,k  )%c(1:3) - b%node(i-1,j  ,k  )%c(1:3) + &
+               b%node(i  ,j-1,k  )%c(1:3) - b%node(i-1,j-1,k  )%c(1:3) + &
+               b%node(i  ,j  ,k-1)%c(1:3) - b%node(i-1,j  ,k-1)%c(1:3) + &
+               b%node(i  ,j-1,k-1)%c(1:3) - b%node(i-1,j-1,k-1)%c(1:3)
 
-      A(2,:) = b%node(i  ,j  ,k  )%c - b%node(i  ,j-1,k  )%c + &
-               b%node(i-1,j  ,k  )%c - b%node(i-1,j-1,k  )%c + &
-               b%node(i  ,j  ,k-1)%c - b%node(i  ,j-1,k-1)%c + &
-               b%node(i-1,j  ,k-1)%c - b%node(i-1,j-1,k-1)%c
+      A(2,:) = b%node(i  ,j  ,k  )%c(1:3) - b%node(i  ,j-1,k  )%c(1:3) + &
+               b%node(i-1,j  ,k  )%c(1:3) - b%node(i-1,j-1,k  )%c(1:3) + &
+               b%node(i  ,j  ,k-1)%c(1:3) - b%node(i  ,j-1,k-1)%c(1:3) + &
+               b%node(i-1,j  ,k-1)%c(1:3) - b%node(i-1,j-1,k-1)%c(1:3)
 
-      A(3,:) = b%node(i  ,j  ,k  )%c - b%node(i  ,j  ,k-1)%c + &
-               b%node(i-1,j  ,k  )%c - b%node(i-1,j  ,k-1)%c + &
-               b%node(i  ,j-1,k  )%c - b%node(i  ,j-1,k-1)%c + &
-               b%node(i-1,j-1,k  )%c - b%node(i-1,j-1,k-1)%c
+      A(3,:) = b%node(i  ,j  ,k  )%c(1:3) - b%node(i  ,j  ,k-1)%c(1:3) + &
+               b%node(i-1,j  ,k  )%c(1:3) - b%node(i-1,j  ,k-1)%c(1:3) + &
+               b%node(i  ,j-1,k  )%c(1:3) - b%node(i  ,j-1,k-1)%c(1:3) + &
+               b%node(i-1,j-1,k  )%c(1:3) - b%node(i-1,j-1,k-1)%c(1:3)
 
       A = 0.25d0 * A
 
@@ -363,7 +390,7 @@ subroutine compute_norm_area_volume( b )
           + A(1,3)*A(2,1)*A(3,2) - A(1,3)*A(2,2)*A(3,1)
 
       if ( abs(det) == 0d0 ) then
-        write(*,'(A41,3I4,A43)') ' WARNING - Metric tensor det=0 in i,j,k: ', i,j,k,'. Should not happen, but going on with M==I'
+      !  write(*,'(A41,3I4,A43)') ' WARNING - Metric tensor det=0 in i,j,k: ', i,j,k,'. Should not happen, but going on with M==I'
 
         b%M(i,j,k)%c = 0d0
         do h = 1, 3
@@ -400,7 +427,7 @@ subroutine compute_norm_area_volume( b )
 
 
   !>@brief: Extrapolate ghost cell nodes with 2nd order accuracy.
-  subroutine extrapolate_nodes(self, gc)
+  pure subroutine extrapolate_nodes(self, gc)
     implicit none
     class(block_type), intent(inout) :: self
     integer, intent(in) :: gc
@@ -588,7 +615,7 @@ subroutine compute_norm_area_volume( b )
 
   end subroutine check_mesh_type
 
-  subroutine compute_bounding(self)
+  pure subroutine compute_bounding(self)
     implicit none
     class(block_type), intent(inout) :: self
     integer :: i, j, k, d
@@ -643,10 +670,10 @@ subroutine compute_norm_area_volume( b )
 
   end subroutine compute_bounding
 
-  subroutine compute_centers(self)
+  pure subroutine compute_centers(self)
     implicit none
     class(block_type), intent(inout) :: self
-    integer :: i, j, k, d, m, n
+    integer :: i, j, k, d
 
     allocate(self%center(1-gc:self%dim(1)+gc,1-gc:self%dim(2)+gc,1-gc:self%dim(3)+gc))
 

@@ -4,6 +4,7 @@
     use bc
     implicit none
     private
+    public:: compute_metric
 
     type, extends(vector_nD_type) :: obj_boundary_cellface
       type(obj_bc_cellface_properties) :: bc
@@ -37,11 +38,35 @@
       private
       procedure, pass(self), public :: free
       procedure, pass(self), public :: allocate
-      procedure, pass(self), public :: pass_geometry
       procedure, pass(self), public :: compute_face_centers
     end type ATLAS_block
 
 contains
+
+  pure subroutine compute_metric(input,output)
+    implicit none
+    real(8), intent(in)               :: mesh(:,:,:,:)
+    type(ATLAS_block), allocatable, intent(out) :: output(:)
+    integer :: b
+
+    allocate(output(size(input)))
+    do b = 1, size(input)
+      output(b)%dim(1) = input(b)%dim(1)
+      output(b)%dim(2) = input(b)%dim(2)
+      output(b)%dim(3) = input(b)%dim(3)
+      allocate(output(b)%node(0-gc:output(b)%dim(1)+gc,0-gc:output(b)%dim(2)+gc,0-gc:output(b)%dim(3)+gc))
+      !call output(b)%allocate_coords(5)
+      output(b)%node = input(b)%node
+    enddo
+
+    do b = 1, size(input)
+      call output(b)%extrapolate_nodes(gc)
+      call output(b)%compute_volume(gc)
+      call output(b)%compute_centers()
+      call output(b)%compute_bounding()
+    enddo
+
+  end subroutine compute_metric
 
   subroutine free(self)
     implicit none
@@ -66,21 +91,6 @@ contains
     allocate(self%temperature(1:ii,1:jj,1:kk))
 
   end subroutine allocate
-
-  pure subroutine pass_geometry(self,block_)
-    implicit none
-    class(ATLAS_block), intent(inout) :: self
-    class(block_type), intent(in)    :: block_
-
-    self%dim(1) = block_%dim(1)
-    self%dim(2) = block_%dim(2)
-    self%dim(3) = block_%dim(3)
-    allocate(self%center(1-gc:self%dim(1)+gc,1-gc:self%dim(2)+gc,1-gc:self%dim(3)+gc))
-    allocate(self%node(0-gc:self%dim(1)+gc,0-gc:self%dim(2)+gc,0-gc:self%dim(3)+gc))
-    self%center = block_%center
-    self%node = block_%node
-
-  end subroutine pass_geometry
 
   subroutine compute_face_centers(self)
     implicit none

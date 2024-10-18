@@ -7,16 +7,17 @@ program ICB
   use variables
   use ATLAS_high_level
   use IO
+  use Lib_ORION_data
   use input_ini
   use lib_ic
   use Interpolator, only: intersol
   implicit none
+  type(ATLAS_block), allocatable :: block(:)
+  type(orion_data), allocatable  :: orion(:)
   character(len=2)             :: method
-  type(ATLAS_block), allocatable            :: block(:)
   type(obj_species)            :: species
   character(len=llen)          :: meshfile, oldmeshfile, oldsolutionfile, oldspeciesfile, inifile
-  integer                      :: b, nb, ncelltot
-  logical                      :: is_present
+  integer                      :: b!, ncelltot
 
   write(*,*)
   write(*,*) ' ATLAS - Initial Conditions Builder'
@@ -24,6 +25,8 @@ program ICB
 
   inifile = 'input.ini'
   meshfile = 'mesh.tec'
+
+  call execute_command_line('mkdir -p '//trim(outpath))
 
   call read_species('species.data',species%n,species%name)
 
@@ -39,16 +42,16 @@ program ICB
     call read_MISCELA(w,cp,dcp,h)
     !> read mesh
     write(*,*)' Reading mesh file: ',trim(meshfile)
-    call read_TECmesh(block,meshfile)
-    nb = size(block)
-    ncelltot = 0
-    do b = 1, nb
-      ncelltot = ncelltot+block(b)%dim(1)*block(b)%dim(2)*block(b)%dim(3)
-      write(*,*) ' Block size = ', block(b)%dim(1), block(b)%dim(2), block(b)%dim(3)
-    end do
-    write(*,*)' Overall number of grid cells:', ncelltot
-    write(*,*)
-    do b = 1, nb
+    call read_TECmesh(orion,meshfile)
+    call compute_metric(input=orion,output=block)
+    ! ncelltot = 0
+    ! do b = 1, size(block)
+    !   ncelltot = ncelltot+block(b)%dim(1)*block(b)%dim(2)*block(b)%dim(3)
+    !   write(*,*) ' Block size = ', block(b)%dim(1), block(b)%dim(2), block(b)%dim(3)
+    ! end do
+    ! write(*,*)' Overall number of grid cells:', ncelltot
+    ! write(*,*)
+    do b = 1, size(block)
       call build_IC(block,species,method)
     enddo
 

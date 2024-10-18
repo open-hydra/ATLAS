@@ -55,11 +55,11 @@ contains
     nb_ = size(dummyblock)
     allocate(ATLAS_block::oldblock(1:nb_))
     do b = 1, nb_
-      if (law=='extrude') then
-        call oldblock(b)%pass_geometry(eblock(b))
-      else
-        call oldblock(b)%pass_geometry(dummyblock(b))
-      endif
+      ! if (law=='extrude') then
+      !   call oldblock(b)%pass_geometry(eblock(b))
+      ! else
+      !   call oldblock(b)%pass_geometry(dummyblock(b))
+      ! endif
       call oldblock(b)%allocate(nrans,oldspecies%n,oldblock(b)%dim(1),oldblock(b)%dim(2),oldblock(b)%dim(3))
     end do
     if (.not.present(id)) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
@@ -80,9 +80,9 @@ contains
         nb_ = size(dummyblock)
       endif
       allocate(ATLAS_block::block(1:nb_))
-      do b = 1, nb_
-        call block(b)%pass_geometry(dummyblock(b))
-      enddo
+      ! do b = 1, nb_
+      !   call block(b)%pass_geometry(dummyblock(b))
+      ! enddo
       block(:)%species = newspecies
       do b = 1, nb_
         call block(b)%allocate(nrans,newspecies%n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3))

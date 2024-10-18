@@ -17,8 +17,6 @@ module IO
   integer:: i,j,k,s
   integer:: unitfile
 
-  type(orion_data), public :: orion
-
   contains
   
   subroutine write_mediabound(block)
@@ -403,7 +401,7 @@ module IO
 
   !> write media.init
   subroutine write_solfile(block)
-    use variables, only: nrans
+    use variables, only: nrans, outpath
     use ATLAS_high_level, only: ATLAS_block
     implicit none
     type(ATLAS_block), intent(in) :: block(:)
@@ -413,7 +411,7 @@ module IO
     
     write(*,*)
     write(*,*)' Writing native-fomat file'
-    open(newunit=unitfile,file='toAFFS/media.init',form='unformatted',convert='big_endian')
+    open(newunit=unitfile,file=outpath//'/media.init',form='unformatted',convert='big_endian')
 
     write(unitfile) nb
     do b = 1, nb; write(unitfile) block(b)%dim(1); end do
@@ -457,68 +455,19 @@ module IO
   end subroutine write_solfile
 
 
-  ! subroutine count_blocks(path,nb_)
-  !   use, intrinsic :: iso_fortran_env, only : iostat_end
-  !   use variables, only: nb, llen
-  !   implicit none
-  !   character(len=llen), intent(in) :: path
-  !   integer, intent(out), optional :: nb_
-  !   integer :: ios, nb__
-  !   character(len=llen) :: line
-
-  !   line = 'vai'; nb__ = 0; ios = 0
-  !   open(newunit=unitfile,file=adjustl(trim(path)),status='old',form='formatted')
-  !   do while(ios/=iostat_end)
-  !     do while (index(line,'I=')==0 .and. ios/=iostat_end)
-  !       read(unitfile,'(A)',iostat=ios) line
-  !     enddo
-  !     line = 'vai'
-  !     nb__ = nb__+1
-  !   enddo
-  !   nb__ = nb__-1
-  !   close(unitFile)
-  !   if (present(nb_)) then
-  !     nb_ = nb__
-  !   else
-  !     nb = nb__
-  !   endif
-
-  ! end subroutine count_blocks
-
-
-  subroutine read_TECmesh(block_,path)
-    use, intrinsic :: iso_fortran_env, only : iostat_end
-    use variables, only: llen
-    use tom, only: gc, block_type
+  subroutine read_TECmesh(block,path)
     use Lib_Tecplot
     implicit none
-    class(block_type), allocatable, intent(inout) :: block_(:)
-    character(len=llen), intent(in)  :: path
-    type(orion_data)                 :: orion_
-    integer                          :: i, j, k, b, d
-    integer                          :: nb_
+    type(orion_data), allocatable, intent(inout) :: block(:)
+    character(len=*), intent(in)     :: path
     integer                          :: error
 
     orion_%tec%node = .false.
     orion_%tec%bc = .false.
     orion_%tec%format = 'ascii'
-    error = tec_read_structured_multiblock(orion=orion_,filename=path)
-    nb_ = size(orion_%block)
+    error = tec_read_structured_multiblock(orion=block,filename=path)
 
-    allocate(block_type::block_(1:nb_))
-
-    do b = 1, nb_
-      !call block_(b)%free()
-      block_(b)%dim(1) = orion_%block(b)%Ni; block_(b)%dim(2) = orion_%block(b)%Nj; block_(b)%dim(3) = orion_%block(b)%Nk
-      allocate(block_(b)%node(0-gc:block_(b)%dim(1)+gc,0-gc:block_(b)%dim(2)+gc,0-gc:block_(b)%dim(3)+gc))
-      do k = 0, block_(b)%dim(3); do j = 0, block_(b)%dim(2); do i = 0, block_(b)%dim(1)
-              block_(b)%node(i,j,k)%c(1:3) = orion_%block(b)%mesh(1:3,i,j,k)
-      enddo; enddo; enddo
-    enddo
-
-    ! do b = 1, nb_
-    !   call block_%compute_geometry
-    ! enddo
+    !call check_mesh_type(block_(1))
 
   end subroutine read_TECmesh
 
@@ -595,7 +544,7 @@ module IO
     use IR_Precision
     use Lib_VTK
     use Lib_Tecplot
-    use variables, only: nrans, llen
+    use variables, only: nrans, llen, outpath
     use ATLAS_high_level, only: ATLAS_block
     implicit none
     type(ATLAS_block), intent(in)      :: block(:)
@@ -603,7 +552,7 @@ module IO
     integer(I4P)                       :: E_IO, b, s
     character(len=llen)                :: varnames
 
-    localpath = 'toAFFS'
+    localpath = outpath
     localpath_vtk = trim(localpath)//'/vtk'
     call execute_command_line('mkdir -p '//trim(localpath_vtk))
 
@@ -629,6 +578,7 @@ module IO
     elseif (nrans==7) then
       varnames = trim(varnames)//" ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega"
     endif
+
     write(*,*)
     write(*,*)' Writing vtk-fomat file'
     orion%vtk%format = 'ascii'
@@ -636,18 +586,6 @@ module IO
     E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk)//'/field', &
                                                        vtmpath=trim(localpath)//'/field',varnames=varnames)
 
-    varnames=' '
-    do s = 1, block(1)%species%n
-      varnames = trim(varnames)//'"r'//trim(str(.true.,s))//'"'
-    enddo
-    varnames = trim(varnames)//' "u" "v" "w" "p"'
-    if (nrans==1) then
-      varnames = trim(varnames)//' "mi_t"'
-    elseif (nrans==2) then
-      varnames = trim(varnames)//' "kappa" "omega"'
-    elseif (nrans==7) then
-      varnames = trim(varnames)//" ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega"
-    endif
     write(*,*)
     write(*,*)' Writing tec-fomat file'
     E_IO = tec_write_structured_multiblock(orion=orion,varnames=varnames,filename=trim(localpath)//'/field.tec')

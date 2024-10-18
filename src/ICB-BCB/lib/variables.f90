@@ -4,6 +4,8 @@ module variables
   integer, parameter :: llen = 200
   integer :: unitfile
 
+  character(len=17), parameter :: outpath = 'fromATLAStoSolver'
+
   !> Turbulent
   integer:: nrans=0
 
