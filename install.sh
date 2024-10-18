@@ -102,7 +102,7 @@ function build_python_side () {
 function compile () {
   mkdir -p build
   cd build
-  cmake .. -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=$TYPE
+  cmake .. -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=$TYPE -DMASTER=None
   make $EXE
 }
 
