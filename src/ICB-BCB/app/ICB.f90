@@ -13,8 +13,9 @@ program ICB
   use Interpolator, only: intersol
   implicit none
   type(ATLAS_block), allocatable :: block(:)
-  type(orion_data), allocatable  :: orion(:)
+  type(orion_data)               :: orion
   character(len=2)             :: method
+  character(len=30)            :: ICformat
   type(obj_species)            :: species
   character(len=llen)          :: meshfile, oldmeshfile, oldsolutionfile, oldspeciesfile, inifile
   integer                      :: b!, ncelltot
@@ -31,7 +32,7 @@ program ICB
   call read_species('species.data',species%n,species%name)
 
   !> read general input
-  call read_ICB_input(inifile, method,oldmeshfile,oldspeciesfile,oldsolutionfile)
+  call read_ICB_input(inifile,method,ICformat,oldmeshfile,oldspeciesfile,oldsolutionfile)
 
   select case (method)
 
@@ -43,7 +44,7 @@ program ICB
     !> read mesh
     write(*,*)' Reading mesh file: ',trim(meshfile)
     call read_TECmesh(orion,meshfile)
-    call compute_metric(input=orion,output=block)
+    call build_geometry(input=orion,output=block)
     ! ncelltot = 0
     ! do b = 1, size(block)
     !   ncelltot = ncelltot+block(b)%dim(1)*block(b)%dim(2)*block(b)%dim(3)
@@ -63,7 +64,10 @@ program ICB
   end select
 
   !> write media.init
-  call write_solfile(block)
-  call write_vtk_tec(block)
+  if (index(ICformat,'native')>0) then
+    call write_solfile(block)
+  else
+    call write_vtk_tec(ICformat, block, orion)
+  endif
 
 end program ICB

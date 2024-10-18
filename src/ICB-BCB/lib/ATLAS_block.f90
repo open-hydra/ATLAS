@@ -4,7 +4,7 @@
     use bc
     implicit none
     private
-    public:: compute_metric
+    public:: build_geometry
 
     type, extends(vector_nD_type) :: obj_boundary_cellface
       type(obj_bc_cellface_properties) :: bc
@@ -43,30 +43,35 @@
 
 contains
 
-  pure subroutine compute_metric(input,output)
+  subroutine build_geometry(input,output)
+    use Lib_ORION_data
     implicit none
-    real(8), intent(in)               :: mesh(:,:,:,:)
+    type(orion_data), intent(in)                :: input
     type(ATLAS_block), allocatable, intent(out) :: output(:)
-    integer :: b
+    integer :: b, i, j, k
 
-    allocate(output(size(input)))
-    do b = 1, size(input)
-      output(b)%dim(1) = input(b)%dim(1)
-      output(b)%dim(2) = input(b)%dim(2)
-      output(b)%dim(3) = input(b)%dim(3)
+    allocate(output(size(input%block)))
+    do b = 1, size(input%block)
+      output(b)%dim(1) = input%block(b)%Ni
+      output(b)%dim(2) = input%block(b)%Nj
+      output(b)%dim(3) = input%block(b)%Nk
       allocate(output(b)%node(0-gc:output(b)%dim(1)+gc,0-gc:output(b)%dim(2)+gc,0-gc:output(b)%dim(3)+gc))
+      do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
       !call output(b)%allocate_coords(5)
-      output(b)%node = input(b)%node
+        output(b)%node(i,j,k)%c(1:3) = input%block(b)%mesh(:,i,j,k)
+      enddo; enddo; enddo
     enddo
 
-    do b = 1, size(input)
+    call check_mesh_type(output(1))
+
+    do b = 1, size(input%block)
       call output(b)%extrapolate_nodes(gc)
       call output(b)%compute_volume(gc)
       call output(b)%compute_centers()
       call output(b)%compute_bounding()
     enddo
 
-  end subroutine compute_metric
+  end subroutine build_geometry
 
   subroutine free(self)
     implicit none

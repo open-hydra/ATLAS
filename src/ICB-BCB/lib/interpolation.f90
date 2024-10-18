@@ -11,10 +11,9 @@ contains
 
   subroutine intersol(newspecies,oldspeciesfile,meshfile,oldmeshfile,oldsolutionfile,oldid,id)
     use variables
-    use IO, only: read_solfile, read_TECmesh, orion, read_species
+    use IO, only: read_solfile, read_TECmesh, read_species
     use ATLAS_high_level, only: ATLAS_block
     use tom, only: block_type
-    use Lib_ORION_data
     use CEA_module
     implicit none
     type(obj_species), intent(in)                       :: newspecies
@@ -46,7 +45,7 @@ contains
 
     ! Old files reading and data allocation
     if (.not.present(id)) write(*,*)' Reading mesh file: ', trim(oldmeshfile)
-    call read_TECmesh(dummyblock,oldmeshfile)
+    !call read_TECmesh(dummyblock,oldmeshfile)
     if (law=='extrude') then
       if (.not.present(id)) write(*,*)" Old mesh extrusion"
       call extrude360(1)
@@ -76,7 +75,7 @@ contains
       if (.not.onemesh) then
         write(*,*)
         write(*,*)" Reading mesh file: ", trim(meshfile)
-        call read_TECmesh(dummyblock,meshfile)
+        !call read_TECmesh(dummyblock,meshfile)
         nb_ = size(dummyblock)
       endif
       allocate(ATLAS_block::block(1:nb_))

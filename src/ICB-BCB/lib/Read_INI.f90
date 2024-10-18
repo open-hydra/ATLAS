@@ -85,16 +85,17 @@ contains
   ! end subroutine read_BCB_input
 
 
-  subroutine read_ICB_input(inifile, method,oldmeshfile,oldspeciesfile,oldsolutionfile)
+  subroutine read_ICB_input(inifile,method,ICformat,oldmeshfile,oldspeciesfile,oldsolutionfile)
     use lib_ic
     use variables
     use Interpolator
     implicit none
-    character(len=*), intent(in)   :: inifile
-    character(len=2), intent(out)  :: method
-    character(len=:), allocatable  :: list(:)
-    character(len=:), allocatable  :: items(:,:)
-    character(len=200), intent(out):: oldmeshfile, oldsolutionfile, oldspeciesfile
+    character(len=*), intent(in)    :: inifile
+    character(len=*), intent(inout) :: ICformat
+    character(len=2), intent(out)   :: method
+    character(len=:), allocatable   :: list(:)
+    character(len=:), allocatable   :: items(:,:)
+    character(len=200), intent(out) :: oldmeshfile, oldsolutionfile, oldspeciesfile
     integer :: i
 
     call fini%load(filename=inifile)
@@ -112,6 +113,9 @@ contains
     call fini%get(section_name='ICB-General', option_name='method', val=method, error=error)
     if (error/=0) method = 'CB'
     write(*,*)' Method: ', method
+  
+    call fini%get(section_name='ICB-General', option_name='format', val=ICformat, error=error)
+    if (error/=0) ICformat = 'tec'
     
     if (method=='IB') then
       call fini%get(section_name='ICB-General', option_name='oldmesh', val=oldmeshfile, error=error)

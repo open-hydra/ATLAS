@@ -455,19 +455,17 @@ module IO
   end subroutine write_solfile
 
 
-  subroutine read_TECmesh(block,path)
+  subroutine read_TECmesh(orion,path)
     use Lib_Tecplot
     implicit none
-    type(orion_data), allocatable, intent(inout) :: block(:)
-    character(len=*), intent(in)     :: path
-    integer                          :: error
+    type(orion_data), intent(inout) :: orion
+    character(len=*), intent(in)    :: path
+    integer                         :: error
 
-    orion_%tec%node = .false.
-    orion_%tec%bc = .false.
-    orion_%tec%format = 'ascii'
-    error = tec_read_structured_multiblock(orion=block,filename=path)
-
-    !call check_mesh_type(block_(1))
+    orion%tec%node = .false.
+    orion%tec%bc = .false.
+    orion%tec%format = 'ascii'
+    error = tec_read_structured_multiblock(orion=orion,filename=path)
 
   end subroutine read_TECmesh
 
@@ -540,21 +538,21 @@ module IO
   end subroutine read_solfile
 
 
-  subroutine write_vtk_tec(block)
+  subroutine write_vtk_tec(ICformat,block,orion)
     use IR_Precision
     use Lib_VTK
     use Lib_Tecplot
     use variables, only: nrans, llen, outpath
     use ATLAS_high_level, only: ATLAS_block
     implicit none
+    character(len=*), intent(in)       :: ICformat
     type(ATLAS_block), intent(in)      :: block(:)
+    type(orion_data), intent(inout)    :: orion
     character(len=llen)                :: localpath_vtk, localpath
     integer(I4P)                       :: E_IO, b, s
     character(len=llen)                :: varnames
 
     localpath = outpath
-    localpath_vtk = trim(localpath)//'/vtk'
-    call execute_command_line('mkdir -p '//trim(localpath_vtk))
 
     do b = 1, size(orion%block)
       allocate(orion%block(b)%vars(1:block(b)%species%n+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
@@ -579,16 +577,20 @@ module IO
       varnames = trim(varnames)//" ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega"
     endif
 
-    write(*,*)
-    write(*,*)' Writing vtk-fomat file'
-    orion%vtk%format = 'ascii'
-    orion%vtk%node = .false.
-    E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk)//'/field', &
-                                                       vtmpath=trim(localpath)//'/field',varnames=varnames)
-
-    write(*,*)
-    write(*,*)' Writing tec-fomat file'
-    E_IO = tec_write_structured_multiblock(orion=orion,varnames=varnames,filename=trim(localpath)//'/field.tec')
+    if (index(ICformat,'vtk')>0) then
+      localpath_vtk = trim(localpath)//'/vtk'
+      call execute_command_line('mkdir -p '//trim(localpath_vtk))
+      write(*,*)
+      write(*,*)' Writing vtk-fomat file'
+      orion%vtk%format = 'ascii'
+      orion%vtk%node = .false.
+      E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk)//'/field', &
+                                                        vtmpath=trim(localpath)//'/field',varnames=varnames)
+    else
+      write(*,*)
+      write(*,*)' Writing tec-fomat file'
+      E_IO = tec_write_structured_multiblock(orion=orion,varnames=varnames,filename=trim(localpath)//'/field.tec')
+    endif
 
   end subroutine write_vtk_tec
 

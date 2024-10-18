@@ -186,10 +186,8 @@ pure subroutine compute_norm_area( b )
     end if
 
     !% Assign computed normal and area to metrics object
-    if (allocated( b%dir(1)%f)) then
-      b%dir(1)%f(i,j,k)%a = Ai
-      b%dir(1)%f(i,j,k)%n = [ snix, sniy, sniz ]
-    endif
+    b%dir(1)%f(i,j,k)%a = Ai
+    b%dir(1)%f(i,j,k)%n = [ snix, sniy, sniz ]
     
   end do ; end do ; end do
 
@@ -217,11 +215,9 @@ pure subroutine compute_norm_area( b )
     end if
 
     !% Assign computed normal and area to metrics object
-    if (allocated( b%dir(2)%f)) then
-      b%dir(2)%f(i,j,k)%A = Aj
-      b%dir(2)%f(i,j,k)%n = [ snjx, snjy, snjz ]
-    endif
-
+    b%dir(2)%f(i,j,k)%A = Aj
+    b%dir(2)%f(i,j,k)%n = [ snjx, snjy, snjz ]
+ 
   end do ; end do ; end do
 
   ! k direction
@@ -248,10 +244,8 @@ pure subroutine compute_norm_area( b )
     end if
 
     !% Assign computed normal and area to metrics object
-    if (allocated( b%dir(3)%f)) then
-      b%dir(3)%f(i,j,k)%A = Ak
-      b%dir(3)%f(i,j,k)%n = [ snkx, snky, snkz ]
-    endif
+    b%dir(3)%f(i,j,k)%A = Ak
+    b%dir(3)%f(i,j,k)%n = [ snkx, snky, snkz ]
 
   end do ; end do ; end do
 
@@ -583,7 +577,7 @@ pure subroutine compute_volume( b, gc )
   subroutine check_mesh_type( blk )
     use, intrinsic :: iso_fortran_env, only : iostat_end
     implicit none
-    type(block_type), intent(in) :: blk
+    class(block_type), intent(in) :: blk
     real(8)                      :: theta1, theta2, theta(2)
 
     ! Mesh definition (2D,2Daxi,3D)
