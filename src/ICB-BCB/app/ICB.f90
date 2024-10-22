@@ -23,8 +23,10 @@ program ICB
   write(*,*) ' ATLAS - Initial Conditions Builder'
   write(*,*)
 
+  call command_line_argument()
+
   meshfile = 'mesh.tec'
-  !call read_MISCELA(w,cp,dcp,h)
+  call read_MISCELA(w,cp,dcp,h)
   call read_species('species.data',species%n,species%name)
 
   call execute_command_line('mkdir -p '//trim(outpath))
@@ -50,5 +52,27 @@ program ICB
   else
     call write_vtk_tec(ICformat, block, orion)
   endif
+
+
+  contains
+
+  subroutine command_line_argument()
+    implicit none
+    character(99):: arg
+    integer      :: arg_count, i
+
+    verbose = .false.
+
+    arg_count = COMMAND_ARGUMENT_COUNT()
+
+    do i = 1, arg_count
+      call GET_COMMAND_ARGUMENT(i, arg)
+      if (arg == '-v' .or. arg == '--verbose') then
+        verbose = .true.
+      end if
+    end do
+
+  end subroutine command_line_argument
+
 
 end program ICB
