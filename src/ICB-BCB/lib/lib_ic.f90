@@ -14,11 +14,10 @@ module lib_ic
 
   contains
 
-  subroutine build_IC(blocks,species,method)
+  subroutine build_IC(blocks,species)
     implicit none
     type(ATLAS_block), intent(inout) :: blocks(:)
     type(obj_species), intent(in)    :: species
-    character(len=2), intent(in)     :: method
 
     character(len=30)             :: zonename
     character(len=:), allocatable :: option_pairs(:)
@@ -58,7 +57,7 @@ module lib_ic
           enddo
           call zoneini%add(section_name='zone', option_name='range', val=zonerange)
           call zoneini%add(section_name='zone', option_name='direction', val=zonedirection)
-          call build_flow(block,zoneini)
+          call build_flow(b,block,zoneini)
         enddo
       else
         call zoneini%free
@@ -66,7 +65,7 @@ module lib_ic
         do while (fini%loop(section_name='ICB-Block'//adjustl(indb), option_pairs=option_pairs))
           call zoneini%add(section_name='zone', option_name=option_pairs(1), val=option_pairs(2))
         enddo
-        call build_flow(block,zoneini)
+        call build_flow(b,block,zoneini)
       endif
 
       write(*,*)' Block n. = ', b, ' -> ', block%type
@@ -76,25 +75,25 @@ module lib_ic
   end subroutine build_IC
 
 
-  subroutine build_flow(self,zoneini)
+  subroutine build_flow(b,self,zoneini)
     use variables
     use Interpolator
     implicit none
     class(ATLAS_block), intent(inout) :: self
-    type(file_ini), intent(in)          :: zoneini
-
+    type(file_ini), intent(in)        :: zoneini
+    integer, intent(in)               :: b
     type(obj_CEA)                 :: CEA
     logical                       :: found_CEA, found(5)
     type(file_ini)                :: CEAini
-    integer                       :: throat_cell, i, ia1, ia2, ib1, ib2, ip, j, jend, s, k, error
+    integer                       :: throat_cell, i, ib1, ib2, ip, j, s, k, error
     real(8)                       :: Rgas, gamma, rho, vel, del, a, cp_
     real(8)                       :: M0, mach
     real(8), allocatable          :: radius_ext(:), radius_int(:), area(:)
     real(8)                       :: throat_area, dx, dy, dz, zeta, phi
     real(8)                       :: alpha, beta, M, p0, T0, p, T, ux, uy, uz, mit, kappa, omega, rhoRij
-    character(len=llen)           :: meshfile, oldmeshfile, oldsolutionfile, oldspeciesfile, CEAfile
+    character(len=llen)           :: OMF, OFF, OSF, CEAfile
     integer                       :: oldid
-    character(len=30)             :: name, type
+    character(len=20)             :: name, type
     character(len=:), allocatable :: item(:)
     real(8)                       :: ytot=0.0, range(6)
     character(len=3)              :: dirID
@@ -146,11 +145,11 @@ module lib_ic
     if (error/=0) L_threshold = huge(alpha)
 
     ! Interpolation specific parameters
-    call zoneini%get(section_name='zone', option_name='oldmesh', val=oldmeshfile, error=error)
+    call zoneini%get(section_name='zone', option_name='oldmesh', val=OMF, error=error)
     if (error==0) onemesh = .false.
-    call zoneini%get(section_name='zone', option_name='oldspecies', val=oldspeciesfile, error=error)
+    call zoneini%get(section_name='zone', option_name='oldspecies', val=OSF, error=error)
     if (error==0) onespecies = .false.
-    call zoneini%get(section_name='zone', option_name='oldsolution', val=oldsolutionfile, error=error)
+    call zoneini%get(section_name='zone', option_name='oldsolution', val=OFF, error=error)
     if (error==0) type = 'interpolation'
     call zoneini%get(section_name='zone', option_name='oldid', val=oldid, error=error)
     if (error/=0) oldid = 0
@@ -170,12 +169,12 @@ module lib_ic
       !> Look for CEA input data
       if (index(item(1),'CEA')/=0) then
         found_CEA = .true.
-        name = item(1); name = name(5:30)
+        name = item(1); name = name(5:20)
         call CEAini%add(section_name='CEA-data', option_name=name, val=item(2))
       endif
       !> Look for direct address of mass fractions
       if (index(item(1),'y')/=0) then
-        name = item(1); name = name(2:30)
+        name = item(1); name = name(2:20)
         do j = 1, self%species%n
           if (adjustl(trim(name))==adjustl(trim(self%species%name(j)))) then
             read(item(2),'(D12.5)') self%species%massf(j)
@@ -253,7 +252,7 @@ module lib_ic
     select case (type)
 
     case ('interpolation')
-      !call intersol(self%species,oldspeciesfile,meshfile,oldmeshfile,oldsolutionfile,oldid,id)
+      call intersol(self,self%species,OMF,OFF,OSF,oldid,b)
 
     case ('homogeneous')
 
@@ -497,7 +496,7 @@ module lib_ic
     real(8), intent(out) :: T
     real(8)              :: TT,Tnew,H0,h_tot,cp_tot,dcp_tot,FT,DFT
     real(8), parameter   :: toll=1.d-8
-    integer              :: s,i
+    integer              :: s
 
     Tnew = T0*0.95
     H0 = 0.0

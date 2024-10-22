@@ -4,6 +4,7 @@ module input_ini
   private
 
   !public:: read_BCB_input
+  public:: read_ATLAS_general
   public:: read_ICB_input
   !public:: read_CP_input
 
@@ -13,6 +14,25 @@ module input_ini
 
 contains
 
+  subroutine read_ATLAS_general(inifile,ICformat)
+    implicit none
+    character(len=*), intent(inout)           :: inifile
+    character(len=*), intent(inout), optional :: ICformat
+
+    call fini%load(filename='input.ini')
+
+    call fini%get(section_name='ATLAS-General', option_name='ICB-file', val=inifile, error=error)
+    if (error/=0) inifile = 'input.ini'
+
+    call fini%get(section_name='ATLAS-General', option_name='BCB-file', val=inifile, error=error)
+    if (error/=0) inifile = 'input.ini'
+    
+    if (present(ICformat)) then
+      call fini%get(section_name='ATLAS-General', option_name='IC-format', val=ICformat, error=error)
+      if (error/=0) ICformat = 'tec'
+    endif
+
+  end subroutine read_ATLAS_general
 
   ! subroutine read_CP_input(CP_present)
   !   use bc, only: npCP
@@ -85,17 +105,13 @@ contains
   ! end subroutine read_BCB_input
 
 
-  subroutine read_ICB_input(inifile,method,ICformat,oldmeshfile,oldspeciesfile,oldsolutionfile)
+  subroutine read_ICB_input(inifile)
     use lib_ic
     use variables
-    use Interpolator
     implicit none
     character(len=*), intent(in)    :: inifile
-    character(len=*), intent(inout) :: ICformat
-    character(len=2), intent(out)   :: method
     character(len=:), allocatable   :: list(:)
     character(len=:), allocatable   :: items(:,:)
-    character(len=200), intent(out) :: oldmeshfile, oldsolutionfile, oldspeciesfile
     integer :: i
 
     call fini%load(filename=inifile)
@@ -109,29 +125,6 @@ contains
       if (items(i,1)=='kappa') nrans = 2
       if (items(i,1)=='rhoRij') nrans = 7
     enddo
-
-    call fini%get(section_name='ICB-General', option_name='method', val=method, error=error)
-    if (error/=0) method = 'CB'
-    write(*,*)' Method: ', method
-  
-    call fini%get(section_name='ICB-General', option_name='format', val=ICformat, error=error)
-    if (error/=0) ICformat = 'tec'
-    
-    if (method=='IB') then
-      call fini%get(section_name='ICB-General', option_name='oldmesh', val=oldmeshfile, error=error)
-      if (error==0) onemesh = .false.
-      call fini%get(section_name='ICB-General', option_name='oldspecies', val=oldspeciesfile, error=error)
-      if (error==0) onespecies = .false.
-      call fini%get(section_name='ICB-General', option_name='oldsolution', val=oldsolutionfile, error=error)
-      call fini%get(section_name='ICB-General', option_name='law', val=law, error=error)
-      if (error/=0) law = 'outlaw'
-      if (law=='extrude') then
-        call fini%get(section_name='ICB-General', option_name='theta', val=thetamax_extrude, error=error)
-        if (error/=0) thetamax_extrude = float(90)
-        call fini%get(section_name='ICB-General', option_name='nz', val=nz_extrude, error=error)
-        if (error/=0) nz_extrude = int(4)
-      endif 
-    endif
 
     write(*,*)
     if (nrans==0) write(*,*)' No turbulent model properties found'

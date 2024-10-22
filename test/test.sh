@@ -37,7 +37,7 @@ for CODE in $(ls -d */); do
   for TEST in $(ls -d */); do
     echo $TEST >> $FILE
     cd $TEST
-    [ $@ == clean ] && rm -rf *.dat *.txt error* *.out *.data *.tec fromATLAS*
+    [ $@ == clean ] && rm -rf error* fromATLAS*
     if [[ $@ == run ]]; then
       $ATLASDIR/ATLAS.sh ${CODE%?} 1>>$FILE 2>error_file
       size=$(wc -c error_file | awk '{print $1}')

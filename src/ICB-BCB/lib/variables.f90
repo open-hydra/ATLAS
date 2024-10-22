@@ -14,6 +14,7 @@ module variables
   real(8), allocatable:: cp(:,:), dcp(:,:), h(:,:), w(:)
 
   !> Switches
-  logical:: threedim
+  logical :: threedim
+  logical :: verbose
 
 end module variables 

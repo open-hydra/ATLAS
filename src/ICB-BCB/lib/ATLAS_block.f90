@@ -4,6 +4,7 @@
     use bc
     implicit none
     private
+    public:: import_nodes
     public:: build_geometry
 
     type, extends(vector_nD_type) :: obj_boundary_cellface
@@ -43,7 +44,7 @@
 
 contains
 
-  subroutine build_geometry(input,output)
+  pure subroutine import_nodes(input,output)
     use Lib_ORION_data
     implicit none
     type(orion_data), intent(in)                :: input
@@ -62,13 +63,20 @@ contains
       enddo; enddo; enddo
     enddo
 
-    call check_mesh_type(output(1))
+  end subroutine import_nodes
 
-    do b = 1, size(input%block)
-      call output(b)%extrapolate_nodes(gc)
-      call output(b)%compute_volume(gc)
-      call output(b)%compute_centers()
-      call output(b)%compute_bounding()
+  subroutine build_geometry(block)
+    implicit none
+    type(ATLAS_block), intent(inout) :: block(:)
+    integer :: b
+
+    call check_mesh_type(block(1))
+
+    do b = 1, size(block)
+      call block(b)%extrapolate_nodes(gc)
+      call block(b)%compute_volume(gc)
+      call block(b)%compute_centers(gc)
+      call block(b)%compute_bounding()
     enddo
 
   end subroutine build_geometry
@@ -100,7 +108,7 @@ contains
   subroutine compute_face_centers(self)
     implicit none
     class(ATLAS_block), intent(inout) :: self
-    integer :: i, j, k, d, m, n
+    integer :: m, n
 
     !> Compute the face center coords
     self%face(1)%Nm = self%dim(2); self%face(1)%Nn = self%dim(3)

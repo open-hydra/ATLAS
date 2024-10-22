@@ -6,7 +6,6 @@ module TOM
   integer              :: meshType   !> 1 -> 1D, 2 -> 2D, 3 -> 3D
   real(kind=8), public :: delthe     !> grid axisymmetric angle
 
-
   !% 3D tensor object. All static components.
   type :: tensor_3D_type
     real(kind=8)                 :: c(3,3)           !> Metric tensor components.
@@ -664,22 +663,23 @@ pure subroutine compute_volume( b, gc )
 
   end subroutine compute_bounding
 
-  pure subroutine compute_centers(self)
+  pure subroutine compute_centers(self, gc_)
     implicit none
     class(block_type), intent(inout) :: self
+    integer, intent(in)              :: gc_
     integer :: i, j, k, d
 
     allocate(self%center(1-gc:self%dim(1)+gc,1-gc:self%dim(2)+gc,1-gc:self%dim(3)+gc))
 
     !> Compute the cells center coords
-    do k = 1-gc, self%dim(3)+gc
-      do j = 1-gc, self%dim(2)+gc
-        do i = 1-gc, self%dim(1)+gc
+    do k = 1-gc_, self%dim(3)+gc_
+      do j = 1-gc_, self%dim(2)+gc_
+        do i = 1-gc_, self%dim(1)+gc_
           do d = 1, 3
             self%center(i,j,k)%c(d)=0.125d0*(self%node(i-1,j-1,k-1)%c(d)+self%node(i,j-1,k-1)%c(d)+ &
-                                                 self%node(i-1,j,k-1)%c(d)+self%node(i-1,j-1,k)%c(d)+ &
-                                                 self%node(i,j,k)%c(d)+self%node(i,j,k-1)%c(d)+ &
-                                                 self%node(i,j-1,k)%c(d)+self%node(i-1,j,k)%c(d))
+                                             self%node(i-1,j,k-1)%c(d)+self%node(i-1,j-1,k)%c(d)+ &
+                                             self%node(i,j,k)%c(d)+self%node(i,j,k-1)%c(d)+ &
+                                             self%node(i,j-1,k)%c(d)+self%node(i-1,j,k)%c(d))
           enddo
           self%center(i,j,k)%c(4:5) = cartesian2cyl(self%center(i,j,k)%c(2:3))
         enddo

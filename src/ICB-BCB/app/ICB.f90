@@ -14,54 +14,35 @@ program ICB
   implicit none
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
-  character(len=2)             :: method
   character(len=30)            :: ICformat
   type(obj_species)            :: species
-  character(len=llen)          :: meshfile, oldmeshfile, oldsolutionfile, oldspeciesfile, inifile
+  character(len=llen)          :: meshfile, inifile
   integer                      :: b!, ncelltot
 
   write(*,*)
   write(*,*) ' ATLAS - Initial Conditions Builder'
   write(*,*)
 
-  inifile = 'input.ini'
   meshfile = 'mesh.tec'
+  !call read_MISCELA(w,cp,dcp,h)
+  call read_species('species.data',species%n,species%name)
 
   call execute_command_line('mkdir -p '//trim(outpath))
 
-  call read_species('species.data',species%n,species%name)
+  call read_ATLAS_general(inifile, ICformat)
 
-  !> read general input
-  call read_ICB_input(inifile,method,ICformat,oldmeshfile,oldspeciesfile,oldsolutionfile)
+  call read_ICB_input(inifile)
 
-  select case (method)
+  write(*,*)' Reading mesh file: ',trim(meshfile)
+  call read_TECmesh(orion,meshfile)
+  call import_nodes(input=orion,output=block)
+  do b = 1, size(block)
+    call block(b)%compute_centers(0)
+  enddo
 
-  !> Cell-based IC
-  case('CB')
-
-    !> read mixture properties
-    call read_MISCELA(w,cp,dcp,h)
-    !> read mesh
-    write(*,*)' Reading mesh file: ',trim(meshfile)
-    call read_TECmesh(orion,meshfile)
-    call build_geometry(input=orion,output=block)
-    ! ncelltot = 0
-    ! do b = 1, size(block)
-    !   ncelltot = ncelltot+block(b)%dim(1)*block(b)%dim(2)*block(b)%dim(3)
-    !   write(*,*) ' Block size = ', block(b)%dim(1), block(b)%dim(2), block(b)%dim(3)
-    ! end do
-    ! write(*,*)' Overall number of grid cells:', ncelltot
-    ! write(*,*)
-    do b = 1, size(block)
-      call build_IC(block,species,method)
-    enddo
-
-  !> Interpolation
-  case('IB')
-
-    call intersol(species,oldspeciesfile,meshfile,oldmeshfile,oldsolutionfile)
-
-  end select
+  do b = 1, size(block)
+    call build_IC(block,species)
+  enddo
 
   !> write media.init
   if (index(ICformat,'native')>0) then
