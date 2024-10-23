@@ -4,20 +4,21 @@ module input_ini
   private
 
   !public:: read_BCB_input
-  public:: read_ATLAS_general
-  public:: read_ICB_input
+  public:: build_INI
   !public:: read_CP_input
 
-  type(file_ini)  :: fini       !< INI File.
-  integer         :: error      !< Error code.
-
+  integer :: error
 
 contains
 
-  subroutine read_ATLAS_general(inifile,ICformat)
+  subroutine build_INI(prog,nb,inisource,ICformat)
     implicit none
-    character(len=*), intent(inout)           :: inifile
+    character(len=3), intent(in)              :: prog
+    integer, intent(in)                       :: nb
+    type(file_ini), intent(out)               :: inisource
     character(len=*), intent(inout), optional :: ICformat
+    character(len=30)                         :: inifile
+    type(file_ini)                            :: fini
 
     call fini%load(filename='input.ini')
 
@@ -26,13 +27,54 @@ contains
 
     call fini%get(section_name='ATLAS-General', option_name='BCB-file', val=inifile, error=error)
     if (error/=0) inifile = 'input.ini'
-    
+
     if (present(ICformat)) then
       call fini%get(section_name='ATLAS-General', option_name='IC-format', val=ICformat, error=error)
       if (error/=0) ICformat = 'tec'
     endif
 
-  end subroutine read_ATLAS_general
+    ! Read specific INI file
+    call fini%load(filename=inifile)
+    inisource = generate_sections_input(prog,fini,nb)
+
+    call scan_turbo_input(fini)
+
+  end subroutine build_INI
+
+
+  function generate_sections_input(prog,fini,nb) result(sini)
+    implicit none
+    character(len=3), intent(in)  :: prog
+    type(file_ini), intent(in)    :: fini
+    integer, intent(in)           :: nb
+    type(file_ini)                :: sini
+    character(len=:), allocatable :: option_pairs(:)
+    character(len=30)             :: actual_section, new_section
+    character(len=4)              :: indb
+    integer                       :: b
+    logical                       :: is_there
+
+    call sini%free
+
+    do b = 1, nb
+      write(indb,'(I4)') b
+      new_section = prog//'-Block'//adjustl(indb)
+      call sini%add(section_name=new_section)
+
+      ! Look for section name in inifile
+      actual_section = new_section
+      is_there = fini%has_section(actual_section)
+      if (.not.is_there) then
+        actual_section = prog//'-Block*'
+        is_there = fini%has_section(actual_section)
+      endif
+
+      do while (fini%loop(section_name=actual_section, option_pairs=option_pairs))
+        call sini%add(section_name=new_section, option_name=option_pairs(1), val=option_pairs(2))
+      enddo
+    enddo
+
+  end function generate_sections_input
 
   ! subroutine read_CP_input(CP_present)
   !   use bc, only: npCP
@@ -105,19 +147,13 @@ contains
   ! end subroutine read_BCB_input
 
 
-  subroutine read_ICB_input(inifile)
-    use lib_ic
+  subroutine scan_turbo_input(fini)
     use variables
     implicit none
-    character(len=*), intent(in)    :: inifile
-    character(len=:), allocatable   :: list(:)
-    character(len=:), allocatable   :: items(:,:)
+    type(file_ini), intent(in)    :: fini       !< INI File.
+    character(len=:), allocatable :: items(:,:)
     integer :: i
 
-    call fini%load(filename=inifile)
-    call fini%get_sections_list(list=list)
-
-    ! Look for turbulent flow entry
     call fini%get_items(items=items)
     nrans = 0
     do i = 1, size(items, dim=1)
@@ -133,6 +169,6 @@ contains
     if (nrans==7) write(*,*)' Full Reynolds Stress Model properties found'
     write(*,*)
 
-  end subroutine read_ICB_input
+  end subroutine scan_turbo_input
 
 end module input_ini

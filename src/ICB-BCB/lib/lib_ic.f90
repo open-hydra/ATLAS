@@ -14,14 +14,15 @@ module lib_ic
 
   contains
 
-  subroutine build_IC(blocks,species)
+  subroutine build_IC(sini,blocks,species)
     implicit none
     type(ATLAS_block), intent(inout) :: blocks(:)
     type(obj_species), intent(in)    :: species
+    type(file_ini), intent(in)       :: sini
 
-    character(len=30)             :: zonename
+    character(len=30)             :: zonename, section_name
     character(len=:), allocatable :: option_pairs(:)
-    type(file_ini)                :: fini, zoneini
+    type(file_ini)                :: zoneini
     integer                       :: b, p, error, error_zone
     character(len=4)              :: indb, ind
     character(len=4)              :: zonedirection
@@ -29,30 +30,30 @@ module lib_ic
 
     do b = 1, size(blocks)
       write(indb,'(I4)') b
-      call fini%load(filename='input.ini')      
+      section_name = 'ICB-Block'//adjustl(indb)   
       associate(block => blocks(b))
       block%species = species
       if (.not.allocated(block%species%massf)) allocate(block%species%massf(1:block%species%n))
       block%species%massf = 1d-20
 
-      call fini%get(section_name='ICB-Block'//adjustl(indb), option_name='type', val=block%type, error=error)
+      call sini%get(section_name=section_name, option_name='type', val=block%type, error=error)
       if (error/=0) block%type = 'homogeneous'
       ! Multizone
-      call fini%get(section_name='ICB-Block'//adjustl(indb), option_name='direction',  val=zonedirection, error=error)
+      call sini%get(section_name=section_name, option_name='direction',  val=zonedirection, error=error)
       if (error==0) block%type = 'multizone'
 
       if (block%type=='multizone') then
         p = 0
         do
           p = p+1; write(ind,'(I4)') p
-          call fini%get(section_name='ICB-Block'//adjustl(indb), option_name='zone'//adjustl(ind), &
+          call sini%get(section_name=section_name, option_name='zone'//adjustl(ind), &
                                             val=zonename, error=error_zone)
           if (error_zone/=0) exit
-          call fini%get(section_name='ICB-Block'//adjustl(indb), option_name='range'//adjustl(ind), &
+          call sini%get(section_name=section_name, option_name='range'//adjustl(ind), &
                                             val=zonerange, error=error)
           call zoneini%free
           call zoneini%add(section_name='zone')
-          do while (fini%loop(section_name=zonename, option_pairs=option_pairs))
+          do while (sini%loop(section_name=zonename, option_pairs=option_pairs))
             call zoneini%add(section_name='zone', option_name=option_pairs(1), val=option_pairs(2))
           enddo
           call zoneini%add(section_name='zone', option_name='range', val=zonerange)
@@ -62,7 +63,7 @@ module lib_ic
       else
         call zoneini%free
         call zoneini%add(section_name='zone')
-        do while (fini%loop(section_name='ICB-Block'//adjustl(indb), option_pairs=option_pairs))
+        do while (sini%loop(section_name=section_name, option_pairs=option_pairs))
           call zoneini%add(section_name='zone', option_name=option_pairs(1), val=option_pairs(2))
         enddo
         call build_flow(b,block,zoneini)
@@ -84,7 +85,6 @@ module lib_ic
     integer, intent(in)               :: b
     type(obj_CEA)                 :: CEA
     logical                       :: found_CEA, found(5)
-    type(file_ini)                :: CEAini
     integer                       :: throat_cell, i, ib1, ib2, ip, j, s, k, error
     real(8)                       :: Rgas, gamma, rho, vel, del, a, cp_
     real(8)                       :: M0, mach
@@ -129,6 +129,8 @@ module lib_ic
     if (error/=0) uy = 0.0
     call zoneini%get(section_name='zone', option_name='w', val=uz, error=error)
     if (error/=0) uz = 0.0
+
+    ! Turbulence specific parameters
     call zoneini%get(section_name='zone', option_name='mit', val=mit, error=error)
     call zoneini%get(section_name='zone', option_name='kappa', val=kappa, error=error)
     call zoneini%get(section_name='zone', option_name='omega', val=omega, error=error)
@@ -145,6 +147,7 @@ module lib_ic
     if (error/=0) L_threshold = huge(alpha)
 
     ! Interpolation specific parameters
+    onemesh = .true.; onespecies = .true.
     call zoneini%get(section_name='zone', option_name='oldmesh', val=OMF, error=error)
     if (error==0) onemesh = .false.
     call zoneini%get(section_name='zone', option_name='oldspecies', val=OSF, error=error)
@@ -165,31 +168,11 @@ module lib_ic
     self%type = type
 
     !> Mass fractions input
-    do while(zoneini%loop(section_name='zone', option_pairs=item))
-      !> Look for CEA input data
-      if (index(item(1),'CEA')/=0) then
-        found_CEA = .true.
-        name = item(1); name = name(5:20)
-        call CEAini%add(section_name='CEA-data', option_name=name, val=item(2))
-      endif
-      !> Look for direct address of mass fractions
-      if (index(item(1),'y')/=0) then
-        name = item(1); name = name(2:20)
-        do j = 1, self%species%n
-          if (adjustl(trim(name))==adjustl(trim(self%species%name(j)))) then
-            read(item(2),'(D12.5)') self%species%massf(j)
-            ytot = ytot+self%species%massf(j)
-            exit
-          end if
-        end do
-      endif
-    enddo
-
-    !> CEA operations block
-    if (found_CEA) then
-      !call read_CEA_input(section_name='CEA-data',INsource=CEAini,CEAobj_=CEA)
-      CEA%OG = .false.
-      call zoneini%get(section_name='zone', option_name='CEA-OG',val=CEA%OG,error=error)
+    !> Look for CEA input data
+    CEA%OG = .false.
+    call zoneini%get(section_name='zone', option_name='CEA-OG',val=CEA%OG,error=error)
+    call zoneini%get(section_name='zone', option_name='CEA-file',val=CEAfile,error=error)
+    if (error==0) then
       call CEA%solve(CEAfile)
       if (T0==0) T0 = CEA%SE%temperature
       if (p0==0) p0 = CEA%SE%pressure
@@ -201,6 +184,20 @@ module lib_ic
             exit
           end if
       end do; end do
+    else
+      do while(zoneini%loop(section_name='zone', option_pairs=item))
+        !> Look for direct address of mass fractions
+        if (index(item(1),'y')/=0) then
+          name = item(1); name = name(2:20)
+          do j = 1, self%species%n
+            if (adjustl(trim(name))==adjustl(trim(self%species%name(j)))) then
+              read(item(2),'(D12.5)') self%species%massf(j)
+              ytot = ytot+self%species%massf(j)
+              exit
+            end if
+          end do
+        endif
+      enddo
     endif
 
     !> Look for inertMix presence
@@ -217,7 +214,6 @@ module lib_ic
       allocate(self%pressure(1:self%dim(1),1:self%dim(2),1:self%dim(3)))
       if (nrans>0) allocate(self%turbprop(nrans,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
     endif
-    Rgas = sum(Runi*self%species%massf/w)
 
     ! Check direction
     dirSize = 0
@@ -255,6 +251,9 @@ module lib_ic
       call intersol(self,self%species,OMF,OFF,OSF,oldid,b)
 
     case ('homogeneous')
+
+      ! R
+      Rgas = sum(Runi*self%species%massf/w)
 
       ! Temperature
       if (T0==0 .and. T==0) T = p/(Rgas*rho)
@@ -306,6 +305,7 @@ module lib_ic
 
     case ('1D-centcomp' , '1D-cubcomp')
 
+      Rgas = sum(Runi*self%species%massf/w)
       cp_ = sum(self%species%massf*cp(:,1))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
@@ -333,6 +333,7 @@ module lib_ic
       allocate(radius_int(1:self%dim(1)))
       allocate(area(1:self%dim(1)))
 
+      Rgas = sum(Runi*self%species%massf/w)
       cp_ = sum(self%species%massf*cp(:,nint(T0)))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)

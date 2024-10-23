@@ -7,21 +7,21 @@ module Interpolator
   use CEA_module, only: obj_species
   implicit none
 
-  logical :: onemesh, onespecies
-  character(len=20) :: law
-  integer  :: nz_extrude
-  real(R8) :: thetamax_extrude
-  type(ATLAS_block), dimension(:), allocatable        :: oldblock
-  character(len=llen)              :: oldsolutionfile
+  logical                                      :: onemesh, onespecies
+  integer                                      :: nz_extrude
+  real(R8)                                     :: thetamax_extrude
+  character(len=20)                            :: law
+  type(ATLAS_block), dimension(:), allocatable :: oldblock
+  type(obj_species)                            :: oldspecies
+  character(len=llen)                          :: oldsolutionfile
 
 contains
 
-  subroutine build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,oldspecies,newspecies)
+  subroutine build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,newspecies)
     implicit none
     character(len=llen), intent(inout) :: oldspeciesfile_
     character(len=llen), intent(inout) :: oldsolutionfile_
     character(len=llen), intent(inout) :: oldmeshfile_
-    type(obj_species), intent(inout)   :: oldspecies
     type(obj_species), intent(in)      :: newspecies
     type(orion_data)                   :: oldorion
     integer :: b
@@ -133,7 +133,6 @@ contains
     character(len=llen), intent(inout)   :: oldsolutionfile_
     character(len=llen), intent(inout)   :: oldmeshfile_
     type(obj_species), intent(in)        :: newspecies
-    type(obj_species)                    :: oldspecies
     integer, intent(in)                  :: oldid, id
     character(2)                         :: sym_type
     integer                              :: cnt, s, sold, i, j, k, b, bb, trueb
@@ -146,11 +145,11 @@ contains
 
     ! First block interpolation requires old solution build
     if (.not. allocated(oldblock)) then
-      call build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,oldspecies,newspecies)
-    ! if multiple solutions files are employed, theold solution is rebuilt
+      call build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,newspecies)
+    ! if multiple solutions files are employed, the old solution is rebuilt
     elseif (allocated(oldblock) .and. oldsolutionfile_/=oldsolutionfile) then
       deallocate(oldblock)
-      call build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,oldspecies,newspecies)
+      call build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,newspecies)
     endif
 
     if (verbose) then
@@ -420,14 +419,16 @@ subroutine multiple_interpolation()
                                       +  coeffs(8)*oldblock(b)%pressure(i2, j2, k2)    
 
             ! Turbulent properties
-            block%turbprop(:,i,j,k)     =  coeffs(1)*oldblock(b)%turbprop(:,i2d,j2d,k2d)   &
-                                        +  coeffs(2)*oldblock(b)%turbprop(:,i2, j2d,k2d)   &
-                                        +  coeffs(3)*oldblock(b)%turbprop(:,i2d,j2, k2d)   &
-                                        +  coeffs(4)*oldblock(b)%turbprop(:,i2, j2, k2d)   &
-                                        +  coeffs(5)*oldblock(b)%turbprop(:,i2d,j2d,k2)    &
-                                        +  coeffs(6)*oldblock(b)%turbprop(:,i2, j2d,k2)    &
-                                        +  coeffs(7)*oldblock(b)%turbprop(:,i2d,j2, k2)    &
-                                        +  coeffs(8)*oldblock(b)%turbprop(:,i2, j2, k2) 
+            do cnt = 1, nrans
+            block%turbprop(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%turbprop(cnt,i2d,j2d,k2d)   &
+                                          +  coeffs(2)*oldblock(b)%turbprop(cnt,i2, j2d,k2d)   &
+                                          +  coeffs(3)*oldblock(b)%turbprop(cnt,i2d,j2, k2d)   &
+                                          +  coeffs(4)*oldblock(b)%turbprop(cnt,i2, j2, k2d)   &
+                                          +  coeffs(5)*oldblock(b)%turbprop(cnt,i2d,j2d,k2)    &
+                                          +  coeffs(6)*oldblock(b)%turbprop(cnt,i2, j2d,k2)    &
+                                          +  coeffs(7)*oldblock(b)%turbprop(cnt,i2d,j2, k2)    &
+                                          +  coeffs(8)*oldblock(b)%turbprop(cnt,i2, j2, k2)
+            enddo
           enddo
         enddo     
       enddo
@@ -547,14 +548,16 @@ subroutine multiple_interpolation()
                                               +  coeffs(8)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   ! Turbulent properties
-                  block%turbprop(:,ii,jj,kk)    = coeffs(1)*oldblock(b)%turbprop(:,i,j,k)     &
-                                                +  coeffs(2)*oldblock(b)%turbprop(:,id(mask(1)),j,k)    &
-                                                +  coeffs(3)*oldblock(b)%turbprop(:,i,id(mask(2)),k)    &
-                                                +  coeffs(4)*oldblock(b)%turbprop(:,i,j,id(mask(3)))    &
-                                                +  coeffs(5)*oldblock(b)%turbprop(:,id(mask(1)),id(mask(2)),k)   &
-                                                +  coeffs(6)*oldblock(b)%turbprop(:,id(mask(1)),j,id(mask(3)))   &
-                                                +  coeffs(7)*oldblock(b)%turbprop(:,i,id(mask(2)),id(mask(3)))   &
-                                                +  coeffs(8)*oldblock(b)%turbprop(:,id(mask(1)),id(mask(2)),id(mask(3)))
+                  do cnt = 1, nrans
+                  block%turbprop(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
+                                                  +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
+                                                  +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
+                                                  +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
+                                                  +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
+                                                  +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
+                                                  +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
+                                                  +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
+                  enddo
 
                   counter = counter + 1
 
@@ -601,7 +604,7 @@ subroutine multiple_interpolation()
         coeff_v(1:8) = [a1,a2,a2,a2,a3,a3,a3,a4] 
       
       elseif (sym_type=="2D") then
-        write(*,*) " 2D"           
+        write(*,*) " 2D"
         a0 = 0.
         a1 = 1.
         coeff_c(1:8) = [a1,a0,a0,a0,a0,a0,a0,a0]
@@ -846,14 +849,16 @@ subroutine multiple_interpolation()
                                               +  coeffs(8)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   ! Turbulent properties
-                  block%turbprop(:,ii,jj,kk)    =  coeffs(1)*oldblock(b)%turbprop(:,i,j,k)     &
-                                                +  coeffs(2)*oldblock(b)%turbprop(:,id(mask(1)),j,k)    &
-                                                +  coeffs(3)*oldblock(b)%turbprop(:,i,id(mask(2)),k)    &
-                                                +  coeffs(4)*oldblock(b)%turbprop(:,i,j,id(mask(3)))    &
-                                                +  coeffs(5)*oldblock(b)%turbprop(:,id(mask(1)),id(mask(2)),k)   &
-                                                +  coeffs(6)*oldblock(b)%turbprop(:,id(mask(1)),j,id(mask(3)))   &
-                                                +  coeffs(7)*oldblock(b)%turbprop(:,i,id(mask(2)),id(mask(3)))   &
-                                                +  coeffs(8)*oldblock(b)%turbprop(:,id(mask(1)),id(mask(2)),id(mask(3)))
+                  do cnt = 1, nrans
+                  block%turbprop(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
+                                                  +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
+                                                  +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
+                                                  +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
+                                                  +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
+                                                  +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
+                                                  +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
+                                                  +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
+                  enddo
                 
                   counter = counter + 1
                 
@@ -992,7 +997,9 @@ subroutine distance_interpolation
         block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
         
         ! Turbulent properties
-        block%turbprop(:,i,j,k) = oldblock(trueb)%turbprop(:,ind(1),ind(2),ind(3))
+        do cnt = 1, nrans
+          block%turbprop(cnt,i,j,k) = oldblock(trueb)%turbprop(cnt,ind(1),ind(2),ind(3))
+        enddo
         
       enddo
     enddo
@@ -1085,41 +1092,6 @@ subroutine spherical_distance_interpolation
   enddo
 
 end subroutine spherical_distance_interpolation
-  
-  ! ! Check mesh have the same dimensions Nx, Ny and eventually Nz
-  ! allocate(corresponding(1:2))
-
-  ! if (oldblock(oldid)%dim(1) == block%dim(1)) corresponding(1) = .true.
-  ! if (oldblock(oldid)%dim(2) == block%dim(2)) corresponding(2) = .true.
-  ! if (oldblock(oldid)%dim(3) == block%dim(3)) then
-  !   sym_type = "3D"
-  ! else 
-  !   if (oldblock(oldid)%dim(3) == 1) then
-  !     sym_type = "2D"
-  !   else
-  !     write(*,*) 
-  !     write(*,*) " ERROR : 3D Meshes with different Nz"
-  !     write(*,*) " Can't use law = 'index_block' in this case"
-  !     write(*,*)
-  !     stop    
-  !   endif
-  ! endif
-
-  ! if (.not.all(corresponding)) then
-  !   write(*,*) 
-  !   write(*,*) " ERROR : Different dimensions of blocks"
-  !   write(*,*) " Index Interpolation FAILED"
-  !   write(*,*)
-  !   stop
-  ! endif
-  
-  ! ! Case 2D-3D interpolation
-  ! if (all(corresponding).and.sym_type=="2D") then
-  !   write(*,*) 
-  !   write(*,*) " 2D-3D Index based interpolation algorithm "
-  !   write(*,*) " New Block: ", id, " - Old Block: ", oldid
-  !   write(*,*)
-
 
 end subroutine intersol
 

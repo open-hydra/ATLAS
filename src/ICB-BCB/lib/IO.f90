@@ -624,6 +624,7 @@ module IO
 
     open(unit=1,file='tabellams.dat',iostat=ios,status='old',action='read')
     if (ios/=0) open(unit=1,file='toAFFS/tabellams.dat',iostat=ios,status='old',action='read')
+    if (ios/=0) return
     read(1,*) n(1), n(2)
     allocate(cp(1:n(1),0:n(2)))
     allocate(dcp(1:n(1),0:n(2)))

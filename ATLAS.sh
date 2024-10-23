@@ -1,6 +1,14 @@
 #!/bin/bash -
+#===============================================================================
+#
+#          FILE: ATLAS.sh
+#
+#         USAGE: run "./ATLAS.sh [options]"
+#
+#   DESCRIPTION: A utility script to launch ATLAS programs
+#===============================================================================
 function print_usage {
-  echo "Bash srcipt for running ATLAS programs"
+  echo "Bash srcipt to run ATLAS programs"
   echo "CFD pre-processing tools:"
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
@@ -8,6 +16,7 @@ function print_usage {
   echo
   echo "General tools:"
   echo "   ATLAS CEA"
+  echo "   ATLAS KAnT"
   exit 1
 }
 
@@ -23,18 +32,52 @@ elif [[ $SHELL == *"bash"* ]]; then
   RCFILE=$HOME/.bashrc
 fi
 
+while test $# -gt 0; do
+  if [ x"$1" == x"--" ]; then
+    # detect argument termination
+    shift
+    break
+  fi
+  case $1 in
+
+    --verbose | -v )
+      shift
+      V=-v
+      ;;
+
+    --plot | -p )
+      shift
+      P=--pliot
+      ;;
+
+    -? | --help )
+      usage
+      exit
+      ;;
+
+    -* )
+      echo "Unrecognized option: $1" >&2
+      usage
+      exit $E_BAD_OPTION
+      ;;
+
+    * )
+      break
+      ;;
+  esac
+done
+
 if [[ $1 == CEA ]]; then
-  #!> CEA
   $NewCEADIR/bin/FCEA2
 else
   for i in $@; do
     if [[ $i == 'GPB' || $i == 'KAnT' ]]; then
       source $RCFILE > /dev/null 2>&1
       conda activate ct-env
-      python3 -B $ATLASDIR/src/$i/$i.py $2
+      python3 -B $ATLASDIR/src/$i/$i.py $V $P
       conda deactivate
     else
-      $ATLASDIR/bin/$i
+      $ATLASDIR/bin/$i $V
     fi
   done
 fi

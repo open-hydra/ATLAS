@@ -11,13 +11,15 @@ program ICB
   use input_ini
   use lib_ic
   use Interpolator, only: intersol
+  use finer, only: file_ini
   implicit none
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
   character(len=30)            :: ICformat
   type(obj_species)            :: species
-  character(len=llen)          :: meshfile, inifile
-  integer                      :: b!, ncelltot
+  character(len=llen)          :: filename
+  type(file_ini)               :: sourceini
+  integer                      :: b
 
   write(*,*)
   write(*,*) ' ATLAS - Initial Conditions Builder'
@@ -25,34 +27,33 @@ program ICB
 
   call command_line_argument()
 
-  meshfile = 'mesh.tec'
+  ! Phase properties import
   call read_MISCELA(w,cp,dcp,h)
+  filename = 'species.data'
   call read_species('species.data',species%n,species%name)
 
-  call execute_command_line('mkdir -p '//trim(outpath))
-
-  call read_ATLAS_general(inifile, ICformat)
-
-  call read_ICB_input(inifile)
-
-  write(*,*)' Reading mesh file: ',trim(meshfile)
-  call read_TECmesh(orion,meshfile)
+  ! Geometry import
+  filename = 'mesh.tec'
+  write(*,*)' Reading mesh file: ',trim(filename)
+  call read_TECmesh(orion,filename)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
     call block(b)%compute_centers(0)
   enddo
 
-  do b = 1, size(block)
-    call build_IC(block,species)
-  enddo
+  ! INI handling
+  call build_INI('ICB',size(block),sourceini,ICformat)
 
-  !> write media.init
+  ! IC computation
+  call build_IC(sourceini,block,species)
+
+  ! IC writing
+  call execute_command_line('mkdir -p '//trim(outpath))
   if (index(ICformat,'native')>0) then
     call write_solfile(block)
   else
     call write_vtk_tec(ICformat, block, orion)
   endif
-
 
   contains
 
