@@ -402,7 +402,7 @@ pure subroutine compute_volume( b, gc )
         cofactor(3,2) = -(A(1,1)*A(2,3)-A(1,3)*A(2,1))
         cofactor(3,3) =  (A(1,1)*A(2,2)-A(1,2)*A(2,1))
 
-        b%M(i,j,k)%c = transpose(cofactor) / det
+        b%M(i,j,k)%c = cofactor / det
 
       end if
 
