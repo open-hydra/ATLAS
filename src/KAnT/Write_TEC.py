@@ -16,7 +16,6 @@ def write_1D(models, x, y, xlabel, ylabel):
         f.write("TITLE = \"KAnT Output\"\n")
         f.write(f"VARIABLES = \"{xlabel}\"\"{ylabel}\"\n")
 
-        # Print out the reaction rates for each reaction in the specified format
         for model in models:
             gas = ct.Solution(model+'.yaml')
             if isinstance(x, np.ndarray):

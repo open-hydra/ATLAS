@@ -25,7 +25,7 @@ def define_model(model):
     original_species = original_mechanism.species()
     new_species = original_species.copy()
 
-    nasa_gas = ct.Species.list_from_file('gri30.yaml')
+    nasa_gas = ct.Species.list_from_file('nasa_gas.yaml')
 
     # Find and add N2 species from nasa_gas if missing
     if 'N2' not in original_mechanism.species_names:

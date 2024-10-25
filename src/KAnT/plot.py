@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import matplotlib.pyplot as plt
+import cantera as ct
 
 # List of possible line styles, colors, and markers
 line_styles = ['-', '--', '-.', ':']
@@ -18,6 +19,7 @@ def plot_1D(models, x, y, xlabel, ylabel, logy):
 
     random_styles = {}  # Store random styles for models not in 'styles'
     for model in models:
+        gas = ct.Solution(model+'.yaml')
         random_styles[model] = get_random_style()  # Store the random style for reuse   
         random_style = random_styles[model]
         if isinstance(x, np.ndarray):
@@ -25,13 +27,14 @@ def plot_1D(models, x, y, xlabel, ylabel, logy):
         else:
             xx = x[model]
         plt.plot(xx, y[model],
-            label=model,  # Label the model by its name
+            label=gas.name,  # Label the model by its name
             linestyle=random_style['linestyle'], 
             marker=random_style['marker'], 
             markersize=random_style['markersize'])
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.legend(loc='best')
+    plt.legend(loc="upper left", bbox_to_anchor=(1, 1))
+    plt.tight_layout()
     if (logy): plt.yscale('log')
 
 

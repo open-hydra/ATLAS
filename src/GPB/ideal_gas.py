@@ -56,15 +56,15 @@ def build(inifile,section):
     if thermo_model == 'NASA7':
         all_species = ct.Species.list_from_file('nasa_gas.yaml')
     elif thermo_model == 'NASA9':
-        all_species = ct.Species.list_from_file('nasa9_gas.yaml')
+        all_species = ct.Species.list_from_file('nasa9.yaml')
 
     # Assign NASA9 by default reactions phase is not defined
     if thermo_model is None and reaction_model is None:
-        all_species = ct.Species.list_from_file('nasa9_gas.yaml')
+        all_species = ct.Species.list_from_file('nasa9.yaml')
 
     # Force NASA9 if CEA is used
     if CEA_equilibrium:
-        all_species = ct.Species.list_from_file('nasa9_gas.yaml')
+        all_species = ct.Species.list_from_file('nasa9.yaml')
 
     # ---------------------------------------------------
     # Load the Transport Model

@@ -130,6 +130,7 @@ def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatu
     ignition_temperatures = {}
 
     for model in models:
+        print('Processing: ',model)
 
         new_mechanism = define_model(model)
         ignition_times[model] = []
@@ -149,10 +150,10 @@ def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatu
 
                     r = ct.IdealGasReactor(contents=new_mechanism, name="Batch Reactor")
                     reactor_network = ct.ReactorNet([r])
-                    # Set the maximum step size
-                    # rtol = 1.e-1
-                    # atol = 1.e-1
-                    # reactor_network.rtol, reactor_network.atol = rtol, atol
+                    # Set the ODE tollerances and max time step
+                    rtol = 1.e-7
+                    atol = 1.e-7
+                    reactor_network.rtol, reactor_network.atol = rtol, atol
                     #reactor_network.max_time_step = 1e-5
 
                     # use the above list to create a DataFrame
