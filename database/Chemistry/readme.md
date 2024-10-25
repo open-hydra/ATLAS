@@ -99,7 +99,7 @@ The Foundational Fuel Chemistry Model is a detailed chemical kinetic reaction mo
 
 The DTU mechanism is a comprehensive chemical kinetic model developed to accurately simulate the oxidation of methane under high-pressure conditions. This mechanism has been formulated to capture critical reactions and pathways that govern the combustion processes of methane, particularly in environments relevant to advanced combustion systems.
 
-## Key Features
+### Key Features
 
 - **Developer**: Technical University of Denmark
 - **Number of species**: 68
@@ -140,6 +140,20 @@ A RAMEC-based reduced chemical mechanism to encompass a very large range of pres
 - **Primary fuels**: methane
 
 + Monnier, F., & Ribert, G. (2022). Simulation of high-pressure methane-oxygen combustion with a new reduced chemical mechanism. Combustion and Flame, 235, 111735.
+
+## Zhukov-Kong Mechanism
+
+A skeletal methane kinetic mechanism is developed for conditions relating to the combustion of undiluted methane–oxygen mixtures at high pressures. The new skeletal mechanism is based on the detailed mechanism of oxidation of alkanes by Zhukov (2009). The skeletal model has been created by eliminating unimportant species and reactions from the detailed mechanism.
+
+### Key Features
+
+- **Developer**: Institute of Space Propulsion, German Aerospace Centre (DLR), Langer Grund
+- **Number of species**: 23
+- **Number of reactions**: 51
+- **Pressure range**: rocket engine
+- **Primary fuels**: methane
+
++ Zhukov, Victor P., and Alan F. Kong. "A compact reaction mechanism of methane oxidation at high pressures." Progress in reaction kinetics and mechanism 43.1 (2018): 62-78.
 
 ## TSR mechanisms
 

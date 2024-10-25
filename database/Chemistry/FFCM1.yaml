@@ -18,7 +18,7 @@ date: Fri, 04 Oct 2024 23:56:59 +0200
 units: {length: cm, time: s, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: FFCM1
+- name: FFCM-1
   thermo: ideal-gas
   elements: [O, H, C, N, Ar, He]
   species: [AR, HE, N2, H2, H, O, O2, OH, H2O, HO2, H2O2, CO, CO2, C, CH,

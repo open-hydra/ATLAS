@@ -12,7 +12,7 @@ ct.add_directory(datapath+'Chemistry')
 folder_path = datapath+'Chemistry'
 
 # Mechanisms to exclude
-exclude_mechs = ['JLR-frassoldati-ct.yaml', 'JLR-nasuti-ct.yaml']
+exclude_mechs = ['JLR-frassoldati-ct.yaml', 'JLR-nasuti-ct.yaml', 'glorian.yaml']
 
 # Initialize lists to store data
 species_counts = []
