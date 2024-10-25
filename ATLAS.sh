@@ -47,7 +47,7 @@ while test $# -gt 0; do
 
     --plot | -p )
       shift
-      P=--pliot
+      P=--plot
       ;;
 
     -? | --help )
@@ -74,7 +74,7 @@ else
     if [[ $i == 'GPB' || $i == 'KAnT' ]]; then
       source $RCFILE > /dev/null 2>&1
       conda activate ct-env
-      python3 -B $ATLASDIR/src/$i/$i.py $V $P
+      python3 -B $ATLASDIR/src/$i/$i.py $P
       conda deactivate
     else
       $ATLASDIR/bin/$i $V
