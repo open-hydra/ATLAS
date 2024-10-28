@@ -51,10 +51,10 @@ def read_Xequilibrium(ini_file, section):
   oxi_string.append(oxi_entry)
 
   Tf = get(ini_file, section, 'fuel-T', float)
-  if Tf is None: Tf = 1
+  if Tf is None: Tf = 111.643
 
   To = get(ini_file, section, 'oxidizer-T', float)
-  if To is None: To = 1
+  if To is None: To = 90.170
 
   fuel_string.insert(0, str(Tf))
   oxi_string.insert(0, str(To))

@@ -17,7 +17,7 @@ def to_si(quant):
     '''
     return quant.to_base_units().magnitude
 
-def equilibrium(model, fuel_string, oxi_string, pressure, of):
+def single_case(model, fuel_string, oxi_string, pressure, of):
     model += '.yaml'
 
     ureg = UnitRegistry()
@@ -41,7 +41,7 @@ def equilibrium(model, fuel_string, oxi_string, pressure, of):
 
     if 'O2(L)' in oxi_string[1]:
         oxi = ct.Solution('reactants.yaml','O2(L)')
-        oxi.TP = to_si(temperature_f), to_si(pressure_chamber)
+        oxi.TP = to_si(temperature_o), to_si(pressure_chamber)
     else:
         oxi_composition = re.findall(r'{(.*?):(.*?)}', oxi_string[1])
         oxi_dict = {species: float(value) for species, value in oxi_composition}
@@ -56,25 +56,23 @@ def equilibrium(model, fuel_string, oxi_string, pressure, of):
 
     # create a mixture of the reactants phases with the products model,
     # with the number of moles for fuel and oxidizer based on the O/F ratio
-    mix = ct.Mixture([(oxi, moles_oxi), (fuel, moles_fuel), (products, 0)])
+    mix = ct.Mixture([(fuel, moles_fuel), (oxi, moles_oxi), (products, 0)])
 
     # Solve for the equilibrium state, at constant enthalpy and pressure
     mix.equilibrate('HP', solver='vcs', rtol=1e-6, max_steps=1000)
-
-    #products()
 
     return products
 
 
 def run_all(models, fuel_string, oxi_string, pressure, mixture_ratio):
    
-    Ta = {}
+    solutions = {}
     for model in models:
-        Ta[model] = []
+        solutions[model] = []
         for of in mixture_ratio:
             for p in pressure:
-                cte_solution = equilibrium(model, fuel_string, oxi_string, p, of)
-                Ta[model].append(cte_solution.T)
+                cte_solution = single_case(model, fuel_string, oxi_string, p, of)
+                solutions[model].append(cte_solution)
 
-    return Ta
+    return solutions
 

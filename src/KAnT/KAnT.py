@@ -4,15 +4,20 @@
 import equilibrium
 import ignition_delay
 import counterflow_diffusion_flame
+from Parse_output import *
 from Read_INI import *
 from Write_TEC import *
 from plot import *
 import cases
 import sys
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-# Input file definition
-inifile = 'input.ini'
+inifile = Path("kant.ini")
+if not inifile.is_file():
+    inifile = Path("input.ini")
+    if not inifile.is_file():
+        exit('Missing input file')
 
 analyses = check_analyses(inifile)
 
@@ -21,7 +26,8 @@ for analysis in analyses:
     if 'Equilibrium' in analysis:
         fuel, oxi, pressure, of = read_Xequilibrium(inifile,'KAnT-Equilibrium')
         models = read_reactions(inifile,'KAnT-Equilibrium')
-        Ta = equilibrium.run_all(models,fuel,oxi,pressure,of)
+        solutions = equilibrium.run_all(models,fuel,oxi,pressure,of)
+        Ta = extract(models,solutions)
 
         # Write output
         if len(of)>1 and len(pressure)==1:
