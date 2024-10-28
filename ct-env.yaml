@@ -10,3 +10,4 @@ dependencies:
 - matplotlib  # optional (needed for plots)
 - python-graphviz  # optional (needed for reaction path diagrams)
 - pandas  # optional (needed for pandas interface)
+- pint  # optional (needed for units)
