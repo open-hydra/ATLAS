@@ -1,0 +1,128 @@
+module equilibrium
+  implicit none
+  
+contains
+
+  subroutine compute_equilibrium(sini,species,ytot,T0,p0)
+    use CEA_module
+    use finer, only: file_ini
+    implicit none
+    type(file_ini), intent(in)       :: sini
+    type(obj_species), intent(inout) :: species
+    real(8), intent(inout)           :: T0, p0, ytot
+    type(obj_CEA)                    :: CEA
+    type(obj_species)                :: ct_species
+    character(len=200)               :: CEAfile
+    character(len=20)                :: name
+    character(len=:), allocatable    :: item(:)
+    integer :: i, j, error
+
+    CEA%OG = .false.
+    call sini%get(section_name='zone', option_name='eq-OG',val=CEA%OG,error=error)
+    call sini%get(section_name='zone', option_name='CEA-file',val=CEAfile,error=error)
+    if (error==0) then
+    ! Use CEA
+      call CEA%solve(CEAfile)
+      if (T0==0) T0 = CEA%SE%temperature
+      if (p0==0) p0 = CEA%SE%pressure
+      ytot = 0.0
+      do j = 1, species%n; do i = 1, CEA%SE%species%n
+          if (adjustl(trim(CEA%SE%species%name(i)))==adjustl(trim(species%name(j)))) then
+            species%massf(j) = CEA%SE%species%massf(i)
+            ytot = ytot+species%massf(j)
+            exit
+          end if
+      end do; end do
+    elseif (sini%has_option(option_name='eq-pressure')) then
+    ! Use Cantera
+      call write_KaNT_INI(sini)
+      call read_KaNT_out(T0,ct_species)
+      ytot = 0.0
+      do j = 1, species%n; do i = 1, ct_species%n
+          if (adjustl(trim(ct_species%name(i)))==adjustl(trim(species%name(j)))) then
+            species%massf(j) = ct_species%massf(i)
+            ytot = ytot+species%massf(j)
+            exit
+          end if
+      end do; end do
+    else
+    ! Direct address of mass fractions
+      do while(sini%loop(section_name='zone', option_pairs=item))
+        if (index(item(1),'y')/=0) then
+          name = item(1); name = name(2:20)
+          do j = 1, species%n
+            if (adjustl(trim(name))==adjustl(trim(species%name(j)))) then
+              read(item(2),'(D12.5)') species%massf(j)
+              ytot = ytot+species%massf(j)
+              exit
+            end if
+          end do
+        endif
+      enddo
+    endif
+
+  end subroutine compute_equilibrium
+
+  subroutine write_KaNT_INI(sini)
+    use finer, only: file_ini
+    implicit none
+    type(file_ini), intent(in)    :: sini
+    type(file_ini)                :: nini
+    character(len=20)             :: name
+    character(len=:), allocatable :: item(:)
+
+      call nini%free
+      call nini%add(section_name='KAnT-Equilibrium')
+      do while(sini%loop(section_name='zone', option_pairs=item))
+        if (index(item(1),'eq-')/=0) then
+          name = item(1)
+          call nini%add(section_name='KAnT-Equilibrium', option_name=trim(name(4:)), val=item(2))
+        endif
+      enddo
+      call nini%save(filename='kant.ini')
+
+  end subroutine write_KAnT_INI
+
+  subroutine run_KAnT()
+    implicit none
+    character(len=500) :: master_path
+    call get_environment_variable('ATLASDIR',master_path)
+    call execute_command_line(trim(master_path)//'/ATLAS.sh KAnT > kant-out')
+  end subroutine
+
+  subroutine read_KAnT_out(temp,sp)
+    use CEA_module
+    use strings, only: parse
+    implicit none
+    real(8), intent(out)  :: temp
+    type(obj_species), intent(out) :: sp
+    integer :: u, ios, n, s
+    character(len=200) :: wholestring, stringa(2)
+
+    call run_KAnT
+
+    open(unit=u, file='kant-out')
+    read(u,*) temp
+    ios = 0
+    do while ( ios==0 )
+      read(u,*,iostat = ios)
+      n = n+1
+    enddo
+    n = n-1
+    rewind(u)
+    read(u,*)
+    sp%n = n
+    allocate(sp%name(1:n))
+    allocate(sp%massf(1:n))
+    do s = 1, n
+      read(u,'(A)') wholestring
+      call parse(wholestring,' ',stringa)
+      sp%name(s) = trim(stringa(1))
+      read( stringa(2), * ) sp%massf(s)
+    enddo
+    close(u)
+    call execute_command_line('rm kant*')
+
+  end subroutine read_KaNT_out
+
+end module equilibrium

@@ -1,21 +1,19 @@
 !>
-!> Initial Conditions Builder
+!> Boundary Conditions Builder
 !>
 
-program ICB
+program BCB
   use CEA_module
   use variables
   use ATLAS_high_level
   use IO
   use Lib_ORION_data
   use input_ini
-  use lib_ic
   use Interpolator, only: intersol
   use finer, only: file_ini
   implicit none
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
-  character(len=30)              :: ICformat
   type(obj_species)              :: species
   character(len=llen)            :: filename
   type(file_ini)                 :: sourceini
@@ -42,18 +40,42 @@ program ICB
   enddo
 
   ! INI handling
-  call build_INI('ICB',size(block),sourceini,ICformat)
+  call build_INI('BCB',size(block),sourceini)
 
-  ! IC computation
-  call build_IC(sourceini,block,species)
+  !call read_BCB_input(method,gmsh_mode,force_connect,chimeraon)
+  !call read_CP_input(CP_present)
 
-  ! IC writing
-  call execute_command_line('mkdir -p '//trim(outpath))
-  if (index(ICformat,'native')>0) then
-    call write_solfile(block)
-  else
-    call write_vtk_tec(ICformat, block, orion)
-  endif
+  !> write media.bound
+  ! do b = 1, nb
+  !   call read_and_assign_BC(species,b)
+  ! enddo
+  ! open(40,FILE='toAFFS/media.bound',STATUS='unknown')
+  ! call find_periodic(CP_present)
+  ! if (CP_present .and. nb>1) open(unit=1,file='toAFFS/CPMadj.bound')
+  ! if (nb>1) then
+  !   if (chimeraon) then
+  !     call chimera_wrapper()
+  !   else
+  !     call find_connect(CP_present,force_connect)
+  !   endif
+  ! endif
+  ! do b = 1, nb
+  !   call write_mediabound(b)
+  ! enddo
+  ! close(40)
+  ! if (CP_present .and. nb>1) close(1)
+
+  ! if (CP_present) then
+  !   open(newunit=unitbound,FILE='toAFFS/CPM.bound',STATUS='unknown')
+  !   open(newunit=unitbound_cp,file='toAFFS/particles-bc-input.txt',status='unknown')
+  !   do b = 1, nb
+  !     !call import_bc_cpm(npop,b)
+  !     call write_CPMbound(unitbound,b)
+  !     call write_cp_bc_file(unitbound_cp,b,npCP)
+  !   enddo
+  !   close(unitbound)
+  !   close(unitbound_cp)
+  ! endif
 
   contains
 
@@ -76,4 +98,4 @@ program ICB
   end subroutine command_line_argument
 
 
-end program ICB
+end program BCB

@@ -1,6 +1,5 @@
 module lib_ic
   use ATLAS_high_level
-  use CEA_module
   use finer, only: file_ini
   implicit none
   private
@@ -15,6 +14,7 @@ module lib_ic
   contains
 
   subroutine build_IC(sini,blocks,species)
+    use CEA_module, only: obj_species
     implicit none
     type(ATLAS_block), intent(inout) :: blocks(:)
     type(obj_species), intent(in)    :: species
@@ -79,19 +79,19 @@ module lib_ic
   subroutine build_flow(b,self,zoneini)
     use variables
     use Interpolator
+    use equilibrium
     implicit none
     class(ATLAS_block), intent(inout) :: self
     type(file_ini), intent(in)        :: zoneini
     integer, intent(in)               :: b
-    type(obj_CEA)                 :: CEA
-    logical                       :: found_CEA, found(5)
+    logical                       :: found(5)
     integer                       :: throat_cell, i, ib1, ib2, ip, j, s, k, error
     real(8)                       :: Rgas, gamma, rho, vel, del, a, cp_
     real(8)                       :: M0, mach
-    real(8), allocatable          :: radius_ext(:), radius_int(:), area(:)
-    real(8)                       :: throat_area, dx, dy, dz, zeta, phi
     real(8)                       :: alpha, beta, M, p0, T0, p, T, ux, uy, uz, mit, kappa, omega, rhoRij
-    character(len=llen)           :: OMF, OFF, OSF, CEAfile
+    real(8)                       :: throat_area, dx, dy, dz, zeta, phi
+    real(8), allocatable          :: radius_ext(:), radius_int(:), area(:)
+    character(len=llen)           :: OMF, OFF, OSF
     integer                       :: oldid
     character(len=20)             :: name, type
     character(len=:), allocatable :: item(:)
@@ -104,8 +104,7 @@ module lib_ic
 
     call zoneini%get(section_name='zone', option_name='type', val=type, error=error)
     if (error/=0) type='homogeneous'
-    
-    found_CEA = .false.
+
     M = 0d0; p0 = 0.0; p = 0.0
     self%species%massf = 1d-20
     call zoneini%get(section_name='zone', option_name='mach', val=M, error=error)
@@ -167,46 +166,18 @@ module lib_ic
 
     self%type = type
 
-    !> Mass fractions input
-    !> Look for CEA input data
-    CEA%OG = .false.
-    call zoneini%get(section_name='zone', option_name='CEA-OG',val=CEA%OG,error=error)
-    call zoneini%get(section_name='zone', option_name='CEA-file',val=CEAfile,error=error)
-    if (error==0) then
-      call CEA%solve(CEAfile)
-      if (T0==0) T0 = CEA%SE%temperature
-      if (p0==0) p0 = CEA%SE%pressure
-      ytot = 0.0
-      do j = 1, self%species%n; do i = 1, CEA%SE%species%n
-          if (adjustl(trim(CEA%SE%species%name(i)))==adjustl(trim(self%species%name(j)))) then
-            self%species%massf(j) = CEA%SE%species%massf(i)
-            ytot = ytot+self%species%massf(j)
-            exit
-          end if
-      end do; end do
+    ! Assign species mass fractions and temperature (if equilibrium)
+    if (self%species%n==1) then
+      ! Look for single-species case
+      self%species%massf = 1.0
     else
-      do while(zoneini%loop(section_name='zone', option_pairs=item))
-        !> Look for direct address of mass fractions
-        if (index(item(1),'y')/=0) then
-          name = item(1); name = name(2:20)
-          do j = 1, self%species%n
-            if (adjustl(trim(name))==adjustl(trim(self%species%name(j)))) then
-              read(item(2),'(D12.5)') self%species%massf(j)
-              ytot = ytot+self%species%massf(j)
-              exit
-            end if
-          end do
-        endif
+      ! Chemical equilibrium input
+      call compute_equilibrium(zoneini, self%species, ytot, T0, p0)
+      ! Look for inertMix presence
+      do j = 1, self%species%n
+        if (self%species%name(j)=='inertMix') self%species%massf(j) = 1.0-ytot
       enddo
     endif
-
-    !> Look for inertMix presence
-    do j = 1, self%species%n
-      if (self%species%name(j)=='inertMix') self%species%massf(j) = 1.0-ytot
-    enddo
-
-    !> Look for single-species case
-    if (self%species%n==1) self%species%massf = 1.0
 
     if (.not.allocated(self%density)) then
       allocate(self%density(self%species%n,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
