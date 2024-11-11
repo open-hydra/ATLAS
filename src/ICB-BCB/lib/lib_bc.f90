@@ -9,11 +9,12 @@ module lib_bc
   public:: build_BC
   public:: find_connect
   public:: find_periodic
-  !public:: chimera_wrapper
+  public:: chimera_wrapper
 
   contains
 
   subroutine build_BC(sini,blocks,species)
+    use TOM, only: delthe
     use variables, only: nrans
     implicit none
     type(ATLAS_block), intent(inout) :: blocks(:)
@@ -43,24 +44,27 @@ module lib_bc
         call sini%get(section_name=section_name, option_name='face'//adjustl(ind), &
                                                               val=block%face(ff)%bc%name, error=error)
 
-        print*, b,ff,block%face(ff)%bc%name,error
         if (error/=0) then
           if (ff<=4) then
             error stop ( 'Missing face entries' )
           else
-            block%face(ff)%bc%name = 'sym'
-            block%face(ff)%bc%definition = 3
+            if (delthe==0.d0) then
+              block%face(ff)%bc%name = 'null'
+              block%face(ff)%bc%definition = 0
+            else
+              block%face(ff)%bc%name = 'axisymmetric'
+              block%face(ff)%bc%definition = 2
+            endif
             error = 0
           endif
         else
-                do while (sini%loop(section_name=trim(block%face(ff)%bc%name), option_pairs=option_pairs))
-          call faceini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
-          if (index(option_pairs(1),'patch')>0) multipatch=.true.
-        enddo
+          do while (sini%loop(section_name=trim(block%face(ff)%bc%name), option_pairs=option_pairs))
+            call faceini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
+            if (index(option_pairs(1),'patch')>0) multipatch=.true.
+          enddo
           call sini%get(section_name=trim(block%face(ff)%bc%name), option_name='type', &
                         val=block%face(ff)%bc%definition, error=error)
         endif
-        print*, b,ff,trim(block%face(ff)%bc%name), error, block%face(ff)%bc%definition
 
         !> Face-related INI source
         multipatch = .false.
@@ -506,12 +510,12 @@ module lib_bc
 
 
   !> Based on the find_connect.F file of AFFS
-  subroutine find_connect(block,CPM_present,force_connect)
+  subroutine find_connect(block,force_connect)
     ! use omp_lib
     use bc
     implicit none
     type(ATLAS_block), intent(inout) :: block(:)
-    logical, intent(in) :: CPM_present, force_connect
+    logical, intent(in) :: force_connect
     real(8), allocatable  :: x(:), y(:), z(:)
     integer, allocatable :: b(:), f(:), n(:), m(:), def(:), prop(:,:)
     logical, allocatable :: adj(:)
@@ -616,10 +620,10 @@ module lib_bc
           prop(j,4) = k1
           prop(j,5) = f1
                       
-          if (CPM_present) then
-            write(1,'(10I4)')b1, f1, i1, j1, k1, &
-                            b2, f2, i2, j2, k2
-          endif
+          ! if (CPM_present) then
+          !   write(1,'(10I4)')b1, f1, i1, j1, k1, &
+          !                   b2, f2, i2, j2, k2
+          ! endif
           exit
         endif
       enddo
@@ -954,9 +958,10 @@ end subroutine mn2ijk
 !    b     : matrice r*r invertita
 !    r     : dimensione (max 20)      intero
 subroutine invmat(a,b,r)
-  implicit real (a-h,o-z)
+  implicit none
   integer :: r,j,i,k,l
   real(8) :: a(3,3),b(3,3),c(3,3)
+  real(8) :: s, t
   
       do 2 i=1,r
         do 3 j=1,r

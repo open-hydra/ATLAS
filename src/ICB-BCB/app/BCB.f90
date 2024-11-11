@@ -3,10 +3,11 @@
 !>
 
 program BCB
+  use TOM, only: check_mesh_type
   use CEA_module
   use variables
   use ATLAS_high_level
-  use IO
+  use ATLAS_IO
   use Lib_ORION_data
   use input_ini
   use lib_bc
@@ -37,33 +38,31 @@ program BCB
   call read_TECmesh(orion,filename)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
-    call block(b)%compute_centers(0)
+    call block(b)%extrapolate_nodes(2)
+    call block(b)%compute_centers(2)
+    call block(b)%compute_face_centers()
   enddo
+  call check_mesh_type(block(1))
 
   ! INI handling
   call build_INI(prog='BCB',nb=size(block),inisource=sourceini,force_connect=force_connect,chimeraon=chimeraon)
 
+  ! BC computation
   call build_BC(sourceini,block,species)
   !call read_CP_input(CP_present)
+  ! Multiblock operations
+  call find_periodic(block)
+  if (size(block)>1) then
+    if (chimeraon) then
+      call chimera_wrapper(block)
+    else
+      call find_connect(block,force_connect)
+    endif
+  endif
 
-  !> write media.bound
-  ! do b = 1, nb
-  !   call read_and_assign_BC(species,b)
-  ! enddo
-  ! open(40,FILE='toAFFS/media.bound',STATUS='unknown')
-  ! call find_periodic(CP_present)
-  ! if (CP_present .and. nb>1) open(unit=1,file='toAFFS/CPMadj.bound')
-  ! if (nb>1) then
-  !   if (chimeraon) then
-  !     call chimera_wrapper()
-  !   else
-  !     call find_connect(CP_present,force_connect)
-  !   endif
-  ! endif
-  ! do b = 1, nb
-  !   call write_mediabound(b)
-  ! enddo
-  ! close(40)
+  ! BC writing
+  call execute_command_line('mkdir -p '//trim(outpath))
+  call write_idealgas_bc_file(block)
   ! if (CP_present .and. nb>1) close(1)
 
   ! if (CP_present) then

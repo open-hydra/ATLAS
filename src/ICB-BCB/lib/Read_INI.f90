@@ -61,13 +61,15 @@ contains
     character(len=:), allocatable :: option_pairs(:)
     character(len=30)             :: actual_section, new_section
     character(len=4)              :: indb
-    integer                       :: b
+    integer                       :: b, s
     logical                       :: is_there
+    character(len=:), allocatable :: section_list(:)
 
     call sini%free
 
     do b = 1, nb
       write(indb,'(I4)') b
+      ! Define and add a *-Block# section
       new_section = prog//'-Block'//adjustl(indb)
       call sini%add(section_name=new_section)
 
@@ -79,8 +81,21 @@ contains
         is_there = fini%has_section(actual_section)
       endif
 
+      ! Copy the options from the inifile to the inisource
       do while (fini%loop(section_name=actual_section, option_pairs=option_pairs))
         call sini%add(section_name=new_section, option_name=option_pairs(1), val=option_pairs(2))
+      enddo
+    enddo
+
+    ! Add further sections
+    call fini%get_sections_list(section_list)
+    do s = 1, size(section_list)
+      ! Bypass sections named after a block
+      if (index(section_list(s),'Block')>0) cycle
+      ! Copy all the remaining sections
+      call sini%add(section_name=section_list(s))
+      do while (fini%loop(section_name=section_list(s), option_pairs=option_pairs))
+        call sini%add(section_name=section_list(s), option_name=option_pairs(1), val=option_pairs(2))
       enddo
     enddo
 

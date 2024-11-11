@@ -93,8 +93,7 @@ module lib_ic
     real(8), allocatable          :: radius_ext(:), radius_int(:), area(:)
     character(len=llen)           :: OMF, OFF, OSF
     integer                       :: oldid
-    character(len=20)             :: name, type
-    character(len=:), allocatable :: item(:)
+    character(len=20)             :: type
     real(8)                       :: ytot=0.0, range(6)
     character(len=3)              :: dirID
     integer                       :: dirSize

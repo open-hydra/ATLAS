@@ -577,7 +577,7 @@ pure subroutine compute_volume( b, gc )
     use, intrinsic :: iso_fortran_env, only : iostat_end
     implicit none
     class(block_type), intent(in) :: blk
-    real(8)                      :: theta1, theta2, theta(2)
+    real(8)                       :: theta1, theta2, theta(2)
 
     ! Mesh definition (2D,2Daxi,3D)
     if (Blk%dim(3)>1) then

@@ -6,7 +6,7 @@ program ICB
   use CEA_module
   use variables
   use ATLAS_high_level
-  use IO
+  use ATLAS_IO
   use Lib_ORION_data
   use input_ini
   use lib_ic

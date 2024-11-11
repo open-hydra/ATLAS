@@ -1,14 +1,13 @@
-module IO
+module ATLAS_IO
   use Lib_ORION_data
   implicit none
   private
-  public:: write_mediabound
+  public:: write_idealgas_bc_file
   public:: write_cp_bc_file
   public:: write_vtk_tec
   public:: read_MISCELA
   public:: read_w
   public:: read_solfile, write_solfile
-  !public:: count_blocks
   public:: read_TECmesh
   public:: read_species
   public:: read_array
@@ -19,14 +18,17 @@ module IO
 
   contains
   
-  subroutine write_mediabound(block)
-    use variables, only: nrans
+  subroutine write_idealgas_bc_file(block)
+    use variables
     use ATLAS_high_level, only: ATLAS_block
     use chimera
     implicit none
     type(ATLAS_block), intent(in) :: block(:)
     integer                       :: b, f, m, n, mend(6), nend(6)
     integer                       :: Ai, Aj, Ak, ii, jj, kk
+
+    open(newunit=unitfile,FILE=outpath//'/bc.txt',STATUS='unknown')
+    ! if (CP_present .and. nb>1) open(unit=1,file='toAFFS/CPMadj.bound')
 
     do b = 1, size(block)
       mend(1:2) = block(b)%dim(2); nend(1:2) = block(b)%dim(3)
@@ -37,41 +39,40 @@ module IO
           do m = 1, mend(f)
             
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
-            
-            write(40,'(6I8)')b,Ai,Aj,Ak,f,block(b)%face(f)%center(m,n)%bc%definition
+            write(unitfile,'(6I8)')b,Ai,Aj,Ak,f,block(b)%face(f)%center(m,n)%bc%definition
 
             select case (block(b)%face(f)%center(m,n)%bc%definition)
 
               case(1)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-1-nrans
-                  write(40,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
+                  write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
                 enddo
                 do i = 1, size(block(b)%face(f)%center(m,n)%bc%connection)
-                  write(40,'(I8)',advance='no') block(b)%face(f)%center(m,n)%bc%connection(i)
+                  write(unitfile,'(I8)',advance='no') block(b)%face(f)%center(m,n)%bc%connection(i)
                 enddo
-                write(40,'(A)') ''
+                write(unitfile,'(A)') ''
 
               case(2,3,11)
 
               case(4)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties
-                  write(40,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
+                  write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
                 enddo
                 do i = 1, block(b)%face(f)%center(m,n)%bc%species%n
-                  write(40,'(E14.5,A)',advance='no') block(b)%face(f)%center(m,n)%bc%species%massf(i),','
+                  write(unitfile,'(E14.5,A)',advance='no') block(b)%face(f)%center(m,n)%bc%species%massf(i),','
                 enddo
-                write(40,'(A)') ''
+                write(unitfile,'(A)') ''
               
               case(5,6,9,10)
-                write(40,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(1)
+                write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(1)
               
               case(8)
-                write(40,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(1)
-                write(40,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(2)
+                write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(1)
+                write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(2)
               
               case(12)
                 do i = 1, 5
-                  write(40,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
+                  write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
                 enddo
               
               case(666)
@@ -104,7 +105,7 @@ module IO
                     jj = Aj
                 end select     
 
-                write(40,'(I8)',advance='no') size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
+                write(unitfile,'(I8)',advance='no') size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
               
                 ! Ghost i-2
                 select case(f)
@@ -134,7 +135,7 @@ module IO
                     jj = Aj
                 end select  
 
-                write(40,'(I8)') size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
+                write(unitfile,'(I8)') size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
 
                 ! Ghost i-1
                 select case(f)
@@ -165,8 +166,8 @@ module IO
                 end select     
 
                 do i = 1, size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
-                  write(40,'(4I8)',advance='no') (nint(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
-                  write(40,'(E20.10)') block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,5)
+                  write(unitfile,'(4I8)',advance='no') (nint(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
+                  write(unitfile,'(E20.10)') block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,5)
                 enddo     
                 
                 ! Ghost i-2
@@ -198,8 +199,8 @@ module IO
                 end select  
 
                 do i = 1, size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
-                  write(40,'(4I8)',advance='no') (nint(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
-                  write(40,'(E20.10)') block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,5)
+                  write(unitfile,'(4I8)',advance='no') (nint(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
+                  write(unitfile,'(E20.10)') block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,5)
                 enddo     
               
             end select
@@ -208,7 +209,9 @@ module IO
       enddo
     enddo
 
-  end subroutine write_mediabound
+    close(unitfile)
+
+  end subroutine write_idealgas_bc_file
 
 
   subroutine write_cp_bc_file(block,u,npCP)
@@ -289,7 +292,7 @@ module IO
                     jj = Aj
                 end select     
 
-                write(40,'(I8)',advance='no') size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
+                write(unitfile,'(I8)',advance='no') size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
               
                 ! Ghost i-2
                 select case(f)
@@ -319,7 +322,7 @@ module IO
                     jj = Aj
                 end select  
 
-                write(40,'(I8)') size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
+                write(unitfile,'(I8)') size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
 
 
 
@@ -352,8 +355,8 @@ module IO
                 end select     
 
                 do i = 1, size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
-                  write(40,'(4I8)',advance='no') (nint(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
-                  write(40,'(E20.10)') block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,5)
+                  write(unitfile,'(4I8)',advance='no') (nint(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
+                  write(unitfile,'(E20.10)') block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,5)
                 enddo     
                 
                 ! Ghost i-2
@@ -385,8 +388,8 @@ module IO
                 end select  
 
                 do i = 1, size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
-                  write(40,'(4I8)',advance='no') (nint(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
-                  write(40,'(E20.10)') block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,5)
+                  write(unitfile,'(4I8)',advance='no') (nint(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
+                  write(unitfile,'(E20.10)') block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,5)
                 enddo     
               
             end select
@@ -707,4 +710,4 @@ module IO
 
 
 
-end module IO
+end module ATLAS_IO

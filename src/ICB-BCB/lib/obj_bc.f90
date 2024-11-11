@@ -315,12 +315,12 @@ module bc
 
   !> compute T starting from h using tabellams
   function h02T0(h0) result(T0)
-    use variables, only: unitfile, h
+    use variables, only: h
     implicit none
     real(8), intent(in) :: h0
     real(8) :: T0, dummy
     integer :: n(2)
-    integer :: ios, i, j, idum(2)
+    integer :: unitfile, ios, i, j, idum(2)
 
     open(newunit=unitfile,file='tabellams.dat',iostat=ios,status='old',action='read')
     if (ios/=0) open(unit=1,file='toAFFS/tabellams.dat',iostat=ios,status='old',action='read')

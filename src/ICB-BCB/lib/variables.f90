@@ -2,7 +2,6 @@ module variables
   implicit none
 
   integer, parameter :: llen = 200
-  integer :: unitfile
 
   character(len=17), parameter :: outpath = 'fromATLAStoSolver'
 
@@ -14,7 +13,6 @@ module variables
   real(8), allocatable:: cp(:,:), dcp(:,:), h(:,:), w(:)
 
   !> Switches
-  logical :: threedim
   logical :: verbose
 
 end module variables 
