@@ -74,6 +74,7 @@ module ATLAS_IO
                 do i = 1, 5
                   write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
                 enddo
+                write(unitfile,'(A)') ''
               
               case(666)
                 
