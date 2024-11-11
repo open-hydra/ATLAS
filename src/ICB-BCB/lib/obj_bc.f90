@@ -148,6 +148,7 @@ module bc
     end subroutine assigne_halfPeriodicInfo
 
     subroutine assemble_the_monster
+      use equilibrium
       implicit none
       logical                        :: found_CEA
       type(file_ini)                 :: CEAini
@@ -196,56 +197,24 @@ module bc
       call sourceini%get(section_name=section,option_name='p0-time-file',val=chardummy,error=error)
       if (error==0) p0 = 1732
 
-      !> Mass fractions input
-      do while(sourceini%loop(section_name=section, option_pairs=item))
-        !> Look for CEA input data
-        if (index(item(1),'CEA')/=0) then
-          found_CEA = .true.
-          name = item(1); name = name(5:30)
-          call CEAini%add(section_name='CEA-data', option_name=name, val=item(2))
-        endif
-        !> Look for direct address of mass fractions
-        if (index(item(1),'y')/=0) then
-          name = item(1); name = name(2:30)
-          do j = 1, self%species%n
-            if (adjustl(trim(name))==adjustl(trim(self%species%name(j)))) then
-              read(item(2),'(D12.5)') self%species%massf(j)
-              ytot = ytot+self%species%massf(j)
-              exit
-            end if
-          end do
-        endif
-      enddo
-
-      if (h0/=0 .and. self%species%n>1) then
-        error stop ("Not possible to assign h0 to a multispecies flow!")
-      elseif (h0/=0 .and. self%species%n==1) then
-        T0 = h02T0(h0)
+      ! Assign species mass fractions and temperature (if equilibrium)
+      if (self%species%n==1) then
+        ! Look for single-species case
+        self%species%massf = 1.0
+      else
+        ! Chemical equilibrium input
+        call compute_equilibrium(sourceini, self%species, ytot, T0, p0)
+        ! Look for inertMix presence
+        do j = 1, self%species%n
+          if (self%species%name(j)=='inertMix') self%species%massf(j) = 1.0-ytot
+        enddo
       endif
 
-      !> CEA operations block
-      if (found_CEA) then
-        !call read_CEA_input(section_name='CEA-data',INsource=CEAini,CEAobj_=CEA)
-        call CEA%solve(CEAfile)
-        if (T0==0 .and. T==0) T0 = CEA%SE%temperature
-        if (p0==0) p0 = CEA%SE%pressure
-        if (h0==0 .and. self%species%n==1 .and. T0==0) T0 = h02T0(dble(CEA%SE%h0))
-        do j = 1, self%species%n; do i = 1, CEA%SE%species%n
-            if (adjustl(trim(CEA%SE%species%name(i)))==adjustl(trim(self%species%name(j)))) then
-              self%species%massf(j) = CEA%SE%species%massf(i)
-              ytot = ytot+self%species%massf(j)
-              exit
-            end if
-        end do; end do
-      endif
-
-      !> Look for inertMix presence
-      do j = 1, self%species%n
-        if (self%species%name(j)=='inertMix') self%species%massf(j) = 1.0-ytot
-      enddo
-
-      !> Look for single-species case
-      if (self%species%n==1) self%species%massf = 1.0
+      ! if (h0/=0 .and. self%species%n>1) then
+      !   error stop ("Not possible to assign h0 to a multispecies flow!")
+      ! elseif (h0/=0 .and. self%species%n==1) then
+      !   T0 = h02T0(h0)
+      ! endif
 
       !> Choose between total temperature and static one
       if (nmach<0.0 .and. T>0 .and. T0==0) nmach = -5.0
