@@ -8,7 +8,7 @@ from Parse_output import *
 from Read_INI import *
 from Write_TEC import *
 from plot import *
-import cases
+import KAnT.reference as reference
 import sys
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -66,7 +66,7 @@ for analysis in analyses:
             elif len(pressure)==1 and len(of)==1 and len(temperatures)>1:
                 plot_1D(models, temperatures, tau, 'Initial Temperature, K', 'Ignition Delay, s',True)
 
-            if case is not None: cases.plot_cases(case)
+            if case is not None: reference.plot_cases(case)
 
     if 'Counterflow' in analysis:
         fuel, oxi, pressure, of, mdot, width = read_Xcounterflow(inifile,'KAnT-Counterflow')

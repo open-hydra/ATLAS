@@ -1,6 +1,6 @@
 from PiNeR import get, check_section
 import numpy as np
-from cases import setup_case
+from KAnT.reference import setup_case
 
 sections = ['KAnT-Equilibrium', 'KAnT-Ignition', 'KAnT-Counterflow']
 

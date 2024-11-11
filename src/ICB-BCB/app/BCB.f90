@@ -9,7 +9,7 @@ program BCB
   use IO
   use Lib_ORION_data
   use input_ini
-  use Interpolator, only: intersol
+  use lib_bc
   use finer, only: file_ini
   implicit none
   type(ATLAS_block), allocatable :: block(:)
@@ -18,9 +18,10 @@ program BCB
   character(len=llen)            :: filename
   type(file_ini)                 :: sourceini
   integer                        :: b
+  logical                        :: force_connect, chimeraon
 
   write(*,*)
-  write(*,*) ' ATLAS - Initial Conditions Builder'
+  write(*,*) ' ATLAS - Boundary Conditions Builder'
   write(*,*)
 
   call command_line_argument()
@@ -40,9 +41,9 @@ program BCB
   enddo
 
   ! INI handling
-  call build_INI('BCB',size(block),sourceini)
+  call build_INI(prog='BCB',nb=size(block),inisource=sourceini,force_connect=force_connect,chimeraon=chimeraon)
 
-  !call read_BCB_input(method,gmsh_mode,force_connect,chimeraon)
+  call build_BC(sourceini,block,species)
   !call read_CP_input(CP_present)
 
   !> write media.bound

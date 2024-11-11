@@ -12,7 +12,7 @@
       real(8), dimension(3)            :: normal
     end type obj_boundary_cellface
 
-    type :: obj_face
+    type, public :: obj_face
       integer :: Nm, Nn
       type(obj_bc_cellface_properties):: bc                                ! Homogeneous BC
       type(obj_boundary_cellface), dimension(:,:), allocatable :: center   ! Cell specific BC applied over cell faces 
