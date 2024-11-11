@@ -2,6 +2,7 @@ name: ct-env
 channels:
 - cantera  # or use cantera/label/dev for alpha/beta packages
 - defaults
+- conda-forge
 dependencies:
 - python  # Cantera supports Python 3.8 and up
 - cantera
