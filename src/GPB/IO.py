@@ -1,6 +1,12 @@
 import cantera as ct
 import numpy as np
 import yaml
+import os
+outpath = 'fromATLAStoSolver/'
+try:
+    os.mkdir(outpath)
+except FileExistsError:
+    print(f"Directory '{outpath}' already exists.")
 
 # def fittatutto (reaction, temperatures,kb_values):
 #     from scipy.optimize import curve_fit
@@ -102,14 +108,14 @@ def read_yaml_file(file_path):
 def write_thermo_properties(name, T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values):
 
     # Write the data to a file in Tecplot-readable format
-    filename = name + "-thermo-mw.txt"
+    filename = outpath + name + "-thermo-mw.txt"
 
     with open(filename, 'w') as f:
         for i, species_name in enumerate(species_names):
             f.write(f"{species_name} {molecular_weights[i]:.6f}\n")
 
     # Write the data to a file in Tecplot-readable format
-    filename = name + "-thermo.dat"
+    filename = outpath + name + "-thermo.dat"
 
     # Define temperature range
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
@@ -133,7 +139,7 @@ def write_thermo_properties(name, T_low, T_max, species_names, molecular_weights
 def write_transport_properties(name, T_low, T_max, species_names, viscosity, conductivity):
 
     # Write the data to a file in Tecplot-readable format
-    filename = name + "-transport.dat"
+    filename = outpath + name + "-transport.dat"
 
     # Define temperature range
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
@@ -172,7 +178,7 @@ def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
                 f.write(f'{T:<12}  {forward_rate:.20E}    {reverse_rate:.20E}\n')
 
 
-    filename_ = name + '-chemistry-stoich.txt'
+    filename_ = outpath + name + '-chemistry-stoich.txt'
     with open(filename_, mode='w') as file:
     
         # Write the header

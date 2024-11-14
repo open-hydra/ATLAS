@@ -1,10 +1,17 @@
 import cantera as ct
 import numpy as np
+import os
+
+outpath = 'toAFFS/'
+try:
+    os.mkdir(outpath)
+except FileExistsError:
+    print(f"Directory '{outpath}' already exists.")
 
 def write_thermo_properties(T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values):
 
     # Write the data to a file in Tecplot-readable format
-    filename = "species.data"
+    filename = outpath + "species.data"
 
     with open(filename, 'w') as f:
         f.write(f"{len(species_names)}\n")
@@ -12,14 +19,14 @@ def write_thermo_properties(T_low, T_max, species_names, molecular_weights, mass
             f.write(f"{species_name}\n")
 
     # Write the data to a file in Tecplot-readable format
-    filename = "wm.dat"
+    filename = outpath + "wm.dat"
 
     with open(filename, 'w') as f:
         for i, species_name in enumerate(species_names):
             f.write(f"{molecular_weights[i]:.6f}\n")
 
     # Write the data to a file in Tecplot-readable format
-    filename = "tabellams.dat"
+    filename = outpath + "tabellams.dat"
 
     # Define temperature range
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
@@ -42,7 +49,7 @@ def write_thermo_properties(T_low, T_max, species_names, molecular_weights, mass
 def write_transport_properties(T_low, T_max, species_names, viscosity, conductivity):
 
     # Write the data to a file in Tecplot-readable format
-    filename = "tab_trans.dat"
+    filename = outpath + "tab_trans.dat"
 
     # Define temperature range
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
@@ -60,7 +67,7 @@ def write_chemistry_properties (T_low, T_max, phase, further_sp):
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
 
     # Write the data to a file in Tecplot-readable format
-    filename = "rate.dat"
+    filename = outpath + "rate.dat"
     with open(filename, 'w') as f:
         # Print out the reaction rates for each reaction in the specified format
         f.write(f"{phase.n_reactions} {20000}\n")
@@ -71,7 +78,7 @@ def write_chemistry_properties (T_low, T_max, phase, further_sp):
                 reverse_rate = phase.reverse_rate_constants[i]
                 f.write(f'{int(T)}   {i+1}   {forward_rate:.20E}   {reverse_rate:.20E}\n')
 
-    filename_ = 'stoich.dat'
+    filename_ = outpath + 'stoich.dat'
     with open(filename_, mode='w') as file:
     
         # Write the header
