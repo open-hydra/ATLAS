@@ -12,16 +12,19 @@ contains
     real(8), intent(inout)           :: T0, p0, ytot
     type(obj_CEA)                    :: CEA
     type(obj_species)                :: ct_species
-    character(len=200)               :: CEAfile
+    character(len=500)               :: CEAfile
     character(len=20)                :: name
-    character(len=:), allocatable    :: item(:)
+    character(len=:), allocatable    :: item(:), section_name(:)
     integer :: i, j, error
 
     CEA%OG = .false.
-    call sini%get(section_name='zone', option_name='eq-OG',val=CEA%OG,error=error)
-    call sini%get(section_name='zone', option_name='CEA-file',val=CEAfile,error=error)
+    call sini%get_sections_list(section_name)
+    call sini%get(section_name=section_name(1), option_name='eq-OG',val=CEA%OG,error=error)
+    call sini%get(section_name=section_name(1), option_name='eq-CEA-file',val=CEAfile,error=error)
     if (error==0) then
     ! Use CEA
+      CEA%indx = 1
+      call sini%get(section_name=section_name(1), option_name='eq-CEA-section',val=CEA%indx,error=error)
       call CEA%solve(CEAfile)
       if (T0==0) T0 = CEA%SE%temperature
       if (p0==0) p0 = CEA%SE%pressure
@@ -35,8 +38,8 @@ contains
       end do; end do
     elseif (sini%has_option(option_name='eq-pressure')) then
     ! Use Cantera
-      call write_KaNT_INI(sini)
-      call read_KaNT_out(T0,ct_species)
+      call write_KAnT_INI(sini)
+      call read_KAnT_out(T0,ct_species)
       ytot = 0.0
       do j = 1, species%n; do i = 1, ct_species%n
           if (adjustl(trim(ct_species%name(i)))==adjustl(trim(species%name(j)))) then
@@ -47,7 +50,7 @@ contains
       end do; end do
     else
     ! Direct address of mass fractions
-      do while(sini%loop(section_name='zone', option_pairs=item))
+      do while(sini%loop(section_name=section_name(1), option_pairs=item))
         if (index(item(1),'y')/=0) then
           name = item(1); name = name(2:20)
           do j = 1, species%n
@@ -63,17 +66,18 @@ contains
 
   end subroutine compute_equilibrium
 
-  subroutine write_KaNT_INI(sini)
+  subroutine write_KAnT_INI(sini)
     use finer, only: file_ini
     implicit none
     type(file_ini), intent(in)    :: sini
     type(file_ini)                :: nini
     character(len=20)             :: name
-    character(len=:), allocatable :: item(:)
+    character(len=:), allocatable :: item(:), section_name(:)
 
       call nini%free
       call nini%add(section_name='KAnT-Equilibrium')
-      do while(sini%loop(section_name='zone', option_pairs=item))
+      call sini%get_sections_list(section_name)
+      do while(sini%loop(section_name=section_name(1), option_pairs=item))
         if (index(item(1),'eq-')/=0) then
           name = item(1)
           call nini%add(section_name='KAnT-Equilibrium', option_name=trim(name(4:)), val=item(2))
@@ -123,6 +127,6 @@ contains
     close(u)
     call execute_command_line('rm kant*')
 
-  end subroutine read_KaNT_out
+  end subroutine read_KAnT_out
 
 end module equilibrium

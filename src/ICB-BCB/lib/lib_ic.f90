@@ -174,7 +174,11 @@ module lib_ic
       call compute_equilibrium(zoneini, self%species, ytot, T0, p0)
       ! Look for inertMix presence
       do j = 1, self%species%n
-        if (self%species%name(j)=='inertMix') self%species%massf(j) = 1.0-ytot
+        if (self%species%name(j)=='inertMix') then
+          self%species%massf(j) = 1.0-ytot
+        else
+          self%species%massf(j) = self%species%massf(j) / ytot
+        endif
       enddo
     endif
 
