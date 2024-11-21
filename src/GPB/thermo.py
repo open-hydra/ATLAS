@@ -4,6 +4,8 @@ import IO, IO_Legacy
 
 def compute_properties(name,T_low, T_max, all_solutions):
 
+    print(' -- Build thermo properties')
+
     # Define temperature range
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
 
@@ -25,7 +27,6 @@ def compute_properties(name,T_low, T_max, all_solutions):
             for n in range(solution.n_species):
                 species_name = solution.species(n).name
                 species_names.append(species_name)
-                print(species_name)
 
                 mass_cp_values[species_name] = []
                 mass_dcp_values[species_name] = []
@@ -66,7 +67,6 @@ def compute_properties(name,T_low, T_max, all_solutions):
             # Just one inert mixture
             mix_name = 'inertMix'
             species_names.append(mix_name)
-            print(mix_name)
             mass_dcp_values[mix_name] = []
             mass_cp_values[mix_name] = []
             enthalpy_values[mix_name] = []

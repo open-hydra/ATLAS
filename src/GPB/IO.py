@@ -162,7 +162,7 @@ def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
 
     # Write the data to a file in Tecplot-readable format
-    filename = name + "-chemistry-rate.dat"
+    filename = outpath + name + "-chemistry-rate.dat"
     with open(filename, 'w') as f:
         f.write("TITLE = \"Chemistry Properties\"\n")
         f.write("VARIABLES = \"Temperature\", \"Kf\", \"Kb\"\n")

@@ -69,7 +69,7 @@ def wilke_mixture_properties(x, mu, k, M):
     # double f_trans = 2.5 * (1.0 - c1 * cv_rot/1.5);
     # double cond = (visc/mw[k])*GasConstant*(f_trans * 1.5
     #                                     + f_rot * cv_rot + f_int * cv_int);
-def chempp_simplified_law(T,wm,cp):
+def simplified_law(T,wm,cp):
     
     omega = np.log(50.0 * wm**4.6 / T**1.4)
     mu = 26.6957937 * np.sqrt(wm * T) / omega
@@ -109,6 +109,8 @@ def CEA_polynomials(T,database):
 
 def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
 
+    print(' -- Build transport properties')
+
     # Define temperature range
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
 
@@ -134,9 +136,7 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
             conductivity_aux[species_name] = []
 
             for T in temperatures:
-                if (model == 'chempp'):
-                    mu, k = chempp_simplified_law(T,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
-                elif (model == 'cantera'):
+                if (model == 'cantera'):
                     solution.TPY = T, ct.one_atm, identity_matrix[n]
                     mu = solution.viscosity
                     k = solution.thermal_conductivity
@@ -150,8 +150,8 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                     conductivity_aux[species_name].append(k)
                 except UnboundLocalError:
                     print(f"Warning: Transport model is not valid for species '{species_name}'.")
-                    print(f"         chempp simplified law is applied!")
-                    mu, k = chempp_simplified_law(T,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
+                    print(f"         CEA simplified law is applied!")
+                    mu, k = simplified_law(T,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
                     viscosity_aux[species_name].append(mu)
                     conductivity_aux[species_name].append(k)
 

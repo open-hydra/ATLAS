@@ -2,9 +2,8 @@ import cantera as ct
 import IO, IO_Legacy
 import transport
 import thermo
-import fixgas
 from equilibrium import equilibrium
-from IO_INI import *
+from Read_INI import *
 from NewCEA import CEA
 import os, sys
 
@@ -16,8 +15,9 @@ if masterpath is None:
 # Data path setup
 datapath = masterpath + '/database/'
 ct.add_directory(datapath + 'Thermo')
+ct.add_directory(datapath + 'Transport')
 ct.add_directory(datapath + 'Chemistry')
-transdir = datapath + 'Transport/CEApolynomials.yaml'
+CEAtransdir = datapath + 'Transport/CEApolynomials.yaml'
 
 def build(inifile,section):
 
@@ -25,8 +25,8 @@ def build(inifile,section):
     # Initialization of variables
     # ---------------------------------------------------
     species_group = []
-    cea = CEA()  # CEA object for equilibrium calculations
-    CEA_equilibrium = False  # Flags for equilibrium
+    cea = CEA()
+    CEA_equilibrium = False 
     cantera_equilibrium = False
 
     # ---------------------------------------------------
@@ -37,16 +37,20 @@ def build(inifile,section):
     inert_species_names                                         = read_inert_species(inifile,section)
     inputFixGas                                                 = read_fixgas(inifile,section)
     inerts_mixing, HG                                           = read_options(inifile,section)
-    CEAfile                                                     = read_CEA(inifile,section,cea)
-    result                                                      = read_canteraXequilibrium(inifile,section)
+    inputCEA                                                     = read_CEA(inifile,section,cea)
+    inputCTE                                       = read_canteraXequilibrium(inifile,section)
+
+    print(' - Ideal-gas phase:', name)
+    print()
 
     # ---------------------------------------------------
     # Determine if and which equilibrium to use (Cantera/CEA)
     # ---------------------------------------------------
-    if result is not None:
-        fuel, oxy, pressure, of = result
+    if inputCTE is not None:
+        fuel, oxy, pressure, of = inputCTE
         cantera_equilibrium = True
-    if CEAfile is not None:
+    if inputCEA is not None:
+        CEAfile = inputCEA
         CEA_equilibrium = True
 
     # ---------------------------------------------------
@@ -70,7 +74,7 @@ def build(inifile,section):
     # Load the Transport Model
     # ---------------------------------------------------
     if transport_model == 'CEA' or CEA_equilibrium:
-        CEAdata = IO.read_yaml_file(transdir)
+        CEAdata = IO.read_yaml_file(CEAtransdir)
 
 
     # ---------------------------------------------------
@@ -78,25 +82,42 @@ def build(inifile,section):
     # ---------------------------------------------------
 
     # ---------------------------------------------------
-    # Reactive species are added if a reaction model is provided
+    # Reactive species are added if a reaction model is provided. 
+    # By default, the thermo properties are read from the chosen database.
+    # if one species is not found, it is taken from the reaction model.
+    # Transport properties are read from the reaction model.
     if reaction_model is not None:
-        raw_mechanism = ct.Solution(reaction_model+'.yaml')
-        if thermo_model is None:
-            mechanism = raw_mechanism
-        else:
-            reactive_species = [s for s in all_species if s.name in raw_mechanism.species_names]
-            mechanism = ct.Solution(thermo='ideal-gas', kinetics='gas', species=reactive_species, reactions=raw_mechanism.reactions())
+        print(' -- Found reaction model:',reaction_model)
+        # Load the full mechanism
+        raw_mechanism = ct.Solution(reaction_model + '.yaml')
+        # Create a dictionary for quick lookup of species
+        all_species_dict = {s.name: s for s in all_species}
+        # Ensure all species from the mechanism are included
+        combined_species = []
+        for species_name in raw_mechanism.species_names:
+            if species_name in all_species_dict:
+                # Use the thermo definition from all_species if available, take transport from mechanism
+                all_species_dict[species_name].transport = raw_mechanism.species(species_name).transport
+                combined_species.append(all_species_dict[species_name])
+            else:
+                # Otherwise, use the definition from the mechanism
+                print('This species is not present in the employed database: ',species_name)
+                combined_species.append(raw_mechanism.species(species_name))
+        # Create the custom mechanism
+        mechanism = ct.Solution(thermo='ideal-gas',kinetics='gas',species=combined_species,reactions=raw_mechanism.reactions())
         mechanism.name = 'reactive species'
+        mechanism.transport_model = raw_mechanism.transport_model
         species_group.append(mechanism)
     # ---------------------------------------------------
 
     # ---------------------------------------------------
     # Cantera equilibrium calculation (if applicable)
     if cantera_equilibrium:
+        print(' -- Found Cantera equilibrium')
         # Perform equilibrium calculation using an existing function
-        cte_solution = equilibrium(all_species, fuel, oxy, pressure, of)
+        cte_solution = equilibrium(thermo_model, fuel, oxy, pressure, of)
         # Extract species objects (not just names) with non-zero mole fractions
-        cte_species = [cte_solution.species(i) for i in range(cte_solution.n_species) if cte_solution[i].X > 0]
+        cte_species = [cte_solution.species(i) for i in range(cte_solution.n_species) if cte_solution[i].X > 1e-5]
         # If a reaction model exists, exclude species already in the reaction model
         if reaction_model is not None:
             cte_species = [s for s in cte_species if s.name not in raw_mechanism.species_names]
@@ -127,6 +148,7 @@ def build(inifile,section):
     # ---------------------------------------------------
     # CEA equilibrium calculation (if applicable)
     if (CEA_equilibrium):
+        print(' -- Found CEA equilibrium')
         cea.solve(CEAfile)
         CEA_species = [s for s in all_species if s.name in cea.SE.species.name]
         if reaction_model is not None:
@@ -151,7 +173,17 @@ def build(inifile,section):
     # ---------------------------------------------------
     # Manual Inert species
     if inert_species_names is not None:
+        print(' -- Found manually specified species')
+        # Get thermo properties
         manual_inert_species= [s for s in all_species if s.name in inert_species_names]
+        # Get transport properties
+        transport_species_list = ct.Species.list_from_file('Lennard-Jones.yaml')
+        transport_species_dict = {sp.name: sp for sp in transport_species_list}
+        for s in manual_inert_species:
+            if s.name in transport_species_dict:
+                s.transport = transport_species_dict[s.name].transport
+            else:
+                print(f"No transport data found for species: {s.name}")
         if reaction_model is not None:
             manual_inert_species = [s for s in manual_inert_species if s.name not in raw_mechanism.species_names]
         if (cantera_equilibrium):
@@ -159,8 +191,9 @@ def build(inifile,section):
         if (CEA_equilibrium):
             manual_inert_species = [s for s in manual_inert_species if s.name not in cea.SE.species.name]
         if manual_inert_species != []:
-            manual_inert_phase = ct.Solution(thermo='ideal-gas',species=manual_inert_species,transport='mixture-averaged')
+            manual_inert_phase = ct.Solution(thermo='ideal-gas',species=manual_inert_species)
             manual_inert_phase.name = 'Manual inert species'
+            manual_inert_phase.transport_model = 'mixture-averaged'
             species_group.append(manual_inert_phase)
     # ---------------------------------------------------
 
@@ -168,7 +201,18 @@ def build(inifile,section):
     # Constant-Cp species
     if inputFixGas is not None:
         fix_names, fix_cp, fix_mw, fix_mil, fix_kl = inputFixGas
-        fixgas_phase = fixgas.build_thermo(T1,T2,fix_names,fix_cp,fix_mw)
+        dummy_species_list = []
+        for i in range(len(fix_cp)):
+            cp_molar = fix_cp[i] * fix_mw[i]
+            # Coefficients for ConstantCp: [T_ref, h0, s0, Cp]
+            coeffs = (0, 0, 10, cp_molar)
+            # Il peso molecolare deve essere definito tramite la composizione elementale.
+            # Per imporre un peso molecolare qualsiasi si sfrutta un numero di atomi di
+            # idrogeno pari al peso molecolare desiderato diviso quello di 1 atomo di H
+            fixgas_species = ct.Species(fix_names[i], 'H:'+str(fix_mw[i]/1.008))
+            fixgas_species.thermo = ct.ConstantCp(T_low=T1, T_high=T2, P_ref=ct.one_atm, coeffs=coeffs)
+            dummy_species_list.append(fixgas_species)
+        fixgas_phase = ct.Solution(name='constant-cp species', thermo='ideal-gas', species=dummy_species_list)
         species_group.append(fixgas_phase)
     # ---------------------------------------------------
 
@@ -187,19 +231,18 @@ def build(inifile,section):
                 HG_species.thermo = sp.thermo
                 if sp.transport is not None: HG_species.transport = sp.transport
                 all_species.append(HG_species)
-            new_phase = ct.Solution(thermo=solution.thermo_model,species=all_species, kinetics=solution.kinetics_model, 
-                                    transport=solution.transport_model)
+            new_phase = ct.Solution(thermo=solution.thermo_model,species=all_species, kinetics=solution.kinetics_model)
             new_phase.Y = solution.Y
         else:
             gas_species = [sp for sp in solution.species() if "(L)" not in sp.name]
-            new_phase = ct.Solution(thermo=solution.thermo_model,species=gas_species, kinetics=solution.kinetics_model, 
-                                    transport=solution.transport_model)
+            new_phase = ct.Solution(thermo=solution.thermo_model,species=gas_species, kinetics=solution.kinetics_model)
             mass_fractions = []
             for s in new_phase.species_names:
                 if s in solution.species_names:
                     mass_fractions.append(solution[s].Y)
             new_phase.Y = mass_fractions
         new_phase.name = solution.name
+        new_phase.transport_model = solution.transport_model
         species_group[i] = new_phase
 
 
@@ -222,10 +265,10 @@ def build(inifile,section):
     # ---------------------------------------------------
     if reaction_model is not None:
         sp = []
+        # Before writing the reactions data, define an array of inert species 
+        # to properly write the stoichiometric info
         for p in species_group:
-            if p.name == mechanism.name:
-                print('self')
-            else:
+            if p.name != mechanism.name:
                 for sp_ in p.species_names: sp.append(sp_)
         IO.write_chemistry_properties (name, T1, T2, mechanism, sp)
         IO_Legacy.write_chemistry_properties (T1, T2, mechanism, sp)

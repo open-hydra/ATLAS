@@ -1,8 +1,8 @@
-from pint import UnitRegistry
 import cantera as ct
 import numpy as np
 import os, sys
 import re
+from phase_tools import update_thermo_model
 masterpath = os.environ.get("ATLASDIR")
 if masterpath is None:
     print("ATLAS environment variable is not set.")
@@ -10,6 +10,8 @@ if masterpath is None:
 datapath = masterpath + '/database/'
 ct.add_directory(datapath+'Thermo')
 ct.add_directory(datapath+'Chemistry')
+
+hydrocarbons_phase_name = 'FFCM2'
 
 def get_thermo_derivatives(gas):
     '''Gets thermo derivatives based on shifting equilibrium.
@@ -118,16 +120,12 @@ def get_thermo_properties(gas, dpi_dlogT_P, dlogn_dlogT_P, dlogn_dlogP_T):
     
     return dlogV_dlogT_P, dlogV_dlogP_T, spec_heat_p, gamma_s
 
-# for convenience:
-def to_si(quant):
-    '''Converts a Pint Quantity to magnitude at base SI units.
-    '''
-    return quant.to_base_units().magnitude
 
-def equilibrium(model, fuel_string, oxi_string, pressure_string, of):
 
-    ureg = UnitRegistry()
-    Q_ = ureg.Quantity
+def equilibrium(thermo_model, fuel_string, oxi_string, pressure_string, of):
+    from units import convert2si
+
+    phase_name = hydrocarbons_phase_name
 
     pressure = float(pressure_string[0])
     if len(pressure_string)==1:
@@ -135,34 +133,54 @@ def equilibrium(model, fuel_string, oxi_string, pressure_string, of):
     else:
       pressure_unit = pressure_string[1]
 
-    temperature_f = Q_(float(fuel_string[0]), 'K')
-    temperature_o = Q_(float(oxi_string[0]), 'K')
-    pressure_chamber = Q_(pressure, pressure_unit)
+    temperature_f = convert2si(float(fuel_string[0]), 'K')
+    temperature_o = convert2si(float(oxi_string[0]), 'K')
+    pressure_chamber = convert2si(pressure, pressure_unit)
 
-    fuel_composition = re.findall(r'{(.*?):(.*?)}', fuel_string[1:])
-    fuel_dict = {species: float(value) for species, value in fuel_composition}
+    # Define the fuel phase considering lthe possible presence of iquid reactants
+    liquid_fuel_names = ['H2(L)', 'CH4(L)']
+    liquid_fuel_found = False
+    for name in liquid_fuel_names:
+        if name in fuel_string[1]:
+            liquid_fuel_found = True
+            species_list = ct.Species.list_from_file("nasa9.yaml")
+            species = next(s for s in species_list if s.name == name)
+            fuel = ct.Solution(thermo="ideal-gas", species=[species])
+            fuel.TP = temperature_f, pressure_chamber
+    if not liquid_fuel_found:
+        fuel_composition = re.findall(r'{(.*?):(.*?)}', fuel_string[1])
+        fuel_dict = {species: float(value) for species, value in fuel_composition}
+        fuel = update_thermo_model(phase_name+'.yaml',thermo_model)
+        fuel.TPY = temperature_f, pressure_chamber, fuel_dict
 
-    oxi_composition = re.findall(r'{(.*?):(.*?)}', oxi_string[1:])
-    oxi_dict = {species: float(value) for species, value in oxi_composition}
-
-    fuel = ct.Solution(thermo='ideal-gas', species=model)
-    fuel.TPY = to_si(temperature_f), to_si(pressure_chamber), fuel_dict
-
-    oxi = ct.Solution(thermo='ideal-gas', species=model)
-    oxi.TPY = to_si(temperature_o), to_si(pressure_chamber), oxi_dict
+    # Define the oxidizer phase considering the possible presence of liquid reactants
+    liquid_oxi_names = ['O2(L)']
+    liquid_oxi_found = False
+    for name in liquid_oxi_names:
+        if name in oxi_string[1]:
+            liquid_oxi_found = True
+            species_list = ct.Species.list_from_file("nasa9.yaml")
+            species = next(s for s in species_list if s.name == name)
+            oxi = ct.Solution(thermo="ideal-gas", species=[species])
+            oxi.TP = temperature_o, pressure_chamber
+    if not liquid_oxi_found:
+        oxi_composition = re.findall(r'{(.*?):(.*?)}', oxi_string[1])
+        oxi_dict = {species: float(value) for species, value in oxi_composition}
+        oxi = update_thermo_model(phase_name+'.yaml',thermo_model)
+        oxi.TPY = temperature_o, pressure_chamber, oxi_dict
 
     molar_ratio = of / (oxi.mean_molecular_weight / fuel.mean_molecular_weight)
     moles_oxi = molar_ratio / (1 + molar_ratio)
     moles_fuel = 1 - moles_oxi
 
-    products = ct.Solution(thermo='ideal-gas', species=model)
+    products = update_thermo_model(phase_name+'.yaml',thermo_model)
 
     # create a mixture of the reactants phases with the products model,
     # with the number of moles for fuel and oxidizer based on the O/F ratio
     mix = ct.Mixture([(oxi, moles_oxi), (fuel, moles_fuel), (products, 0)])
 
     # Solve for the equilibrium state, at constant enthalpy and pressure
-    mix.equilibrate('HP', solver='vcs', max_steps=1000)
+    mix.equilibrate('HP', solver='vcs', rtol=1e-6, max_steps=1000)
 
     products()
 

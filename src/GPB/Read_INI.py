@@ -40,26 +40,30 @@ def read_CEA(ini_file,section,cea):
 #
 def read_canteraXequilibrium(ini_file, section):
 
-  pressure_string = get(ini_file, section, 'CT-eq-pressure', list)
+  pressure_string = get(ini_file, section, 'eq-pressure', list)
   if pressure_string is None:
     return
 
-  fuel_string = get(ini_file, section, 'CT-eq-fuel', str)
-  if '{' not in fuel_string: fuel_string = '{'+fuel_string+':1.0}'
+  fuel_string = []
+  fuel_entry = get(ini_file, section, 'eq-fuel', str)
+  if '{' not in fuel_entry: fuel_entry = '{'+fuel_entry+':1.0}'
+  fuel_string.append(fuel_entry)
 
-  oxi_string = get(ini_file, section, 'CT-eq-oxidizer', str)
-  if '{' not in oxi_string: oxi_string = '{'+oxi_string+':1.0}'
+  oxi_string = []
+  oxi_entry = get(ini_file, section, 'eq-oxidizer', str)
+  if '{' not in oxi_entry: oxi_entry = '{'+oxi_entry+':1.0}'
+  oxi_string.append(oxi_entry)
 
-  of = get(ini_file, section, 'CT-eq-of', float)
+  of = get(ini_file, section, 'eq-of', float)
 
-  Tf = get(ini_file, section, 'CT-eq-fuel-T', float)
+  Tf = get(ini_file, section, 'eq-fuel-T', float)
   if Tf is None: Tf = 100.0
 
-  To = get(ini_file, section, 'CT-eq-oxidizer-T', float)
-  if To is None: To = 100.0
+  To = get(ini_file, section, 'eq-oxidizer-T', float)
+  if To is None: To = 90.170
 
-  fuel_string = str(Tf)+fuel_string
-  oxi_string = str(To)+oxi_string
+  fuel_string.insert(0, str(Tf))
+  oxi_string.insert(0, str(To))
 
   return fuel_string, oxi_string, pressure_string, of
 

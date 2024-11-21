@@ -2,7 +2,11 @@
 #          GPB.py - General Phase Builder        #
 ##################################################
 import ideal_gas
-from IO_INI import check_phases
+from Read_INI import check_phases
+
+print()
+print( ' ATLAS - General Phase Builder ' )
+print()
 
 # Input file definition
 inifile = 'input.ini'
