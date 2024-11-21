@@ -1,0 +1,125 @@
+species:
+
+- name: H
+  composition: {H: 1}
+  transport:
+    model: gas
+    geometry: atom
+    diameter: 2.05
+    well-depth: 145.0
+
+- name: H2
+  composition: {H: 2}
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 2.92
+    well-depth: 38.0
+    polarizability: 0.79
+    rotational-relaxation: 280.0
+
+- name: O
+  composition: {O: 1}
+  transport:
+    model: gas
+    geometry: atom
+    diameter: 2.75
+    well-depth: 80.0
+
+- name: O2
+  composition: {O: 2}
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 3.458
+    well-depth: 107.4
+    polarizability: 1.6
+    rotational-relaxation: 3.8
+
+- name: OH
+  composition: {H: 1, O: 1}
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 2.75
+    well-depth: 80.0
+
+- name: H2O
+  composition: {H: 2, O: 1}
+  transport:
+    model: gas
+    geometry: nonlinear
+    diameter: 2.605
+    well-depth: 572.4
+    dipole: 1.844
+    rotational-relaxation: 4.0
+
+- name: HO2
+  composition: {H: 1, O: 2}
+  transport:
+    model: gas
+    geometry: nonlinear
+    diameter: 3.458
+    well-depth: 107.4
+    rotational-relaxation: 1.0
+
+- name: H2O2
+  composition: {H: 2, O: 2}
+  transport:
+    model: gas
+    geometry: nonlinear
+    diameter: 3.458
+    well-depth: 107.4
+    rotational-relaxation: 3.8
+
+- name: He
+  composition: {He: 1}
+  transport:
+    model: gas
+    geometry: atom
+    diameter: 2.576
+    well-depth: 10.2
+
+- name: Ar
+  composition: {Ar: 1}
+  transport:
+    model: gas
+    geometry: atom
+    diameter: 3.33
+    well-depth: 136.5
+
+- name: N2
+  composition: {N: 2}
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 3.621
+    well-depth: 97.53
+    polarizability: 1.76
+    rotational-relaxation: 4.0
+
+- name: C
+  composition: {C: 1}
+  transport:
+    model: gas
+    geometry: atom
+    diameter: 3.298
+    well-depth: 71.4
+
+- name: CH
+  composition: {C: 1, H: 1}
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 2.75
+    well-depth: 80.0
+    rotational-relaxation: 1.0
+
+- name: CH2
+  composition: {C: 1, H: 2}
+  transport:
+    model: gas
+    geometry: nonlinear
+    diameter: 3.8
+    well-depth: 144.0
+    rotational-relaxation: 1.0
