@@ -9,8 +9,7 @@ phases:
 - name: Smooke
   thermo: ideal-gas
   elements: [O, H, C, N]
-  species: [CH4, H2, O2, O, H, OH, HO2, H2O2, H2O, CO, CH3, CH2O, HCO, CH3O,
-    CO2, N2]
+  species: [CH4, H2, O2, O, H, OH, HO2, H2O2, H2O, CO, CH3, CH2O, HCO, CH3O, CO2, N2]
   kinetics: gas
   reactions: all
   transport: mixture-averaged
