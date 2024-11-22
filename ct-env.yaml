@@ -12,3 +12,5 @@ dependencies:
 - python-graphviz  # optional (needed for reaction path diagrams)
 - pandas  # optional (needed for pandas interface)
 - pint  # optional (needed for units)
+- meson # needed for NewCEA
+- ninja # needed for NewCEA

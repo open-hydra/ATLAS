@@ -77,7 +77,7 @@ function build_fortran_side () {
   fi
   cd $DIR/build
   cmake .. -DUSE_OPENMP=OFF -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=RELEASE -DMASTER=$Master
-  cmake --build .
+  make
 }
 
 function build_python_side () {
@@ -95,7 +95,6 @@ function build_python_side () {
   pip3 install -e .
   cd $DIR/lib/NewCEA
   ./install.sh -b
-  pip3 install -e .
   conda deactivate
 }
 
@@ -193,7 +192,8 @@ elif [ "$LOAD" != "0" ]; then
 
 elif [[ "$BUILD" != "0" ]]; then
   define_path
-  #build_fortran_side
+  conda remove --name ct-env --all
+  build_fortran_side
   build_python_side
 
 elif [[ "$EXE" != "0" ]]; then
