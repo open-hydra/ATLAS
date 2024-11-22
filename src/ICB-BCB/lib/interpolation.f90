@@ -116,7 +116,7 @@ contains
             oldblock(b)%velocity(2,:,:,k) = oldblock(b)%velocity(2,:,:,1)*cos(theta(k))
             oldblock(b)%velocity(3,:,:,k) = oldblock(b)%velocity(2,:,:,1)*sin(theta(k))
             oldblock(b)%pressure(:,:,k) = oldblock(b)%pressure(:,:,1)
-            if (nrans>0) oldblock(b)%turbprop(:,:,:,k) = oldblock(b)%turbprop(:,:,:,1)
+            if (nrans>0) oldblock(b)%turbprop(1:nrans,:,:,k) = oldblock(b)%turbprop(1:nrans,:,:,1)
           enddo
         enddo
 
@@ -258,7 +258,7 @@ subroutine index_interpolation()
           block%pressure(i,j,k) = oldblock(b)%pressure(i,j,1)
           
           ! Turbulent properties
-          block%turbprop(:,i,j,k) = oldblock(b)%turbprop(:,i,j,1)
+          block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,1)
           
         enddo
       enddo
@@ -293,7 +293,7 @@ subroutine index_interpolation()
           block%pressure(i,j,k) = oldblock(b)%pressure(i,j,k)
           
           ! Turbulent properties
-          block%turbprop(:,i,j,k) = oldblock(b)%turbprop(:,i,j,1)
+          block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,1)
 
         enddo
       enddo
@@ -908,8 +908,8 @@ subroutine multiple_interpolation()
             ! Pressure        
             block%pressure(i,j,k) = oldblock(b)%pressure(indi,indj,indk)
             
-              ! Turbulent properties
-            block%turbprop(:,i,j,k) = oldblock(b)%turbprop(:,indi,indj,indk)
+            ! Turbulent properties
+            block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,indi,indj,indk)
             
             if (mod(i,rap)==0) then
               indi = indi+1
@@ -1085,7 +1085,7 @@ subroutine spherical_distance_interpolation
         block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
         
         ! Turbulent properties
-        block%turbprop(:,i,j,k) = oldblock(trueb)%turbprop(:,ind(1),ind(2),ind(3))
+        block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(1:nrans,ind(1),ind(2),ind(3))
 
       enddo
     enddo

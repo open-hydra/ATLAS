@@ -531,9 +531,9 @@ module ATLAS_IO
     do b = 1, nb
       read(unitfile,iostat=io)((((vart(s,b,i,j,k),s=1,nrans),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
       if (io==0) then
-        icblock(b)%turbprop(:,1:Nx(b),1:Ny(b),1:Nz(b)) = vart(:,b,1:Nx(b),1:Ny(b),1:Nz(b))
+        icblock(b)%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = vart(:,b,1:Nx(b),1:Ny(b),1:Nz(b))
       else
-        icblock(b)%turbprop(:,1:Nx(b),1:Ny(b),1:Nz(b)) = 0.0
+        icblock(b)%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = 0.0
       endif
     enddo
     

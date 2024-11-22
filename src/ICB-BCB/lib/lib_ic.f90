@@ -130,9 +130,13 @@ module lib_ic
 
     ! Turbulence specific parameters
     call zoneini%get(section_name='zone', option_name='mit', val=mit, error=error)
+    if (error/=0) mit = 0.0
     call zoneini%get(section_name='zone', option_name='kappa', val=kappa, error=error)
+    if (error/=0) kappa = 0.0
     call zoneini%get(section_name='zone', option_name='omega', val=omega, error=error)
+    if (error/=0) omega = 0.0
     call zoneini%get(section_name='zone', option_name='rhoRij', val=rhoRij, error=error)
+    if (error/=0) rhoRij = 0.0
 
     ! 1D specific parameters
     call zoneini%get(section_name='zone', option_name='R1',   val=R1, error=error)
@@ -382,12 +386,14 @@ module lib_ic
 
     if (nrans==1) then
       self%turbprop(1,:,:,:) = mit
+      if(mit/=0.0) self%turbprop(1,:,:,:) = mit
     elseif (nrans==2) then
-      self%turbprop(1,:,:,:) = kappa; self%turbprop(2,:,:,:) = omega
+      if(kappa/=0.0) self%turbprop(1,:,:,:) = kappa
+      if(omega/=0.0) self%turbprop(2,:,:,:) = omega
     elseif (nrans==7) then
-      self%turbprop(1:3,:,:,:) = rhoRij
+      if(rhoRij/=0.0) self%turbprop(1:3,:,:,:) = rhoRij
       self%turbprop(4:6,:,:,:) = 1d-8
-      self%turbprop(7,:,:,:) = omega
+      if(omega/=0.0) self%turbprop(7,:,:,:) = omega
     endif
 
   
