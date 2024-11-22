@@ -100,21 +100,24 @@ contains
     implicit none
     real(8), intent(out)  :: temp
     type(obj_species), intent(out) :: sp
-    integer :: u, ios, n, s
+    integer :: u, ios, n, nskip, s
     character(len=200) :: wholestring, stringa(2)
 
     call run_KAnT
 
+    ios = 10; nskip = 0; n = -1
     open(unit=u, file='kant-out')
-    read(u,*) temp
-    ios = 0
+    do while (ios/=0)
+      read(u,'(A)',iostat=ios) wholestring
+      read(wholestring,*,iostat=ios) temp
+      nskip = nskip + 1
+    enddo
     do while ( ios==0 )
       read(u,*,iostat = ios)
       n = n+1
     enddo
-    n = n-1
     rewind(u)
-    read(u,*)
+    do s = 1, nskip; read(u,*); enddo
     sp%n = n
     allocate(sp%name(1:n))
     allocate(sp%massf(1:n))
