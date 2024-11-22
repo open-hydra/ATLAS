@@ -42,72 +42,6 @@ species:
     polarizability: 0.79
     rotational-relaxation: 280.0
   note: TPIS78
-- name: HCO
-  composition: {H: 1, C: 1, O: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 3500.0]
-    data:
-    - [4.22118584, -3.24392532e-03, 1.37799446e-05, -1.33144093e-08, 4.33768865e-12,
-      3839.56496, 3.39437243]
-    - [2.77217438, 4.95695526e-03, -2.48445613e-06, 5.89161778e-10, -5.33508711e-14,
-      4011.91815, 9.79834492]
-  transport:
-    model: gas
-    geometry: nonlinear
-    diameter: 3.59
-    well-depth: 498.0
-  note: L12/89
-- name: CH2O
-  composition: {H: 2, C: 1, O: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 3500.0]
-    data:
-    - [4.79372315, -9.90833369e-03, 3.73220008e-05, -3.79285261e-08, 1.31772652e-11,
-      -1.43089567e+04, 0.6028129]
-    - [1.76069008, 9.20000082e-03, -4.42258813e-06, 1.00641212e-09, -8.8385564e-14,
-      -1.39958323e+04, 13.656323]
-  transport:
-    model: gas
-    geometry: nonlinear
-    diameter: 3.59
-    well-depth: 498.0
-    rotational-relaxation: 2.0
-  note: L 8/88
-- name: H2O2
-  composition: {H: 2, O: 2}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 3500.0]
-    data:
-    - [4.27611269, -5.42822417e-04, 1.67335701e-05, -2.15770813e-08, 8.62454363e-12,
-      -1.77025821e+04, 3.43505074]
-    - [4.16500285, 4.90831694e-03, -1.90139225e-06, 3.71185986e-10, -2.87908305e-14,
-      -1.78617877e+04, 2.91615662]
-  transport:
-    model: gas
-    geometry: nonlinear
-    diameter: 3.46
-    well-depth: 107.4
-    rotational-relaxation: 3.8
-  note: L 7/88
-- name: CH3
-  composition: {C: 1, H: 3}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 3500.0]
-    data:
-    - [3.6735904, 2.01095175e-03, 5.73021856e-06, -6.87117425e-09, 2.54385734e-12,
-      1.64449988e+04, 1.60456433]
-    - [2.28571772, 7.23990037e-03, -2.98714348e-06, 5.95684644e-10, -4.67154394e-14,
-      1.67755843e+04, 8.48007179]
-  transport:
-    model: gas
-    geometry: linear
-    diameter: 3.8
-    well-depth: 144.0
-  note: L11/89
 - name: H
   composition: {H: 1}
   thermo:
@@ -124,24 +58,6 @@ species:
     diameter: 2.05
     well-depth: 145.0
   note: L 7/88
-- name: CH3O
-  composition: {C: 1, H: 3, O: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [300.0, 1000.0, 3000.0]
-    data:
-    - [2.106204, 7.216595e-03, 5.338472e-06, -7.377636e-09, 2.07561e-12,
-      978.6011, 13.152177]
-    - [3.770799, 7.871497e-03, -2.656384e-06, 3.944431e-10, -2.112616e-14,
-      127.83252, 2.929575]
-  transport:
-    model: gas
-    geometry: nonlinear
-    diameter: 3.69
-    well-depth: 417.0
-    dipole: 1.7
-    rotational-relaxation: 2.0
-  note: '121686'
 - name: O
   composition: {O: 1}
   thermo:
@@ -210,23 +126,6 @@ species:
     dipole: 1.84
     rotational-relaxation: 4.0
   note: L 8/89
-- name: HO2
-  composition: {H: 1, O: 2}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 3500.0]
-    data:
-    - [4.30179801, -4.74912051e-03, 2.11582891e-05, -2.42763894e-08, 9.29225124e-12,
-      294.80804, 3.71666245]
-    - [4.0172109, 2.23982013e-03, -6.3365815e-07, 1.1424637e-10, -1.07908535e-14,
-      111.856713, 3.78510215]
-  transport:
-    model: gas
-    geometry: nonlinear
-    diameter: 3.46
-    well-depth: 107.4
-    rotational-relaxation: 1.0
-  note: L 5/89
 - name: CH4
   composition: {C: 1, H: 4}
   thermo:
