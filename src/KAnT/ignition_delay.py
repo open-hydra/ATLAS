@@ -1,7 +1,8 @@
-from pint import UnitRegistry
 import numpy as np
 import cantera as ct
 import sys, os, re
+from units import convert2si
+from phase_tools import add_species
 masterpath = os.environ.get("ATLASDIR")
 if masterpath is None:
     print("ATLAS environment variable is not set.")
@@ -10,12 +11,6 @@ datapath = masterpath + '/database/'
 ct.add_directory(datapath+'Chemistry')
 
 #################################################################################
-
-# for convenience:
-def to_si(quant):
-    '''Converts a Pint Quantity to magnitude at base SI units.
-    '''
-    return quant.to_base_units().magnitude
 
 def ignition_delay(states, initial_temp, delta_temp=300.0):
     """
@@ -39,34 +34,6 @@ def ignition_delay(states, initial_temp, delta_temp=300.0):
     
     # If no ignition occurred within the time limits, return NaN
     return np.nan
-
-
-def define_model(model):     
-    # Load the original chemical mechanism
-    original_mechanism = ct.Solution(model+'.yaml')
-    # List of original species
-    original_species = original_mechanism.species()
-    new_species = original_species.copy()
-
-    nasa_gas = ct.Species.list_from_file('nasa_gas.yaml')
-
-    # Find and add N2 species from nasa_gas if missing
-    if 'N2' not in original_mechanism.species_names:
-        N2_species = next((species for species in nasa_gas if species.name == 'N2'), None)
-        if N2_species:
-            new_species.append(N2_species)
-
-    # Find and add Ar species from nasa_gas if missing
-    if 'Ar' not in original_mechanism.species_names:
-        Ar_species = next((species for species in nasa_gas if species.name == 'Ar'), None)
-        if Ar_species:
-            new_species.append(Ar_species)
-
-    # Create a new Solution with the combined species list and the original reactions
-    new_mechanism = ct.Solution(thermo='ideal-gas', kinetics='gas', species=new_species, reactions=original_mechanism.reactions())
-    new_mechanism.name = original_mechanism.name
-
-    return new_mechanism
 
 
 def setup_mixture(gas, fuel_comp, oxi_comp, mr):
@@ -104,7 +71,7 @@ def setup_mixture(gas, fuel_comp, oxi_comp, mr):
             if mr==0:
                 combined_comp[species] += frac
             else:
-                combined_comp[species] += frac*mr/(1+mr)  # If species is in both, sum the fractions
+                combined_comp[species] += frac*mr/(1+mr) # If species is in both, sum the fractions
         else:
             if mr==0:
                 combined_comp[species] = frac
@@ -117,9 +84,6 @@ def setup_mixture(gas, fuel_comp, oxi_comp, mr):
 
 def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatures):
 
-    ureg = UnitRegistry()
-    Q_ = ureg.Quantity
-
     fuel_composition = re.findall(r'{(.*?):(.*?)}', fuel_string)
     fuel_dict = {species: float(value) for species, value in fuel_composition}
 
@@ -130,21 +94,22 @@ def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatu
     ignition_temperatures = {}
 
     for model in models:
-        print('Processing: ',model)
+        print(' -- Processing: ',model)
 
-        new_mechanism = define_model(model)
+        new_mechanism = add_species('N2',ct.Solution(model+'.yaml'),'nasa_gas')
+        new_mechanism = add_species('Ar',new_mechanism,'nasa_gas')
         ignition_times[model] = []
         ignition_temperatures[model] = []
 
         # Loop over temperatures
         for temperature in temperatures:
             for pressure in pressures:
-                pressure_chamber = Q_(pressure, 'bar')
+                pressure_chamber = convert2si(pressure, 'bar')
                 for mr in mixture_ratio:
 
                     setup_mixture(new_mechanism, fuel_dict, oxi_dict, mr)
                     #new_mechanism.X = 'CH4:0.120, O2:0.185, N2:0.695'
-                    new_mechanism.TP = temperature, to_si(pressure_chamber)
+                    new_mechanism.TP = temperature, pressure_chamber
                     #print(new_mechanism.Y)
                     #exit()
 

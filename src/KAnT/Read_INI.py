@@ -1,6 +1,6 @@
 from PiNeR import get, check_section
 import numpy as np
-from reference import setup_case
+from Reference import setup_case
 
 sections = ['KAnT-Equilibrium', 'KAnT-Ignition', 'KAnT-Counterflow']
 
@@ -16,11 +16,18 @@ def check_analyses(ini_file):
 
 #
 def read_reactions(ini_file, section):
+
+  import phase_tools
+
   raw = get(ini_file, section, 'reactions', str)
   if raw is not None:
     mechanisms = raw.split()
     for m in range(len(mechanisms)):
       if 'JLR' in mechanisms[m]: mechanisms[m] += '-ct'
+  else:
+    mechanisms = ['FFCM2']
+
+  phase_tools.thermo_model = get(ini_file, section, 'thermo', str)
 
   return mechanisms
 
@@ -51,7 +58,7 @@ def read_Xequilibrium(ini_file, section):
   oxi_string.append(oxi_entry)
 
   Tf = get(ini_file, section, 'fuel-T', float)
-  if Tf is None: Tf = 111.643
+  if Tf is None: Tf = 100.0
 
   To = get(ini_file, section, 'oxidizer-T', float)
   if To is None: To = 90.170
