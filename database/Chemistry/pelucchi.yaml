@@ -1,0 +1,760 @@
+description: |-
+  **************************************************************************
+  *                         CHLORINE MECHANISM                             *
+  *                           November 2014                                *
+  *                                                                        *
+  *          M. Pelucchi(1), A. Frassoldati(1), T. Faravelli(1),           *
+  *                    B. Ruscic(2), P. Glarborg(3)                        *
+  *                                                                        *
+  *  (1) Department of Chemistry, Materials and Chemical Engineering,      *
+  *                  Politecnico di Milano, Milan, Italy                   *
+  *  (2) Chemical Sciences and Engineering Division,                       *
+  *                  Argonne National Laboratory, Argonne, Illinois, USA   *
+  *  (3) DTU Chemical Engineering, Technical University of Denmark,        *
+  *                                      Lyngby, Denmark                   *
+  **************************************************************************
+
+
+  ************************************************************************
+                            CHLORINE Thermodynamics
+  M. Pelucchi, A. Frassoldati, T. Faravelli, B. Ruscic, P. Glarborg.
+                              November 2014
+  ************************************************************************
+
+generator: ck2yaml
+input-files: [Kinetics_HCl_Cl2.kin, thermo.txt, Transport_HCl_Cl2.dat]
+cantera-version: 3.0.0
+date: Sun, 24 Nov 2024 00:21:49 +0100
+
+units: {length: cm, time: s, quantity: mol, activation-energy: cal/mol}
+
+phases:
+- name: Pelucchi
+  thermo: ideal-gas
+  elements: [C, Cl, O, H, N, Ar, He]
+  species: [HCL, CL2, CL, CLO, HOCL, CLOO, OCLO, CLCHO, CLCO, CH2O, HE,
+    AR, N2, O2, H2, H2O, H2O2, CO, CO2, O3, O, H, OH, HO2, HCO]
+  kinetics: gas
+  transport: mixture-averaged
+  state: {T: 300.0, P: 1 atm}
+
+species:
+- name: HCL
+  composition: {Cl: 1, H: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.46434022, 4.74166973e-04, -2.00403781e-06, 3.3282688e-09, -1.45873238e-12,
+      -1.21280024e+04, 2.66176266]
+    - [2.75038607, 1.46525702e-03, -4.8579637e-07, 7.90400572e-11, -4.88097333e-15,
+      -1.18941369e+04, 6.56298585]
+    note: ATcT3C
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 344.7
+    diameter: 3.339
+    rotational-relaxation: 1.0
+- name: CL2
+  composition: {Cl: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [2.74354106, 7.78656796e-03, -1.44041508e-05, 1.24869963e-08, -4.11292285e-12,
+      -1059.55046, 9.41507624]
+    - [4.72497332, -4.52025622e-04, 2.48339908e-07, -1.98734964e-11, -1.38247235e-15,
+      -1501.44014, -0.218753211]
+    note: REF ELEMENT  ATcT3C
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 316.0
+    diameter: 4.217
+    rotational-relaxation: 1.0
+- name: CL
+  composition: {Cl: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [2.23418328, 1.73391135e-03, -1.15488156e-06, -1.12443736e-09, 9.89461388e-13,
+      1.38580303e+04, 6.68075708]
+    - [2.96123231, -4.06760214e-04, 1.4594893e-07, -2.36008477e-11, 1.41691234e-15,
+      1.36901066e+04, 3.02880221]
+    note: ATcT3C
+  transport:
+    model: gas
+    geometry: atom
+    well-depth: 130.8
+    diameter: 3.613
+    rotational-relaxation: 1.0
+- name: CLO
+  composition: {Cl: 1, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.61933587, 2.53362803e-03, -3.11179384e-06, 1.94941709e-09, -4.91254605e-13,
+      1.10657642e+04, 5.81853677]
+    - [4.45682803, -5.94131131e-05, 1.31237646e-07, -3.11268672e-11, 1.80684649e-15,
+      1.08403059e+04, 1.54178724]
+    note: ATcT3C
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 110.0
+    diameter: 3.59
+- name: HOCL
+  composition: {Cl: 1, H: 1, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.4968468, 2.69237691e-03, 4.36935723e-06, -8.90075336e-09, 4.18971372e-12,
+      -1.04226316e+04, 7.60199611]
+    - [4.39872621, 2.00818987e-03, -6.51636117e-07, 9.78163599e-11, -5.55502298e-15,
+      -1.07193417e+04, 2.61601151]
+    note: ATcT3C
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 107.4
+    diameter: 3.458
+- name: CLOO
+  composition: {Cl: 1, O: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [4.2506149, 7.44877793e-03, -1.13047633e-05, 9.65717296e-09, -3.38735791e-12,
+      1.08365543e+04, 7.07602978]
+    - [5.94695297, 1.06701562e-03, -4.16053875e-07, 7.09444017e-11, -4.41455027e-15,
+      1.0421496e+04, -1.35477721]
+    note: ATcT3C
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 107.4
+    diameter: 3.458
+- name: OCLO
+  composition: {Cl: 1, O: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.12449152, 7.4336965e-03, -2.07283342e-06, -4.90714561e-09, 3.15149383e-12,
+      1.06200243e+04, 11.006095]
+    - [5.7516972, 1.45708433e-03, -5.81201424e-07, 1.08923492e-10, -6.80077676e-15,
+      9861.55572, -2.79365208]
+    note: ATcT3C
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 107.4
+    diameter: 3.458
+- name: CLCHO
+  composition: {C: 1, H: 1, Cl: 1, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [2.91952259, 8.88172302e-03, -6.66881634e-07, -6.01679587e-09, 3.24271587e-12,
+      -2.32335282e+04, 11.9528458]
+    - [5.51436106, 4.13006211e-03, -1.51814401e-06, 2.49100882e-10, -1.50960767e-14,
+      -2.40836938e+04, -2.06855056]
+    note: ATcT3C
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 498.0
+    diameter: 3.59
+- name: CLCO
+  composition: {C: 1, Cl: 1, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.2466804, 0.0122022603, -2.28418578e-05, 2.17889351e-08, -7.92018728e-12,
+      -3818.37509, 10.4820271]
+    - [5.42654535, 1.54940045e-03, -5.94189705e-07, 1.00270931e-10, -6.19621957e-15,
+      -4248.33161, 0.204136268]
+    note: ATcT3C
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 860.0
+    diameter: 4.0
+- name: CH2O
+  composition: {C: 1, H: 2, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [1.652731, 0.01263144, -1.8881679e-05, 2.0500311e-08, -8.4132371e-12,
+      -1.48654e+04, 13.78482]
+    - [2.99560858, 6.6813212e-03, -2.628954e-06, 4.7371529e-10, -3.2125171e-14,
+      -1.53203666e+04, 6.91256052]
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 498.0
+    diameter: 3.59
+    rotational-relaxation: 2.0
+- name: HE
+  composition: {He: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 5000.0]
+    data:
+    - [2.5, 0.0, 0.0, 0.0, 0.0, -745.375, 0.928723974]
+  transport:
+    model: gas
+    geometry: atom
+    well-depth: 10.2
+    diameter: 2.576
+- name: AR
+  composition: {Ar: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [2.5, 0.0, 0.0, 0.0, 0.0, -745.3751, 4.366001]
+    - [3.12500009, -1.4062505e-03, 9.3750049e-07, -1.5625008e-10, 0.0, -940.687583,
+      1.03823694]
+  transport:
+    model: gas
+    geometry: atom
+    well-depth: 136.5
+    diameter: 3.33
+- name: N2
+  composition: {N: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [3.298677, 1.4082399e-03, -3.9632218e-06, 5.6415148e-09, -2.444854e-12,
+      -1020.9, 3.950372]
+    - [2.92663788, 1.487977e-03, -5.6847603e-07, 1.009704e-10, -6.7533509e-15,
+      -922.795384, 5.98054018]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 97.53
+    diameter: 3.621
+    polarizability: 1.76
+    rotational-relaxation: 4.0
+- name: O2
+  composition: {O: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [3.212936, 1.1274861e-03, -5.7561499e-07, 1.313877e-09, -8.7685539e-13,
+      -1005.249, 6.034739]
+    - [3.69757685, 6.1351969e-04, -1.258842e-07, 1.775281e-11, -1.136435e-15,
+      -1233.92966, 3.18917125]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 107.4
+    diameter: 3.458
+    polarizability: 1.6
+    rotational-relaxation: 3.8
+- name: H2
+  composition: {H: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [3.298124, 8.2494412e-04, -8.1430147e-07, -9.4754343e-11, 4.134872e-13,
+      -1012.521, -3.294094]
+    - [2.9914222, 7.0006441e-04, -5.633828e-08, -9.2315782e-12, 1.582752e-15,
+      -835.033546, -1.35510641]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 38.0
+    diameter: 2.92
+    polarizability: 0.79
+    rotational-relaxation: 280.0
+- name: H2O
+  composition: {H: 2, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [3.386842, 3.474982e-03, -6.3546959e-06, 6.9685804e-09, -2.506588e-12,
+      -3.020811e+04, 2.590232]
+    - [2.67214569, 3.0562929e-03, -8.7302607e-07, 1.200996e-10, -6.3916179e-15,
+      -2.98992115e+04, 6.86281125]
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 572.4
+    diameter: 2.605
+    dipole: 1.844
+    rotational-relaxation: 4.0
+- name: H2O2
+  composition: {H: 2, O: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [3.388753, 6.5692258e-03, -1.485012e-07, -4.6258051e-09, 2.4715141e-12,
+      -1.766314e+04, 6.785363]
+    - [4.57316594, 4.3361359e-03, -1.474689e-06, 2.348903e-10, -1.4316541e-14,
+      -1.80069531e+04, 0.501137915]
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 107.4
+    diameter: 3.458
+    rotational-relaxation: 3.8
+- name: CO
+  composition: {C: 1, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [3.262451, 1.511941e-03, -3.8817552e-06, 5.5819438e-09, -2.474951e-12,
+      -1.431054e+04, 4.848897]
+    - [3.02507617, 1.442689e-03, -5.6308272e-07, 1.018581e-10, -6.9109511e-15,
+      -1.42683499e+04, 6.10822521]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 98.1
+    diameter: 3.65
+    polarizability: 1.95
+    rotational-relaxation: 1.8
+- name: CO2
+  composition: {C: 1, O: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [2.275724, 9.9220723e-03, -1.040911e-05, 6.8666859e-09, -2.1172801e-12,
+      -4.837314e+04, 10.18849]
+    - [4.45362582, 3.140168e-03, -1.278411e-06, 2.3939961e-10, -1.669033e-14,
+      -4.89669524e+04, -0.955420007]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 244.0
+    diameter: 3.763
+    polarizability: 2.65
+    rotational-relaxation: 2.1
+- name: O3
+  composition: {O: 3}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.40738221, 2.05379063e-03, 1.38486052e-05, -2.23311542e-08, 9.76073226e-12,
+      1.58644979e+04, 8.2824758]
+    - [12.3302914, -0.0119324783, 7.98741278e-06, -1.77194552e-09, 1.26075824e-13,
+      1.26755831e+04, -40.8823374]
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 180.0
+    diameter: 4.1
+    rotational-relaxation: 2.0
+- name: O
+  composition: {O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [2.946428, -1.638166e-03, 2.421031e-06, -1.602843e-09, 3.8906961e-13,
+      2.914764e+04, 2.963995]
+    - [2.54205876, -2.755061e-05, -3.1028029e-09, 4.551067e-12, -4.368051e-16,
+      2.92307989e+04, 4.92030884]
+  transport:
+    model: gas
+    geometry: atom
+    well-depth: 80.0
+    diameter: 2.75
+- name: H
+  composition: {H: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 5000.0]
+    data:
+    - [2.5, 0.0, 0.0, 0.0, 0.0, 2.547162e+04, -0.4601176]
+  transport:
+    model: gas
+    geometry: atom
+    well-depth: 145.0
+    diameter: 2.05
+- name: OH
+  composition: {H: 1, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1710.0, 5000.0]
+    data:
+    - [3.41896226, 3.19255801e-04, -3.08292717e-07, 3.64407494e-10, -1.00195479e-13,
+      3452.64448, 2.54433372]
+    - [2.8537604, 1.02994334e-03, -2.32666477e-07, 1.93750704e-11, -3.15759847e-16,
+      3699.4972, 5.78756825]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 80.0
+    diameter: 2.75
+- name: HO2
+  composition: {H: 1, O: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [4.30179801, -4.74912051e-03, 2.11582891e-05, -2.42763894e-08, 9.29225124e-12,
+      294.80804, 3.71666245]
+    - [4.0172109, 2.23982013e-03, -6.3365815e-07, 1.1424637e-10, -1.07908535e-14,
+      111.856713, 3.78510215]
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 107.4
+    diameter: 3.458
+    rotational-relaxation: 1.0
+- name: HCO
+  composition: {C: 1, H: 1, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [300.0, 1000.0, 5000.0]
+    data:
+    - [2.898329, 6.1991462e-03, -9.6230842e-06, 1.089825e-08, -4.5748852e-12,
+      4159.921, 8.983615]
+    - [3.55727119, 3.3455719e-03, -1.335006e-06, 2.4705721e-10, -1.71385e-14,
+      3916.32208, 5.55229973]
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 498.0
+    diameter: 3.59
+
+reactions:
+- equation: H + CL + M <=> HCL + M  # Reaction 1
+  type: three-body
+  rate-constant: {A: 2.0e+23, b: -2.45, Ea: 0.0}
+  efficiencies: {H2: 2.0, CL2: 2.0, N2: 2.0}
+  note: |-
+    ************************************************************************
+    *                       Chlorine reactions                             *
+    ************************************************************************
+    Schading and Roth, 1994
+- equation: CL + H2 <=> HCL + H  # Reaction 2
+  rate-constant: {A: 9.5e+07, b: 1.72, Ea: 3060.0}
+  note: Kumaran et al., 1994
+- equation: HCL + O <=> CL + OH  # Reaction 3
+  rate-constant: {A: 5.9e+05, b: 2.11, Ea: 4024.0}
+  note: Xie et al., 2003
+- equation: HCL + OH <=> CL + H2O  # Reaction 4
+  rate-constant: {A: 4.1e+05, b: 2.12, Ea: -1284.0}
+  note: Bryukov et al., 2006!
+- equation: CL + H2O2 <=> HCL + HO2  # Reaction 5
+  rate-constant: {A: 6.6e+12, b: 0.0, Ea: 1950.0}
+  note: Atkinson et al., 2007
+- equation: CL + HO2 <=> HCL + O2  # Reaction 6
+  rate-constant: {A: 7.5e+14, b: -0.63, Ea: 0.0}
+  note: See text
+- equation: CL + HO2 <=> CLO + OH  # Reaction 7
+  rate-constant: {A: 3.8e+13, b: 0.0, Ea: 1200.0}
+  note: Atkinson et al., 2007
+- equation: CL + O3 <=> CLO + O2  # Reaction 8
+  rate-constant: {A: 1.5e+13, b: 0.0, Ea: 417.0}
+  note: Baulch et al., 1981
+- equation: CL + CL + M <=> CL2 + M  # Reaction 9
+  type: three-body
+  rate-constant: {A: 2.3e+19, b: -1.5, Ea: 0.0}
+  efficiencies: {H2: 2.0, CL2: 6.9, N2: 2.0}
+  note: See text
+- equation: CL2 + H <=> HCL + CL  # Reaction 10
+  rate-constant: {A: 8.6e+13, b: 0.0, Ea: 1172.0}
+  note: |-
+    CL2+M=CL+CL+M                      5.7E+15   0.00    55596 ! Leylegian et al., 2005
+     Baulch et al., 1981
+- equation: CL2 + O <=> CL + CLO  # Reaction 11
+  rate-constant: {A: 4.5e+12, b: 0.0, Ea: 3279.0}
+  note: Wine et al., 1985
+- equation: CL2 + OH <=> HOCL + CL  # Reaction 12
+  rate-constant: {A: 2.2e+08, b: 1.35, Ea: 1480.0}
+  note: Bryukov et al., 2004
+- equation: CL + OH + M <=> HOCL + M  # Reaction 13
+  type: three-body
+  rate-constant: {A: 1.2e+19, b: -1.43, Ea: 0.0}
+  note: Ho et al., 1992
+- equation: HOCL <=> CLO + H  # Reaction 14
+  rate-constant: {A: 8.1e+14, b: -2.09, Ea: 9.369e+04}
+  note: Ho et al., 1992
+- equation: HOCL + H <=> CLO + H2  # Reaction 15
+  rate-constant: {A: 4.4e-04, b: 4.89, Ea: 425.0}
+  note: Wang et al., 2003
+- equation: HOCL + H <=> HCL + OH  # Reaction 16
+  rate-constant: {A: 6.1e+07, b: 1.96, Ea: 421.0}
+  note: Xu and Lin, 2009
+- equation: HOCL + O <=> CLO + OH  # Reaction 17
+  rate-constant: {A: 3300.0, b: 2.9, Ea: 1592.0}
+  note: Xu and Lin, 2009
+- equation: HOCL + OH <=> CLO + H2O  # Reaction 18
+  rate-constant: {A: 1.3, b: 3.61, Ea: -2684.0}
+  note: Xu and Lin, 2009
+- equation: HOCL + HO2 <=> CLO + H2O2  # Reaction 19
+  rate-constant: {A: 8.8e-07, b: 5.35, Ea: 6978.0}
+  note: Xu and Lin, 2009
+- equation: HOCL + CL <=> HCL + CLO  # Reaction 20
+  rate-constant: {A: 0.36, b: 4.07, Ea: -337.0}
+  note: Wang et al., 2003
+- equation: CLO + H <=> CL + OH  # Reaction 21
+  rate-constant: {A: 3.8e+13, b: 0.0, Ea: 0.0}
+  note: Wategaonkar and Setser, 1989
+- equation: CLO + H <=> HCL + O  # Reaction 22
+  rate-constant: {A: 8.4e+12, b: 0.0, Ea: 0.0}
+  note: Wategaonkar and Setser, 1989
+- equation: CLO + O <=> CL + O2  # Reaction 23
+  rate-constant: {A: 1.5e+13, b: 0.0, Ea: -219.0}
+  note: Atkinson et al., 2007
+- equation: CLO + OH <=> HCL + O2  # Reaction 24
+  rate-constant: {A: 3.5e+05, b: 1.67, Ea: -3827.0}
+  note: Zhu and Lin, 2011
+- equation: CLO + HO2 <=> HOCL + O2  # Reaction 25
+  rate-constant: {A: 7800.0, b: 2.4, Ea: 5110.0}
+  note: Zhu and Lin, 2011
+- equation: CLO + HO2 <=> HCL + O3  # Reaction 26
+  rate-constant: {A: 4600.0, b: 2.05, Ea: 1699.0}
+  note: Zhu and Lin, 2011
+- equation: CLO + HO2 <=> CLOO + OH  # Reaction 27
+  rate-constant: {A: 4.6e+05, b: 1.8, Ea: 2116.0}
+  note: Zhu and Lin, 2011
+- equation: CLO + HO2 <=> OCLO + OH  # Reaction 28
+  rate-constant: {A: 1300.0, b: 2.32, Ea: 5099.0}
+  note: Zhu and Lin, 2011
+- equation: CLO + CLO <=> CL2 + O2  # Reaction 29
+  rate-constant: {A: 6.6e+10, b: 0.66, Ea: 3760.0}
+  note: Zhu and Lin, 2011
+- equation: CLO + CLO <=> CL + CLOO  # Reaction 30
+  rate-constant: {A: 8.2e+10, b: 0.77, Ea: 4308.0}
+  note: Zhu and Lin, 2011
+- equation: CLO + CLO <=> CL + OCLO  # Reaction 31
+  rate-constant: {A: 3.8e+13, b: 5.0e-03, Ea: 5754.0}
+  note: Zhu and Lin, 2011
+- equation: CLO + O (+M) <=> OCLO (+M)  # Reaction 32
+  type: falloff
+  low-P-rate-constant: {A: 3.1e+27, b: -4.1, Ea: 835.0}
+  high-P-rate-constant: {A: 2.6e+13, b: -0.03, Ea: -85.0}
+  note: Zhu and Lin, 2003
+- equation: OCLO (+M) <=> CL + O2 (+M)  # Reaction 33
+  type: falloff
+  low-P-rate-constant: {A: 9.9e-24, b: 11.0, Ea: 3.31e+04}
+  high-P-rate-constant: {A: 1.1e+16, b: -0.28, Ea: 5.8756e+04}
+  note: Zhu and Lin, 2003
+- equation: OCLO + H <=> CLO + OH  # Reaction 34
+  rate-constant: {A: 4.7e+13, b: 0.0, Ea: 0.0}
+  note: Wategaonkar and Setser, 1989
+- equation: OCLO + O <=> CLO + O2  # Reaction 35
+  rate-constant: {A: 5.2e+07, b: 1.45, Ea: 876.0}
+  note: Zhu and Lin, 2002
+- equation: OCLO + OH <=> HOCL + O2  # Reaction 36
+  rate-constant: {A: 3.3e+04, b: 2.07, Ea: -4102.0}
+  note: Xu et al., 2003
+- equation: OCLO + CLO <=> CLOO + CLO  # Reaction 37
+  rate-constant: {A: 60.0, b: 2.8, Ea: 155.0}
+  note: Zhu and Lin, 2003
+- equation: CL + O2 (+M) <=> CLOO (+M)  # Reaction 38
+  type: falloff
+  low-P-rate-constant: {A: 6.0e+28, b: -5.34, Ea: 1341.0}
+  high-P-rate-constant: {A: 1.0e+14, b: 0.0, Ea: 0.0}
+  note: Zhu and Lin, 2003
+- equation: CLOO + H <=> CLO + OH  # Reaction 39
+  rate-constant: {A: 3.4e+13, b: 0.0, Ea: 0.0}
+  note: Baulch et al., 1981
+- equation: CLOO + O <=> CLO + O2  # Reaction 40
+  rate-constant: {A: 1.5e+12, b: 0.0, Ea: 1910.0}
+  note: Atkinson et al., 2007
+- equation: CLOO + OH <=> HOCL + O2  # Reaction 41
+  rate-constant: {A: 2.0e+12, b: 0.0, Ea: 0.0}
+  note: EST
+- equation: CLOO + CL <=> CL2 + O2  # Reaction 42
+  rate-constant: {A: 1.3e+14, b: 0.0, Ea: 0.0}
+  note: Mauldin et al., 1992
+- equation: CH2O + CL <=> HCO + HCL  # Reaction 43
+  rate-constant: {A: 4.9e+13, b: 0.0, Ea: 68.0}
+  note: Atkinson et al., 1997
+- equation: CH2O + CLO <=> HCO + HOCL  # Reaction 44
+  rate-constant: {A: 7.2e+10, b: 0.79, Ea: 5961.0}
+  note: Tian et al., 2006
+- equation: HCO + CL <=> CO + HCL  # Reaction 45
+  rate-constant: {A: 1.0e+14, b: 0.0, Ea: 0.0}
+  note: Chang et al., 1987 EST
+- equation: HCO + CL2 <=> CLCHO + CL  # Reaction 46
+  rate-constant: {A: 3.8e+12, b: 0.0, Ea: 70.0}
+  note: Timonen et al., 1988
+- equation: HCO + CLO <=> HOCL + CO  # Reaction 47
+  rate-constant: {A: 3.2e+13, b: 0.0, Ea: 0.0}
+  note: See Roesler et al., 1992
+- equation: CO + CLO <=> CO2 + CL  # Reaction 48
+  rate-constant: {A: 2.4e+05, b: 2.02, Ea: 1.05e+04}
+  note: Louis et al., 2003
+- equation: CLCHO + M <=> HCL + CO + M  # Reaction 49
+  type: three-body
+  rate-constant: {A: 5.0e+15, b: 0.0, Ea: 4.0e+04}
+  note: Qu et al, 2004
+- equation: CLCHO + H <=> CLCO + H2  # Reaction 50
+  rate-constant: {A: 9.9e+05, b: 2.25, Ea: 3861.0}
+  note: Li and Luo, 2003
+- equation: CLCHO + H <=> HCO + HCL  # Reaction 51
+  rate-constant: {A: 1.1e+06, b: 2.12, Ea: 6902.0}
+  note: Li and Luo, 2003
+- equation: CLCHO + OH <=> CLCO + H2O  # Reaction 52
+  rate-constant: {A: 2.2e+13, b: 0.0, Ea: 2822.0}
+  note: Francisco, 1992
+- equation: CLCHO + O <=> CLCO + OH  # Reaction 53
+  rate-constant: {A: 4.2e+11, b: 0.57, Ea: 2760.0}
+  note: EST
+- equation: CLCHO + CL <=> CLCO + HCL  # Reaction 54
+  rate-constant: {A: 7.2e+12, b: 0.0, Ea: 1620.0}
+  note: Atkinson et al., 1997
+- equation: CL + CO + M <=> CLCO + M  # Reaction 55
+  type: three-body
+  rate-constant: {A: 1.2e+24, b: -3.8, Ea: 0.0}
+  note: Atkinson et al., 2007
+- equation: CLCO + H <=> CO + HCL  # Reaction 56
+  rate-constant: {A: 1.0e+14, b: 0.0, Ea: 0.0}
+  note: Barat et al., 1990
+- equation: CLCO + O <=> CO + CLO  # Reaction 57
+  rate-constant: {A: 1.0e+14, b: 0.0, Ea: 0.0}
+  note: Chang et al., 1987 EST
+- equation: CLCO + O <=> CO2 + CL  # Reaction 58
+  rate-constant: {A: 1.0e+13, b: 0.0, Ea: 0.0}
+  note: Chang et al., 1987 EST
+- equation: CLCO + OH <=> CO + HOCL  # Reaction 59
+  rate-constant: {A: 3.3e+12, b: 0.0, Ea: 0.0}
+  note: Barat et al., 1990
+- equation: CLCO + O2 <=> CO2 + CLO  # Reaction 60
+  rate-constant: {A: 7.9e+10, b: 0.0, Ea: 3300.0}
+  note: Chang et al., 1987 EST
+- equation: CLCO + CL <=> CO + CL2  # Reaction 61
+  rate-constant: {A: 6.6e+13, b: 0.0, Ea: 1400.0}
+  note: Clarke et al., 1966
+- equation: H + O2 <=> OH + O  # Reaction 62
+  rate-constant: {A: 9.6e+14, b: -0.2, Ea: 1.6625e+04}
+  note: |-
+    ************************************************************************
+    *                          H2/CO mechanism                             *
+    *                                                                      *
+    *  Frassoldati et al., International Journal of Hydrogen Energy, 2007; *
+    *     Cuoci et al., International Journal of Hydrogen Energy, 2007;    *
+    ************************************************************************
+- equation: O + H2 <=> OH + H  # Reaction 63
+  rate-constant: {A: 4.33e+13, b: 0.0, Ea: 1.0e+04}
+- equation: H + O2 (+M) <=> HO2 (+M)  # Reaction 64
+  type: falloff
+  low-P-rate-constant: {A: 8.4e+17, b: -0.8, Ea: 0.0}
+  high-P-rate-constant: {A: 5.58e+12, b: 0.4, Ea: 0.0}
+  Troe: {A: 0.5, T3: 1.0e-30, T1: 1.0e+30}
+  efficiencies: {H2O: 18.0, H2: 2.5, N2: 1.26, AR: 0.8, HE: 0.8, O2: 0.0,
+    CO: 1.2, CO2: 2.4}
+- equation: H + O2 + O2 <=> HO2 + O2  # Reaction 65
+  rate-constant: {A: 8.9e+14, b: 0.0, Ea: -2822.0}
+- equation: OH + HO2 <=> H2O + O2  # Reaction 66
+  rate-constant: {A: 5.0e+13, b: 0.0, Ea: 1000.0}
+- equation: H + HO2 <=> OH + OH  # Reaction 67
+  rate-constant: {A: 2.5e+14, b: 0.0, Ea: 1900.0}
+- equation: O + HO2 <=> O2 + OH  # Reaction 68
+  rate-constant: {A: 3.25e+13, b: 0.0, Ea: 0.0}
+- equation: OH + OH <=> O + H2O  # Reaction 69
+  rate-constant: {A: 3.57e+04, b: 2.4, Ea: -2110.0}
+- equation: H2 + M <=> H + H + M  # Reaction 70
+  type: three-body
+  rate-constant: {A: 2.23e+14, b: 0.0, Ea: 9.6081e+04}
+  efficiencies: {H2: 2.5, H2O: 12.0, AR: 0.5, HE: 0.5, CO: 1.9, CO2: 3.8}
+- equation: O2 + M <=> O + O + M  # Reaction 71
+  type: three-body
+  rate-constant: {A: 1.55e+14, b: 0.0, Ea: 1.1512e+05}
+  efficiencies: {H2: 2.5, H2O: 12.0, AR: 0.2, HE: 0.2, CO: 1.9, CO2: 3.8}
+- equation: H + OH + M <=> H2O + M  # Reaction 72
+  type: three-body
+  rate-constant: {A: 4.5e+22, b: -2.0, Ea: 0.0}
+  efficiencies: {H2O: 16.0, H2: 2.0, CO2: 1.9}
+- equation: H + HO2 <=> H2 + O2  # Reaction 73
+  rate-constant: {A: 2.5e+13, b: 0.0, Ea: 700.0}
+- equation: HO2 + HO2 <=> H2O2 + O2  # Reaction 74
+  rate-constant: {A: 2.11e+12, b: 0.0, Ea: 0.0}
+- equation: OH + OH (+M) <=> H2O2 (+M)  # Reaction 75
+  type: falloff
+  low-P-rate-constant: {A: 1.3e+18, b: -0.9, Ea: -1700.0}
+  high-P-rate-constant: {A: 7.4e+13, b: -0.37, Ea: 0.0}
+  Troe: {A: 0.7346, T3: 94.0, T1: 1756.0, T2: 5182.0}
+  efficiencies: {H2: 2.0, H2O: 6.0, CO: 1.5, CO2: 2.0, AR: 0.7, HE: 0.7,
+    N2: 0.9}
+- equation: O + OH + M <=> HO2 + M  # Reaction 76
+  type: three-body
+  rate-constant: {A: 1.0e+16, b: 0.0, Ea: 0.0}
+- equation: O2 + CO <=> CO2 + O  # Reaction 77
+  rate-constant: {A: 2.53e+12, b: 0.0, Ea: 4.77e+04}
+- equation: O2 + HCO <=> HO2 + CO  # Reaction 78
+  rate-constant: {A: 3.0e+12, b: 0.0, Ea: 0.0}
+- equation: CO + O (+M) <=> CO2 (+M)  # Reaction 79
+  type: falloff
+  low-P-rate-constant: {A: 2.07e+26, b: -3.34, Ea: 7610.0}
+  high-P-rate-constant: {A: 9.64e+10, b: 0.0, Ea: 3800.0}
+  efficiencies: {H2O: 12.0, H2: 2.0, CO: 1.5, CO2: 2.0, AR: 0.5}
+- equation: CO + OH <=> CO2 + H  # Reaction 80
+  duplicate: true
+  rate-constant: {A: 9.6e+11, b: 0.14, Ea: 7352.0}
+- equation: CO + OH <=> CO2 + H  # Reaction 81
+  duplicate: true
+  rate-constant: {A: 7.32e+10, b: 0.03, Ea: -16.0}
+- equation: CO + HO2 <=> CO2 + OH  # Reaction 82
+  rate-constant: {A: 3.0e+13, b: 0.0, Ea: 2.3e+04}
+- equation: CO + H2O <=> CO2 + H2  # Reaction 83
+  rate-constant: {A: 2.0e+11, b: 0.0, Ea: 3.8e+04}
+- equation: HCO + M <=> CO + H + M  # Reaction 84
+  type: three-body
+  rate-constant: {A: 1.2e+17, b: -1.0, Ea: 1.7e+04}
+  efficiencies: {H2O: 5.0, CO2: 3.0, H2: 1.9, CO: 1.9}
+- equation: HCO + O <=> CO2 + H  # Reaction 85
+  rate-constant: {A: 3.0e+13, b: 0.0, Ea: 0.0}
+- equation: HCO + H <=> H2 + CO  # Reaction 86
+  rate-constant: {A: 5.0e+13, b: 0.0, Ea: 0.0}
+- equation: HCO + OH <=> H2O + CO  # Reaction 87
+  rate-constant: {A: 5.0e+13, b: 0.0, Ea: 0.0}
+- equation: HCO + HO2 <=> H2O2 + CO  # Reaction 88
+  rate-constant: {A: 4.0e+11, b: 0.0, Ea: 0.0}
+- equation: HCO + HO2 => H + OH + CO2  # Reaction 89
+  rate-constant: {A: 3.0e+13, b: 0.0, Ea: 0.0}
+- equation: H + H2O <=> H2 + OH  # Reaction 90
+  rate-constant: {A: 4.8e+10, b: 1.0, Ea: 1.9e+04}
+- equation: H2O2 + H <=> H2O + OH  # Reaction 91
+  rate-constant: {A: 2.41e+13, b: 0.0, Ea: 3970.0}
+- equation: H2O2 + H <=> H2 + HO2  # Reaction 92
+  rate-constant: {A: 6.025e+13, b: 0.0, Ea: 7950.0}
+- equation: HO2 + H2O => H2O2 + OH  # Reaction 93
+  rate-constant: {A: 5.388e+05, b: 2.0, Ea: 2.878005e+04}
+- equation: OH + H2O2 => H2O + HO2  # Reaction 94
+  rate-constant: {A: 3.195e+05, b: 2.0, Ea: -4169.95}
+- equation: O + H2O2 => OH + HO2  # Reaction 95
+  rate-constant: {A: 1.083e+06, b: 2.0, Ea: -1657.32}
+- equation: CH2O + M <=> CO + H2 + M  # Reaction 96
+  type: three-body
+  rate-constant: {A: 8.3e+15, b: 0.0, Ea: 7.0e+04}
+  efficiencies: {H2O: 16.0, CO2: 3.8, H2: 2.5, CO: 1.9}
+- equation: CH2O + M <=> HCO + H + M  # Reaction 97
+  type: three-body
+  rate-constant: {A: 2.0e+16, b: 0.0, Ea: 7.56e+04}
+  efficiencies: {H2O: 16.0, CO2: 3.8, H2: 2.5, CO: 1.9}
+- equation: O2 + CH2O <=> HO2 + HCO  # Reaction 98
+  rate-constant: {A: 1.3e+14, b: 0.0, Ea: 4.1e+04}
+- equation: O + CH2O => H + H + CO2  # Reaction 99
+  rate-constant: {A: 2.0e+13, b: 0.0, Ea: 5000.0}
+- equation: OH + CH2O => H + H2 + CO2  # Reaction 100
+  rate-constant: {A: 1.0e+11, b: 0.0, Ea: 0.0}
+- equation: HCO + HCO <=> CH2O + CO  # Reaction 101
+  rate-constant: {A: 6.0e+11, b: 0.0, Ea: 0.0}
+- equation: H + CH2O <=> H2 + HCO  # Reaction 102
+  rate-constant: {A: 4.5e+14, b: 0.0, Ea: 7500.0}
+- equation: HO2 + CH2O => H2O2 + HCO  # Reaction 103
+  rate-constant: {A: 5.2e+12, b: 0.0, Ea: 1.3e+04}

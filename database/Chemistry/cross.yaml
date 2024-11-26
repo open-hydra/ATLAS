@@ -1,0 +1,450 @@
+
+units: {length: cm, time: s, quantity: mol, activation-energy: cal/mol}
+
+phases:
+- name: Cross
+  thermo: ideal-gas
+  elements: [O, H, C, N, Cl]
+  species: [C2H2, CH2O, CH2, CH3, CH4, CO, CO2, CL, CL2, CLO, 
+            H, H2, H2O, HCN, HCO, HCL, N2, O, OH]
+  kinetics: gas
+  transport: mixture-averaged
+  state: {T: 300.0, P: 1 atm}
+
+species:
+- name: HCL
+  composition: {H: 1, Cl: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [2.062588287e+04, -309.3368855, 5.27541885, -4.82887422e-03, 6.1957946e-06,
+      -3.040023782e-09, 4.91679003e-13, -1.067782299e+04, -7.30931775]
+    - [9.15774951e+05, -2770.550211, 5.97353979, -3.62981006e-04, 4.73552919e-08,
+      2.810262054e-12, -6.65610422e-16, 5674.95805, -16.42827056]
+    note: TPIS 1989 v1 pt1 p186; pt2 p93. [tpis89]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 344.7
+    diameter: 3.339
+    rotational-relaxation: 1.0
+
+- name: CL
+  composition: {Cl: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [2.276215854e+04, -216.8413293, 2.745185115, 2.451101694e-03, -5.45801199e-06,
+      4.41798688e-09, -1.288134004e-12, 1.501357068e+04, 3.102950764]
+    - [-1.69793293e+05, 608.172646, 2.12866409, 1.307367034e-04, -2.644883596e-08,
+      2.842504775e-12, -1.252911731e-16, 9934.3874, 8.84475941]
+    - [-7.13968707e+07, 4.49993633e+04, -9.26431535, 1.657437964e-03, -1.326219399e-07,
+      5.53399887e-12, -8.390301878e-17, -3.40533303e+05, 106.9111299]
+    note: Hf:CODATA1989.Spec:NSRDS-NBS 35 1971;NSRDS-NBS 34 1970. [g 7/97]
+  transport:
+    model: gas
+    geometry: atom
+    well-depth: 130.8
+    diameter: 3.613
+    rotational-relaxation: 1.0
+
+- name: CL2
+  composition: {Cl: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.46281724e+04, -554.712949, 6.20759103, -2.98963673e-03, 3.17303416e-06,
+      -1.79363467e-09, 4.26005863e-13, 1534.07075, -9.43835303]
+    - [6.09256675e+06, -1.94962688e+04, 28.5453491, -0.0144996828, 4.46388943e-06,
+      -6.35852403e-10, 3.32735931e-14, 1.21211722e+05, -169.077832]
+    note: Chlorine gas. TPIS 1989, v1, pt2, p88. [tpis89]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 316.0
+    diameter: 4.217
+    rotational-relaxation: 1.0
+
+- name: CLO
+  composition: {Cl: 1, O: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [-1.687268145e+04, 257.3812247, 2.17584612, 6.43206113e-03, -8.5682495e-06,
+      5.76497125e-09, -1.545771209e-12, 9829.51898, 13.86009628]
+    - [4.09376052e+05, -1765.985112, 7.08790063, -1.828450169e-03, 7.1038181e-07,
+      -1.209332942e-10, 7.07644104e-15, 2.151891784e+04, -16.68646423]
+    note: TPIS 1989 v1 pt1 p180; pt2 p90. [tpis89]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 110.0
+    diameter: 3.59
+
+- name: C2H2
+  composition: {C: 2, H: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [1.59813325e+05, -2216.67505, 12.6572561, -7.98017014e-03, 8.05580151e-06,
+      -2.43394461e-09, -7.50945461e-14, 3.71263379e+04, -52.44440564]
+    - [1.71379212e+06, -5928.97095, 12.3611564, 1.31470625e-04, -1.36286904e-07,
+      2.71274606e-11, -1.30208685e-15, 6.26648973e+04, -58.18872934]
+    note: TPIS 1978. DelH - TRC w-3040, 10/31/88. [g 1/91]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 209.0
+    diameter: 4.1
+    rotational-relaxation: 2.5
+
+- name: CH2O
+  composition: {H: 2, C: 1, O: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [-1.17392211e+05, 1873.636547, -6.89032771, 0.02641571472, -2.186402425e-05,
+      1.00570211e-08, -2.023502935e-12, -2.307355518e+04, 64.20441192]
+    - [1.700799002e+06, -7620.78666, 14.72440991, -1.649079928e-03, 3.29206332e-07,
+      -3.4949452e-11, 1.526081986e-15, 3.146769107e+04, -73.86432128]
+    note: 'Cons: TPIS, 1979. Hf:TRC,w5300,6/78. [g 8/88]'
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 498.0
+    diameter: 3.59
+    rotational-relaxation: 2.0
+
+- name: CH2
+  composition: {C: 1, H: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.52591418e+04, -336.765436, 4.50893691, 2.52106603e-03, -5.31151087e-06,
+      6.65421308e-09, -2.61007296e-12, 4.7377255e+04, -3.807404284]
+    - [2.51041594e+06, -7953.93239, 12.3882957, -1.77590968e-03, 3.21740029e-07,
+      -3.06886344e-11, 1.2049006e-15, 9.60102856e+04, -61.55984406]
+    note: 'Hf298: TRC tables. Cons: JPCRD v17,1988,p279. [g11/89]'
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 144.0
+    diameter: 3.8
+
+- name: CH3
+  composition: {C: 1, H: 3}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [-2.87728611e+04, 509.505607, 0.199073056, 0.0136396516, -1.43455892e-05,
+      1.01396738e-08, -3.02843889e-12, 1.41109873e+04, 20.23388634]
+    - [2.76090427e+06, -9336.55279, 14.8769863, -1.43922769e-03, 2.44392393e-07,
+      -2.22384579e-11, 8.39158849e-16, 7.48476479e+04, -79.19489326]
+    note: 'Hf298: TRC Apr30,1989. Cons: JPCRD V17,1988,p3526. [g11/89]'
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 144.0
+    diameter: 3.8
+
+- name: CH4
+  composition: {C: 1, H: 4}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [-1.76654573e+05, 2785.47782, -12.0193547, 0.0391462588, -3.61165608e-05,
+      2.01838794e-08, -4.95577215e-12, -2.33101156e+04, 89.0107539]
+    - [3.7462657e+06, -1.38885134e+04, 20.5402982, -1.94419693e-03, 4.32387145e-07,
+      -4.06101278e-11, 1.64315927e-15, 7.56598868e+04, -122.2977672]
+    note: 'Cons & Hf298: TPIS v2,pt1,1991. [g 8/88]'
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 141.4
+    diameter: 3.746
+    polarizability: 2.6
+    rotational-relaxation: 13.0
+
+- name: CO
+  composition: {C: 1, O: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [1.489027557e+04, -292.2250947, 5.72445841, -8.17613694e-03, 1.456885983e-05,
+      -1.087733246e-08, 3.027905485e-12, -1.303069697e+04, -7.859179282]
+    - [4.61915856e+05, -1944.685748, 5.91664709, -5.66423407e-04, 1.398802571e-07,
+      -1.787664983e-11, 9.6208504e-16, -2465.738441, -13.87402604]
+    - [8.86855241e+08, -7.50028541e+05, 249.5444488, -0.0395630299, 3.2977321e-06,
+      -1.318393976e-10, 1.998913781e-15, 5.70135124e+06, -2060.679613]
+    note: 'Props & Hf298: TPIS vo2,pt2,1979,p29. [tpis79]'
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 98.1
+    diameter: 3.65
+    polarizability: 1.95
+    rotational-relaxation: 1.8
+
+- name: CO2
+  composition: {C: 1, O: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [4.94378364e+04, -626.429208, 5.30181336, 2.503600571e-03, -2.124700099e-07,
+      -7.6914868e-10, 2.849979913e-13, -4.52818986e+04, -7.0487901]
+    - [1.176969434e+05, -1788.801467, 8.29154353, -9.22477831e-05, 4.86963541e-09,
+      -1.892063841e-12, 6.33067509e-16, -3.90834501e+04, -26.52683962]
+    - [-1.544406228e+09, 1.016836139e+06, -256.1377096, 0.0336936393, -2.181157911e-06,
+      6.99132485e-11, -8.84221214e-16, -8.0431285e+06, 2254.153243]
+    note: 'Props & Hf298: TPIS v2,pt1,1991,p27. [g 7/88]'
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 244.0
+    diameter: 3.763
+    polarizability: 2.65
+    rotational-relaxation: 2.1
+
+- name: N2
+  composition: {N: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [2.210371497e+04, -381.846182, 6.08273836, -8.53091441e-03, 1.384646189e-05,
+      -9.62579362e-09, 2.519705809e-12, 710.846086, -10.76003316]
+    - [5.87712406e+05, -2239.249073, 6.06694922, -6.1396855e-04, 1.491806679e-07,
+      -1.923105485e-11, 1.061954386e-15, 1.283210415e+04, -15.86639599]
+    - [8.31013916e+08, -6.42073354e+05, 202.0264635, -0.03065092046, 2.486903333e-06,
+      -9.70595411e-11, 1.437538881e-15, 4.93870704e+06, -1672.099736]
+    note: TPIS 1978 v1 pt2 p207. [tpis78]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 97.53
+    diameter: 3.621
+    polarizability: 1.76
+    rotational-relaxation: 4.0
+
+- name: H2
+  composition: {H: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [4.07832281e+04, -800.918545, 8.21470167, -0.0126971436, 1.75360493e-05,
+      -1.20286016e-08, 3.36809316e-12, 2682.48438, -30.4378866]
+    - [5.60812338e+05, -837.149134, 2.97536304, 1.25224993e-03, -3.74071842e-07,
+      5.93662825e-11, -3.60699573e-15, 5339.81585, -2.20276405]
+    - [4.96671613e+08, -3.14744812e+05, 79.838875, -8.41450419e-03, 4.75306044e-07,
+      -1.37180973e-11, 1.6053746e-16, 2.48835466e+06, -669.552419]
+    note: Hydrogen. TPIS, v1, pt2, 1978, pp31-32. [tpis78]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 38.0
+    diameter: 2.92
+    polarizability: 0.79
+    rotational-relaxation: 280.0
+
+- name: H
+  composition: {H: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [0.0, 0.0, 2.5, 0.0, 0.0, 0.0, 0.0, 2.547370801e+04, -0.446682853]
+    - [60.7877425, -0.1819354417, 2.500211817, -1.226512864e-07, 3.73287633e-11,
+      -5.68774456e-15, 3.410210197e-19, 2.547486398e+04, -0.448191777]
+    - [2.173757694e+08, -1.312035403e+05, 33.991742, -3.81399968e-03, 2.432854837e-07,
+      -7.69427554e-12, 9.64410563e-17, 1.067638086e+06, -274.2301051]
+    note: D0(H2):JMolSpc,v33 1970 p147. NSRDS-NBS 3 SEC 6 1972. [g 6/97]
+  transport:
+    model: gas
+    geometry: atom
+    well-depth: 145.0
+    diameter: 2.05
+
+- name: O
+  composition: {O: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [-7953.6113, 160.7177787, 1.966226438, 1.01367031e-03, -1.110415423e-06,
+      6.5175075e-10, -1.584779251e-13, 2.840362437e+04, 8.40424182]
+    - [2.619020262e+05, -729.872203, 3.31717727, -4.28133436e-04, 1.036104594e-07,
+      -9.43830433e-12, 2.725038297e-16, 3.39242806e+04, -0.667958535]
+    - [1.779004264e+08, -1.082328257e+05, 28.10778365, -2.975232262e-03,
+      1.854997534e-07, -5.79623154e-12, 7.191720164e-17, 8.89094263e+05,
+      -218.1728151]
+    note: D0(O2):CJP v32 1954 p110. Spec:NSRDS-NBS 3 sect 1976. [g 5/97]
+  transport:
+    model: gas
+    geometry: atom
+    well-depth: 80.0
+    diameter: 2.75
+
+- name: OH
+  composition: {O: 1, H: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [-1998.85899, 93.0013616, 3.050854229, 1.529529288e-03, -3.157890998e-06,
+      3.31544618e-09, -1.138762683e-12, 3239.68348, 4.67411079]
+    - [1.017393379e+06, -2509.957276, 5.11654786, 1.30529993e-04, -8.28432226e-08,
+      2.006475941e-11, -1.556993656e-15, 2.04448713e+04, -11.01282337]
+    - [2.847234193e+08, -1.859532612e+05, 50.082409, -5.14237498e-03, 2.875536589e-07,
+      -8.22881796e-12, 9.56722902e-17, 1.468642377e+06, -402.355558]
+    note: TPIS 1978 pt1 p110; pt2 p37. [tpis78]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 80.0
+    diameter: 2.75
+
+- name: H2O
+  composition: {H: 2, O: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [-3.94796083e+04, 575.573102, 0.931782653, 7.22271286e-03, -7.34255737e-06,
+      4.95504349e-09, -1.336933246e-12, -3.30397431e+04, 17.24205775]
+    - [1.034972096e+06, -2412.698562, 4.64611078, 2.291998307e-03, -6.83683048e-07,
+      9.42646893e-11, -4.82238053e-15, -1.384286509e+04, -7.97814851]
+    note: CODATA 1989. JRNBS 1987 v92 p35. TRC tuv-25 10/88. [g 8/89]
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 572.4
+    diameter: 2.605
+    dipole: 1.844
+    rotational-relaxation: 4.0
+
+- name: HCN
+  composition: {H: 1, C: 1, N: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [9.09829783e+04, -1238.65966, 8.72132229, -6.52828128e-03, 8.87274723e-06,
+      -4.80890877e-09, 9.31791773e-13, 2.12197899e+04, -27.4668668]
+    - [1.23689825e+06, -4446.76184, 9.73891163, -5.8553981e-04, 1.07285501e-07,
+      -1.0134036e-11, 3.34873666e-16, 4.24459481e+04, -40.0580075]
+    note: 'Cons and Hf0: TPIS,v2 pt1,1978 p32. [g 7/88]'
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 4.38
+    well-depth: 385.0
+    dipole: 2.98
+    polarizability: 2.38
+    rotational-relaxation: 1.5
+
+- name: HCO
+  composition: {H: 1, C: 1, O: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [-1.189906845e+04, 215.1611774, 2.73018395, 1.806621526e-03, 4.98415305e-06,
+      -5.81446267e-09, 1.869659718e-12, 2905.719059, 11.36793477]
+    - [6.9113357e+05, -3643.2178, 9.58708488, -1.104891812e-03, 2.829488544e-07,
+      -3.53797286e-11, 1.739690104e-15, 2.535622651e+04, -35.70198702]
+    note: 'HF: Chem.Phys.Let.v258,1996 p626. Cons:JPCRD v17,1988 p296. [g
+      9/96]'
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 498.0
+    diameter: 3.59
+
+reactions:
+  - equation: "Cl2 + H <=> HCl + Cl"
+    rate-constant: {A: 8.40e+13, b: 0.0, Ea: 1150.46}
+  - equation: "H2 + OH <=> H2O + H"
+    rate-constant: {A: 2.16e+08, b: 1.51, Ea: 3428.70}
+  - equation: "C2H2 + OH <=> CH3 + CO"
+    rate-constant: {A: 4.84e-04, b: 4.0, Ea: -211.46}
+  - equation: "CH4 + Cl <=> CH3 + HCl"
+    rate-constant: {A: 2.50e+13, b: 0.0, Ea: 3828.70}
+  - equation: "CH4 + H <=> CH3 + H2"
+    rate-constant: {A: 6.60e+08, b: 1.62, Ea: 10836.86}
+  - equation: "CH4 + OH <=> CH3 + H2O"
+    rate-constant: {A: 1.00e+08, b: 1.6, Ea: 3117.18}
+  - equation: "CH3 + H + M <=> CH4 + M"
+    rate-constant: {A: 1.27e+16, b: -0.63, Ea: 382.87}
+    efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 6.0}
+  - equation: "HCO + M <=> CO + H + M"
+    rate-constant: {A: 1.87e+17, b: -1.0, Ea: -16994.99}
+    efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 0.0}
+  - equation: "CO + OH <=> CO2 + H"
+    rate-constant: {A: 4.76e+07, b: 1.23, Ea: 69.99}
+  - equation: "CO + ClO <=> CO2 + Cl"
+    rate-constant: {A: 3.00e+12, b: 0.0, Ea: 999.91}
+  - equation: "C2H2 + O <=> CH2 + CO"
+    rate-constant: {A: 1.02e+07, b: 2.0, Ea: 1899.96}
+  - equation: "CH2 + H2 <=> CH3 + H"
+    rate-constant: {A: 5.00e+05, b: 2.0, Ea: 7225.51}
+  - equation: "CH2 + H + M <=> CH3 + M"
+    rate-constant: {A: 2.50e+16, b: -0.8, Ea: 0.0}
+    efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 6.0}
+  - equation: "CH4 + O <=> CH3 + OH"
+    rate-constant: {A: 1.02e+09, b: 1.5, Ea: 599.92}
+  - equation: "CH3 + O <=> CH2O + H"
+    rate-constant: {A: 8.43e+13, b: 0.0, Ea: 0.0}
+  - equation: "CH2 + O <=> H + HCO"
+    rate-constant: {A: 8.00e+13, b: 0.0, Ea: 0.0}
+  - equation: "OH + CH3 <=> CH2 + H2O"
+    rate-constant: {A: 5.60e+07, b: 1.6, Ea: 5419.63}
+  - equation: "OH + CH2 <=> H + CH2O"
+    rate-constant: {A: 2.00e+13, b: 0.0, Ea: 0.0}
+  - equation: "H + Cl + M <=> HCl + M"
+    rate-constant: {A: 5.30e+21, b: -2.0, Ea: -19986.72}
+    efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0}
+  - equation: "Cl + Cl + M <=> Cl2 + M"
+    rate-constant: {A: 3.34e+14, b: 0.0, Ea: -1799.80}
+    efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0}
+  - equation: "Cl + CH2O <=> HCO + HCl"
+    rate-constant: {A: 5.00e+13, b: 0.0, Ea: 500.00}
+  - equation: "ClO + CH3 <=> CH2O + H + Cl"
+    rate-constant: {A: 3.33e+11, b: 0.46, Ea: 30.01}
+  - equation: "ClO + CH3 <=> CH2O + HCl"
+    rate-constant: {A: 3.47e+18, b: -1.8, Ea: 2069.09}
+  - equation: "H + HCl <=> Cl + H2"
+    rate-constant: {A: 7.94e+12, b: 0.0, Ea: 3400.97}
+  - equation: "HCl + O <=> Cl + OH"
+    rate-constant: {A: 2.30e+11, b: 0.64, Ea: 899.62}
+  - equation: "2 H + M <=> H2 + M"
+    duplicate: true
+    rate-constant: {A: 1.00e+18, b: -1.0, Ea: 0.0}
+    efficiencies: {"CH4": 2.0}
+  - equation: "2 H + H2 <=> 2 H2"
+    duplicate: true
+    rate-constant: {A: 9.00e+16, b: -0.6, Ea: 0.0}
+  - equation: "2 H + H2O <=> H2 + H2O"
+    duplicate: true
+    rate-constant: {A: 6.00e+19, b: -1.25, Ea: 0.0}
+  - equation: "H + HCO <=> H2 + CO"
+    rate-constant: {A: 7.34e+13, b: 0.0, Ea: 0.0}
+  - equation: "OH + OH <=> H2O + O"
+    rate-constant: {A: 6.00e+08, b: 1.3, Ea: 0.0}
+  - equation: "CH2 + CH4 <=> 2 CH3"
+    rate-constant: {A: 2.46e+16, b: 2.0, Ea: 8270.80}
+  - equation: "CH3 + HCO <=> CH4 + CO"
+    rate-constant: {A: 2.65e+13, b: 0.0, Ea: 0.0}
+  - equation: "CH3 + CH2O <=> HCO + CH4"
+    rate-constant: {A: 3.32e+03, b: 2.81, Ea: 5854.19}
