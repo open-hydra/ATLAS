@@ -63,5 +63,12 @@ def setup_case(case):
     pressure = [40]
     fuel_entry = "{CH4:0.07048119}"
     oxi_entry = "{O2:0.216721} {N2:0.71279781}"
+  
+  elif case == "lifshitz-4.6":
+    of = [0.0]
+    T = np.linspace(800, 1300, 10)
+    pressure = [4.6]
+    fuel_entry = "{H2:0.00534534}"
+    oxi_entry = "{CL2:0.18798856} {Ar:0.8066661}"
 
   return fuel_entry, oxi_entry, pressure, of, T

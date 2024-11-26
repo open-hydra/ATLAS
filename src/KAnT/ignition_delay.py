@@ -96,8 +96,8 @@ def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatu
     for model in models:
         print(' -- Processing: ',model)
 
-        new_mechanism = add_species('N2',ct.Solution(model+'.yaml'),'nasa_gas')
-        new_mechanism = add_species('Ar',new_mechanism,'nasa_gas')
+        new_mechanism = add_species('N2',ct.Solution(model+'.yaml'),'nasa9')
+        new_mechanism = add_species('Ar',new_mechanism,'nasa9')
         ignition_times[model] = []
         ignition_temperatures[model] = []
 
@@ -108,8 +108,9 @@ def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatu
                 for mr in mixture_ratio:
 
                     setup_mixture(new_mechanism, fuel_dict, oxi_dict, mr)
-                    #new_mechanism.X = 'CH4:0.120, O2:0.185, N2:0.695'
+                    #new_mechanism.X = 'H2:10.4, CL2:10.4, Ar:79.2'
                     new_mechanism.TP = temperature, pressure_chamber
+                    #print(new_mechanism.species_names)
                     #print(new_mechanism.Y)
                     #exit()
 

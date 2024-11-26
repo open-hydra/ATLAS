@@ -38,8 +38,10 @@ def read_Xequilibrium(ini_file, section):
   of = get(ini_file, section, 'of', np.ndarray)
   if of is None:
     of_law = get(ini_file, section, 'of-linear', np.ndarray)
-    if of_law is None: return
-    of = np.linspace(of_law[0], of_law[1], int(of_law[2]))
+    if of_law is None:
+      of = [0.0]
+    else:
+      of = np.linspace(of_law[0], of_law[1], int(of_law[2]))
 
   pressure = get(ini_file, section, 'pressure', np.ndarray)
   if pressure is None:
@@ -79,8 +81,10 @@ def read_Xignition_delay(ini_file, section):
   of = get(ini_file, section, 'of', np.ndarray)
   if of is None:
     of_law = get(ini_file, section, 'of-linear', np.ndarray)
-    if of_law is None: return
-    of = np.linspace(of_law[0], of_law[1], int(of_law[2]))
+    if of_law is None:
+      of = [0.0]
+    else:
+      of = np.linspace(of_law[0], of_law[1], int(of_law[2]))
 
   T = get(ini_file, section, 'temperature', np.ndarray)
   if T is None:
