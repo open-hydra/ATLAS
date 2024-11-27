@@ -2,7 +2,8 @@ module Interpolator
   use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
   use variables
   use ATLAS_high_level
-  use ATLAS_IO, only: read_solfile, read_TECmesh, read_species
+  use ATLAS_IO, only: read_solfile, read_TECmesh
+  use ATLAS_IO_Legacy, only: read_species
   use Lib_ORION_data
   use CEA_module, only: obj_species
   implicit none

@@ -5,13 +5,9 @@ module ATLAS_IO
   public:: write_idealgas_bc_file
   public:: write_cp_bc_file
   public:: write_vtk_tec
-  public:: read_MISCELA
-  public:: read_w
   public:: read_solfile, write_solfile
   public:: read_TECmesh
-  public:: read_species
-  public:: read_array
-  public:: write_array
+  public:: read_idealgas_properties
 
   integer:: i,j,k,s
   integer:: unitfile
@@ -599,116 +595,39 @@ module ATLAS_IO
   end subroutine write_vtk_tec
 
 
-  !> Read wm.dat
-  subroutine read_w(n, w)
-    implicit none
-    integer, intent(in) :: n
-    real(8), allocatable, intent(inout) :: w(:)
-    integer :: ios
-
-    allocate(w(1:n))
-    open(unit=1,file='wm.dat',iostat=ios,status='old',action='read')
-    if (ios/=0) open(unit=1,file='toAFFS/wm.dat',iostat=ios,status='old',action='read')
-    do j = 1, size(w)
-      read(1,*) w(j)
-    enddo
-    if ( ios /= 0 ) stop "Error opening file name"
-    close(1)
-
-  end subroutine read_w
-
-
-  !> read MISCELA (tabella_ms and wm)
-  subroutine read_MISCELA(w,cp,dcp,h)
-    implicit none
-    real(8), dimension(:,:), allocatable, intent(out):: cp, dcp, h
-    real(8), dimension(:), allocatable, intent(inout):: w
-    integer :: n(2), ios, idum
-    real(8) :: dummy
-
-    open(unit=1,file='tabellams.dat',iostat=ios,status='old',action='read')
-    if (ios/=0) open(unit=1,file='toAFFS/tabellams.dat',iostat=ios,status='old',action='read')
-    if (ios/=0) return
-    read(1,*) n(1), n(2)
-    allocate(cp(1:n(1),0:n(2)))
-    allocate(dcp(1:n(1),0:n(2)))
-    allocate(h(1:n(1),0:n(2)))
-    do i = 1, n(1)
-      do j = 1, n(2)
-        read(1,*) idum, idum, h(i,j), dummy, cp(i,j), dcp(i,j), dummy, dummy
-      enddo
-    enddo
-    h(:,0) = h(:,1)
-    cp(:,0) = cp(:,1)
-    dcp(:,0) = dcp(:,1)
-    close(1)
-
-    call read_w(n(1),w)
-
-  end subroutine read_MISCELA
-
-  subroutine read_species(file,n,name)
+  subroutine read_idealgas_properties(file, species)
+    use CEA_module
+    use strings, only: parse
+    use Lib_Tecplot
     implicit none
     character(len=*), intent(in):: file
-    integer, intent(inout):: n
-    character(len=20), dimension(:), allocatable, intent(inout):: name
+    type(obj_species), intent(inout) :: species
+    integer :: n, ios
+    character(len=30) :: wholestring, args(2)
+    type(orion_data) :: orion
 
     open(newunit=unitFile,file=adjustl(trim(file)),status='unknown')
-    read(unitFile,*) n
-    allocate(name(1:n))
+    ios = 0; n = -1
+    do while(ios==0)
+      read(unitFile,'(A)',iostat=ios)
+      n = n +1
+    enddo
+    allocate(species%name(1:n))
+    allocate(species%w(1:n))
+    rewind(unitFile)
     do i = 1, n
-      read(unitFile,'(A)') name(i)
-      name(i) = adjustl(trim(name(i)))
+      read(unitFile,'(A)') wholestring
+      call parse(wholestring,' ',args)
+      species%name(i) = trim(adjustl(args(1)))
+      read(args(2),*) species%w(i)
     end do
     close(unitFile)
 
-  end subroutine read_species
+    ios = tec_read_structured_multivars(orion,'fromATLAStoSolver/gas-thermo.dat')
+    print*, ios
+    print*, orion%block(1)%vars(3,100,1,1)
 
-
-  subroutine read_array(file,array)
-    implicit none
-    character(len=*), intent(in):: file
-    integer:: ios, n
-    real, dimension(:), allocatable, intent(out):: array
-
-    i = 0; ios = 0
-    open(newunit=unitFile,file=adjustl(trim(file)))
-    do while(ios==0)
-      i = i+1
-    enddo
-    n = i
-    allocate(array(1:n))
-    do i = 1, n
-      read(unitFile,*) array(i)
-    enddo
-    close(unitFile)
-
-  end subroutine read_array
-
-
-  subroutine write_array(file,n,array)
-    implicit none
-    character(len=*), intent(in):: file
-    integer, intent(in):: n
-    real, dimension(:), intent(in), optional:: array
-    real, dimension(:), allocatable :: dummy
-
-    if (.not.present(array)) allocate(dummy(1:n))
-    dummy = 1.0
-
-    open(newunit=unitFile,file=adjustl(trim(file)))
-    write(unitFile,*) n
-    do i = 1, n
-      if (present(array)) then
-        write(unitFile,*) array(i)
-      else
-        write(unitFile,*) dummy(i)
-      endif
-    enddo
-    close(unitFile)
-
-  end subroutine write_array
-
+  end subroutine read_idealgas_properties
 
 
 end module ATLAS_IO

@@ -10,7 +10,6 @@ module variables
 
   !> Tab properties
   real(8) :: runi=8314.51
-  real(8), allocatable:: cp(:,:), dcp(:,:), h(:,:), w(:)
 
   !> Switches
   logical :: verbose

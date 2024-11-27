@@ -28,9 +28,9 @@ program BCB
   call command_line_argument()
 
   ! Phase properties import
-  call read_MISCELA(w,cp,dcp,h)
+  !call read_MISCELA(w,cp,dcp,h)
   filename = 'species.data'
-  call read_species('species.data',species%n,species%name)
+  !call read_species('species.data',species%n,species%name)
 
   ! Geometry import
   filename = 'mesh.tec'

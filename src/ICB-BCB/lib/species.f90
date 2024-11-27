@@ -1,10 +1,12 @@
-module equilibrium
+module species
+  use CEA_module
   implicit none
+
+  type, extends(obj_species) :: obj_species
   
 contains
 
   subroutine compute_equilibrium(sini,species,ytot,T0,p0)
-    use CEA_module
     use finer, only: file_ini
     implicit none
     type(file_ini), intent(in)       :: sini
@@ -95,7 +97,6 @@ contains
   end subroutine
 
   subroutine read_KAnT_out(temp,sp)
-    use CEA_module
     use strings, only: parse
     implicit none
     real(8), intent(out)  :: temp
@@ -132,4 +133,4 @@ contains
 
   end subroutine read_KAnT_out
 
-end module equilibrium
+end module species

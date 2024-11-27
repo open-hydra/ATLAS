@@ -28,9 +28,11 @@ program ICB
   call command_line_argument()
 
   ! Phase properties import
-  call read_MISCELA(w,cp,dcp,h)
-  filename = 'species.data'
-  call read_species('species.data',species%n,species%name)
+  ! call read_MISCELA(w,cp,dcp,h)
+  filename = 'fromATLAStoSolver/gas-thermo-mw.txt'
+  call read_idealgas_properties(filename,species)
+  stop
+  !call read_species('species.data',species%n,species%name)
 
   ! Geometry import
   filename = 'mesh.tec'

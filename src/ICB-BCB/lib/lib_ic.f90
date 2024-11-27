@@ -231,7 +231,7 @@ module lib_ic
     case ('homogeneous')
 
       ! R
-      Rgas = sum(Runi*self%species%massf/w)
+      Rgas = sum(Runi*self%species%massf/self%species%w)
 
       ! Temperature
       if (T0==0 .and. T==0) T = p/(Rgas*rho)
@@ -283,7 +283,7 @@ module lib_ic
 
     case ('1D-centcomp' , '1D-cubcomp')
 
-      Rgas = sum(Runi*self%species%massf/w)
+      Rgas = sum(Runi*self%species%massf/self%species%w)
       cp_ = sum(self%species%massf*cp(:,1))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
@@ -311,7 +311,7 @@ module lib_ic
       allocate(radius_int(1:self%dim(1)))
       allocate(area(1:self%dim(1)))
 
-      Rgas = sum(Runi*self%species%massf/w)
+      Rgas = sum(Runi*self%species%massf/self%species%w)
       cp_ = sum(self%species%massf*cp(:,nint(T0)))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
