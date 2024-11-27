@@ -2,7 +2,10 @@ module species
   use CEA_module
   implicit none
 
-  type, extends(obj_species) :: obj_species
+  type, extends(obj_CEA_species) :: obj_species
+    real(8), dimension(:), allocatable   :: w
+    real(8), dimension(:,:), allocatable :: dcp, h, s, cp
+  end type obj_species
   
 contains
 

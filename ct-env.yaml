@@ -6,6 +6,7 @@ channels:
 dependencies:
 - python  # Cantera supports Python 3.8 and up
 - cantera
+- numpy=1.26.4
 - ipython  # optional (needed for nicer interactive command line)
 - jupyter  # optional (needed for Jupyter Notebook)
 - matplotlib  # optional (needed for plots)

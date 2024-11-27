@@ -5,7 +5,7 @@ module Interpolator
   use ATLAS_IO, only: read_solfile, read_TECmesh
   use ATLAS_IO_Legacy, only: read_species
   use Lib_ORION_data
-  use CEA_module, only: obj_species
+  use species, only: obj_species
   implicit none
 
   logical                                      :: onemesh, onespecies

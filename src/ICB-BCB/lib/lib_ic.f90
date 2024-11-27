@@ -13,11 +13,11 @@ module lib_ic
 
   contains
 
-  subroutine build_IC(sini,blocks,species)
-    use CEA_module, only: obj_species
+  subroutine build_IC(sini,blocks,sp)
+    use species, only: obj_species
     implicit none
     type(ATLAS_block), intent(inout) :: blocks(:)
-    type(obj_species), intent(in)    :: species
+    type(obj_species), intent(in)    :: sp
     type(file_ini), intent(in)       :: sini
 
     character(len=30)             :: zonename, section_name
@@ -32,7 +32,7 @@ module lib_ic
       write(indb,'(I4)') b
       section_name = 'ICB-Block'//adjustl(indb)   
       associate(block => blocks(b))
-      block%species = species
+      block%species = sp
       if (.not.allocated(block%species%massf)) allocate(block%species%massf(1:block%species%n))
       block%species%massf = 1d-20
 
@@ -79,7 +79,7 @@ module lib_ic
   subroutine build_flow(b,self,zoneini)
     use variables
     use Interpolator
-    use equilibrium
+    use species, only: compute_equilibrium
     implicit none
     class(ATLAS_block), intent(inout) :: self
     type(file_ini), intent(in)        :: zoneini
@@ -235,8 +235,8 @@ module lib_ic
 
       ! Temperature
       if (T0==0 .and. T==0) T = p/(Rgas*rho)
-      if (T0/=0 .and. T==0) call T02T(T0,dble(self%species%massf),M,Rgas,T)
-      cp_ = sum(self%species%massf*cp(:,nint(T)))
+      if (T0/=0 .and. T==0) T = T02T(T0,self%species%massf,self%species%cp,self%species%dcp,self%species%h,M,Rgas)
+      cp_ = sum(self%species%massf*self%species%cp(:,nint(T)))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
       ! Mach
@@ -284,7 +284,7 @@ module lib_ic
     case ('1D-centcomp' , '1D-cubcomp')
 
       Rgas = sum(Runi*self%species%massf/self%species%w)
-      cp_ = sum(self%species%massf*cp(:,1))
+      cp_ = sum(self%species%massf*self%species%cp(:,1))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
 
@@ -312,7 +312,7 @@ module lib_ic
       allocate(area(1:self%dim(1)))
 
       Rgas = sum(Runi*self%species%massf/self%species%w)
-      cp_ = sum(self%species%massf*cp(:,nint(T0)))
+      cp_ = sum(self%species%massf*self%species%cp(:,nint(T0)))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
 
@@ -469,12 +469,12 @@ module lib_ic
 
 
   !> Newton-Raphson procedure for T0
-   subroutine T02T(T0,ci,M,Rgas,T)
-    use variables
+  pure function T02T(T0,ci,cp,dcp,h,M,Rgas) result(T)
     implicit none
     real(8), intent(in)  :: ci(:)
     real(8), intent(in)  :: T0,M,Rgas
-    real(8), intent(out) :: T
+    real(8), intent(in)  :: cp(:,:),dcp(:,:),h(:,:)
+    real(8)              :: T
     real(8)              :: TT,Tnew,H0,h_tot,cp_tot,dcp_tot,FT,DFT
     real(8), parameter   :: toll=1.d-8
     integer              :: s
@@ -505,7 +505,7 @@ module lib_ic
 
     T = TT
 
-  end subroutine T02T
+  end function T02T
 
 
 end module lib_ic

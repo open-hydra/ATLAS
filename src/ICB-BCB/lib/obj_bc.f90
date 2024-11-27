@@ -1,5 +1,5 @@
 module bc
-  use CEA_module
+  use species
   use intersection_module
   implicit none
   private
@@ -148,14 +148,11 @@ module bc
     end subroutine assigne_halfPeriodicInfo
 
     subroutine assemble_the_monster
-      use equilibrium
+      use species
       implicit none
       logical                        :: found_CEA
-      type(file_ini)                 :: CEAini
-      type(obj_CEA)                  :: CEA
-      integer                        :: error, i, j, indx
-      character(len=:), allocatable  :: item(:)
-      character(len=200)              :: name, chardummy, CEAfile
+      integer                        :: error, j
+      character(len=200)             :: chardummy
       ! Ideal gas
       real(8) :: mach, mdot, p0, T0, h0, T, pstatic, alpha, beta, nmach, ytot, mit, kappa, omega, rhoRij
       ! Condensed-phase
@@ -287,32 +284,32 @@ module bc
 
 
   !> compute T starting from h using tabellams
-  function h02T0(h0) result(T0)
-    use variables, only: h
-    implicit none
-    real(8), intent(in) :: h0
-    real(8) :: T0, dummy
-    integer :: n(2)
-    integer :: unitfile, ios, i, j, idum(2)
+  ! function h02T0(h0) result(T0)
+  !   use variables, only: h
+  !   implicit none
+  !   real(8), intent(in) :: h0
+  !   real(8) :: T0, dummy
+  !   integer :: n(2)
+  !   integer :: unitfile, ios, i, j, idum(2)
 
-    open(newunit=unitfile,file='tabellams.dat',iostat=ios,status='old',action='read')
-    if (ios/=0) open(unit=1,file='toAFFS/tabellams.dat',iostat=ios,status='old',action='read')
-    read(unitfile,*) n(1), n(2)
-    allocate(h(1:n(1),1:n(2)))
-    do i = 1, n(1)
-      do j = 1, n(2)
-        read(unitfile,*) idum(1), idum(2), h(i,j), dummy, dummy, dummy, dummy, dummy
-      enddo
-    enddo
-    close(unitfile)
+  !   open(newunit=unitfile,file='tabellams.dat',iostat=ios,status='old',action='read')
+  !   if (ios/=0) open(unit=1,file='toAFFS/tabellams.dat',iostat=ios,status='old',action='read')
+  !   read(unitfile,*) n(1), n(2)
+  !   allocate(h(1:n(1),1:n(2)))
+  !   do i = 1, n(1)
+  !     do j = 1, n(2)
+  !       read(unitfile,*) idum(1), idum(2), h(i,j), dummy, dummy, dummy, dummy, dummy
+  !     enddo
+  !   enddo
+  !   close(unitfile)
 
-    do i = 2, n(2)
-      if (h0<=h(1,i) .and. h0>h(1,i-1)) then
-        T0 = 1d0/(h(1,i)-(h(1,i-1))*(h0-(h(1,i-1))))+dble(i-1)
-        exit
-      endif
-    enddo
+  !   do i = 2, n(2)
+  !     if (h0<=h(1,i) .and. h0>h(1,i-1)) then
+  !       T0 = 1d0/(h(1,i)-(h(1,i-1))*(h0-(h(1,i-1))))+dble(i-1)
+  !       exit
+  !     endif
+  !   enddo
 
-  end function h02T0
+  ! end function h02T0
 
 end module bc

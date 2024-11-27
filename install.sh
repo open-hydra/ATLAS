@@ -56,7 +56,9 @@ function define_path () {
   echo 'export -f ATLAS' >> .setvars.sh
   grep -v "ATLAS" $RCFILE > tmpfile && mv tmpfile $RCFILE
   echo 'source '$DIR'/.setvars.sh' >> $RCFILE
-  source $RCFILE --force
+  echo $RCFILE
+  #source $RCFILE --force
+  echo oode
 }
 
 
@@ -193,7 +195,7 @@ elif [ "$LOAD" != "0" ]; then
 elif [[ "$BUILD" != "0" ]]; then
   define_path
   conda remove --name ct-env --all
-  build_fortran_side
+  #build_fortran_side
   build_python_side
 
 elif [[ "$EXE" != "0" ]]; then

@@ -4,7 +4,7 @@
 
 program BCB
   use TOM, only: check_mesh_type
-  use CEA_module
+  use species
   use variables
   use ATLAS_high_level
   use ATLAS_IO
@@ -15,7 +15,7 @@ program BCB
   implicit none
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
-  type(obj_species)              :: species
+  type(obj_species)              :: sp
   character(len=llen)            :: filename
   type(file_ini)                 :: sourceini
   integer                        :: b
@@ -48,7 +48,7 @@ program BCB
   call build_INI(prog='BCB',nb=size(block),inisource=sourceini,force_connect=force_connect,chimeraon=chimeraon)
 
   ! BC computation
-  call build_BC(sourceini,block,species)
+  call build_BC(sourceini,block,sp)
   !call read_CP_input(CP_present)
   ! Multiblock operations
   call find_periodic(block)

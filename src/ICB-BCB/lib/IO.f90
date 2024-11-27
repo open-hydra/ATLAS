@@ -595,13 +595,13 @@ module ATLAS_IO
   end subroutine write_vtk_tec
 
 
-  subroutine read_idealgas_properties(file, species)
-    use CEA_module
+  subroutine read_idealgas_properties(file, sp)
+    use species
     use strings, only: parse
     use Lib_Tecplot
     implicit none
     character(len=*), intent(in):: file
-    type(obj_species), intent(inout) :: species
+    type(obj_species), intent(inout) :: sp
     integer :: n, ios
     character(len=30) :: wholestring, args(2)
     type(orion_data) :: orion
@@ -612,14 +612,14 @@ module ATLAS_IO
       read(unitFile,'(A)',iostat=ios)
       n = n +1
     enddo
-    allocate(species%name(1:n))
-    allocate(species%w(1:n))
+    allocate(sp%name(1:n))
+    allocate(sp%w(1:n))
     rewind(unitFile)
     do i = 1, n
       read(unitFile,'(A)') wholestring
       call parse(wholestring,' ',args)
-      species%name(i) = trim(adjustl(args(1)))
-      read(args(2),*) species%w(i)
+      sp%name(i) = trim(adjustl(args(1)))
+      read(args(2),*) sp%w(i)
     end do
     close(unitFile)
 

@@ -1,6 +1,6 @@
   module ATLAS_high_level
     use TOM
-    use CEA_module
+    use species
     use bc
     implicit none
     private

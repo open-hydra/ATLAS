@@ -1,6 +1,6 @@
 module lib_bc
   use finer, only: file_ini
-  use CEA_module, only: obj_species
+  use species, only: obj_species
   use ATLAS_high_level
   use bc
   use chimera
