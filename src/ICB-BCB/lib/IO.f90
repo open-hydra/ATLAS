@@ -585,7 +585,7 @@ module ATLAS_IO
       orion%vtk%format = 'ascii'
       orion%vtk%node = .false.
       E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk)//'/field', &
-                                                        vtmpath=trim(localpath)//'/field',varnames=varnames)
+                                                         vtmpath=trim(localpath)//'/field',varnames=varnames)
     else
       write(*,*)
       write(*,*)' Writing tec-fomat file'
@@ -595,23 +595,24 @@ module ATLAS_IO
   end subroutine write_vtk_tec
 
 
-  subroutine read_idealgas_properties(file, sp)
+  subroutine read_idealgas_properties(prefix, sp)
     use species
     use strings, only: parse
     use Lib_Tecplot
     implicit none
-    character(len=*), intent(in):: file
+    character(len=*), intent(in):: prefix
     type(obj_species), intent(inout) :: sp
-    integer :: n, ios
+    integer :: n, ios, Ti1, Ti2
     character(len=30) :: wholestring, args(2)
     type(orion_data) :: orion
 
-    open(newunit=unitFile,file=adjustl(trim(file)),status='unknown')
+    open(newunit=unitFile,file=adjustl(trim(prefix)//'-mw.txt'),status='old',iostat=ios)
     ios = 0; n = -1
     do while(ios==0)
       read(unitFile,'(A)',iostat=ios)
       n = n +1
     enddo
+    sp%n = n
     allocate(sp%name(1:n))
     allocate(sp%w(1:n))
     rewind(unitFile)
@@ -623,9 +624,20 @@ module ATLAS_IO
     end do
     close(unitFile)
 
-    ios = tec_read_structured_multivars(orion,'fromATLAStoSolver/gas-thermo.dat')
-    print*, ios
-    print*, orion%block(1)%vars(3,100,1,1)
+    ios = tec_read_points_multivars(orion,4,trim(prefix)//'.dat')
+    if (ios/=0) return!error stop ("Error reading ideal-gas thermo file")
+    Ti1 = nint(orion%block(1)%mesh(1,1,1,1))
+    Ti2 = Ti1 + orion%block(1)%Ni - 1
+    allocate(sp%cp(1:sp%n,Ti1:Ti2))
+    allocate(sp%dcp(1:sp%n,Ti1:Ti2))
+    allocate(sp%h(1:sp%n,Ti1:Ti2))
+    allocate(sp%s(1:sp%n,Ti1:Ti2))
+    do i = 1, sp%n
+      sp%cp(i,Ti1:Ti2) = orion%block(i)%vars(1,1:orion%block(1)%Ni,1,1)
+      sp%h(i,Ti1:Ti2) = orion%block(i)%vars(2,:,1,1)
+      sp%s(i,Ti1:Ti2) = orion%block(i)%vars(3,:,1,1)
+      sp%dcp(i,Ti1:Ti2) = orion%block(i)%vars(4,:,1,1)
+    enddo
 
   end subroutine read_idealgas_properties
 

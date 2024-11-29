@@ -2,8 +2,7 @@ module Interpolator
   use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
   use variables
   use ATLAS_high_level
-  use ATLAS_IO, only: read_solfile, read_TECmesh
-  use ATLAS_IO_Legacy, only: read_species
+  use ATLAS_IO, only: read_solfile, read_TECmesh, read_idealgas_properties 
   use Lib_ORION_data
   use species, only: obj_species
   implicit none
@@ -30,7 +29,7 @@ contains
     oldsolutionfile = oldsolutionfile_
 
     if (.not.onespecies) then
-      call read_species(adjustl(trim(oldspeciesfile_)),oldspecies%n,oldspecies%name)
+      call read_idealgas_properties(oldspeciesfile_, oldspecies)
     else
       oldspecies = newspecies
     endif
@@ -127,14 +126,14 @@ contains
 
   end subroutine build_old_solution
 
-  subroutine intersol(block,newspecies,oldmeshfile_,oldsolutionfile_,oldspeciesfile_,oldid,id)
+  subroutine intersol(block,oldmeshfile_,oldsolutionfile_,oldspeciesfile_,oldid,id)
     implicit none
     type(ATLAS_block), intent(inout)     :: block
     character(len=llen), intent(inout)   :: oldspeciesfile_
     character(len=llen), intent(inout)   :: oldsolutionfile_
     character(len=llen), intent(inout)   :: oldmeshfile_
-    type(obj_species), intent(in)        :: newspecies
     integer, intent(in)                  :: oldid, id
+    type(obj_species)                    :: newspecies
     character(2)                         :: sym_type
     integer                              :: cnt, s, sold, i, j, k, b, bb, trueb
     integer                              :: ii, jj, kk, counter
@@ -143,6 +142,8 @@ contains
     integer                              :: im, jm, km, ip, jp, kp
     integer, dimension(3)                :: ind, indold
     logical, dimension(:), allocatable   :: same_dimension
+
+    newspecies = block%species
 
     ! First block interpolation requires old solution build
     if (.not. allocated(oldblock)) then
@@ -230,9 +231,11 @@ subroutine index_interpolation()
 
   ! Case 2D-3D interpolation
   if (all(same_dimension).and.sym_type=="2D") then
-    write(*,*) 
-    write(*,*) " 2D-3D Index based interpolation algorithm"
-    write(*,*)
+    if (verbose) then
+      write(*,*) 
+      write(*,*) " 2D-3D Index based interpolation algorithm"
+      write(*,*)
+    endif
     
     do k = 1, block%dim(3)
       do j = 1, block%dim(2)
@@ -267,9 +270,11 @@ subroutine index_interpolation()
 
   ! Case 3D-3D interpolation
   elseif (all(same_dimension).and.sym_type=="3D") then
-    write(*,*) 
-    write(*,*) " 3D-3D Index based interpolation algorithm"
-    write(*,*)
+    if (verbose) then
+      write(*,*) 
+      write(*,*) " 3D-3D Index based interpolation algorithm"
+      write(*,*)
+    endif
 
     do k = 1, block%dim(3)
       do j = 1, block%dim(2)
@@ -343,23 +348,23 @@ subroutine multiple_interpolation()
   endif
 
   if (xint_dimension) then
-    write(*,*) 
-    write(*,*) " New mesh / Old mesh Ratio = ", rapNx
-    write(*,*)
+    if (verbose) then
+      write(*,*) 
+      write(*,*) " New mesh / Old mesh Ratio = ", rapNx
+    endif
 
     ! Reconstruction algorithm fo MESH RATIO = 0.5
     if (rapNx==0.5) then
-      write(*,*)
-      write(*,*) " Mesh ratio = 0.5 - Specific algorithm"
-      write(*,*)
+      if (verbose) then
+        write(*,*) " Mesh ratio = 0.5 - Specific algorithm"
+        write(*,*)
+      endif
 
       ! Interpolation Coefficients
       if (sym_type=="3D") then
-        write(*,*) " 3D"
         coeffs(1:4) = 1./8.
         coeffs(5:8) = 1./8.        
       elseif (sym_type=="2D") then
-        write(*,*) " 2D"
         coeffs(1:4) = 1./4.
         coeffs(5:8) = 0.0
       end if
@@ -437,13 +442,13 @@ subroutine multiple_interpolation()
 
     ! Spcific algorithm for MESH RATIO = 2 (both 2D and 3D)
     elseif (rapNx==2.0) then
-      write(*,*)
-      write(*,*) " Mesh ratio = 2 - Specific algorithm"
-      write(*,*)
+      if (verbose) then
+        write(*,*) " Mesh ratio = 2 - Specific algorithm"
+        write(*,*)
+      endif
 
       ! Interpolation Coefficients
       if (sym_type=="3D") then
-        write(*,*) " 3D"
         a1 = 27./64.
         a2 = 9./64.
         a3 = 3./64.
@@ -451,7 +456,6 @@ subroutine multiple_interpolation()
         coeffs(1:8) = [a1,a2,a2,a2,a3,a3,a3,a4]            
 
       elseif (sym_type=="2D") then
-        write(*,*) " 2D"
         a1 = 9./16.
         a2 = 3./16.
         a3 = 1./16.
@@ -573,14 +577,14 @@ subroutine multiple_interpolation()
 
     ! Spcific algorithm for MESH RATIO = 3 (both 2D and 3D)
     elseif (rapNx==3.0) then
-      write(*,*)
-      write(*,*) " Mesh ratio = 3 - Specific Algorithm"
-      write(*,*) " 2D works! - GOTTA FIND OUT IF 3D WORKS as well"
-      write(*,*)
+      if (verbose) then
+        write(*,*) " Mesh ratio = 3 - Specific Algorithm"
+        write(*,*) " 2D works! - GOTTA FIND OUT IF 3D WORKS as well"
+        write(*,*)
+      endif
 
       ! Interpolation Coefficients
       if (sym_type=="3D") then
-        write(*,*) " 3D"
         a0 = 0.
         a1 = 1.
         coeff_c(1:8) = [a1,a0,a0,a0,a0,a0,a0,a0]
@@ -605,7 +609,6 @@ subroutine multiple_interpolation()
         coeff_v(1:8) = [a1,a2,a2,a2,a3,a3,a3,a4] 
       
       elseif (sym_type=="2D") then
-        write(*,*) " 2D"
         a0 = 0.
         a1 = 1.
         coeff_c(1:8) = [a1,a0,a0,a0,a0,a0,a0,a0]
@@ -874,14 +877,9 @@ subroutine multiple_interpolation()
 
     ! General algorithm for MESH RATIO = integer (both 2D and 3D)
     else
-      write(*,*)
-      write(*,*) " Mesh ratio = ", rap, " - Generic algorithm"
-      write(*,*)
-      
-      if (sym_type=="3D") then
-        write(*,*) " 3D"
-      elseif (sym_type=="2D") then
-        write(*,*) " 2D"
+      if (verbose) then
+        write(*,*) " Mesh ratio = ", rap, " - Generic algorithm"
+        write(*,*)
       endif
 
       indk = 1

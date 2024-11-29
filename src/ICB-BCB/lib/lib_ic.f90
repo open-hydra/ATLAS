@@ -13,14 +13,14 @@ module lib_ic
 
   contains
 
-  subroutine build_IC(sini,blocks,sp)
+  subroutine build_IC(sini,blocks)
     use species, only: obj_species
+    use ATLAS_IO, only: read_idealgas_properties
     implicit none
     type(ATLAS_block), intent(inout) :: blocks(:)
-    type(obj_species), intent(in)    :: sp
     type(file_ini), intent(in)       :: sini
 
-    character(len=30)             :: zonename, section_name
+    character(len=30)             :: zonename, section_name, phase_type, phase_name
     character(len=:), allocatable :: option_pairs(:)
     type(file_ini)                :: zoneini
     integer                       :: b, p, error, error_zone
@@ -32,7 +32,15 @@ module lib_ic
       write(indb,'(I4)') b
       section_name = 'ICB-Block'//adjustl(indb)   
       associate(block => blocks(b))
-      block%species = sp
+
+      ! Check if the phase initialized in the b-th block is an ideal-gas
+      call sini%get(section_name=section_name, option_name='phase-type', val=phase_type, error=error)
+      if (error/=0) phase_type = 'some-gas'
+      if (index(trim(phase_type),'-gas')==0) cycle
+
+      call sini%get(section_name=section_name, option_name='phase-name', val=phase_name, error=error)
+      if (error/=0) phase_name = 'gas'
+      call read_idealgas_properties(trim(phase_name)//'-thermo',block%species)
       if (.not.allocated(block%species%massf)) allocate(block%species%massf(1:block%species%n))
       block%species%massf = 1d-20
 
@@ -226,7 +234,7 @@ module lib_ic
     select case (type)
 
     case ('interpolation')
-      call intersol(self,self%species,OMF,OFF,OSF,oldid,b)
+      call intersol(self,OMF,OFF,OSF,oldid,b)
 
     case ('homogeneous')
 

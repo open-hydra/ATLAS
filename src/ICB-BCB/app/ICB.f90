@@ -4,7 +4,6 @@
 
 program ICB
   use variables
-  use species
   use ATLAS_high_level
   use ATLAS_IO
   use Lib_ORION_data
@@ -16,7 +15,6 @@ program ICB
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
   character(len=30)              :: ICformat
-  type(obj_species)              :: sp
   character(len=llen)            :: filename
   type(file_ini)                 :: sourceini
   integer                        :: b
@@ -26,13 +24,6 @@ program ICB
   write(*,*)
 
   call command_line_argument()
-
-  ! Phase properties import
-  ! call read_MISCELA(w,cp,dcp,h)
-  filename = 'fromATLAStoSolver/gas-thermo-mw.txt'
-  call read_idealgas_properties(filename,sp)
-  stop
-  !call read_species('species.data',species%n,species%name)
 
   ! Geometry import
   filename = 'mesh.tec'
@@ -47,7 +38,7 @@ program ICB
   call build_INI('ICB',size(block),sourceini,ICformat)
 
   ! IC computation
-  call build_IC(sourceini,block,sp)
+  call build_IC(sourceini,block)
 
   ! IC writing
   call execute_command_line('mkdir -p '//trim(outpath))
