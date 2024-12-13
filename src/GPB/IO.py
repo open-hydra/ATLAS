@@ -87,20 +87,6 @@ except FileExistsError:
 def read_yaml_file(file_path):
     with open(file_path, 'r') as file:
         data = yaml.safe_load(file)
-
-        # for element in data:
-        #     print(f"Element: {element['element']}")
-        #     print(f"Source: {element['source']}")
-        #     print("Viscosity:")
-        #     for v in element['viscosity']:
-        #         print(f"  Temperature Range: {v['temperature_range']}")
-        #         print(f"  Coefficients: {v['coefficients']}")
-        #     print("Conductivity:")
-        #     for c in element['conductivity']:
-        #         print(f"  Temperature Range: {c['temperature_range']}")
-        #         print(f"  Coefficients: {c['coefficients']}")
-        #     print()
-
         return data
 
 
@@ -204,20 +190,23 @@ def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
                         product_coeff = coeff
                     # Print third-body efficiencies if applicable
                     if 'three-body' in reaction.reaction_type or 'falloff' in reaction.reaction_type:
-                        for species_, efficiency in reaction.third_body.efficiencies.items():
-                            if species_name == species_:
-                                efficiency_coeff = efficiency
+                        # Get explicitly specified efficiencies
+                        specified_efficiencies = reaction.efficiencies
+                        if species_name in specified_efficiencies:
+                            efficiency_coeff = specified_efficiencies[species_name]
+                        else:
+                            efficiency_coeff = reaction.efficiency(species_name)
                 
                 file.write(f'{i + 1} {species_name} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
 
             for j, sp in enumerate(further_sp):
                 reactant_coeff = 0.0
                 product_coeff = 0.0
-                efficiency_coeff = 0.0
+                efficiency_coeff = 1.0
                 file.write(f'{i + 1} {sp} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
 
             if 'three-body' in reaction.reaction_type or 'falloff' in reaction.reaction_type:
-                reactant_coeff = 1.0; product_coeff = 1.0; efficiency_coeff = 0.0
+                reactant_coeff = 1.0; product_coeff = 1.0; efficiency_coeff = 1.0
             else:
-                reactant_coeff = 0.0; product_coeff = 0.0; efficiency_coeff = 0.0
+                reactant_coeff = 0.0; product_coeff = 0.0; efficiency_coeff = 1.0
             file.write(f'{i + 1} {"M"} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
