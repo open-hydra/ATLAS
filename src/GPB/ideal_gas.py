@@ -261,14 +261,16 @@ def build(inifile,section):
             transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group)
 
     # ---------------------------------------------------
-    # Build chemistry properties: finite rate and reactions coefficients
+    # Build chemistry properties
     # ---------------------------------------------------
     if reaction_model is not None:
         sp = []
         # Before writing the reactions data, define an array of inert species 
         # to properly write the stoichiometric info
         for p in species_group:
-            if p.name != mechanism.name:
+            if p.name != mechanism.name and "mix" not in p.name:
                 for sp_ in p.species_names: sp.append(sp_)
+            elif "mix" in p.name:
+                sp.append('inertMix')
         IO.write_chemistry_properties (name, T1, T2, mechanism, sp)
         IO_Legacy.write_chemistry_properties (T1, T2, mechanism, sp)
