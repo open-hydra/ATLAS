@@ -202,11 +202,12 @@ def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
             for j, sp in enumerate(further_sp):
                 reactant_coeff = 0.0
                 product_coeff = 0.0
-                efficiency_coeff = 1.0
+                efficiency_coeff = 0.0
                 file.write(f'{i + 1} {sp} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
 
             if 'three-body' in reaction.reaction_type or 'falloff' in reaction.reaction_type:
-                reactant_coeff = 1.0; product_coeff = 1.0; efficiency_coeff = 1.0
+                reactant_coeff = 1.0; product_coeff = 1.0
             else:
-                reactant_coeff = 0.0; product_coeff = 0.0; efficiency_coeff = 1.0
+                reactant_coeff = 0.0; product_coeff = 0.0
+            efficiency_coeff = 1.0
             file.write(f'{i + 1} {"M"} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
