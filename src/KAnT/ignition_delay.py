@@ -120,7 +120,7 @@ def run_all(models, fuel_string, oxi_string, pressures, mixture_ratio, temperatu
                     rtol = 1.e-7
                     atol = 1.e-7
                     reactor_network.rtol, reactor_network.atol = rtol, atol
-                    #reactor_network.max_time_step = 1e-5
+                    reactor_network.max_time_step = 1e-5
 
                     # use the above list to create a DataFrame
                     time_history = ct.SolutionArray(new_mechanism, extra="t")
