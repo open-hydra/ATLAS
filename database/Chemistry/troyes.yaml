@@ -1,19 +1,19 @@
 description: |-
-  Ecker model
+  Troyes model
 
-  Source: Ecker, Tobias, Sebastian Karl, and Klaus Hannemann. "Combustion modeling in solid rocket motor plumes."
-          8th European Conference for Aeronautics and Space Sciences 2019. 2019.
+  Source: Troyes, Julien, et al. "Multi-phase reactive numerical simulations of a model solid rocket exhaust jet." 
+          42nd AIAA/ASME/SAE/ASEE joint propulsion conference & exhibit. 2006.
 
   Thermodynamic and transport properties for H,O,C,N species are taken from 
   GRI3.0 high-temperature. For the CL species, the data come from Pelucchi.
 
-units: {length: cm, time: s, quantity: mol, activation-energy: cal/mol}
+units: {length: m, time: s, quantity: mol, activation-energy: J/mol}
 
 phases:
-- name: Ecker
+- name: Troyes
   thermo: ideal-gas
   elements: [O, H, C, Cl, N]
-  species: [H2, O2, HO2, H, O, OH, H2O, H2O2, CO, CO2, HCL, CL2, CL, N2]
+  species: [H, O2, OH, O, H2O, H2, CO, CO2, CL, CL2, HCL, N2]
   kinetics: gas
   transport: mixture-averaged
   state: {T: 300.0, P: 1 atm}
@@ -138,56 +138,6 @@ species:
     dipole: 1.844
     rotational-relaxation: 4.0
   note: L 8/89
-- name: HO2
-  composition: {H: 1, O: 2}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 6000.0]
-    data:
-    - [4.30179801, -4.74912051e-03, 2.11582891e-05, -2.42763894e-08, 9.29225124e-12,
-      294.80804, 3.71666245]
-    - [4.17228728, 1.88117647e-03, -3.46277408e-07, 1.94657853e-11, 1.76254294e-16,
-      61.8102964, 2.95767746]
-  transport:
-    model: gas
-    geometry: nonlinear
-    diameter: 3.458
-    well-depth: 107.4
-    rotational-relaxation: 1.0
-  note: L 5/89
-- name: H2O2
-  composition: {H: 2, O: 2}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 6000.0]
-    data:
-    - [4.27611269, -5.42822417e-04, 1.67335701e-05, -2.15770813e-08, 8.62454363e-12,
-      -1.77542989e+04, 3.43505074]
-    - [4.57333537, 4.0498407e-03, -1.29479479e-06, 1.9728171e-10, -1.13402846e-14,
-      -1.80548121e+04, 0.704278488]
-  transport:
-    model: gas
-    geometry: nonlinear
-    diameter: 3.458
-    well-depth: 107.4
-    rotational-relaxation: 3.8
-  note: L 7/88
-- name: C
-  composition: {C: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 6000.0]
-    data:
-    - [2.55423955, -3.21537724e-04, 7.33792245e-07, -7.32234889e-10, 2.66521446e-13,
-      8.54438832e+04, 4.53130848]
-    - [2.60558298, -1.95934335e-04, 1.06737219e-07, -1.6423939e-11, 8.18705752e-16,
-      8.54129443e+04, 4.19238681]
-  transport:
-    model: gas
-    geometry: atom
-    diameter: 3.298
-    well-depth: 71.4
-  note: L11/88
 - name: CO
   composition: {C: 1, O: 1}
   thermo:
@@ -277,100 +227,104 @@ species:
     rotational-relaxation: 1.0
 
 reactions:
-- equation: H2 + O2 <=> HO2 + H
-  rate-constant: {A: 1.000e+14, b: 0.00, Ea: 5600.0}
-
 - equation: H + O2 <=> OH + O
-  rate-constant: {A: 2.600e+14, b: 0.00, Ea: 16800.0}
+  rate-constant:
+    A: 1.99E+08
+    b: 0.0
+    Ea: 70300.0  # J/mol
 
-- equation: O + H2 <=> OH + H
-  rate-constant: {A: 1.800e+10, b: 1.00, Ea: 8900.0}
+- equation: H2 + O <=> OH + H
+  rate-constant:
+    A: 5.12E-02
+    b: 2.67
+    Ea: 26300.0  # J/mol
 
-- equation: OH + H2 <=> H2O + H
-  rate-constant: {A: 2.200e+13, b: 0.00, Ea: 5150.0}
+- equation: H2 + OH <=> H2O + H
+  rate-constant:
+    A: 1.02E+02
+    b: 1.6
+    Ea: 13800.0  # J/mol
 
-- equation: 2 OH <=> H2O + O
-  rate-constant: {A: 6.300e+12, b: 0.00, Ea: 10900.0}
+- equation: OH + OH <=> H2O + O
+  rate-constant:
+    A: 1.51E+03
+    b: 1.14
+    Ea: 414.0  # J/mol
+
+- equation: H + H + M <=> H2 + M
+  rate-constant:
+    A: 8.99E+05
+    b: -1.0
+    Ea: 0.0  # J/mol
 
 - equation: H + OH + M <=> H2O + M
-  type: three-body
-  rate-constant: {A: 2.200e+22, b: -2.00, Ea: 0.0}
-  efficiencies: {H2O: 6.0}
-
-- equation: 2 H + M <=> H2 + M
-  type: three-body
-  rate-constant: {A: 6.400e+17, b: -1.00, Ea: 0.0}
-  efficiencies: {H2: 2.0, H2O: 6.0}
+  rate-constant:
+    A: 2.21E+10
+    b: -2.0
+    Ea: 0.0  # J/mol
 
 - equation: H + O + M <=> OH + M
-  rate-constant: {A: 6.000e+16, b: -0.60, Ea: 0.0}
-  efficiencies: {H2O: 5.0}
+  rate-constant:
+    A: 4.71E+06
+    b: -1.0
+    Ea: 0.0  # J/mol
 
-- equation: H + O2 + M <=> HO2 + M
-  type: three-body
-  rate-constant: {A: 2.100e+15, b: 0.00, Ea: -1000.0}
-  efficiencies: {H2: 2.0, H2O: 16.0}
-
-- equation: HO2 + H <=> 2 OH
-  rate-constant: {A: 1.400e+14, b: 0.00, Ea: 10800.0}
-
-- equation: HO2 + H2 <=> H2O + OH
-  rate-constant: {A: 1.000e+13, b: 0.00, Ea: 10800.0}
-
-- equation: HO2 + O <=> O2 + OH
-  rate-constant: {A: 1.500e+13, b: 0.00, Ea: 9500.0}
-
-- equation: HO2 + OH <=> H2O + O2
-  rate-constant: {A: 8.000e+12, b: 0.00, Ea: 0.0}
-
-- equation: 2 HO2 <=> H2O2 + O2
-  rate-constant: {A: 2.000e+12, b: 0.00, Ea: 0.0}
-
-- equation: H + H2O2 <=> H2 + HO2
-  rate-constant: {A: 1.400e+12, b: 0.00, Ea: 3600.0}
-
-- equation: O + H2O2 <=> OH + HO2
-  rate-constant: {A: 1.400e+13, b: 0.00, Ea: 6400.0}
-
-- equation: OH + H2O2 <=> H2O + HO2
-  rate-constant: {A: 6.000e+12, b: 0.00, Ea: 14300.0}
-
-- equation: H2O2 + M <=> 2 OH + M
-  type: three-body
-  rate-constant: {A: 1.200e+17, b: 0.00, Ea: 45500.0}
-  efficiencies: {H2O: 15.0}
-
-- equation: 2 O + M <=> O2 + M
-  type: three-body
-  rate-constant: {A: 6.000e+13, b: 0.00, Ea: -1800.0}
+- equation: O + O + M <=> O2 + M
+  rate-constant:
+    A: 1.45E+05
+    b: -1.0
+    Ea: 0.0  # J/mol
 
 - equation: CO + OH <=> CO2 + H
-  rate-constant: {A: 1.500e+07, b: 1.30, Ea: -7650.0}
+  rate-constant:
+    A: 6.32E+00
+    b: 1.5
+    Ea: -2080.0  # J/mol
 
 - equation: CO + O2 <=> CO2 + O
-  rate-constant: {A: 2.530e+12, b: 0.00, Ea: 47700.0}
+  rate-constant:
+    A: 2.50E+06
+    b: 0.0
+    Ea: 200000.0  # J/mol
 
 - equation: CO + O + M <=> CO2 + M
-  type: three-body
-  rate-constant: {A: 2.510e+13, b: 0.00, Ea: -4540.0}
-  efficiencies: {H2: 2.5, H2O: 12.0, CO: 1.9, CO2: 3.8}
+  rate-constant:
+    A: 5.00E+00
+    b: 0.0
+    Ea: -9700.0  # J/mol
 
-- equation: HCl + H <=> H2 + Cl
-  rate-constant: {A: 2.300e+13, b: 0.00, Ea: 3500.0}
+- equation: HCL + H <=> H2 + CL
+  rate-constant:
+    A: 1.69E+07
+    b: 0.0
+    Ea: 17300.0  # J/mol
 
-- equation: Cl2 + H <=> HCl + Cl
-  rate-constant: {A: 8.590e+13, b: 0.00, Ea: 11700.0}
+- equation: CL2 + H <=> HCL + CL
+  rate-constant:
+    A: 8.55E+07
+    b: 0.0
+    Ea: 4890.0  # J/mol
 
-- equation: HCl + OH <=> H2O + Cl
-  rate-constant: {A: 2.450e+12, b: 0.00, Ea: 11000.0}
+- equation: HCL + OH <=> H2O + CL
+  rate-constant:
+    A: 2.71E+01
+    b: 1.65
+    Ea: -920.0  # J/mol
 
-- equation: HCl + O <=> OH + Cl
-  rate-constant: {A: 5.240e+12, b: 0.00, Ea: 6400.0}
+- equation: HCL + O <=> OH + CL
+  rate-constant:
+    A: 3.37E-03
+    b: 2.87
+    Ea: 14700.0  # J/mol
 
-- equation: Cl + Cl + M <=> Cl2 + M
-  type: three-body
-  rate-constant: {A: 2.340e+14, b: 0.00, Ea: -1800.0}
+- equation: CL + CL + M <=> CL2 + M
+  rate-constant:
+    A: 4.68E+02
+    b: 0.0
+    Ea: -7530.0  # J/mol
 
-- equation: H + Cl + M <=> HCl + M
-  type: three-body
-  rate-constant: {A: 7.200e+21, b: -2.00, Ea: 0.0}
+- equation: CL + H + M <=> HCL + M
+  rate-constant:
+    A: 7.18E+09
+    b: -2.0
+    Ea: 0.0  # J/mol
