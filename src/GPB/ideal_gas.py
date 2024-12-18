@@ -33,12 +33,14 @@ def build(inifile,section):
     # Reading input parameters from INI file
     # ---------------------------------------------------
     # Model definitions, species, and options
-    name, T1, T2, thermo_model, transport_model, reaction_model = read_models(inifile,section)
-    inert_species_names                                         = read_inert_species(inifile,section)
-    inputFixGas                                                 = read_fixgas(inifile,section)
-    inerts_mixing, HG                                           = read_options(inifile,section)
-    inputCEA                                                     = read_CEA(inifile,section,cea)
-    inputCTE                                       = read_canteraXequilibrium(inifile,section)
+    inputModels         = read_models(inifile,section)
+    inert_species_names = read_inert_species(inifile,section)
+    inputFixGas         = read_fixgas(inifile,section)
+    inerts_mixing, HG   = read_options(inifile,section)
+    inputCEA            = read_CEA(inifile,section,cea)
+    inputCTE            = read_canteraXequilibrium(inifile,section)
+
+    name, T1, T2, phase_model, thermo_model, transport_model, reaction_model = inputModels
 
     print(' - Ideal-gas phase:', name)
     print()
@@ -54,31 +56,43 @@ def build(inifile,section):
         CEA_equilibrium = True
 
     # ---------------------------------------------------
-    # Load the Thermo Model
+    # Load the Thermo Model (only if phase is not specified)
     # ---------------------------------------------------
-    # Select the correct species based on the thermo model
-    if thermo_model == 'NASA7':
-        all_species = ct.Species.list_from_file('nasa_gas.yaml')
-    elif thermo_model == 'NASA9':
-        all_species = ct.Species.list_from_file('nasa9.yaml')
+    if phase_model is None:
+        if thermo_model == 'NASA7':
+            all_species = ct.Species.list_from_file('nasa_gas.yaml')
+        elif thermo_model == 'NASA9':
+            all_species = ct.Species.list_from_file('nasa9.yaml')
 
-    # Assign NASA9 by default reactions phase is not defined
-    if thermo_model is None and reaction_model is None:
-        all_species = ct.Species.list_from_file('nasa9.yaml')
+        # Assign NASA9 by default reactions phase is not defined
+        if thermo_model is None and reaction_model is None:
+            all_species = ct.Species.list_from_file('nasa9.yaml')
 
-    # Force NASA9 if CEA is used
-    if CEA_equilibrium:
-        all_species = ct.Species.list_from_file('nasa9.yaml')
+        # Force NASA9 if CEA is used
+        if CEA_equilibrium:
+            all_species = ct.Species.list_from_file('nasa9.yaml')
+
 
     # ---------------------------------------------------
-    # Load the Transport Model
+    # Load the Transport Model (only if phase is not specified)
     # ---------------------------------------------------
-    if transport_model == 'CEA' or CEA_equilibrium:
-        CEAdata = IO.read_yaml_file(CEAtransdir)
+    if phase_model is None:
+        if transport_model == 'CEA' or CEA_equilibrium:
+            CEAdata = IO.read_yaml_file(CEAtransdir)
+    else:
+        transport_model = 'cantera'
 
 
     # ---------------------------------------------------
     # Build the ideal-gas phase using the loaded species
+    # ---------------------------------------------------
+
+    # ---------------------------------------------------
+    # Direct address of a phase solution.
+    if phase_model is not None:
+        print(' -- Found phase model:',phase_model)
+        phase = ct.Solution(phase_model + '.yaml')
+        species_group.append(phase)
     # ---------------------------------------------------
 
     # ---------------------------------------------------
@@ -205,7 +219,7 @@ def build(inifile,section):
         for i in range(len(fix_cp)):
             cp_molar = fix_cp[i] * fix_mw[i]
             # Coefficients for ConstantCp: [T_ref, h0, s0, Cp]
-            coeffs = (0, 0, 10, cp_molar)
+            coeffs = (1, cp_molar, 1, cp_molar)
             # Il peso molecolare deve essere definito tramite la composizione elementale.
             # Per imporre un peso molecolare qualsiasi si sfrutta un numero di atomi di
             # idrogeno pari al peso molecolare desiderato diviso quello di 1 atomo di H
@@ -273,4 +287,4 @@ def build(inifile,section):
             elif "mix" in p.name:
                 sp.append('inertMix')
         IO.write_chemistry_properties (name, T1, T2, mechanism, sp)
-        IO_Legacy.write_chemistry_properties (T1, T2, mechanism, sp)
+        #IO_Legacy.write_chemistry_properties (T1, T2, mechanism, sp)

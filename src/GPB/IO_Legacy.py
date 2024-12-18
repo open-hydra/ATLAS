@@ -3,10 +3,10 @@ import numpy as np
 import os
 
 outpath = 'toAFFS/'
-try:
-    os.mkdir(outpath)
-except FileExistsError:
-    print(f"Directory '{outpath}' already exists.")
+# try:
+#     os.mkdir(outpath)
+# except FileExistsError:
+#     print(f"Directory '{outpath}' already exists.")
 
 def write_thermo_properties(T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values):
 

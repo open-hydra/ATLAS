@@ -72,7 +72,11 @@ def read_models(ini_file,section):
 
   name = get(ini_file, section, 'name', str)
   if name is None:
-    name = 'gas'
+    name = ''
+  else:
+    name = name + '-'
+  
+  phase = get(ini_file, section, 'phase', str)
   thermo = get(ini_file, section, 'thermo', str)
   transport = get(ini_file, section, 'transport', str)
   reactions = get(ini_file, section, 'reactions', str)
@@ -80,11 +84,11 @@ def read_models(ini_file,section):
   T1 = get(ini_file, section, 'Tmin', int)
   T2 = get(ini_file, section, 'Tmax', int)
   if T1 is None:
-    T1 = 100
+    T1 = 1
   if T2 is None:
     T2 = 5000
 
-  return name, T1, T2, thermo, transport, reactions
+  return name, T1, T2, phase, thermo, transport, reactions
 
 #
 def read_inert_species(ini_file,section):
@@ -175,5 +179,8 @@ def read_fixgas(ini_file,section):
     kl = mil*cp/Pr
   elif (ekl+ePr==0):
     mil = Pr*kl/cp
+
+  if not species:
+    species = "ABCDEF"
 
   return species, cp, mw, mil, kl

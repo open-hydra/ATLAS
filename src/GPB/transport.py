@@ -181,4 +181,4 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
 
 
     IO.write_transport_properties(name, T_low, T_max, species_names, viscosity, conductivity)
-    IO_Legacy.write_transport_properties(T_low, T_max, species_names, viscosity, conductivity)
+    #IO_Legacy.write_transport_properties(T_low, T_max, species_names, viscosity, conductivity)

@@ -39,8 +39,12 @@ module lib_ic
       if (index(trim(phase_type),'-gas')==0) cycle
 
       call sini%get(section_name=section_name, option_name='phase-name', val=phase_name, error=error)
-      if (error/=0) phase_name = 'gas'
-      call read_idealgas_properties(trim(phase_name)//'-thermo',block%species)
+      if (error/=0) then
+        phase_name = ''
+      else
+        phase_name = trim(phase_name)//'-'
+      endif
+      call read_idealgas_properties(trim(phase_name)//'thermo',block%species)
       if (.not.allocated(block%species%massf)) allocate(block%species%massf(1:block%species%n))
       block%species%massf = 1d-20
 
