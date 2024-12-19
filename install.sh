@@ -56,9 +56,7 @@ function define_path () {
   echo 'export -f ATLAS' >> .setvars.sh
   grep -v "ATLAS" $RCFILE > tmpfile && mv tmpfile $RCFILE
   echo 'source '$DIR'/.setvars.sh' >> $RCFILE
-  echo $RCFILE
   #source $RCFILE --force
-  echo oode
 }
 
 
@@ -76,6 +74,8 @@ function build_fortran_side () {
     echo -e "\033[0;32mHydra-related building \033[0m"
     echo
     Master=hydra
+    git submodule update --init --recursive lib/NewCEA
+    git submodule update --init --recursive lib/PiNeR
   fi
   cd $DIR/build
   cmake .. -DUSE_OPENMP=OFF -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=RELEASE -DMASTER=$Master
