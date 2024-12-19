@@ -14,17 +14,20 @@ module ATLAS_IO
 
   contains
   
-  subroutine write_idealgas_bc_file(block)
+  subroutine write_idealgas_bc_file(name,block)
     use variables
     use ATLAS_high_level, only: ATLAS_block
     use chimera
     implicit none
+    character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
+    character(len=20)             :: name_
     integer                       :: b, f, m, n, mend(6), nend(6)
     integer                       :: Ai, Aj, Ak, ii, jj, kk
 
-    open(newunit=unitfile,FILE=outpath//'/bc.txt',STATUS='unknown')
-    ! if (CP_present .and. nb>1) open(unit=1,file='toAFFS/CPMadj.bound')
+    if (name/='') name_ = name//'-'
+
+    open(newunit=unitfile,FILE=outpath//trim(name_)//'/bound.txt',STATUS='unknown')
 
     do b = 1, size(block)
       mend(1:2) = block(b)%dim(2); nend(1:2) = block(b)%dim(3)
@@ -211,14 +214,19 @@ module ATLAS_IO
   end subroutine write_idealgas_bc_file
 
 
-  subroutine write_cp_bc_file(block,u,npCP)
+  subroutine write_cp_bc_file(name,block,npCP)
     use ATLAS_high_level, only: ATLAS_block
     use chimera
     implicit none
+    character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
-    integer, intent(in)           :: u, npCP
+    integer, intent(in)           :: npCP
     integer                       :: b, p, f, m, n, mend(6), nend(6)
-    integer                       :: Ai, Aj, Ak, ii, jj, kk
+    integer                       :: Ai, Aj, Ak, ii, jj, kk, u
+
+    if (name/='') name_ = name//'-'
+
+    open(newunit=unitfile,FILE=outpath//trim(name_)//'/bound.txt',STATUS='unknown')
 
     mend(1:2) = block%dim(2); nend(1:2) = block%dim(3)
     mend(3:4) = block%dim(1); nend(3:4) = block%dim(3)

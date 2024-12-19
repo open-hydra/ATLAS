@@ -61,7 +61,7 @@ program BCB
 
   ! BC writing
   call execute_command_line('mkdir -p '//trim(outpath))
-  call write_idealgas_bc_file(block)
+  call write_idealgas_bc_file('',block)
   ! if (CP_present .and. nb>1) close(1)
 
   ! if (CP_present) then
