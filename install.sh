@@ -195,7 +195,7 @@ elif [ "$LOAD" != "0" ]; then
 elif [[ "$BUILD" != "0" ]]; then
   define_path
   conda remove --name ct-env --all
-  #build_fortran_side
+  build_fortran_side
   build_python_side
 
 elif [[ "$EXE" != "0" ]]; then
