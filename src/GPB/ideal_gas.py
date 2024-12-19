@@ -33,12 +33,12 @@ def build(inifile,section):
     # Reading input parameters from INI file
     # ---------------------------------------------------
     # Model definitions, species, and options
-    inputModels         = read_models(inifile,section)
-    inert_species_names = read_inert_species(inifile,section)
-    inputFixGas         = read_fixgas(inifile,section)
-    inerts_mixing, HG   = read_options(inifile,section)
-    inputCEA            = read_CEA(inifile,section,cea)
-    inputCTE            = read_canteraXequilibrium(inifile,section)
+    inputModels         = IG_read_models(inifile,section)
+    inert_species_names = IG_read_inert_species(inifile,section)
+    inputFixGas         = IG_read_fixgas(inifile,section)
+    inerts_mixing, HG   = IG_read_options(inifile,section)
+    inputCEA            = read_eq_CEA(inifile,section,cea)
+    inputCTE            = read_eq_cantera(inifile,section)
 
     name, T1, T2, phase_model, thermo_model, transport_model, reaction_model = inputModels
 
@@ -63,6 +63,8 @@ def build(inifile,section):
             all_species = ct.Species.list_from_file('nasa_gas.yaml')
         elif thermo_model == 'NASA9':
             all_species = ct.Species.list_from_file('nasa9.yaml')
+        elif thermo_model == 'Burcat':
+            all_species = ct.Species.list_from_file('burcat.yaml')
 
         # Assign NASA9 by default reactions phase is not defined
         if thermo_model is None and reaction_model is None:

@@ -19,56 +19,64 @@ def check_phases(ini_file):
 
   return types
 
-#
-def read_CEA(ini_file,section,cea):
+# -----------------------------------------------------------------------
+# Condensed phase routines
+# -----------------------------------------------------------------------
 
-  file = get(ini_file, section, 'CEA-file', str)
-  if file is None:
-    return
+def CP_read_models(ini_file,section):
+
+  name = get(ini_file, section, 'name', str)
+  if name is None:
+    name = ''
   else:
-    if ".inp" in file:
-      file = file.replace('.inp','')
+    name = name + '-'
+  
+  thermo = get(ini_file, section, 'thermo', str)
 
-  cea_section = get(ini_file, section, 'CEA-section', int)
-  if cea_section is None:
-    cea.indx = 1
-  else:
-    cea.indx = cea_section
+  T1 = get(ini_file, section, 'Tmin', int)
+  T2 = get(ini_file, section, 'Tmax', int)
+  if T1 is None:
+    T1 = 1
+  if T2 is None:
+    T2 = 5000
 
-  return file
+  return name, T1, T2, thermo
 
-#
-def read_canteraXequilibrium(ini_file, section):
-
-  pressure_string = get(ini_file, section, 'eq-pressure', list)
-  if pressure_string is None:
-    return
-
-  fuel_string = []
-  fuel_entry = get(ini_file, section, 'eq-fuel', str)
-  if '{' not in fuel_entry: fuel_entry = '{'+fuel_entry+':1.0}'
-  fuel_string.append(fuel_entry)
-
-  oxi_string = []
-  oxi_entry = get(ini_file, section, 'eq-oxidizer', str)
-  if '{' not in oxi_entry: oxi_entry = '{'+oxi_entry+':1.0}'
-  oxi_string.append(oxi_entry)
-
-  of = get(ini_file, section, 'eq-of', float)
-
-  Tf = get(ini_file, section, 'eq-fuel-T', float)
-  if Tf is None: Tf = 100.0
-
-  To = get(ini_file, section, 'eq-oxidizer-T', float)
-  if To is None: To = 90.170
-
-  fuel_string.insert(0, str(Tf))
-  oxi_string.insert(0, str(To))
-
-  return fuel_string, oxi_string, pressure_string, of
 
 #
-def read_models(ini_file,section):
+def CP_read_material(ini_file,section):
+
+  mat = get(ini_file, section, 'material', list)
+  groups = get(ini_file, section, 'groups', int)
+  if groups is None:
+    groups = 1
+
+  return mat, groups
+
+
+def CP_read_fixmat(ini_file,section):
+
+  mat = get(ini_file, section, 'material', list)
+  groups = get(ini_file, section, 'groups', int)
+  if groups is None:
+    groups = 1
+  rho = get(ini_file, section, 'rho', np.ndarray)
+  cp = get(ini_file, section, 'cp', np.ndarray)
+  k = get(ini_file, section, 'k', np.ndarray)
+
+  if not mat:
+    mat = "ABCDEF"
+
+  return mat, cp, k, rho
+
+# -----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
+# Ideal-gas phase routines
+# -----------------------------------------------------------------------
+
+#
+def IG_read_models(ini_file,section):
 
   name = get(ini_file, section, 'name', str)
   if name is None:
@@ -91,16 +99,7 @@ def read_models(ini_file,section):
   return name, T1, T2, phase, thermo, transport, reactions
 
 #
-def read_inert_species(ini_file,section):
-
-  species = get(ini_file, section, 'species', list)
-  if species is None:
-    species = get(ini_file, section, 'add-species', list)
-
-  return species
-
-#
-def read_options(ini_file,section):
+def IG_read_options(ini_file,section):
 
   mix = get(ini_file, section, 'inerts-mixing', bool)
   if mix is None:
@@ -115,7 +114,16 @@ def read_options(ini_file,section):
   return mix, HG
 
 #
-def read_fixgas(ini_file,section):
+def IG_read_inert_species(ini_file,section):
+
+  species = get(ini_file, section, 'species', list)
+  if species is None:
+    species = get(ini_file, section, 'add-species', list)
+
+  return species
+
+#
+def IG_read_fixgas(ini_file,section):
 
   ecp = ecv = egamma = eR = ew = emil = ekl = 0
 
@@ -184,3 +192,53 @@ def read_fixgas(ini_file,section):
     species = "ABCDEF"
 
   return species, cp, mw, mil, kl
+
+#
+def read_eq_CEA(ini_file,section,cea):
+
+  file = get(ini_file, section, 'CEA-file', str)
+  if file is None:
+    return
+  else:
+    if ".inp" in file:
+      file = file.replace('.inp','')
+
+  cea_section = get(ini_file, section, 'CEA-section', int)
+  if cea_section is None:
+    cea.indx = 1
+  else:
+    cea.indx = cea_section
+
+  return file
+
+#
+def read_eq_cantera(ini_file, section):
+
+  pressure_string = get(ini_file, section, 'eq-pressure', list)
+  if pressure_string is None:
+    return
+
+  fuel_string = []
+  fuel_entry = get(ini_file, section, 'eq-fuel', str)
+  if '{' not in fuel_entry: fuel_entry = '{'+fuel_entry+':1.0}'
+  fuel_string.append(fuel_entry)
+
+  oxi_string = []
+  oxi_entry = get(ini_file, section, 'eq-oxidizer', str)
+  if '{' not in oxi_entry: oxi_entry = '{'+oxi_entry+':1.0}'
+  oxi_string.append(oxi_entry)
+
+  of = get(ini_file, section, 'eq-of', float)
+
+  Tf = get(ini_file, section, 'eq-fuel-T', float)
+  if Tf is None: Tf = 100.0
+
+  To = get(ini_file, section, 'eq-oxidizer-T', float)
+  if To is None: To = 90.170
+
+  fuel_string.insert(0, str(Tf))
+  oxi_string.insert(0, str(To))
+
+  return fuel_string, oxi_string, pressure_string, of
+
+# -----------------------------------------------------------------------

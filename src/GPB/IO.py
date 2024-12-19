@@ -94,7 +94,7 @@ def read_yaml_file(file_path):
 def write_thermo_properties(name, T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values):
 
     # Write the data to a file in Tecplot-readable format
-    filename = outpath + name + "thermo-mw.txt"
+    filename = outpath + name + "species.txt"
 
     with open(filename, 'w') as f:
         for i, species_name in enumerate(species_names):
