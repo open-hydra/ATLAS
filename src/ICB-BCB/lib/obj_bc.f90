@@ -154,7 +154,7 @@ module bc
       integer                        :: error, j
       character(len=200)             :: chardummy
       ! Ideal gas
-      real(8) :: mach, mdot, p0, T0, h0, T, pstatic, alpha, beta, nmach, ytot, mit, kappa, omega, rhoRij
+      real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, ytot, mit, kappa, omega, rhoRij
       ! Condensed-phase
       integer :: cp_scaling
       real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:)
@@ -173,7 +173,7 @@ module bc
       if (error/=0) h0 = 0.0
       call sourceini%get(section_name=section, option_name='T',    val=T,       error=error)
       if (error/=0) T = 0.0
-      call sourceini%get(section_name=section, option_name='mdot', val=mdot,    error=error)
+      call sourceini%get(section_name=section, option_name='g', val=massflux,    error=error)
       if (error==0 .and. nmach==0.0) nmach = -10.0
       call sourceini%get(section_name=section, option_name='alpha',val=alpha,   error=error)
       if (error/=0) alpha = 0.0
@@ -223,7 +223,7 @@ module bc
       self%properties(1) = nmach
       self%properties(2) = maxval([T0,T])
       if (nmach>=0) self%properties(3) = p0
-      if (nmach<0) self%properties(3) = mdot
+      if (nmach<0) self%properties(3) = massflux
       self%properties(4) = alpha
       self%properties(5) = beta
       self%properties(6) = pstatic*1d+5

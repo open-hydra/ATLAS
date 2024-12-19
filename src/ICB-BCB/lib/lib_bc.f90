@@ -236,9 +236,9 @@ module lib_bc
     if (error==0) then
       varname = 'beta'; found = .true.
     endif
-    call ini_o%get(section_name='cell', option_name='mdot-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='g-file', val=infile, error=error)
     if (error==0) then
-      varname = 'mdot'; found = .true.
+      varname = 'g'; found = .true.
     endif
 
     !> Check if the file is in free-format or Tecplot-format

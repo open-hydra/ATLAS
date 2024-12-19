@@ -25,7 +25,11 @@ module ATLAS_IO
     integer                       :: b, f, m, n, mend(6), nend(6)
     integer                       :: Ai, Aj, Ak, ii, jj, kk
 
-    if (name/='') name_ = name//'-'
+    if (name=='') then
+      name_ = name
+    else
+      name_ = name//'-'
+    endif
 
     open(newunit=unitfile,FILE=outpath//trim(name_)//'/bound.txt',STATUS='unknown')
 
@@ -215,16 +219,22 @@ module ATLAS_IO
 
 
   subroutine write_cp_bc_file(name,block,npCP)
+    use variables
     use ATLAS_high_level, only: ATLAS_block
     use chimera
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
+    character(len=20)             :: name_
     integer, intent(in)           :: npCP
     integer                       :: b, p, f, m, n, mend(6), nend(6)
     integer                       :: Ai, Aj, Ak, ii, jj, kk, u
 
-    if (name/='') name_ = name//'-'
+    if (name=='') then
+      name_ = name
+    else
+      name_ = name//'-'
+    endif
 
     open(newunit=unitfile,FILE=outpath//trim(name_)//'/bound.txt',STATUS='unknown')
 

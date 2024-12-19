@@ -39,7 +39,6 @@ program BCB
     call block(b)%extrapolate_nodes(2)
     call block(b)%compute_centers(2)
     call block(b)%compute_face_centers()
-    call block(b)%compute_norm_area()
   enddo
   call check_mesh_type(block(1))
 
@@ -48,7 +47,6 @@ program BCB
 
   ! BC computation
   call build_BC(sourceini,block,sp)
-  !call read_CP_input(CP_present)
   ! Multiblock operations
   call find_periodic(block)
   if (size(block)>1) then
@@ -62,19 +60,6 @@ program BCB
   ! BC writing
   call execute_command_line('mkdir -p '//trim(outpath))
   call write_idealgas_bc_file('',block)
-  ! if (CP_present .and. nb>1) close(1)
-
-  ! if (CP_present) then
-  !   open(newunit=unitbound,FILE='toAFFS/CPM.bound',STATUS='unknown')
-  !   open(newunit=unitbound_cp,file='toAFFS/particles-bc-input.txt',status='unknown')
-  !   do b = 1, nb
-  !     !call import_bc_cpm(npop,b)
-  !     call write_CPMbound(unitbound,b)
-  !     call write_cp_bc_file(unitbound_cp,b,npCP)
-  !   enddo
-  !   close(unitbound)
-  !   close(unitbound_cp)
-  ! endif
 
   contains
 
