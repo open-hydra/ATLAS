@@ -15,3 +15,7 @@ dependencies:
 - pint  # optional (needed for units)
 - meson # needed for NewCEA
 - ninja # needed for NewCEA
+- pip
+- pip:
+    - -e lib/PiNeR
+    - -e lib/NewCEA

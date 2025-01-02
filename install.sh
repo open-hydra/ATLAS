@@ -91,13 +91,6 @@ function build_python_side () {
   fi
   cd $DIR
   conda env create -f ct-env.yaml
-  source $RCFILE --force 2>/dev/null
-  conda activate ct-env
-  cd $DIR/lib/PiNeR
-  pip3 install -e .
-  cd $DIR/lib/NewCEA
-  ./install.sh -b
-  conda deactivate
 }
 
 function compile () {
