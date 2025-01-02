@@ -1,6 +1,6 @@
 import numpy as np
 import cantera as ct
-import IO, IO_Legacy
+import IG_IO as IG_IO, IO_Legacy
 
 def compute_properties(name,T_low, T_max, all_solutions):
 
@@ -103,5 +103,5 @@ def compute_properties(name,T_low, T_max, all_solutions):
                 entropy_values[mix_name].append(s)
             molecular_weights.append(solution.mean_molecular_weight)
 
-    IO.write_thermo_properties(name,T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)
+    IG_IO.write_thermo_properties(name,T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)
     #IO_Legacy.write_thermo_properties(T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)

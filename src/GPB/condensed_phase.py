@@ -1,6 +1,6 @@
 import cantera as ct
-import IO
-import thermo
+import CP_properties
+import CP_IO
 from Read_INI import *
 import os, sys
 
@@ -16,7 +16,22 @@ ct.add_directory(datapath + 'Transport')
 ct.add_directory(datapath + 'Chemistry')
 CEAtransdir = datapath + 'Transport/CEApolynomials.yaml'
 
-def build(inifile,section):
+class Material:
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+        self.solution = None  # Store the Cantera solution object
+        self.density = None
+        self.specific_heat = None
+        self.thermal_conductivity = None
+    
+    def load_from_cantera(self, cantera_solution):
+        """
+        Load the Cantera solution and set the initial temperature.
+        """
+        self.solution = cantera_solution
+
+def build(type,inifile,section):
 
     # ---------------------------------------------------
     # Initialization of variables
@@ -26,55 +41,72 @@ def build(inifile,section):
     # ---------------------------------------------------
     # Reading input parameters from INI file
     # ---------------------------------------------------
-    # Model definitions, species, and options
-    inputModels         = CP_read_models(inifile,section)
-    inputFixMat         = CP_read_fixmat(inifile,section)
+    # Model definitions, materials, and options
+    inputModels = CP_read_models(inifile,section)
+    inputMat = CP_read_material(inifile,section)
 
     name, T1, T2, thermo_model = inputModels
+    material_names, groups, fix_cp, fix_k, fix_rho = inputMat
 
-    print(' - Condensed phase:', name)
+    if name.endswith('-'):
+        string = name[:-1]  # Remove the last character
+    else:
+        string = 'no name'
+    if 'condensed' in type:
+        print(' - Condensed phase:', string)
+    elif type == 'solid':
+        print(' - Solid phase:', string)
     print()
 
     # ---------------------------------------------------
-    # Load the Thermo Model (only if phase is not specified)
+    # Load the Thermo Model
     # ---------------------------------------------------
+    if thermo_model is None: thermo_model = 'NASA9'
     if thermo_model == 'NASA7':
-        all_species = ct.Species.list_from_file('nasa_gas.yaml')
+        all_mat = ct.Species.list_from_file('nasa_condensed.yaml')
     elif thermo_model == 'NASA9':
-        all_species = ct.Species.list_from_file('nasa9.yaml')
+        all_mat = ct.Species.list_from_file('nasa9.yaml')
     elif thermo_model == 'Burcat':
-        all_species = ct.Species.list_from_file('burcat.yaml')
-
-    # Assign NASA9 by default reactions phase is not defined
-    if thermo_model is None:
-        all_species = ct.Species.list_from_file('nasa9.yaml')
+        all_mat = ct.Species.list_from_file('burcat.yaml')
 
     # ---------------------------------------------------
-    # Build the ideal-gas phase using the loaded species
+    # Build the specific heat
     # ---------------------------------------------------
 
     # ---------------------------------------------------
-    # Constant-Cp material
-    if inputFixMat is not None:
-        fix_names, fix_cp, fix_k, fix_rho = inputFixMat
+    # T-varying material
+    if fix_cp is None:
+        print(' -- Found T-varying properties materials')
+        materials = [s for s in all_mat if s.name in material_names]
+        for m in materials:
+            ct_solution = ct.Solution(thermo='fixed-stoichiometry',species=[m])
+            material = Material(name=ct_solution.species_names[0], type='cantera')
+            material.load_from_cantera(ct_solution)
+            material_group.append(material)
+    # ---------------------------------------------------
+
+    # ---------------------------------------------------
+    # T-constant material
+    if fix_cp is not None:
+        print(' -- Found fixed properties materials')
         for i in range(len(fix_cp)):
-            cp_molar = fix_cp[i]
-            # Coefficients for ConstantCp: [T_ref, h0, s0, Cp]
-            coeffs = (1, cp_molar, 1, cp_molar)
-            # Il peso molecolare deve essere definito tramite la composizione elementale.
-            # Per imporre un peso molecolare qualsiasi si sfrutta un numero di atomi di
-            # idrogeno pari al peso molecolare desiderato diviso quello di 1 atomo di H
-            fixmat = ct.Species(fix_names[i])
-            fixmat.thermo = ct.ConstantCp(T_low=T1, T_high=T2, P_ref=ct.one_atm, coeffs=coeffs)
-            fixmat_phase = ct.Solution(name='constant-cp material', thermo='fixed-stoichiometry', species=[fixmat], equation_of_state_parameters={'density': 152.00} )
-            fixmat_phase.TP = 1000, ct.one_atm
-            print(fixmat_phase.density)
-            material_group.append(fixmat_phase)
+            material = Material(name=material_names[i],type='fixed')
+            material.density = fix_rho[i]
+            material.specific_heat = fix_cp[i]
+            try:
+                material.thermal_conductivity = fix_k[i]
+            except:
+                material.thermal_conductivity = 0.0
+            material_group.append(material)
     # ---------------------------------------------------
 
+    # ---------------------------------------------------
+    # Write materials name and groups number
+    # ---------------------------------------------------
+    CP_IO.write_basics(type, name, material_group, groups)
 
     # ---------------------------------------------------
-    # Build thermodynamic properties
+    # Build physical and thermal properties
     # ---------------------------------------------------
-    #thermo.compute_properties(name, T1, T2, species_group)
+    CP_properties.compute_properties(type, name, T1, T2, material_group)
 

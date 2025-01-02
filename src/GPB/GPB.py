@@ -1,8 +1,8 @@
 ##################################################
 #          GPB.py - General Phase Builder        #
 ##################################################
-import ideal_gas
-import condensed_phase
+import Ideal_Gas
+import Condensed_Phase
 from Read_INI import check_phases
 
 print()
@@ -15,5 +15,6 @@ inifile = 'input.ini'
 types = check_phases(inifile)
 
 for i in range(len(types)):
-    if ('ideal' in types[i] or 'heavy' in types[i]): ideal_gas.build(inifile, 'GPB-Phase'+str(i+1))
-    if ('condensed' in types[i]): condensed_phase.build(inifile, 'GPB-Phase'+str(i+1))
+    if ('ideal' in types[i] or 'heavy' in types[i]): Ideal_Gas.build(inifile, 'GPB-Phase'+str(i+1))
+    if ('condensed' in types[i]): Condensed_Phase.build(types[i], inifile, 'GPB-Phase'+str(i+1))
+    if ('solid' in types[i]): Condensed_Phase.build(types[i], inifile, 'GPB-Phase'+str(i+1))

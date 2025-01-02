@@ -1,6 +1,6 @@
 import numpy as np
 import cantera as ct
-import IO, IO_Legacy
+import IG_IO as IG_IO, IO_Legacy
 
 def wilke_mixture_properties(x, mu, k, M):
     """
@@ -180,5 +180,5 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                 conductivity.setdefault(mix_name, []).append(k)
 
 
-    IO.write_transport_properties(name, T_low, T_max, species_names, viscosity, conductivity)
+    IG_IO.write_transport_properties(name, T_low, T_max, species_names, viscosity, conductivity)
     #IO_Legacy.write_transport_properties(T_low, T_max, species_names, viscosity, conductivity)

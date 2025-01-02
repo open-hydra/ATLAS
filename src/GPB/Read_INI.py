@@ -43,31 +43,22 @@ def CP_read_models(ini_file,section):
   return name, T1, T2, thermo
 
 
-#
 def CP_read_material(ini_file,section):
 
   mat = get(ini_file, section, 'material', list)
-  groups = get(ini_file, section, 'groups', int)
-  if groups is None:
-    groups = 1
 
-  return mat, groups
-
-
-def CP_read_fixmat(ini_file,section):
-
-  mat = get(ini_file, section, 'material', list)
-  groups = get(ini_file, section, 'groups', int)
-  if groups is None:
-    groups = 1
-  rho = get(ini_file, section, 'rho', np.ndarray)
-  cp = get(ini_file, section, 'cp', np.ndarray)
   k = get(ini_file, section, 'k', np.ndarray)
+  cp = get(ini_file, section, 'cp', np.ndarray)
+  rho = get(ini_file, section, 'rho', np.ndarray)
 
-  if not mat:
-    mat = "ABCDEF"
+  if mat is None:
+    mat = 'ATLAS'
 
-  return mat, cp, k, rho
+  groups = get(ini_file, section, 'groups', np.ndarray)
+  if groups is None:
+    groups = np.ones(len(mat))
+
+  return mat, groups, cp, k, rho
 
 # -----------------------------------------------------------------------
 

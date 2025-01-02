@@ -1,7 +1,7 @@
 import cantera as ct
-import IO, IO_Legacy
-import transport
-import thermo
+import IG_IO, IO_Legacy
+import IG_transport
+import IG_thermo
 from equilibrium import equilibrium
 from Read_INI import *
 from NewCEA import CEA
@@ -42,7 +42,11 @@ def build(inifile,section):
 
     name, T1, T2, phase_model, thermo_model, transport_model, reaction_model = inputModels
 
-    print(' - Ideal-gas phase:', name)
+    if name.endswith('-'):
+        string = name[:-1]  # Remove the last character
+    else:
+        string = 'no name'
+    print(' - Ideal-gas phase:', string)
     print()
 
     # ---------------------------------------------------
@@ -80,7 +84,7 @@ def build(inifile,section):
     # ---------------------------------------------------
     if phase_model is None:
         if transport_model == 'CEA' or CEA_equilibrium:
-            CEAdata = IO.read_yaml_file(CEAtransdir)
+            CEAdata = IG_IO.read_yaml_file(CEAtransdir)
     else:
         transport_model = 'cantera'
 
@@ -188,10 +192,12 @@ def build(inifile,section):
 
     # ---------------------------------------------------
     # Manual Inert species
+    print(inert_species_names)
     if inert_species_names is not None:
         print(' -- Found manually specified species')
         # Get thermo properties
         manual_inert_species= [s for s in all_species if s.name in inert_species_names]
+        print(manual_inert_species)
         # Get transport properties
         transport_species_list = ct.Species.list_from_file('Lennard-Jones.yaml')
         transport_species_dict = {sp.name: sp for sp in transport_species_list}
@@ -265,16 +271,16 @@ def build(inifile,section):
     # ---------------------------------------------------
     # Build thermodynamic properties
     # ---------------------------------------------------
-    thermo.compute_properties(name, T1, T2, species_group)
+    IG_thermo.compute_properties(name, T1, T2, species_group)
 
     # ---------------------------------------------------
     # Build transport properties
     # ---------------------------------------------------
     if transport_model is not None:
         if transport_model=='CEA':
-            transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group, database=CEAdata)
+            IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group, database=CEAdata)
         else:
-            transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group)
+            IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group)
 
     # ---------------------------------------------------
     # Build chemistry properties
@@ -288,5 +294,5 @@ def build(inifile,section):
                 for sp_ in p.species_names: sp.append(sp_)
             elif "mix" in p.name:
                 sp.append('inertMix')
-        IO.write_chemistry_properties (name, T1, T2, mechanism, sp)
+        IG_IO.write_chemistry_properties (name, T1, T2, mechanism, sp)
         #IO_Legacy.write_chemistry_properties (T1, T2, mechanism, sp)
