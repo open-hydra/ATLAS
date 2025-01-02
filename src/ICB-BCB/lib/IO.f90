@@ -3,13 +3,14 @@ module ATLAS_IO
   implicit none
   private
   public:: write_idealgas_bc_file
-  public:: write_cp_bc_file
+  public:: write_cdp_bc_file
   public:: write_vtk_tec
   public:: read_solfile, write_solfile
   public:: read_TECmesh
   public:: read_idealgas_properties
+  public:: read_phase
 
-  integer:: i,j,k,s
+  integer:: i,j,k,s,ap,p
   integer:: unitfile
 
   contains
@@ -21,19 +22,36 @@ module ATLAS_IO
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
-    character(len=20)             :: name_
-    integer                       :: b, f, m, n, mend(6), nend(6)
+    character(len=len(name))      :: name_
+    integer                       :: p, b, f, m, n, mend(6), nend(6)
     integer                       :: Ai, Aj, Ak, ii, jj, kk
+    logical                       :: match
 
-    if (name=='') then
+    if (trim(name)=='') then
       name_ = name
     else
-      name_ = name//'-'
+      name_ = trim(name)//'-'
     endif
 
-    open(newunit=unitfile,FILE=outpath//trim(name_)//'/bound.txt',STATUS='unknown')
+    match = .false.
+    do b = 1, size(block)
+      do p = 1, size(block(b)%associated_phase(:))
+        if (index(trim(name),trim(block(b)%associated_phase(p)%name))>0) match = .true.
+      enddo
+    enddo
+
+    if (match) then
+      open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+    else
+      return
+    endif
 
     do b = 1, size(block)
+      match = .false.
+      do p = 1, size(block(b)%associated_phase(:))
+        if (index(trim(name),trim(block(b)%associated_phase(p)%name))>0) match = .true.
+      enddo
+      if (.not.match) cycle
       mend(1:2) = block(b)%dim(2); nend(1:2) = block(b)%dim(3)
       mend(3:4) = block(b)%dim(1); nend(3:4) = block(b)%dim(3)
       mend(5:6) = block(b)%dim(1); nend(5:6) = block(b)%dim(2)
@@ -218,31 +236,43 @@ module ATLAS_IO
   end subroutine write_idealgas_bc_file
 
 
-  subroutine write_cp_bc_file(name,block,npCP)
+  subroutine write_cdp_bc_file(name,block)
     use variables
     use ATLAS_high_level, only: ATLAS_block
     use chimera
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
-    character(len=20)             :: name_
-    integer, intent(in)           :: npCP
+    character(len=len(name))      :: name_
     integer                       :: b, p, f, m, n, mend(6), nend(6)
     integer                       :: Ai, Aj, Ak, ii, jj, kk, u
+    logical                       :: match
 
-    if (name=='') then
+    if (trim(name)=='') then
       name_ = name
     else
-      name_ = name//'-'
+      name_ = trim(name)//'-'
     endif
 
-    open(newunit=unitfile,FILE=outpath//trim(name_)//'/bound.txt',STATUS='unknown')
+    match = .false.
+    do b = 1, size(block)
+      do p = 1, size(block(b)%associated_phase(:))
+        if (index(trim(name),trim(block(b)%associated_phase(p)%name))>0) match = .true.
+      enddo
+    enddo
 
-    mend(1:2) = block%dim(2); nend(1:2) = block%dim(3)
-    mend(3:4) = block%dim(1); nend(3:4) = block%dim(3)
-    mend(5:6) = block%dim(1); nend(5:6) = block%dim(2)
+    if (match) then
+      open(newunit=u,FILE=outpath//trim(name_)//'bc.txt',action='write')
+    else
+      return
+    endif
 
     do b = 1, size(block)
+      match = .false.
+      do p = 1, size(block(b)%associated_phase(:))
+        if (index(trim(name),trim(block(b)%associated_phase(p)%name))>0) match = .true.
+      enddo
+      if (.not.match) cycle
       mend(1:2) = block(b)%dim(2); nend(1:2) = block(b)%dim(3)
       mend(3:4) = block(b)%dim(1); nend(3:4) = block(b)%dim(3)
       mend(5:6) = block(b)%dim(1); nend(5:6) = block(b)%dim(2)
@@ -414,7 +444,7 @@ module ATLAS_IO
       enddo
     enddo
 
-  end subroutine write_cp_bc_file
+  end subroutine write_cdp_bc_file
 
 
   !> write media.init
@@ -556,59 +586,107 @@ module ATLAS_IO
   end subroutine read_solfile
 
 
-  subroutine write_vtk_tec(ICformat,block,orion)
+  !> \brief Write the initial conditions to VTK or Tecplot format.
+  !! \param[in] phase Array of phase types.
+  !! \param[in] ICformat String specifying the format ('vtk' or 'tec').
+  !! \param[in] block Array of ATLAS_block containing the simulation data.
+  subroutine write_vtk_tec(phase,ICformat,block)
     use IR_Precision
     use Lib_VTK
     use Lib_Tecplot
     use variables, only: nrans, llen, outpath
-    use ATLAS_high_level, only: ATLAS_block
+    use ATLAS_high_level
     implicit none
+    type(phase_type), intent(in)       :: phase(:)
     character(len=*), intent(in)       :: ICformat
     type(ATLAS_block), intent(in)      :: block(:)
-    type(orion_data), intent(inout)    :: orion
+    type(orion_data)                   :: orion
     character(len=llen)                :: localpath_vtk, localpath
-    integer(I4P)                       :: E_IO, b, s
+    integer(I4P)                       :: E_IO, b, s, nb, cnt
     character(len=llen)                :: varnames
+    character(len=llen)                :: name_
 
     localpath = outpath
-
-    do b = 1, size(orion%block)
-      allocate(orion%block(b)%vars(1:block(b)%species%n+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
-      orion%block(b)%vars(1:block(b)%species%n,:,:,:) = block(b)%density
-      orion%block(b)%vars(block(b)%species%n+1:block(b)%species%n+3,:,:,:) = block(b)%velocity
-      orion%block(b)%vars(block(b)%species%n+4,:,:,:) = block(b)%pressure
-      if (nrans>0) then
-        orion%block(b)%vars(block(b)%species%n+5:block(b)%species%n+4+nrans,:,:,:) = block(b)%turbprop
-      endif
-    enddo
-
     varnames=' '
-    do s = 1, block(1)%species%n
-      varnames = trim(varnames)//'r'//trim(str(.true.,s))
-    enddo
-    varnames = trim(varnames)//' u v w p'
-    if (nrans==1) then
-      varnames = trim(varnames)//' mi_t'
-    elseif (nrans==2) then
-      varnames = trim(varnames)//' kappa omega'
-    elseif (nrans==7) then
-      varnames = trim(varnames)//" ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega"
-    endif
 
-    if (index(ICformat,'vtk')>0) then
-      localpath_vtk = trim(localpath)//'/vtk'
-      call execute_command_line('mkdir -p '//trim(localpath_vtk))
-      write(*,*)
-      write(*,*)' Writing vtk-fomat file'
-      orion%vtk%format = 'ascii'
-      orion%vtk%node = .false.
-      E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk)//'/field', &
-                                                         vtmpath=trim(localpath)//'/field',varnames=varnames)
-    else
-      write(*,*)
-      write(*,*)' Writing tec-fomat file'
-      E_IO = tec_write_structured_multiblock(orion=orion,varnames=varnames,filename=trim(localpath)//'/field.tec')
-    endif
+    do p = 1, size(phase)
+      select case(phase(p)%type)
+        case('IG')
+          do s = 1, block(1)%species%n
+            varnames = trim(varnames)//'r'//trim(str(.true.,s))
+          enddo
+          varnames = trim(varnames)//' u v w p'
+          if (nrans==1) then
+            varnames = trim(varnames)//' mi_t'
+          elseif (nrans==2) then
+            varnames = trim(varnames)//' kappa omega'
+          elseif (nrans==7) then
+            varnames = trim(varnames)//" ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega"
+          endif
+        case('SP')
+          varnames = 'T'
+      end select
+
+      nb = 0
+      do b = 1, size(block)
+        do ap = 1, size(block(b)%associated_phase(:))
+          if (index(phase(p)%name,block(b)%associated_phase(ap)%name)>0) nb = nb + 1
+        enddo
+      enddo
+      if (allocated(orion%block)) deallocate(orion%block)
+      allocate(orion%block(1:nb))
+
+      cnt = 0
+      do b = 1, size(block)
+        if (index(phase(p)%name,block(b)%associated_phase(1)%name)==0) cycle
+        cnt = cnt + 1
+        orion%block(cnt)%Ni = block(b)%dim(1)
+        orion%block(cnt)%Nj = block(b)%dim(2)
+        orion%block(cnt)%Nk = block(b)%dim(3)
+        allocate(orion%block(cnt)%mesh(1:3,0:block(b)%dim(1),0:block(b)%dim(2),0:block(b)%dim(3)))
+        do k = 0, block(b)%dim(3); do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
+          orion%block(cnt)%mesh(:,i,j,k) = block(b)%node(i,j,k)%c(1:3)
+        enddo; enddo; enddo
+        select case(phase(p)%type)
+        case('IG')
+          allocate(orion%block(cnt)%vars(1:block(b)%species%n+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          orion%block(cnt)%vars(1:block(b)%species%n,:,:,:) = block(b)%density
+          orion%block(cnt)%vars(block(b)%species%n+1:block(b)%species%n+3,:,:,:) = block(b)%velocity
+          orion%block(cnt)%vars(block(b)%species%n+4,:,:,:) = block(b)%pressure
+          if (nrans>0) then
+            orion%block(cnt)%vars(block(b)%species%n+5:block(b)%species%n+4+nrans,:,:,:) = block(b)%turbprop
+          endif
+        case('SP')
+          allocate(orion%block(cnt)%vars(1,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          orion%block(cnt)%vars(1,:,:,:) = block(b)%temperature
+        end select
+      enddo
+
+      if (phase(p)%name=='') then
+        name_ = ''
+      else
+        name_ = trim(phase(p)%name)//'-'
+      endif
+
+      if (index(ICformat,'vtk')>0) then
+        localpath_vtk = trim(localpath)//'/vtk'
+        call execute_command_line('mkdir -p '//trim(localpath_vtk))
+        write(*,*)
+        write(*,*)' Writing vtk-fomat file'
+        orion%vtk%format = 'ascii'
+        orion%vtk%node = .false.
+        E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk)//'/ic', &
+                                               vtmpath=trim(localpath)//'/'//trim(name_)//'ic',varnames=varnames)
+      else
+        write(*,*)
+        write(*,*)' Writing tec-fomat file'
+        orion%tec%format = 'ascii'
+        orion%tec%node = .false.
+        E_IO = tec_write_structured_multiblock(orion=orion,varnames=varnames, &
+                                               filename=trim(localpath)//'/'//trim(name_)//'ic.tec')
+      endif
+
+    enddo
 
   end subroutine write_vtk_tec
 
@@ -624,16 +702,19 @@ module ATLAS_IO
     character(len=30) :: wholestring, args(2)
     type(orion_data) :: orion
 
-    open(newunit=unitFile,file=adjustl(trim(prefix)//'-mw.txt'),status='old',iostat=ios)
-    ios = 0; n = -1
+    open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
+    if (ios/=0) return!error stop ("Error reading phase file")
+    ios = 0; n = 0
+    read(unitfile,*)!skip first line
     do while(ios==0)
       read(unitFile,'(A)',iostat=ios)
-      n = n +1
+      n = n + 1
     enddo
     sp%n = n
     allocate(sp%name(1:n))
     allocate(sp%w(1:n))
     rewind(unitFile)
+    read(unitfile,*)!skip first line
     do i = 1, n
       read(unitFile,'(A)') wholestring
       call parse(wholestring,' ',args)
@@ -642,7 +723,7 @@ module ATLAS_IO
     end do
     close(unitFile)
 
-    ios = tec_read_points_multivars(orion,4,trim(prefix)//'.dat')
+    ios = tec_read_points_multivars(orion,4,trim(prefix)//'thermo.dat')
     if (ios/=0) return!error stop ("Error reading ideal-gas thermo file")
     Ti1 = nint(orion%block(1)%mesh(1,1,1,1))
     Ti2 = Ti1 + orion%block(1)%Ni - 1
@@ -659,5 +740,86 @@ module ATLAS_IO
 
   end subroutine read_idealgas_properties
 
+
+  subroutine read_phase(phase)
+    use strings, only: parse
+    use ATLAS_high_level, only: phase_type
+    use variables, only: npCP
+    implicit none
+    type(phase_type), allocatable, intent(out) :: phase(:)
+    character(len=128) :: filename, stringa(2)
+    integer :: i, num_files, u, ios
+    character(len=128), allocatable :: file_list(:)
+    character(len=128) :: type, dummy
+
+    ! Get the list of .txt files in the current directory
+    call get_file_list(file_list, num_files)
+
+    ! Check if the file is a species file (ideal-gas) or a material file (condensed-dispersed or a solid phase)
+    if (num_files>=1) then
+      allocate(phase(num_files))
+      phase%type = 'JD'
+      do i = 1, size(phase)
+        filename = trim(adjustl(file_list(i)))
+        ! Check if the phase has a name. If not, an empty string is returned
+        call parse(filename,'-',stringa)
+        if (stringa(2)=='') then
+          stringa(2) = stringa(1)
+          stringa(1) = ''
+        endif
+        if (index(stringa(2),'phase')>0) then
+          open(newunit=u, file=filename, status="old")
+          read(u,'(A)',iostat=ios) type
+          if (index(type,'condensed-dispersed')>0) then
+            phase(i)%type = 'CD'
+            read(u,*,iostat=ios) dummy, npCP
+            close(u)
+          elseif (index(type,'solid')>0) then
+            phase(i)%type = 'SP'
+          elseif (index(type,'ideal-gas')>0) then
+            phase(i)%type = 'IG'
+          else
+            write(*,*) 'Error: unknown phase type'
+            stop
+          endif
+        endif
+        phase(i)%name = stringa(1)
+      end do
+      deallocate(file_list)
+    else
+      ! If no species or material file is present, the ideal-gas phase is assumed
+      allocate(phase(1))
+      phase%type = 'IG'
+      phase%name = ''
+    endif
+
+  end subroutine read_phase
+
+
+  subroutine get_file_list(file_list, num_files)
+      implicit none
+      character(len=*), allocatable, intent(out) :: file_list(:)
+      integer, intent(out) :: num_files
+      character(len=256) :: line
+      integer :: ios, unit, u
+
+      open(newunit=u, file="filelist.txt", status="old", action="read", iostat=ios)
+
+      num_files = 0
+      do
+        read(u, '(A)', iostat=ios) line
+        if (ios /= 0) exit
+        num_files = num_files + 1
+      end do
+
+      rewind(u)
+      allocate(file_list(num_files))
+
+      do unit = 1, num_files
+        read(u, '(A)', iostat=ios) file_list(unit)
+      end do
+
+      close(u)
+  end subroutine get_file_list
 
 end module ATLAS_IO

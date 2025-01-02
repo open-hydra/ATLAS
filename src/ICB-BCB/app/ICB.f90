@@ -12,6 +12,7 @@ program ICB
   use Interpolator, only: intersol
   use finer, only: file_ini
   implicit none
+  type(phase_type), allocatable  :: phase(:)
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
   character(len=30)              :: ICformat
@@ -27,7 +28,7 @@ program ICB
 
   ! Geometry import
   filename = 'mesh.tec'
-  write(*,*)' Reading mesh file: ',trim(filename)
+  write(*,*)' Reading mesh file'
   call read_TECmesh(orion,filename)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
@@ -37,15 +38,18 @@ program ICB
   ! INI handling
   call build_INI('ICB',size(block),sourceini,ICformat)
 
+  ! Phase properties import
+  call read_phase(phase)
+
   ! IC computation
-  call build_IC(sourceini,block)
+  call build_IC(phase,sourceini,block)
 
   ! IC writing
   call execute_command_line('mkdir -p '//trim(outpath))
   if (index(ICformat,'native')>0) then
     call write_solfile(block)
   else
-    call write_vtk_tec(ICformat, block, orion)
+    call write_vtk_tec(phase, ICformat, block)
   endif
 
   contains

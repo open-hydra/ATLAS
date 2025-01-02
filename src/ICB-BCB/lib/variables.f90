@@ -1,17 +1,14 @@
 module variables
   implicit none
 
+  logical :: verbose = .false.
   integer, parameter :: llen = 200
+  character(len=18), parameter :: outpath = 'fromATLAStoSolver/'
 
-  character(len=17), parameter :: outpath = 'fromATLAStoSolver'
-
-  !> Turbulent
+  ! Gas-phase | Turbulent variables number
   integer:: nrans=0
 
-  !> Tab properties
-  real(8) :: runi=8314.51
-
-  !> Switches
-  logical :: verbose
+  ! Dispersed-phase | Groups number
+  integer:: npCP=1
 
 end module variables 

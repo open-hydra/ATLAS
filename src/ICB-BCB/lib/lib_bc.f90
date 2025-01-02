@@ -13,14 +13,16 @@ module lib_bc
 
   contains
 
-  subroutine build_BC(sini,blocks,species)
+  subroutine build_BC(phase,sini,blocks,species)
     use TOM, only: delthe
-    use variables, only: nrans
+    use variables, only: nrans, npCP
+    use strings, only: parse
     implicit none
+    type(phase_type), intent(in)     :: phase(:)
     type(ATLAS_block), intent(inout) :: blocks(:)
     type(obj_species), intent(in)    :: species
     type(file_ini), intent(in)       :: sini
-
+    !> Local variables
     logical                        :: cell_dependent, multipatch=.false.
     type(file_ini)                 :: faceini, patchini
     integer                        :: error, error_patch=0
@@ -30,12 +32,29 @@ module lib_bc
     character(len=50)              :: patchname, section_name
     integer                        :: ff, n, m, p, b
     real(8)                        :: patchrange(4)
+    character(len=30)              :: wholestring, args(3)
 
     do b = 1, size(blocks)
       write(indb,'(I4)') b
       section_name = 'BCB-Block'//adjustl(indb)   
       associate(block => blocks(b))
       block%species = species
+
+      do while (sini%loop(section_name=section_name, option_pairs=option_pairs))
+        call faceini%add(section_name=section_name, option_name=option_pairs(1), val=option_pairs(2))
+      enddo
+
+      !> Look for phases solved in block b
+      call sini%get(section_name=section_name, option_name='phase', val=wholestring, error=error)
+      if (error/=0) then
+        allocate(block%associated_phase(1:size(phase)))
+        block%associated_phase = phase
+      else
+        call parse(wholestring,' ',args)
+        p = count(args /= '')
+        allocate(block%associated_phase(1:p))
+        block%associated_phase%name = args(1:p)
+      endif
     
       !> Look for faces bc definition
       do ff = 1, 6
@@ -458,7 +477,6 @@ module lib_bc
     use bc
     implicit none
     type(ATLAS_block), intent(inout) :: block(:)
-    !logical, intent(in) :: CPM_present
     integer :: f1,m1,n1,b1,b2,f2,m2,n2,i2,j2,k2
     integer :: nb, nx(30), ny(30), nz(30)
 
@@ -493,11 +511,6 @@ module lib_bc
               this%bc%properties(3) = j2
               this%bc%properties(4) = k2
               this%bc%properties(5) = f2
-              ! if (CPM_present) then
-              !   call mn2ijk(f1,m1,n1,nx(b1),ny(b1),nz(b1),i1,j1,k1)
-              !   write(1,'(10I4)')b1, f1, i1, j1, k1, &
-              !                    b2, f2, i2, j2, k2
-              ! endif
             endif
             endassociate
           enddo
@@ -620,10 +633,6 @@ module lib_bc
           prop(j,4) = k1
           prop(j,5) = f1
                       
-          ! if (CPM_present) then
-          !   write(1,'(10I4)')b1, f1, i1, j1, k1, &
-          !                   b2, f2, i2, j2, k2
-          ! endif
           exit
         endif
       enddo
@@ -1009,7 +1018,6 @@ subroutine invmat(a,b,r)
           a(i,j)=c(i,j)
 120     continue
 110   continue
-100   return
       end
 
 

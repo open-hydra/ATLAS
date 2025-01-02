@@ -13,6 +13,7 @@ program BCB
   use lib_bc
   use finer, only: file_ini
   implicit none
+  type(phase_type), allocatable  :: phase(:)
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
   type(obj_species)              :: sp
@@ -27,12 +28,9 @@ program BCB
 
   call command_line_argument()
 
-  ! Phase properties import
-  ! maybe not necessary
-
   ! Geometry import
   filename = 'mesh.tec'
-  write(*,*)' Reading mesh file: ',trim(filename)
+  write(*,*)' Reading mesh file'
   call read_TECmesh(orion,filename)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
@@ -45,8 +43,12 @@ program BCB
   ! INI handling
   call build_INI(prog='BCB',nb=size(block),inisource=sourceini,force_connect=force_connect,chimeraon=chimeraon)
 
+  ! Phase properties import
+  call read_phase(phase)
+
   ! BC computation
-  call build_BC(sourceini,block,sp)
+  call build_BC(phase,sourceini,block,sp)
+
   ! Multiblock operations
   call find_periodic(block)
   if (size(block)>1) then
@@ -59,7 +61,18 @@ program BCB
 
   ! BC writing
   call execute_command_line('mkdir -p '//trim(outpath))
-  call write_idealgas_bc_file('',block)
+  do b = 1, size(phase)
+    select case(phase(b)%type)
+    case('IG')
+      call write_idealgas_bc_file(phase(b)%name,block)
+    case('CD')
+      call write_cdp_bc_file(phase(b)%name,block)
+    case('SP')
+      ! Currently the solid phase shares the same boundaries and file format as the ideal-gas phase.
+      ! Indeed, only imposed heat flux and temnperature are considered along with connectivity.
+      call write_idealgas_bc_file(phase(b)%name,block)
+    end select
+  enddo
 
   contains
 

@@ -1,12 +1,12 @@
 module bc
   use species
   use intersection_module
+  use variables
   implicit none
   private
 
   integer, parameter :: nIG=6
   integer, public, parameter :: nCP=7
-  integer, public    :: npCP
 
   type, public:: obj_bc_cellface_properties
     ! General
