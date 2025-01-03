@@ -649,6 +649,7 @@ module ATLAS_IO
         enddo; enddo; enddo
         select case(phase(p)%type)
         case('IG')
+          orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-IG'
           allocate(orion%block(cnt)%vars(1:block(b)%species%n+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
           orion%block(cnt)%vars(1:block(b)%species%n,:,:,:) = block(b)%density
           orion%block(cnt)%vars(block(b)%species%n+1:block(b)%species%n+3,:,:,:) = block(b)%velocity
@@ -657,6 +658,7 @@ module ATLAS_IO
             orion%block(cnt)%vars(block(b)%species%n+5:block(b)%species%n+4+nrans,:,:,:) = block(b)%turbprop
           endif
         case('SP')
+          orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'
           allocate(orion%block(cnt)%vars(1,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
           orion%block(cnt)%vars(1,:,:,:) = block(b)%temperature
         end select
@@ -669,13 +671,13 @@ module ATLAS_IO
       endif
 
       if (index(ICformat,'vtk')>0) then
-        localpath_vtk = trim(localpath)//'/vtk'
+        localpath_vtk = trim(localpath)//'/vtk/'
         call execute_command_line('mkdir -p '//trim(localpath_vtk))
         write(*,*)
         write(*,*)' Writing vtk-fomat file'
         orion%vtk%format = 'ascii'
         orion%vtk%node = .false.
-        E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk)//'/ic', &
+        E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk), &
                                                vtmpath=trim(localpath)//'/'//trim(name_)//'ic',varnames=varnames)
       else
         write(*,*)
