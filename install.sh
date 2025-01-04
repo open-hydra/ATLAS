@@ -74,8 +74,8 @@ function build_fortran_side () {
     echo -e "\033[0;32mHydra-related building \033[0m"
     echo
     Master=hydra
-    git submodule update --init --recursive lib/NewCEA
-    git submodule update --init --recursive lib/PiNeR
+    git submodule update --init lib/NewCEA
+    git submodule update --init lib/PiNeR
   fi
   cd $DIR/build
   cmake .. -DUSE_OPENMP=OFF -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=RELEASE -DMASTER=$Master
@@ -83,13 +83,7 @@ function build_fortran_side () {
 }
 
 function build_python_side () {
-
-  if [[ $SHELL == *"zsh"* ]]; then
-    RCFILE=$HOME/.zshrc
-  elif [[ $SHELL == *"bash"* ]]; then
-    RCFILE=$HOME/.bashrc
-  fi
-  cd $DIR
+  conda remove --name ct-env --all
   conda env create -f ct-env.yaml
 }
 
@@ -187,7 +181,6 @@ elif [ "$LOAD" != "0" ]; then
 
 elif [[ "$BUILD" != "0" ]]; then
   define_path
-  conda remove --name ct-env --all
   build_fortran_side
   build_python_side
 
