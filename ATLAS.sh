@@ -6,6 +6,21 @@
 #         USAGE: run "./ATLAS.sh [options]"
 #
 #   DESCRIPTION: A utility script to launch ATLAS programs
+#
+#       OPTIONS:
+#         --verbose, -v   Enable verbose mode
+#         --plot, -p      Enable plot generation
+#         --help, -?      Display this help message
+#
+#       ARGUMENTS:
+#         CEA             Run the CEA program with the specified input file
+#         GPB, KAnT       Run the specified Python-based ATLAS program
+#         ICB, BCB        Run the specified Fortran-based ATLAS program
+#
+#       EXAMPLES:
+#         ./ATLAS.sh --verbose GPB
+#         ./ATLAS.sh CEA inputfile
+#
 #===============================================================================
 function print_usage {
   echo "Bash srcipt to run ATLAS programs"

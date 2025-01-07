@@ -92,9 +92,9 @@ function build_project () {
     git submodule update --init lib/PiNeR
   fi
 
-  echo -e "\033[0;34mBuilding NewCEA...\033[0m"
+  echo -e "\033[0;34mAdd NewCEA path ...\033[0m"
   cd lib/NewCEA
-  ./install.sh -f RELEASE
+  ./install.sh -s
   cd $DIR
 
   compile_fortran
@@ -111,9 +111,6 @@ UPDATE=F
 LOAD=F
 BUILD=F
 COMPILE=F
-
-# RETURN VALUES/EXIT STATUS CODES
-readonly E_BAD_OPTION=254
 
 # PROCESS COMMAND-LINE ARGUMENTS
 if [ $# -eq 0 ]; then
