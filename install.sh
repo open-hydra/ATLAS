@@ -59,10 +59,24 @@ function define_path () {
   #source $RCFILE --force
 }
 
+function create_env () {
+  echo -e "\033[0;34mCreating Conda environment...\033[0m"
+  cd $DIR
+  #conda env remove --name ct-env --yes
+  conda env create -f ct-env.yaml
+}
 
-function build_fortran_side () {
+function compile_fortran () {
+  echo -e "\033[0;34mBuilding Fortran sources via CMake...\033[0m"
+  mkdir -p $DIR/build
+  cd $DIR/build
+  cmake .. -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=$TYPE -DMASTER=$Master
+  make $EXE
+}
 
-  rm -rf bin build && mkdir -p build
+function build_project () {
+
+  rm -rf bin build
   if [[ $BUILD == standalone ]]; then
     echo 
     echo -e "\033[0;32mStand-alone building \033[0m"
@@ -77,30 +91,26 @@ function build_fortran_side () {
     git submodule update --init lib/NewCEA
     git submodule update --init lib/PiNeR
   fi
-  cd $DIR/build
-  cmake .. -DUSE_OPENMP=OFF -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=RELEASE -DMASTER=$Master
-  make
+
+  echo -e "\033[0;34mBuilding NewCEA...\033[0m"
+  cd lib/NewCEA
+  ./install.sh -f RELEASE
+  cd $DIR
+
+  compile_fortran
+
+  create_env
+
+  echo -e "\033[0;32mInstallation completed successfully.\033[0m"
 }
 
-function build_python_side () {
-  conda remove --name ct-env --all
-  conda env create -f ct-env.yaml
-}
-
-function compile () {
-  mkdir -p build
-  cd build
-  cmake .. -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=$TYPE -DMASTER=None
-  make $EXE
-}
-
-
-EXE=0
-TYPE=0
-SETVARS=0
-UPDATE=0
-LOAD=0
-BUILD=0
+EXE=F
+TYPE=F
+SETVARS=F
+UPDATE=F
+LOAD=F
+BUILD=F
+COMPILE=F
 
 # RETURN VALUES/EXIT STATUS CODES
 readonly E_BAD_OPTION=254
@@ -126,6 +136,8 @@ while test $# -gt 0; do
       else
         BUILD=standalone
       fi
+      TYPE=RELEASE
+      EXE=''
       ;;
 
     --compile | -c )
@@ -136,21 +148,22 @@ while test $# -gt 0; do
         TYPE="$1"
         EXE="$2"
       fi
+      COMPILE=T
       ;;
 
     --setvars | -s )
       shift
-      SETVARS=1
+      SETVARS=T
       ;;
 
     --update | -u )
       shift
-      UPDATE=1
+      UPDATE=T
       ;;
 
     --load | -l )
       shift
-      LOAD=1
+      LOAD=T
       ;;
 
     -? | --help )
@@ -170,22 +183,21 @@ while test $# -gt 0; do
   esac
 done
 
-if [ "$SETVARS" != "0" ]; then
+if [ "$SETVARS" != "F" ]; then
   define_path
 
-elif [ "$UPDATE" != "0" ]; then
+elif [ "$UPDATE" != "F" ]; then
   git submodule update --init --remote
 
-elif [ "$LOAD" != "0" ]; then
+elif [ "$LOAD" != "F" ]; then
   git submodule update --init
 
-elif [[ "$BUILD" != "0" ]]; then
+elif [[ "$BUILD" != "F" ]]; then
   define_path
-  build_fortran_side
-  build_python_side
+  build_project
 
-elif [[ "$EXE" != "0" ]]; then
-  compile
+elif [[ "$COMPILE" != "F" ]]; then
+  compile_fortran
 
 else
   usage
