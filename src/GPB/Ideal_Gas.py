@@ -20,6 +20,31 @@ ct.add_directory(datapath + 'Chemistry')
 CEAtransdir = datapath + 'Transport/CEApolynomials.yaml'
 
 def build(inifile,section):
+    """
+    Build the ideal gas phase and its properties based on the provided INI file and section.
+
+    Parameters:
+    inifile (str): Path to the INI file containing the input parameters.
+    section (str): Section of the INI file to read the parameters from.
+
+    Returns:
+    None
+
+    This function performs the following steps:
+    1. Initializes variables and reads input parameters from the INI file.
+    2. Determines if and which equilibrium to use (Cantera/CEA).
+    3. Loads the thermo and transport models if the phase model is not specified.
+    4. Builds the ideal-gas phase using the loaded species.
+    5. Adds reactive species if a reaction model is provided.
+    6. Performs Cantera equilibrium calculation if applicable.
+    7. Performs CEA equilibrium calculation if applicable.
+    8. Adds manually specified inert species.
+    9. Adds constant-Cp species if specified.
+    10. Checks the heavy-gas condition and adjusts species accordingly.
+    11. Computes thermodynamic properties.
+    12. Computes transport properties.
+    13. Writes chemistry properties if a reaction model is provided.
+    """
 
     # ---------------------------------------------------
     # Initialization of variables
@@ -192,12 +217,10 @@ def build(inifile,section):
 
     # ---------------------------------------------------
     # Manual Inert species
-    print(inert_species_names)
     if inert_species_names is not None:
         print(' -- Found manually specified species')
         # Get thermo properties
         manual_inert_species= [s for s in all_species if s.name in inert_species_names]
-        print(manual_inert_species)
         # Get transport properties
         transport_species_list = ct.Species.list_from_file('Lennard-Jones.yaml')
         transport_species_dict = {sp.name: sp for sp in transport_species_list}
