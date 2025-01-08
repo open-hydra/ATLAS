@@ -200,7 +200,7 @@ module bc
         self%species%massf = 1.0
       else
         ! Chemical equilibrium input
-        call compute_equilibrium(sourceini, self%species, ytot, T0, p0)
+        call define_composition(sourceini, self%species, ytot, T0, p0)
         ! Look for inertMix presence
         do j = 1, self%species%n
           if (self%species%name(j)=='inertMix') then

@@ -4,7 +4,6 @@ module input_ini
   private
 
   public:: build_INI
-  !public:: read_CP_input
 
   integer :: error
 
@@ -100,23 +99,6 @@ contains
     enddo
 
   end function generate_sections_input
-
-  ! subroutine read_CP_input(CP_present)
-  !   use bc, only: npCP
-  !   implicit none
-  !   logical, intent(out) :: CP_present
-
-  !   npCP = 0; CP_present = .false.
-  !   call fini%load(filename='input.ini')
-  !   call fini%get(section_name='CPM-General', option_name='np', val=npCP, error=error)
-  !   if (error/=0) call fini%get(section_name='ICE-General', option_name='np', val=npCP, error=error)
-  !   if (error==0) then
-  !     CP_present = .true.
-  !     write(*,*)
-  !     write(*,*)' Multi-phase section found'
-  !   endif
-
-  ! end subroutine read_CP_input
 
 
   subroutine scan_turbo_input(fini)

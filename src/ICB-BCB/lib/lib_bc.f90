@@ -13,14 +13,14 @@ module lib_bc
 
   contains
 
-  subroutine build_BC(phase,sini,blocks,species)
+  subroutine build_BC(phase,sini,blocks)
     use TOM, only: delthe
     use variables, only: nrans, npCP
     use strings, only: parse
+    use ATLAS_IO, only: read_idealgas_properties
     implicit none
     type(phase_type), intent(in)     :: phase(:)
     type(ATLAS_block), intent(inout) :: blocks(:)
-    type(obj_species), intent(in)    :: species
     type(file_ini), intent(in)       :: sini
     !> Local variables
     logical                        :: cell_dependent, multipatch=.false.
@@ -32,13 +32,12 @@ module lib_bc
     character(len=50)              :: patchname, section_name
     integer                        :: ff, n, m, p, b
     real(8)                        :: patchrange(4)
-    character(len=30)              :: wholestring, args(3)
+    character(len=30)              :: wholestring, args(3), phase_name
 
     do b = 1, size(blocks)
       write(indb,'(I4)') b
       section_name = 'BCB-Block'//adjustl(indb)   
       associate(block => blocks(b))
-      block%species = species
 
       do while (sini%loop(section_name=section_name, option_pairs=option_pairs))
         call faceini%add(section_name=section_name, option_name=option_pairs(1), val=option_pairs(2))
@@ -55,6 +54,22 @@ module lib_bc
         allocate(block%associated_phase(1:p))
         block%associated_phase%name = args(1:p)
       endif
+
+      ! Check phase name
+      if (block%associated_phase(1)%name=='') then
+        phase_name = ''
+      else
+        phase_name = trim(block%associated_phase(1)%name)//'-'
+      endif
+
+      ! Read phase properties (if any)
+      if (block%associated_phase(1)%type=='IG') then
+        call read_idealgas_properties(trim(phase_name),block%species)
+      else
+        block%species%n = 0
+      endif
+      if (.not.allocated(block%species%massf)) allocate(block%species%massf(1:block%species%n))
+      block%species%massf = 1d-20
     
       !> Look for faces bc definition
       do ff = 1, 6
@@ -118,7 +133,7 @@ module lib_bc
               enddo
               call patchini%add(section_name='face', option_name='range', val=patchrange)
               call patchini%add(section_name='face', option_name='direction', val=patchdirection)
-              call build_cell(b,ff,block%face(ff),nrans,patchini,species)
+              call build_cell(b,ff,block%face(ff),nrans,patchini,block%species)
             enddo
           endif
         
@@ -129,10 +144,10 @@ module lib_bc
           if (error==0) cell_dependent=.true.
           if (cell_dependent) then
             write(*,*)' Face n. = ', ff, ' -> ', trim(block%face(ff)%bc%name), ' = single patch with varying properties'
-            call build_cell(b,ff,block%face(ff),nrans,faceini,species)
+            call build_cell(b,ff,block%face(ff),nrans,faceini,block%species)
           else
             write(*,*)' Face n. = ', ff, ' -> ', trim(block%face(ff)%bc%name), ' = single patch'
-            call block%face(ff)%bc%build(nrans,faceini,'face',species)
+            call block%face(ff)%bc%build(nrans,faceini,'face',block%species)
             do n = 1, block%face(ff)%Nn
               do m = 1, block%face(ff)%Nm
                 allocate(block%face(ff)%center(m,n)%bc%properties(1:block%face(ff)%bc%nproperties))

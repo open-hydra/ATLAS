@@ -4,7 +4,6 @@
 
 program BCB
   use TOM, only: check_mesh_type
-  use species
   use variables
   use ATLAS_high_level
   use ATLAS_IO
@@ -16,7 +15,6 @@ program BCB
   type(phase_type), allocatable  :: phase(:)
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
-  type(obj_species)              :: sp
   character(len=llen)            :: filename
   type(file_ini)                 :: sourceini
   integer                        :: b
@@ -47,7 +45,7 @@ program BCB
   call read_phase(phase)
 
   ! BC computation
-  call build_BC(phase,sourceini,block,sp)
+  call build_BC(phase,sourceini,block)
 
   ! Multiblock operations
   call find_periodic(block)

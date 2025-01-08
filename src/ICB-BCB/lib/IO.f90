@@ -706,7 +706,7 @@ module ATLAS_IO
 
     open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
     if (ios/=0) return!error stop ("Error reading phase file")
-    ios = 0; n = 0
+    ios = 0; n = -1
     read(unitfile,*)!skip first line
     do while(ios==0)
       read(unitFile,'(A)',iostat=ios)

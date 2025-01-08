@@ -9,8 +9,9 @@ module species
   
 contains
 
-  subroutine compute_equilibrium(sini,species,ytot,T0,p0)
+  subroutine define_composition(sini,species,ytot,T0,p0)
     use finer, only: file_ini
+    use strings, only: parse
     implicit none
     type(file_ini), intent(in)       :: sini
     type(obj_species), intent(inout) :: species
@@ -18,7 +19,7 @@ contains
     type(obj_CEA)                    :: CEA
     type(obj_species)                :: ct_species
     character(len=500)               :: CEAfile
-    character(len=20)                :: name
+    character(len=20)                :: name, str(2)
     character(len=:), allocatable    :: item(:), section_name(:)
     integer :: i, j, error
 
@@ -35,7 +36,13 @@ contains
       if (p0==0) p0 = CEA%SE%pressure
       ytot = 0.0
       do j = 1, species%n; do i = 1, CEA%SE%species%n
-          if (adjustl(trim(CEA%SE%species%name(i)))==adjustl(trim(species%name(j)))) then
+          if (index(species%name(j),'-')/=0) then
+            call parse(species%name(j),'-',str)
+            name = str(1)
+          else
+            name = species%name(j)
+          endif
+          if (trim(CEA%SE%species%name(i))==trim(name)) then
             species%massf(j) = CEA%SE%species%massf(i)
             ytot = ytot+species%massf(j)
             exit
@@ -45,9 +52,10 @@ contains
     ! Use Cantera
       call write_KAnT_INI(sini)
       call read_KAnT_out(T0,ct_species)
+      if (p0==0) call sini%get(section_name=section_name(1), option_name='eq-pressure',val=p0,error=error)
       ytot = 0.0
       do j = 1, species%n; do i = 1, ct_species%n
-          if (adjustl(trim(ct_species%name(i)))==adjustl(trim(species%name(j)))) then
+          if (trim(ct_species%name(i))==trim(species%name(j))) then
             species%massf(j) = ct_species%massf(i)
             ytot = ytot+species%massf(j)
             exit
@@ -59,7 +67,7 @@ contains
         if (index(item(1),'y')/=0) then
           name = item(1); name = name(2:20)
           do j = 1, species%n
-            if (adjustl(trim(name))==adjustl(trim(species%name(j)))) then
+            if (trim(name)==trim(species%name(j))) then
               read(item(2),'(D12.5)') species%massf(j)
               ytot = ytot+species%massf(j)
               exit
@@ -69,7 +77,7 @@ contains
       enddo
     endif
 
-  end subroutine compute_equilibrium
+  end subroutine define_composition
 
   subroutine write_KAnT_INI(sini)
     use finer, only: file_ini

@@ -113,7 +113,7 @@ module lib_ic
   subroutine build_field(b,self,zoneini,phase)
     use variables, only: nrans
     use Interpolator
-    use species, only: compute_equilibrium
+    use species, only: define_composition
     implicit none
     integer, intent(in)               :: b
     class(ATLAS_block), intent(inout) :: self
@@ -214,7 +214,7 @@ module lib_ic
         self%species%massf = 1.0
       else
         ! Chemical equilibrium input
-        call compute_equilibrium(zoneini, self%species, ytot, T0, p0)
+        call define_composition(zoneini, self%species, ytot, T0, p0)
         ! Look for inertMix presence
         do j = 1, self%species%n
           if (self%species%name(j)=='inertMix') then
