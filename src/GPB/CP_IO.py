@@ -22,7 +22,7 @@ def write_basics(type, name, mat_phases, groups):
 
 
 
-def write_properties(name, T_low, T_max, species_names, mass_cp_values, density, enthalpy_values):
+def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, enthalpy, conductivity):
 
     # Write the data to a file in Tecplot-readable format
     filename = outpath + name + "properties.dat"
@@ -32,13 +32,27 @@ def write_properties(name, T_low, T_max, species_names, mass_cp_values, density,
 
     with open(filename, 'w') as f:
         f.write("TITLE = \"Mass Thermodynamic Properties\"\n")
-        f.write("VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"Enthalpy\"\n")
-        
-        for species_name in species_names:
-            f.write(f"ZONE T=\"{species_name}\"\n")
-            f.write(f"I={len(temperatures)}, F=POINT\n")
-            for i, T in enumerate(temperatures):
-                cp_mass = mass_cp_values[species_name][i]
-                h_mass = enthalpy_values[species_name][i]
-                rho = density[species_name][i]
-                f.write(f"{T} {cp_mass:.6f} {rho:.6f} {h_mass:.6f}\n")
+
+        if 'dispersed' in type:
+            f.write("VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"Enthalpy\"\n")
+            
+            for species_name in species_names:
+                f.write(f"ZONE T=\"{species_name}\"\n")
+                f.write(f"I={len(temperatures)}, F=POINT\n")
+                for i, T in enumerate(temperatures):
+                    cp_mass = mass_cp[species_name][i]
+                    h_mass = enthalpy[species_name][i]
+                    rho = density[species_name][i]
+                    f.write(f"{T} {cp_mass:.6f} {rho:.6f} {h_mass:.6f}\n")
+
+        else:
+            f.write("VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"Conductivity\"\n")
+            
+            for species_name in species_names:
+                f.write(f"ZONE T=\"{species_name}\"\n")
+                f.write(f"I={len(temperatures)}, F=POINT\n")
+                for i, T in enumerate(temperatures):
+                    cp_mass = mass_cp[species_name][i]
+                    rho = density[species_name][i]
+                    k = conductivity[species_name][i]
+                    f.write(f"{T} {cp_mass:.6f} {rho:.6f} {k:.6f}\n")

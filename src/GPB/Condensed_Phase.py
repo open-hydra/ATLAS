@@ -52,8 +52,8 @@ def build(type,inifile,section):
         string = name[:-1]  # Remove the last character
     else:
         string = 'no name'
-    if 'condensed' in type:
-        print(' - Condensed phase:', string)
+    if 'dispersed' in type:
+        print(' - Condensed-dispersed phase:', string)
     elif type == 'solid':
         print(' - Solid phase:', string)
     print()

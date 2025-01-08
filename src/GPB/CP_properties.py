@@ -12,6 +12,7 @@ def compute_properties(type, name, T_low, T_max, all_materials):
     mass_cp = {}
     enthalpy = {}
     density = {}
+    conductivity = {}
     materials = []
 
     # Loop over each material
@@ -54,7 +55,8 @@ def compute_properties(type, name, T_low, T_max, all_materials):
             materials.append(mat.name)
 
             mass_cp[mat.name] = np.ones(len(temperatures)) * mat.specific_heat
-            enthalpy[mat.name] = np.ones(len(temperatures)) * 313.0
+            enthalpy[mat.name] = mass_cp[mat.name] * temperatures
             density[mat.name] = np.ones(len(temperatures)) * mat.density
+            conductivity[mat.name] = np.ones(len(temperatures)) * mat.thermal_conductivity
 
-    CP_IO.write_properties(name,T_low, T_max, materials, mass_cp, density, enthalpy)
+    CP_IO.write_properties(type, name, T_low, T_max, materials, mass_cp, density, enthalpy, conductivity)
