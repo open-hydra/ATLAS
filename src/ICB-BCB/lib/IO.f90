@@ -613,7 +613,7 @@ module ATLAS_IO
       select case(phase(p)%type)
         case('IG')
           do s = 1, block(1)%species%n
-            varnames = trim(varnames)//'r'//trim(str(.true.,s))
+            varnames = trim(varnames)//' r'//trim(str(.true.,s))
           enddo
           varnames = trim(varnames)//' u v w p'
           if (nrans==1) then
