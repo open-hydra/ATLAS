@@ -31,6 +31,7 @@ contains
     ! Use CEA
       CEA%indx = 1
       call sini%get(section_name=section_name(1), option_name='eq-CEA-section',val=CEA%indx,error=error)
+      CEAfile = trim(CEAfile(:(len_trim(CEAfile)-4)))
       call CEA%solve(CEAfile)
       if (T0==0) T0 = CEA%SE%temperature
       if (p0==0) p0 = CEA%SE%pressure
