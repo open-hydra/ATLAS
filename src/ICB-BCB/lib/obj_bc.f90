@@ -195,21 +195,16 @@ module bc
       if (error==0) p0 = 1732
 
       ! Assign species mass fractions and temperature (if equilibrium)
-      if (self%species%n==1) then
-        ! Look for single-species case
-        self%species%massf = 1.0
-      else
-        ! Chemical equilibrium input
-        call define_composition(sourceini, self%species, ytot, T0, p0)
-        ! Look for inertMix presence
-        do j = 1, self%species%n
-          if (self%species%name(j)=='inertMix') then
-            self%species%massf(j) = 1.0-ytot
-          else
-            self%species%massf(j) = self%species%massf(j) / ytot
-          endif
-        enddo
-      endif
+      ! Chemical equilibrium input
+      call define_composition(sourceini, self%species, ytot, T0, p0)
+      ! Look for inertMix presence
+      do j = 1, self%species%n
+        if (self%species%name(j)=='inertMix') then
+          self%species%massf(j) = 1.0-ytot
+        else
+          self%species%massf(j) = self%species%massf(j) / ytot
+        endif
+      enddo
 
       ! if (h0/=0 .and. self%species%n>1) then
       !   error stop ("Not possible to assign h0 to a multispecies flow!")
