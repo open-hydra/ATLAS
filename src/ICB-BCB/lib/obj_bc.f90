@@ -213,10 +213,11 @@ module bc
       ! endif
 
       !> Choose between total temperature and static one
-      if (nmach<0.0 .and. T>0 .and. T0==0) nmach = -5.0
+      if (nmach<0.0 .and. T>0) nmach = -5.0
 
       self%properties(1) = nmach
-      self%properties(2) = maxval([T0,T])
+      self%properties(2) = T0
+      if (T>0) self%properties(2) = T
       if (nmach>=0) self%properties(3) = p0
       if (nmach<0) self%properties(3) = massflux
       self%properties(4) = alpha

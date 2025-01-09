@@ -27,7 +27,6 @@ contains
     call sini%get_sections_list(section_name)
     call sini%get(section_name=section_name(1), option_name='eq-OG',val=CEA%OG,error=error)
     call sini%get(section_name=section_name(1), option_name='eq-CEA-file',val=CEAfile,error=error)
-    print*, error
     if (error==0) then
     ! Use CEA
       CEA%indx = 1
@@ -36,7 +35,6 @@ contains
       call CEA%solve(CEAfile)
       if (T0==0) T0 = CEA%SE%temperature
       if (p0==0) p0 = CEA%SE%pressure*1e+5
-      print*, t0, p0
       ytot = 0.0
       do j = 1, species%n; do i = 1, CEA%SE%species%n
           if (index(species%name(j),'-')/=0) then

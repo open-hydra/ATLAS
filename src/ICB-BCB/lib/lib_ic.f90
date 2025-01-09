@@ -209,21 +209,16 @@ module lib_ic
       self%species%massf = 1d-20
 
       ! Assign species mass fractions and temperature (if equilibrium)
-      if (self%species%n==1) then
-        ! Look for single-species case
-        self%species%massf = 1.0
-      else
-        ! Chemical equilibrium input
-        call define_composition(zoneini, self%species, ytot, T0, p0)
-        ! Look for inertMix presence
-        do j = 1, self%species%n
-          if (self%species%name(j)=='inertMix') then
-            self%species%massf(j) = 1.0-ytot
-          else
-            self%species%massf(j) = self%species%massf(j) / ytot
-          endif
-        enddo
-      endif
+      ! Chemical equilibrium input
+      call define_composition(zoneini, self%species, ytot, T0, p0)
+      ! Look for inertMix presence
+      do j = 1, self%species%n
+        if (self%species%name(j)=='inertMix') then
+          self%species%massf(j) = 1.0-ytot
+        else
+          self%species%massf(j) = self%species%massf(j) / ytot
+        endif
+      enddo
 
       if (.not.allocated(self%density)) then
         allocate(self%density(self%species%n,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
