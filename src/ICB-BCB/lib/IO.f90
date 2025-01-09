@@ -709,7 +709,7 @@ module ATLAS_IO
     ios = 0; n = -1
     read(unitfile,*)!skip first line
     do while(ios==0)
-      read(unitFile,'(A)',iostat=ios)
+      read(unitFile,'(A)',iostat=ios) wholestring
       n = n + 1
     enddo
     sp%n = n
