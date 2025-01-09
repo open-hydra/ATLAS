@@ -27,6 +27,7 @@ contains
     call sini%get_sections_list(section_name)
     call sini%get(section_name=section_name(1), option_name='eq-OG',val=CEA%OG,error=error)
     call sini%get(section_name=section_name(1), option_name='eq-CEA-file',val=CEAfile,error=error)
+    print*, error
     if (error==0) then
     ! Use CEA
       CEA%indx = 1
@@ -34,7 +35,8 @@ contains
       CEAfile = trim(CEAfile(:(len_trim(CEAfile)-4)))
       call CEA%solve(CEAfile)
       if (T0==0) T0 = CEA%SE%temperature
-      if (p0==0) p0 = CEA%SE%pressure
+      if (p0==0) p0 = CEA%SE%pressure*1e+5
+      print*, t0, p0
       ytot = 0.0
       do j = 1, species%n; do i = 1, CEA%SE%species%n
           if (index(species%name(j),'-')/=0) then
@@ -53,7 +55,10 @@ contains
     ! Use Cantera
       call write_KAnT_INI(sini)
       call read_KAnT_out(T0,ct_species)
-      if (p0==0) call sini%get(section_name=section_name(1), option_name='eq-pressure',val=p0,error=error)
+      if (p0==0) then 
+        call sini%get(section_name=section_name(1), option_name='eq-pressure',val=p0,error=error)
+        p0 = p0*1e+5
+      endif
       ytot = 0.0
       do j = 1, species%n; do i = 1, ct_species%n
           if (trim(ct_species%name(i))==trim(species%name(j))) then
@@ -77,6 +82,8 @@ contains
         endif
       enddo
     endif
+
+    if (species%n==1) species%massf(1) = 1.0
 
   end subroutine define_composition
 
