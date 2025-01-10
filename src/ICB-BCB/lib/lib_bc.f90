@@ -159,7 +159,8 @@ module lib_bc
                 block%face(ff)%center(m,n)%bc%definition = block%face(ff)%bc%definition
                 block%face(ff)%center(m,n)%bc%properties = block%face(ff)%bc%properties
                 block%face(ff)%center(m,n)%bc%cp_properties = block%face(ff)%bc%cp_properties
-                block%face(ff)%center(m,n)%bc%species = block%face(ff)%bc%species
+                block%face(ff)%center(m,n)%bc%species%n = block%face(ff)%bc%species%n
+                block%face(ff)%center(m,n)%bc%species%massf = block%face(ff)%bc%species%massf
               enddo
             enddo
           endif
