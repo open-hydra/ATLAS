@@ -206,11 +206,11 @@ module bc
         endif
       enddo
 
-      ! if (h0/=0 .and. self%species%n>1) then
-      !   error stop ("Not possible to assign h0 to a multispecies flow!")
-      ! elseif (h0/=0 .and. self%species%n==1) then
-      !   T0 = h02T0(h0)
-      ! endif
+      if (h0/=0 .and. self%species%n>1) then
+        error stop ("Not possible to assign h0 to a multispecies flow!")
+      elseif (h0/=0 .and. self%species%n==1) then
+        T0 = h02T0(h0,self%species%h)
+      endif
 
       !> Choose between total temperature and static one
       if (nmach<0.0 .and. T>0) nmach = -5.0
@@ -280,32 +280,21 @@ module bc
 
 
   !> compute T starting from h using tabellams
-  ! function h02T0(h0) result(T0)
-  !   use variables, only: h
-  !   implicit none
-  !   real(8), intent(in) :: h0
-  !   real(8) :: T0, dummy
-  !   integer :: n(2)
-  !   integer :: unitfile, ios, i, j, idum(2)
+  function h02T0(h0,h) result(T0)
+    implicit none
+    real(8), intent(in) :: h0
+    real(8), intent(in) :: h(:,:)
+    real(8) :: T0
+    integer :: n(2)
+    integer :: i
 
-  !   open(newunit=unitfile,file='tabellams.dat',iostat=ios,status='old',action='read')
-  !   if (ios/=0) open(unit=1,file='toAFFS/tabellams.dat',iostat=ios,status='old',action='read')
-  !   read(unitfile,*) n(1), n(2)
-  !   allocate(h(1:n(1),1:n(2)))
-  !   do i = 1, n(1)
-  !     do j = 1, n(2)
-  !       read(unitfile,*) idum(1), idum(2), h(i,j), dummy, dummy, dummy, dummy, dummy
-  !     enddo
-  !   enddo
-  !   close(unitfile)
+    do i = lbound(h, dim=2), ubound(h, dim=2)
+      if (h0<=h(1,i) .and. h0>h(1,i-1)) then
+        T0 = 1d0/(h(1,i)-(h(1,i-1))*(h0-(h(1,i-1))))+dble(i-1)
+        exit
+      endif
+    enddo
 
-  !   do i = 2, n(2)
-  !     if (h0<=h(1,i) .and. h0>h(1,i-1)) then
-  !       T0 = 1d0/(h(1,i)-(h(1,i-1))*(h0-(h(1,i-1))))+dble(i-1)
-  !       exit
-  !     endif
-  !   enddo
-
-  ! end function h02T0
+  end function h02T0
 
 end module bc
