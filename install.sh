@@ -146,6 +146,11 @@ while test $# -gt 0; do
         EXE="$2"
       fi
       COMPILE=T
+      if [ -n "$HYDRADIR" ]; then
+        Master=hydra
+      else
+        Master=None
+      fi
       ;;
 
     --setvars | -s )
