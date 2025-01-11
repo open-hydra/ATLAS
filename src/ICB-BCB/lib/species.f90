@@ -50,11 +50,11 @@ contains
           end if
       end do; end do
       ! Look for mixture presence
-      do j = 1, self%species%n
-        if (self%species%name(j)=='mixture') then
-          self%species%massf(j) = 1.0-ytot
+      do j = 1, species%n
+        if (species%name(j)=='mixture') then
+          species%massf(j) = 1.0-ytot
         else
-          self%species%massf(j) = self%species%massf(j) / ytot
+          species%massf(j) = species%massf(j) / ytot
         endif
       enddo
     elseif (sini%has_option(option_name='eq-pressure')) then
@@ -74,11 +74,11 @@ contains
           end if
       end do; end do
       ! Look for mixture presence
-      do j = 1, self%species%n
-        if (self%species%name(j)=='mixture') then
-          self%species%massf(j) = 1.0-ytot
+      do j = 1, species%n
+        if (species%name(j)=='mixture') then
+          species%massf(j) = 1.0-ytot
         else
-          self%species%massf(j) = self%species%massf(j) / ytot
+          species%massf(j) = species%massf(j) / ytot
         endif
       enddo
     else
