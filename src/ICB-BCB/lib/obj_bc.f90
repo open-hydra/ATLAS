@@ -194,17 +194,8 @@ module bc
       call sourceini%get(section_name=section,option_name='p0-time-file',val=chardummy,error=error)
       if (error==0) p0 = 1732
 
-      ! Assign species mass fractions and temperature (if equilibrium)
-      ! Chemical equilibrium input
+      ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
       call define_composition(sourceini, self%species, ytot, T0, p0)
-      ! Look for inertMix presence
-      do j = 1, self%species%n
-        if (self%species%name(j)=='inertMix') then
-          self%species%massf(j) = 1.0-ytot
-        else
-          self%species%massf(j) = self%species%massf(j) / ytot
-        endif
-      enddo
 
       if (h0/=0 .and. self%species%n>1) then
         error stop ("Not possible to assign h0 to a multispecies flow!")

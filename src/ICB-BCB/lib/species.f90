@@ -49,6 +49,14 @@ contains
             exit
           end if
       end do; end do
+      ! Look for mixture presence
+      do j = 1, self%species%n
+        if (self%species%name(j)=='mixture') then
+          self%species%massf(j) = 1.0-ytot
+        else
+          self%species%massf(j) = self%species%massf(j) / ytot
+        endif
+      enddo
     elseif (sini%has_option(option_name='eq-pressure')) then
     ! Use Cantera
       call write_KAnT_INI(sini)
@@ -65,6 +73,14 @@ contains
             exit
           end if
       end do; end do
+      ! Look for mixture presence
+      do j = 1, self%species%n
+        if (self%species%name(j)=='mixture') then
+          self%species%massf(j) = 1.0-ytot
+        else
+          self%species%massf(j) = self%species%massf(j) / ytot
+        endif
+      enddo
     else
     ! Direct address of mass fractions
       do while(sini%loop(section_name=section_name(1), option_pairs=item))
