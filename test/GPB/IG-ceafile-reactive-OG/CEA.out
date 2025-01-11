@@ -1,0 +1,305 @@
+
+ *******************************************************************************
+
+         NASA-GLENN CHEMICAL EQUILIBRIUM PROGRAM CEA2, MAY 21, 2004
+                   BY  BONNIE MCBRIDE AND SANFORD GORDON
+      REFS: NASA RP-1311, PART I, 1994 AND NASA RP-1311, PART II, 1996
+
+ *******************************************************************************
+
+
+
+  problem   case=MM3SS
+  rocket  equilibrium  nfz=1  tcest,k=3800
+  p,bar=30.543
+  sup,ae/at=   24.7999992
+  react
+  fuel=AL(cr) wt=15  t,k=298.15
+  oxid=NH4CLO4(I) wt=73  t,k=298.15
+  fuel=CTPB  wt=12  t,k=298.15
+  h,j/mol=-4250000  C 579.00 H 984.00 O 22.00 N 5.00
+  only
+  AL             ALCL            ALCL2           ALCL3           ALO
+  ALOCL  ALOH            CO              CO2     O2
+  CL             CL2             H               HCL             H2
+  H2O            NO              N2              O               OH
+  ALO2H  AL2O3(L)
+  output
+  siunits massf transport
+  end
+
+ OPTIONS: TP=F  HP=F  SP=F  TV=F  UV=F  SV=F  DETN=F  SHOCK=F  REFL=F  INCD=F
+ RKT=T  FROZ=T  EQL=T  IONS=F  SIUNIT=T  DEBUGF=F  SHKDBG=F  DETDBG=F  TRNSPT=T
+
+ TRACE= 0.00E+00  S/R= 0.000000E+00  H/R= 0.000000E+00  U/R= 0.000000E+00
+
+ Pc,BAR =    30.543000
+
+ Pc/P =
+
+ SUBSONIC AREA RATIOS =
+
+ SUPERSONIC AREA RATIOS =    24.8000
+
+ NFZ=  1  Mdot/Ac= 0.000000E+00  Ac/At= 0.000000E+00
+
+    REACTANT          WT.FRAC   (ENERGY/R),K   TEMP,K  DENSITY
+        EXPLODED FORMULA
+ F: AL(cr)           0.555556   0.496279E-05   298.15  0.0000
+          AL 1.00000
+ O: NH4CLO4(I)       1.000000  -0.355724E+05   298.15  0.0000
+          N  1.00000  H  4.00000  CL 1.00000  O  4.00000
+ F: CTPB             0.444444  -0.511155E+06   298.15  0.0000
+          C ********  H ********  O 22.00000  N  5.00000
+
+ WARNING!!  ALO2H           NOT A PRODUCT IN thermo.lib FILE (SEARCH)
+
+  SPECIES BEING CONSIDERED IN THIS SYSTEM
+ (CONDENSED PHASE MAY HAVE NAME LISTED SEVERAL TIMES)
+  LAST thermo.inp UPDATE:    9/09/04
+
+  g12/97  *AL              tpis96  ALCL             tpis96  ALCL2          
+  tpis96  ALCL3            tpis96  *ALO             tpis96  ALOCL          
+  tpis96  ALOH             tpis79  *CO              g 9/99  *CO2           
+  g 7/97  *CL              tpis89  CL2              g 6/97  *H             
+  tpis89  HCL              tpis78  *H2              g 8/89  H2O            
+  tpis89  *NO              tpis78  *N2              g 5/97  *O             
+  g 4/02  *OH              tpis89  *O2              tpis96  AL2O3(L)       
+
+ SPECIES WITH TRANSPORT PROPERTIES
+
+        PURE SPECIES
+
+  CO                CO2               CL2               H               
+  HCL               H2              
+  H2O               NO                N2                O               
+  OH                O2              
+
+     BINARY INTERACTIONS
+
+     CO              CO2             
+     CO              N2              
+     CO              O2              
+     CO2             H2              
+     CO2             H2O             
+     CO2             N2              
+     CO2             O2              
+     H               H2              
+     H               N2              
+     H               O               
+     H2              H2O             
+     H2              N2              
+     H2              O2              
+     H2O             N2              
+     H2O             O2              
+     NO              O               
+     N2              O               
+     N2              O2              
+     O               O2              
+
+
+ O/F =   2.703704
+
+                       EFFECTIVE FUEL     EFFECTIVE OXIDANT        MIXTURE
+ ENTHALPY                  h(2)/R              h(1)/R               h0/R
+ (KG-MOL)(K)/KG       -0.27148547E+02     -0.30277194E+03     -0.22835363E+03
+
+ KG-FORM.WT./KG             bi(2)               bi(1)               b0i
+  *AL                  0.20590211E-01      0.00000000E+00      0.55593569E-02
+  N                    0.26556102E-03      0.85114308E-02      0.62850459E-02
+  *H                   0.52262409E-01      0.34045723E-01      0.38964228E-01
+  *CL                  0.00000000E+00      0.85114308E-02      0.62133445E-02
+  *O                   0.11684685E-02      0.34045723E-01      0.25168864E-01
+  C                    0.30751966E-01      0.00000000E+00      0.83030309E-02
+
+ POINT ITN      T            AL          N           H           CL
+                    O           C 
+   1    8    2665.873     -14.420     -13.491      -9.481     -21.049
+                 -18.537     -13.509
+ ADD  AL2O3(L)       
+   1    6    3399.598     -18.070     -13.934      -9.661     -20.264
+                 -17.456     -14.226
+ Pinf/Pt = 1.730358
+   2    4    3217.859     -18.625     -14.098      -9.825     -20.589
+                 -17.850     -14.386
+ Pinf/Pt = 1.731608
+   2    2    3217.622     -18.626     -14.099      -9.825     -20.589
+                 -17.850     -14.386
+   3    5    1661.600     -30.059     -15.463     -11.201     -25.110
+                 -25.584     -13.332
+   3    3    1715.524     -29.251     -15.412     -11.150     -24.846
+                 -25.052     -13.502
+   3    1    1715.615     -29.250     -15.411     -11.150     -24.846
+                 -25.051     -13.502
+
+
+
+
+
+              THEORETICAL ROCKET PERFORMANCE ASSUMING EQUILIBRIUM
+
+           COMPOSITION DURING EXPANSION FROM INFINITE AREA COMBUSTOR
+
+ Pin =   443.0 PSIA
+ CASE = MM3SS          
+
+             REACTANT                    WT FRACTION      ENERGY      TEMP
+                                          (SEE NOTE)     KJ/KG-MOL      K  
+ FUEL        AL(cr)                       0.5555556         0.000    298.150
+ OXIDANT     NH4CLO4(I)                   1.0000000   -295767.000    298.150
+ FUEL        CTPB                         0.4444444  -4250000.000    298.150
+
+ O/F=    2.70370  %FUEL= 27.000000  R,EQ.RATIO= 1.571224  PHI,EQ.RATIO= 2.039806
+
+                 CHAMBER   THROAT     EXIT
+ Pinf/P            1.0000   1.7316   226.81
+ P, BAR            30.543   17.639  0.13466
+ T, K             3399.60  3217.62  1715.61
+ RHO, KG/CU M    3.0338 0 1.8690 0 2.7732-2
+ H, KJ/KG        -1898.65 -2433.95 -5851.94
+ U, KJ/KG        -2905.39 -3377.67 -6337.52
+ G, KJ/KG        -35271.3 -34020.2 -22693.5
+ S, KJ/(KG)(K)     9.8166   9.8166   9.8166
+
+ M, (1/n)          28.077   28.348   29.377
+ MW, MOL WT        26.144   26.339   27.159
+ (dLV/dLP)t      -1.02303 -1.01806 -1.00010
+ (dLV/dLT)p        1.4190   1.3413   1.0030
+ Cp, KJ/(KG)(K)    4.2555   3.8635   1.8289
+ GAMMAs            1.1326   1.1344   1.1843
+ SON VEL,M/SEC     1067.8   1034.7    758.3
+ MACH NUMBER        0.000    1.000    3.708
+
+ TRANSPORT PROPERTIES (GASES ONLY)
+   CONDUCTIVITY IN UNITS OF MILLIWATTS/(CM)(K)
+
+ VISC,MILLIPOISE   1.0125  0.97256  0.62398
+
+  WITH EQUILIBRIUM REACTIONS
+
+ Cp, KJ/(KG)(K)    4.5676   4.2761   1.9203
+ CONDUCTIVITY     12.8754  11.5617   2.1592
+ PRANDTL NUMBER    0.3592   0.3597   0.5549
+
+  WITH FROZEN REACTIONS
+
+ Cp, KJ/(KG)(K)    2.0215   2.0163   1.8391
+ CONDUCTIVITY      3.7842   3.5990   2.0219
+ PRANDTL NUMBER    0.5409   0.5449   0.5676
+
+ PERFORMANCE PARAMETERS
+
+ Ae/At                      1.0000   24.800
+ CSTAR, M/SEC               1579.4   1579.4
+ CF                         0.6551   1.7804
+ Ivac, M/SEC                1946.8   2984.6
+ Isp, M/SEC                 1034.7   2811.9
+
+
+ MASS FRACTIONS
+
+ *AL                6.9184782452E-05    3.1017677156E-05    0.0000000000E+00
+ ALCL               7.0231517386E-03    4.3908122042E-03    8.4670738055E-08
+ ALCL2              8.6903229704E-04    5.1042912218E-04    0.0000000000E+00
+ ALCL3              3.9423127815E-04    2.8740473854E-04    2.4173623135E-06
+ *ALO               3.5726861525E-04    1.6059527071E-04    0.0000000000E+00
+ ALOCL              1.4163731650E-03    8.5889537033E-04    0.0000000000E+00
+ ALOH               6.1531398614E-03    3.6249590539E-03    3.3033435446E-08
+ *CO                2.1017320651E-01    2.0939963069E-01    1.9109277779E-01
+ *CO2               3.5187866167E-02    3.6403309352E-02    6.5167056979E-02
+ *CL                2.2195241616E-02    1.8929453269E-02    1.5121288592E-04
+ CL2                7.7837102201E-05    5.5222545730E-05    1.1754816425E-07
+ *H                 1.4760274857E-03    1.2251413136E-03    8.3516433292E-06
+ HCL                1.9790743611E-01    2.0344050691E-01    2.2638671429E-01
+ *H2                1.6930517142E-02    1.7102374303E-02    1.8803283762E-02
+ H2O                1.3100087440E-01    1.3222588908E-01    1.2693000008E-01
+ *NO                1.3086101118E-03    8.6379682273E-04    1.1395280645E-07
+ *N2                8.7421900138E-02    8.7629536795E-02    8.8032699714E-02
+ *O                 8.9972252429E-04    5.5686409102E-04    3.7933954265E-09
+ *OH                1.0060925507E-02    7.4780033108E-03    6.6054952815E-06
+ *O2                6.0218723026E-04    3.7609615202E-04    0.0000000000E+00
+ AL2O3(L)           2.6847526622E-01    2.7445006193E-01    2.8341853100E-01
+
+  * THERMODYNAMIC PROPERTIES FITTED TO 20000.K
+
+    PRODUCTS WHICH WERE CONSIDERED BUT WHOSE MASS FRACTIONS
+    WERE LESS THAN 5.000000E-06 FOR ALL ASSIGNED CONDITIONS
+
+
+
+ NOTE. WEIGHT FRACTION OF FUEL IN TOTAL FUELS AND OF OXIDANT IN TOTAL OXIDANTS
+
+
+
+
+
+           THEORETICAL ROCKET PERFORMANCE ASSUMING FROZEN COMPOSITION
+
+ Pin =   443.0 PSIA
+ CASE = MM3SS          
+
+             REACTANT                    WT FRACTION      ENERGY      TEMP
+                                          (SEE NOTE)     KJ/KG-MOL      K  
+ FUEL        AL(cr)                       0.5555556         0.000    298.150
+ OXIDANT     NH4CLO4(I)                   1.0000000   -295767.000    298.150
+ FUEL        CTPB                         0.4444444  -4250000.000    298.150
+
+ O/F=    2.70370  %FUEL= 27.000000  R,EQ.RATIO= 1.571224  PHI,EQ.RATIO= 2.039806
+
+                 CHAMBER   THROAT     EXIT
+ Pinf/P            1.0000   1.7628   257.89
+ P, BAR            30.543   17.326  0.11844
+ T, K             3399.60  3112.11  1374.34
+ RHO, KG/CU M    3.0338 0 1.8800 0 2.9101-2
+ H, KJ/KG        -1898.65 -2444.94 -5605.68
+ U, KJ/KG        -2905.39 -3366.55 -6012.67
+ G, KJ/KG        -35271.3 -32995.4 -19097.0
+ S, KJ/(KG)(K)     9.8166   9.8166   9.8166
+
+ M, (1/n)          28.077   28.077   28.077
+ MW, MOL WT        26.144   26.144   26.144
+ Cp, KJ/(KG)(K)    1.9077   1.8924   1.7077
+ GAMMAs            1.1838   1.1855   1.2098
+ SON VEL,M/SEC     1091.7   1045.3    701.7
+ MACH NUMBER        0.000    1.000    3.880
+
+ TRANSPORT PROPERTIES (GASES ONLY)
+   CONDUCTIVITY IN UNITS OF MILLIWATTS/(CM)(K)
+
+ VISC,MILLIPOISE   1.0125  0.95113  0.53244
+
+  WITH FROZEN REACTIONS
+
+ Cp, KJ/(KG)(K)    2.0215   2.0006   1.7481
+ CONDUCTIVITY      3.7842   3.5018   1.6616
+ PRANDTL NUMBER    0.5409   0.5434   0.5602
+
+ PERFORMANCE PARAMETERS
+
+ Ae/At                     1.00000   24.800
+ CSTAR, M/SEC               1554.3   1554.3
+ CF                         0.6725   1.7518
+ Ivac, M/SEC                1927.0   2872.3
+ Isp, M/SEC                 1045.3   2722.9
+
+ MASS FRACTIONS
+
+ *AL             0.00007   ALCL            0.00702   ALCL2           0.00087
+ ALCL3           0.00039   *ALO            0.00036   ALOCL           0.00142
+ ALOH            0.00615   *CO             0.21017   *CO2            0.03519
+ *CL             0.02220   CL2             0.00008   *H              0.00148
+ HCL             0.19791   *H2             0.01693   H2O             0.13100
+ *NO             0.00131   *N2             0.08742   *O              0.00090
+ *OH             0.01006   *O2             0.00060   AL2O3(L)        0.26848
+
+  * THERMODYNAMIC PROPERTIES FITTED TO 20000.K
+
+    PRODUCTS WHICH WERE CONSIDERED BUT WHOSE MASS FRACTIONS
+    WERE LESS THAN 5.000000E-06 FOR ALL ASSIGNED CONDITIONS
+
+
+
+ NOTE. WEIGHT FRACTION OF FUEL IN TOTAL FUELS AND OF OXIDANT IN TOTAL OXIDANTS
+
+
+
