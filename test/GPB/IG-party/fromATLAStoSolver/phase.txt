@@ -1,4 +1,0 @@
-ideal-gas phase
-CEA-mixture 20.538741
-He 4.002602
-Manual-mixture 28.966846
