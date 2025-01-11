@@ -114,6 +114,16 @@ def IG_read_inert_species(ini_file,section):
   return species
 
 #
+def IG_read_mixture(ini_file,section):
+
+  mix_string = []
+  mix_entry = get(ini_file, section, 'mixture', str)
+  if '{' not in mix_entry: mix_entry = '{'+mix_entry+':1.0}'
+  mix_string.append(mix_entry)
+
+  return mix_string
+
+#
 def IG_read_fixgas(ini_file,section):
 
   ecp = ecv = egamma = eR = ew = emil = ekl = 0

@@ -161,7 +161,7 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                 viscosity[sp] = viscosity_aux[sp]
                 conductivity[sp] = conductivity_aux[sp]
         else:
-            mix_name = 'inertMix'
+            mix_name = solution.name
             species_names.append(mix_name)
             for i, T in enumerate(temperatures):
                 solution.TP = T, ct.one_atm

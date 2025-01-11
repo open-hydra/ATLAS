@@ -65,7 +65,7 @@ def compute_properties(name,T_low, T_max, all_solutions):
 
         else:
             # Just one inert mixture
-            mix_name = 'inertMix'
+            mix_name = solution.name
             species_names.append(mix_name)
             mass_dcp_values[mix_name] = []
             mass_cp_values[mix_name] = []

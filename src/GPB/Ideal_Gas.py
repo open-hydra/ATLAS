@@ -2,10 +2,11 @@ import cantera as ct
 import IG_IO, IO_Legacy
 import IG_transport
 import IG_thermo
+from phase_tools import update_thermo_model
 from equilibrium import equilibrium
 from Read_INI import *
 from NewCEA import CEA
-import os, sys
+import os, sys, re
 
 masterpath = os.environ.get("ATLASDIR")
 if masterpath is None:
@@ -34,16 +35,20 @@ def build(inifile,section):
     1. Initializes variables and reads input parameters from the INI file.
     2. Determines if and which equilibrium to use (Cantera/CEA).
     3. Loads the thermo and transport models if the phase model is not specified.
-    4. Builds the ideal-gas phase using the loaded species.
-    5. Adds reactive species if a reaction model is provided.
-    6. Performs Cantera equilibrium calculation if applicable.
-    7. Performs CEA equilibrium calculation if applicable.
-    8. Adds manually specified inert species.
-    9. Adds constant-Cp species if specified.
-    10. Checks the heavy-gas condition and adjusts species accordingly.
-    11. Computes thermodynamic properties.
-    12. Computes transport properties.
-    13. Writes chemistry properties if a reaction model is provided.
+    4. Builds the ideal-gas phases using the loaded species.
+    5. Checks the heavy-gas condition and adjusts species accordingly.
+    6. Computes thermodynamic properties and write them.
+    7. Computes transport properties and write them.
+    8. Writes chemistry properties if a reaction model is provided.
+
+    The ideal-gas phases are built as follows:
+    1. Direct address of a phase solution.
+    2. Reactive species if a reaction model is provided.
+    3. Manual inert species.
+    4. Constant-Cp species.
+    5. Mixtures.
+    6. Cantera equilibrium calculation if applicable.
+    7. CEA equilibrium calculation if applicable.
     """
 
     # ---------------------------------------------------
@@ -64,6 +69,7 @@ def build(inifile,section):
     inerts_mixing, HG   = IG_read_options(inifile,section)
     inputCEA            = read_eq_CEA(inifile,section,cea)
     inputCTE            = read_eq_cantera(inifile,section)
+    mix                 = IG_read_mixture(inifile,section)
 
     name, T1, T2, phase_model, thermo_model, transport_model, reaction_model = inputModels
 
@@ -150,7 +156,7 @@ def build(inifile,section):
                 combined_species.append(raw_mechanism.species(species_name))
         # Create the custom mechanism
         mechanism = ct.Solution(thermo='ideal-gas',kinetics='gas',species=combined_species,reactions=raw_mechanism.reactions())
-        mechanism.name = 'reactive species'
+        mechanism.name = 'reactive-species'
         mechanism.transport_model = raw_mechanism.transport_model
         species_group.append(mechanism)
     # ---------------------------------------------------
@@ -172,9 +178,9 @@ def build(inifile,section):
             cte_phase = ct.Solution(thermo='ideal-gas', species=cte_species, transport='mixture-averaged')
             # Name the new phase based on whether inert mixing is considered
             if inerts_mixing:
-                cte_phase.name = 'ct-eq mixture'
+                cte_phase.name = 'cte-mixture'
             else:
-                cte_phase.name = 'ct-eq species'
+                cte_phase.name = 'cte-species'
             # Extract mass fractions for the species in the original solution
             mass_fractions = []
             for s in cte_solution.species_names:
@@ -201,9 +207,9 @@ def build(inifile,section):
         if CEA_species != []:
             CEA_phase = ct.Solution(thermo='ideal-gas', species=CEA_species, transport='mixture-averaged')
             if (inerts_mixing):
-                CEA_phase.name = 'CEA mixture'
+                CEA_phase.name = 'CEA-mixture'
             else:
-                CEA_phase.name = 'CEA species'
+                CEA_phase.name = 'CEA-species'
             # Create a dictionary mapping species names to their mass fractions
             cea_massf_dict = dict(zip(cea.SE.species.name, cea.SE.species.massf))
             # Get a list of species in the Cantera phase
@@ -237,7 +243,7 @@ def build(inifile,section):
             manual_inert_species = [s for s in manual_inert_species if s.name not in cea.SE.species.name]
         if manual_inert_species != []:
             manual_inert_phase = ct.Solution(thermo='ideal-gas',species=manual_inert_species)
-            manual_inert_phase.name = 'Manual inert species'
+            manual_inert_phase.name = 'Manual-inert-species'
             manual_inert_phase.transport_model = 'mixture-averaged'
             species_group.append(manual_inert_phase)
     # ---------------------------------------------------
@@ -261,6 +267,27 @@ def build(inifile,section):
         species_group.append(fixgas_phase)
     # ---------------------------------------------------
 
+    # ---------------------------------------------------
+    # Mixtures
+    if mix is not None:
+        print(' -- Found mixture')
+        mix_composition = re.findall(r'{(.*?):(.*?)}', mix[0])
+        mix_dict = {species: float(value) for species, value in mix_composition}
+        selected_species = [sp for sp in all_species if sp.name in mix_dict]
+        # Get transport properties
+        transport_species_list = ct.Species.list_from_file('Lennard-Jones.yaml')
+        transport_species_dict = {sp.name: sp for sp in transport_species_list}
+        for s in selected_species:
+            if s.name in transport_species_dict:
+                s.transport = transport_species_dict[s.name].transport
+            else:
+                print(f"No transport data found for species: {s.name}")
+        mix_phase = ct.Solution(thermo='ideal-gas',species=selected_species)
+        mix_phase.transport_model = 'mixture-averaged'
+        mix_phase.TPY = 313.0, ct.one_atm, mix_dict
+        mix_phase.name = 'Manual-mixture'
+        species_group.append(mix_phase)
+    # ---------------------------------------------------
 
     # ---------------------------------------------------
     # Check the heavy-gas condition
