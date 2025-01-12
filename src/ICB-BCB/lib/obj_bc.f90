@@ -190,10 +190,6 @@ module bc
       call sourceini%get(section_name=section, option_name='rhoRij',val=rhoRij, error=error)
       if (error/=0) rhoRij = 0.0
 
-      ! Time bc
-      call sourceini%get(section_name=section,option_name='p0-time-file',val=chardummy,error=error)
-      if (error==0) p0 = 1732
-
       ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
       call define_composition(sourceini, self%species, ytot, T0, p0)
 
@@ -202,6 +198,10 @@ module bc
       elseif (h0/=0 .and. self%species%n==1) then
         T0 = h02T0(h0,self%species%h)
       endif
+
+      ! Time bc
+      call sourceini%get(section_name=section,option_name='p0-time-file',val=chardummy,error=error)
+      if (error==0) p0 = 1732
 
       !> Choose between total temperature and static one
       if (nmach<0.0 .and. T>0) nmach = -5.0
