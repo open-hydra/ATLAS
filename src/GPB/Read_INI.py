@@ -118,6 +118,8 @@ def IG_read_mixture(ini_file,section):
 
   mix_string = []
   mix_entry = get(ini_file, section, 'mixture', str)
+  if mix_entry is None:
+   return None
   if '{' not in mix_entry: mix_entry = '{'+mix_entry+':1.0}'
   mix_string.append(mix_entry)
 
