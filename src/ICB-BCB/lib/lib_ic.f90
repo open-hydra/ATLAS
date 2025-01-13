@@ -129,7 +129,7 @@ module lib_ic
     character(len=llen)           :: OMF, OFF, OSF
     integer                       :: oldid
     character(len=20)             :: type
-    real(8)                       :: ytot=0.0, range(6)
+    real(8)                       :: range(6)
     character(len=3)              :: dirID
     integer                       :: dirSize
     integer, allocatable          :: dir(:)
@@ -209,7 +209,7 @@ module lib_ic
       self%species%massf = 1d-20
 
       ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
-      call define_composition(zoneini, self%species, ytot, T0, p0)
+      call define_composition(zoneini, self%species, T0, p0)
 
       if (.not.allocated(self%density)) then
         allocate(self%density(self%species%n,1:self%dim(1),1:self%dim(2),1:self%dim(3)))

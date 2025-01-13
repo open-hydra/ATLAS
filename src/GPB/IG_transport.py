@@ -161,7 +161,7 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                 viscosity[sp] = viscosity_aux[sp]
                 conductivity[sp] = conductivity_aux[sp]
         else:
-            if 'CEA' in solution.name and 'cte' in solution.name:
+            if 'CEA' in solution.name or 'cte' in solution.name:
                 mix_name = solution.name
             else:
                 mix_name = solution.name[:-7]

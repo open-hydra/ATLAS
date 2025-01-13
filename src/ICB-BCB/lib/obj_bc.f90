@@ -150,11 +150,11 @@ module bc
     subroutine assemble_the_monster
       use species
       implicit none
-      logical                        :: found_CEA
+      logical                        :: found_CEA, force_inflow
       integer                        :: error, j
       character(len=200)             :: chardummy
       ! Ideal gas
-      real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, ytot, mit, kappa, omega, rhoRij
+      real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij
       ! Condensed-phase
       integer :: cp_scaling
       real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:)
@@ -162,7 +162,8 @@ module bc
 
       ! Ideal gas bc
       found_cea = .false.
-      nmach = 0.0; ytot = 0.0; p0 = 0.0
+      nmach = 0.0; p0 = 0.0; force_inflow = .false.
+      call sourceini%get(section_name=section, option_name='force-inflow', val=force_inflow,    error=error)
       call sourceini%get(section_name=section, option_name='mach', val=mach,    error=error)
       if (error==0) nmach = mach
       call sourceini%get(section_name=section, option_name='p0',   val=p0,      error=error)
@@ -191,7 +192,7 @@ module bc
       if (error/=0) rhoRij = 0.0
 
       ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
-      call define_composition(sourceini, self%species, ytot, T0, p0)
+      call define_composition(sourceini, self%species, T0, p0)
 
       if (h0/=0 .and. self%species%n>1) then
         error stop ("Not possible to assign h0 to a multispecies flow!")
@@ -202,6 +203,9 @@ module bc
       ! Time bc
       call sourceini%get(section_name=section,option_name='p0-time-file',val=chardummy,error=error)
       if (error==0) p0 = 1732
+
+      ! Force inflow
+      if (force_inflow) pstatic = -3.14d-5
 
       !> Choose between total temperature and static one
       if (nmach<0.0 .and. T>0) nmach = -5.0
