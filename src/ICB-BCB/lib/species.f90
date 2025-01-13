@@ -51,10 +51,8 @@ contains
       end do; end do
       ! Look for mixture presence
       do j = 1, species%n
-        if (species%name(j)=='mixture') then
+        if (species%name(j)=='CEA-mixture') then
           species%massf(j) = 1.0-ytot
-        else
-          species%massf(j) = species%massf(j) / ytot
         endif
       enddo
     elseif (sini%has_option(option_name='eq-pressure')) then
@@ -75,27 +73,23 @@ contains
       end do; end do
       ! Look for mixture presence
       do j = 1, species%n
-        if (species%name(j)=='mixture') then
+        if (species%name(j)=='cte-mixture') then
           species%massf(j) = 1.0-ytot
-        else
-          species%massf(j) = species%massf(j) / ytot
-        endif
-      enddo
-    else
-    ! Direct address of mass fractions
-      do while(sini%loop(section_name=section_name(1), option_pairs=item))
-        if (index(item(1),'y')/=0) then
-          name = item(1); name = name(2:20)
-          do j = 1, species%n
-            if (trim(name)==trim(species%name(j))) then
-              read(item(2),'(D12.5)') species%massf(j)
-              ytot = ytot+species%massf(j)
-              exit
-            end if
-          end do
         endif
       enddo
     endif
+    ! Direct address of mass fractions
+    do while(sini%loop(section_name=section_name(1), option_pairs=item))
+      if (index(item(1),'y')/=0) then
+        name = item(1); name = name(2:20)
+        do j = 1, species%n
+          if (trim(name)==trim(species%name(j))) then
+            read(item(2),'(D12.5)') species%massf(j)
+            exit
+          end if
+        end do
+      endif
+    enddo
 
     if (species%n==1) species%massf(1) = 1.0
 
