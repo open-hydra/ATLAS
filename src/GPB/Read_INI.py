@@ -123,7 +123,11 @@ def IG_read_mixture(ini_file,section):
   if '{' not in mix_entry: mix_entry = '{'+mix_entry+':1.0}'
   mix_string.append(mix_entry)
 
-  return mix_string
+  mix_name = get(ini_file, section, 'mixture-name', str)
+  if mix_name is None:
+   mix_name = 'mix'
+
+  return mix_string, mix_name
 
 #
 def IG_read_fixgas(ini_file,section):

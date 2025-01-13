@@ -69,7 +69,7 @@ def build(inifile,section):
     inerts_mixing, HG   = IG_read_options(inifile,section)
     inputCEA            = read_eq_CEA(inifile,section,cea)
     inputCTE            = read_eq_cantera(inifile,section)
-    mix                 = IG_read_mixture(inifile,section)
+    inputMix            = IG_read_mixture(inifile,section)
 
     name, T1, T2, phase_model, thermo_model, transport_model, reaction_model = inputModels
 
@@ -269,8 +269,9 @@ def build(inifile,section):
 
     # ---------------------------------------------------
     # Mixtures
-    if mix is not None:
+    if inputMix is not None:
         print(' -- Found mixture')
+        mix, mix_name = inputMix
         mix_composition = re.findall(r'{(.*?):(.*?)}', mix[0])
         mix_dict = {species: float(value) for species, value in mix_composition}
         selected_species = [sp for sp in all_species if sp.name in mix_dict]
@@ -285,7 +286,7 @@ def build(inifile,section):
         mix_phase = ct.Solution(thermo='ideal-gas',species=selected_species)
         mix_phase.transport_model = 'mixture-averaged'
         mix_phase.TPY = 313.0, ct.one_atm, mix_dict
-        mix_phase.name = 'Manual-mixture'
+        mix_phase.name = mix_name+'mixture'
         species_group.append(mix_phase)
     # ---------------------------------------------------
 
