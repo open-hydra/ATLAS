@@ -1,3 +1,17 @@
+module phase_module
+  use species
+  implicit none
+
+  type, public :: phase_type
+    character(len=2)        :: type
+    character(len=128)      :: name
+    integer, allocatable    :: npCP(:)
+    integer                 :: nmat
+    type(obj_species)       :: species
+  end type phase_type
+
+end module phase_module
+
 module species
   use CEA_module
   implicit none
@@ -81,7 +95,7 @@ contains
     endif
     ! Direct address of mass fractions
     do while(sini%loop(section_name=section_name(1), option_pairs=item))
-      if (index(item(1),'y')/=0) then
+      if (index(item(1),'y')/=0 .and. item(1)/='type') then
         name = item(1); name = name(2:20)
         do j = 1, species%n
           if (trim(name)==trim(species%name(j))) then

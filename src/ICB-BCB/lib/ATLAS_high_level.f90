@@ -1,6 +1,6 @@
   module ATLAS_high_level
     use TOM
-    use species
+    use phase_module
     use bc
     implicit none
     private
@@ -35,18 +35,12 @@
       real(8), dimension(:), allocatable:: properties
       ! Misc
       type(phase_type), dimension(:), allocatable :: associated_phase
-      type(obj_species) :: species
     contains
       private
       procedure, pass(self), public :: free
       procedure, pass(self), public :: allocate
       procedure, pass(self), public :: compute_face_centers
     end type ATLAS_block
-
-    type, public :: phase_type
-      character(len=2)    :: type
-      character(len=128)  :: name
-    end type phase_type
 
 contains
 

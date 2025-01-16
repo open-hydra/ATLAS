@@ -8,7 +8,4 @@ module variables
   ! Gas-phase | Turbulent variables number
   integer:: nrans=0
 
-  ! Dispersed-phase | Groups number
-  integer:: npCP=1
-
 end module variables 

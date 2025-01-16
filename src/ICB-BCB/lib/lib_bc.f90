@@ -1,6 +1,7 @@
 module lib_bc
   use finer, only: file_ini
   use species, only: obj_species
+  use phase_module, only: phase_type
   use ATLAS_high_level
   use bc
   use chimera
@@ -15,7 +16,7 @@ module lib_bc
 
   subroutine build_BC(phase,sini,blocks)
     use TOM, only: delthe
-    use variables, only: nrans, npCP
+    use variables, only: nrans
     use strings, only: parse
     use ATLAS_IO, only: read_idealgas_properties
     implicit none
@@ -30,7 +31,7 @@ module lib_bc
     character(len=4)               :: ind, indb, dirID
     character(len=2)               :: patchdirection
     character(len=50)              :: patchname, section_name
-    integer                        :: ff, n, m, p, b
+    integer                        :: ff, n, m, p, b, pIG
     real(8)                        :: patchrange(4)
     character(len=30)              :: wholestring, args(3), phase_name
 
@@ -53,23 +54,30 @@ module lib_bc
         p = count(args /= '')
         allocate(block%associated_phase(1:p))
         block%associated_phase%name = args(1:p)
+        do m = 1, p
+          do n = 1, size(phase)
+            if (block%associated_phase(m)%name==phase(n)%name) &
+              block%associated_phase(m) = phase(n)
+          enddo
+        enddo
       endif
 
-      ! Check phase name
-      if (block%associated_phase(1)%name=='') then
-        phase_name = ''
-      else
-        phase_name = trim(block%associated_phase(1)%name)//'-'
-      endif
 
       ! Read phase properties (if any)
-      if (block%associated_phase(1)%type=='IG') then
-        call read_idealgas_properties(trim(phase_name),block%species)
-      else
-        block%species%n = 0
-      endif
-      if (.not.allocated(block%species%massf)) allocate(block%species%massf(1:block%species%n))
-      block%species%massf = 1d-20
+      do p = 1, size(block%associated_phase)
+        if (block%associated_phase(p)%name=='') then
+          phase_name = ''
+        else
+          phase_name = trim(block%associated_phase(p)%name)//'-'
+        endif
+        if (block%associated_phase(p)%type=='IG') then
+          pIG = p
+          call read_idealgas_properties(trim(phase_name),block%associated_phase(p)%species)
+        endif
+        if (.not.allocated(block%associated_phase(p)%species%massf)) &
+        allocate(block%associated_phase(p)%species%massf(1:block%associated_phase(p)%species%n))
+        block%associated_phase(p)%species%massf = 1d-20
+      enddo
     
       !> Look for faces bc definition
       do ff = 1, 6
@@ -133,7 +141,9 @@ module lib_bc
               enddo
               call patchini%add(section_name='face', option_name='range', val=patchrange)
               call patchini%add(section_name='face', option_name='direction', val=patchdirection)
-              call build_cell(b,ff,block%face(ff),nrans,patchini,block%species)
+              do m = 1, size(block%associated_phase)
+                call build_cell(b,ff,block%face(ff),nrans,patchini,block%associated_phase(m))
+              enddo
             enddo
           endif
         
@@ -144,23 +154,31 @@ module lib_bc
           if (error==0) cell_dependent=.true.
           if (cell_dependent) then
             write(*,*)' Face n. = ', ff, ' -> ', trim(block%face(ff)%bc%name), ' = single patch with varying properties'
-            call build_cell(b,ff,block%face(ff),nrans,faceini,block%species)
+            do m = 1, size(block%associated_phase)
+              call build_cell(b,ff,block%face(ff),nrans,faceini,block%associated_phase(m))
+            enddo
           else
             write(*,*)' Face n. = ', ff, ' -> ', trim(block%face(ff)%bc%name), ' = single patch'
-            call block%face(ff)%bc%build(nrans,faceini,'face',block%species)
+            do m = 1, size(block%associated_phase)
+              call block%face(ff)%bc%build(nrans,faceini,'face',block%associated_phase(m))
+            enddo
             do n = 1, block%face(ff)%Nn
               do m = 1, block%face(ff)%Nm
                 allocate(block%face(ff)%center(m,n)%bc%properties(1:block%face(ff)%bc%nproperties))
-                allocate(block%face(ff)%center(m,n)%bc%cp_properties(1:npCP,1:nCP))
                 block%face(ff)%center(m,n)%bc%adj_assigned = .false.
                 block%face(ff)%center(m,n)%bc%nproperties = block%face(ff)%bc%nproperties
-                block%face(ff)%center(m,n)%bc%cp_nproperties = block%face(ff)%bc%cp_nproperties
                 block%face(ff)%center(m,n)%bc%connection = block%face(ff)%bc%connection
                 block%face(ff)%center(m,n)%bc%definition = block%face(ff)%bc%definition
                 block%face(ff)%center(m,n)%bc%properties = block%face(ff)%bc%properties
-                block%face(ff)%center(m,n)%bc%cp_properties = block%face(ff)%bc%cp_properties
                 block%face(ff)%center(m,n)%bc%species%n = block%face(ff)%bc%species%n
-                block%face(ff)%center(m,n)%bc%species%massf = block%face(ff)%bc%species%massf
+                if (block%face(ff)%bc%species%n>0) &
+                  block%face(ff)%center(m,n)%bc%species%massf = block%face(ff)%bc%species%massf
+                if (allocated(block%face(ff)%bc%cp_properties)) then
+                  allocate(block%face(ff)%center(m,n)%bc%cp_properties &
+                                          (size(block%face(ff)%bc%cp_properties,1),size(block%face(ff)%bc%cp_properties,2),size(block%face(ff)%bc%cp_properties,3)))
+                  block%face(ff)%center(m,n)%bc%cp_nproperties = block%face(ff)%bc%cp_nproperties
+                  block%face(ff)%center(m,n)%bc%cp_properties = block%face(ff)%bc%cp_properties
+                endif
               enddo
             enddo
           endif
@@ -174,13 +192,13 @@ module lib_bc
   end subroutine build_BC
 
 
-  subroutine build_cell(b,f,face,nrans,ini_i,species)
+  subroutine build_cell(b,f,face,nrans,ini_i,phase)
     implicit none
     integer, intent(in)            :: b, f
     type(obj_face)                 :: face
     type(file_ini), intent(in)     :: ini_i
     type(file_ini)                 :: ini_o
-    type(obj_species), intent(in)  :: species
+    type(phase_type), intent(in)   :: phase
     integer, intent(in)            :: nrans
     real(8), parameter             :: pi=4.0*atan(1.0)
     integer                        :: error, ios, iosold, length, width, cnt_bc=0
@@ -276,6 +294,11 @@ module lib_bc
       varname = 'g'; found = .true.
     endif
 
+    call ini_o%get(section_name='cell', option_name='krho-file', val=infile, error=error)
+    if (error==0) then
+      varname = 'krho'; found = .true.
+    endif
+
     !> Check if the file is in free-format or Tecplot-format
     if (found(1)) then
       if (index(infile,'.tec')>0) then
@@ -326,7 +349,7 @@ module lib_bc
             if (here(1)>range(1) .and. here(1)<=range(2)) then
               cnt_bc = cnt_bc+1
               face%center(m,n)%bc%definition = type_
-              call face%center(m,n)%bc%build(nrans,ini_o,'cell',species)
+              call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
             endif
         enddo; enddo
       !> Two dimensional variaton
@@ -386,7 +409,7 @@ module lib_bc
                 here(2)>=range(3) .and. here(2)<=range(4)) then
               cnt_bc = cnt_bc+1
               face%center(m,n)%bc%definition = type_
-              call face%center(m,n)%bc%build(nrans,ini_o,'cell',species)
+              call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
             endif
         enddo; enddo
       end select
@@ -432,7 +455,7 @@ module lib_bc
               cnt_bc = cnt_bc+1
               call ini_o%add(section_name='cell', option_name=trim(varname), val=var)
               face%center(m,n)%bc%definition = type_
-              call face%center(m,n)%bc%build(nrans,ini_o,'cell',species)
+              call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
             endif
       enddo; enddo
 
@@ -479,7 +502,7 @@ module lib_bc
       do n = ni, ne
         do m = mi, me
           face%center(m,n)%bc%definition = type_
-          call face%center(m,n)%bc%build(nrans,ini_o,'cell',species)
+          call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
         enddo
       enddo
 

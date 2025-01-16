@@ -1,5 +1,5 @@
 module bc
-  use species
+  use phase_module
   use intersection_module
   use variables
   implicit none
@@ -20,7 +20,7 @@ module bc
     type(obj_species):: species
     ! Condensed phase
     integer:: cp_nproperties
-    real(8), dimension(:,:), allocatable:: cp_properties
+    real(8), dimension(:,:,:), allocatable:: cp_properties
   contains
     procedure,  pass(self):: build
   end type obj_bc_cellface_properties
@@ -34,31 +34,37 @@ module bc
 
 
   !> obj_bc : define n properties depending on bc type
-  subroutine build(self,nrans,sourceini,section,species)
+  subroutine build(self,nrans,sourceini,section,phase)
     use finer, only: file_ini
     implicit none
-    class(obj_bc_cellface_properties), intent(inout)  :: self
-    type(obj_species), intent(in)                     :: species
-    type(file_ini), intent(in)                        :: sourceini
-    integer, intent(in)                               :: nrans
-    character(len=4)                                  :: section
+    class(obj_bc_cellface_properties), intent(inout) :: self
+    type(phase_type), intent(in)                     :: phase
+    type(file_ini), intent(in)                       :: sourceini
+    integer, intent(in)                              :: nrans
+    character(len=4)                                 :: section
 
     !% General
     self%connection = 0
     self%adj_assigned = .false.
-
-    !% Ideal gas
     self%nproperties = nIG+nrans
     if (.not.allocated(self%properties) )allocate(self%properties(1:self%nproperties))
     self%properties = 0.d0
-    self%species = species
+    self%cp_nproperties = 0
+
+    select case(phase%type)
+    !% Ideal gas
+    case('IG')
+    self%species = phase%species
     if (.not.allocated(self%species%massf)) allocate(self%species%massf(1:self%species%n))
     self%species%massf = 1d-20
 
     !% Condensed phase
-    self%cp_nproperties = nCP
-    if (.not.allocated(self%cp_properties)) allocate(self%cp_properties(1:npCP,1:nCP))
-    self%cp_properties = 1d0
+    case('CD')
+      self%cp_nproperties = nCP
+      if (.not.allocated(self%cp_properties)) &
+        allocate(self%cp_properties(1:phase%nmat,1:maxval(phase%npCP(:)),1:nCP))
+      self%cp_properties = 1d0
+    end select
 
     select case(self%definition)
     case(1);  self%properties = 0.
@@ -113,7 +119,7 @@ module bc
 
       call sourceini%get(section_name=section, option_name='SF', val=self%properties(1), error=error)
       !if (error==0) print *, ' SF: ', self%properties(1)
-      if (nCP>0) self%cp_properties(1:npCP,1) = self%properties(1)
+      if (nCP>0) self%cp_properties(:,:,1) = self%properties(1)
 
     end subroutine assigne_SF
 
@@ -148,10 +154,10 @@ module bc
     end subroutine assigne_halfPeriodicInfo
 
     subroutine assemble_the_monster
-      use species
+      use species, only: define_composition
       implicit none
       logical                        :: found_CEA, force_inflow
-      integer                        :: error, j
+      integer                        :: error, m, npCP
       character(len=200)             :: chardummy
       ! Ideal gas
       real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij
@@ -230,7 +236,8 @@ module bc
       endif
 
       ! Condensed-phase bc
-      if (npCP>0) then
+      do m = 1, phase%nmat
+        npCP = phase%npCP(m)
         cp_scaling = 1
         allocate(kr(1:npCP)); kr = 0d0; call sourceini%get(section_name=section, option_name='krho',val=kr,error=error)
         if (error==0) cp_scaling = 0
@@ -254,20 +261,20 @@ module bc
         allocate(betap(1:npCP)); betap = 0d0
         call sourceini%get(section_name=section, option_name='betap',val=betap,error=error)
 
-        self%cp_properties(:,1) = dble(cp_scaling)
+        self%cp_properties(m,1:npCP,1) = dble(cp_scaling)
         if (cp_scaling==0) then
-          self%cp_properties(:,2) = kr
-          self%cp_properties(:,3) = ku
-          self%cp_properties(:,6) = kt
+          self%cp_properties(m,1:npCP,2) = kr
+          self%cp_properties(m,1:npCP,3) = ku
+          self%cp_properties(m,1:npCP,6) = kt
         else
-          self%cp_properties(:,2) = rhop
-          self%cp_properties(:,3) = mvp
-          self%cp_properties(:,6) = Tp
+          self%cp_properties(m,1:npCP,2) = rhop
+          self%cp_properties(m,1:npCP,3) = mvp
+          self%cp_properties(m,1:npCP,6) = Tp
         endif
-        self%cp_properties(:,4) = alphap
-        self%cp_properties(:,5) = betap
-        self%cp_properties(:,7) = rp
-      endif
+        self%cp_properties(m,1:npCP,4) = alphap
+        self%cp_properties(m,1:npCP,5) = betap
+        self%cp_properties(m,1:npCP,7) = rp
+      enddo
 
     end subroutine assemble_the_monster
 
@@ -280,7 +287,6 @@ module bc
     real(8), intent(in) :: h0
     real(8), intent(in) :: h(:,:)
     real(8) :: T0
-    integer :: n(2)
     integer :: i
 
     do i = lbound(h, dim=2), ubound(h, dim=2)

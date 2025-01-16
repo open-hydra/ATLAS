@@ -15,7 +15,7 @@ module lib_ic
   contains
 
   subroutine build_IC(phase,sini,blocks)
-    use species, only: obj_species
+    use phase_module, only: phase_type
     use ATLAS_IO, only: read_idealgas_properties
     use strings, only: parse
     implicit none
@@ -26,7 +26,7 @@ module lib_ic
     character(len=30)             :: zonename, section_name
     character(len=:), allocatable :: option_pairs(:)
     type(file_ini)                :: zoneini
-    integer                       :: b, p, error, error_zone
+    integer                       :: i, j, b, p, error, error_zone
     character(len=4)              :: indb, ind
     character(len=4)              :: zonedirection
     real(8)                       :: zonerange(4)
@@ -43,28 +43,32 @@ module lib_ic
         allocate(block%associated_phase(1:size(phase)))
         block%associated_phase = phase
       else
-        allocate(block%associated_phase(1))
-        do p = 1, size(phase)
-          if (phase(p)%name==trim(wholestring)) then
-            block%associated_phase(1) = phase(p)
-            exit
-          endif
+        call parse(wholestring,' ',args)
+        p = count(args /= '')
+        allocate(block%associated_phase(1:p))
+        block%associated_phase%name = args(1:p)
+        do j = 1, p
+          do i = 1, size(phase)
+            if (block%associated_phase(j)%name==phase(i)%name) &
+              block%associated_phase(j) = phase(i)
+          enddo
         enddo
       endif
 
-      ! Check phase name
-      if (block%associated_phase(1)%name=='') then
-        phase_name = ''
-      else
-        phase_name = trim(block%associated_phase(1)%name)//'-'
-      endif
-
       ! Read phase properties (if any)
-      if (block%associated_phase(1)%type=='IG') then
-        call read_idealgas_properties(trim(phase_name),block%species)
-        if (.not.allocated(block%species%massf)) allocate(block%species%massf(1:block%species%n))
-        block%species%massf = 1d-20
-      endif
+      do p = 1, size(block%associated_phase)
+        if (block%associated_phase(p)%name=='') then
+          phase_name = ''
+        else
+          phase_name = trim(block%associated_phase(p)%name)//'-'
+        endif
+        if (block%associated_phase(p)%type=='IG') then
+          call read_idealgas_properties(trim(phase_name),block%associated_phase(p)%species)
+        endif
+        if (.not.allocated(block%associated_phase(p)%species%massf)) &
+        allocate(block%associated_phase(p)%species%massf(1:block%associated_phase(p)%species%n))
+        block%associated_phase(p)%species%massf = 1d-20
+      enddo
 
       call sini%get(section_name=section_name, option_name='type', val=block%type, error=error)
       if (error/=0) block%type = 'homogeneous'
@@ -88,7 +92,7 @@ module lib_ic
           enddo
           call zoneini%add(section_name='zone', option_name='range', val=zonerange)
           call zoneini%add(section_name='zone', option_name='direction', val=zonedirection)
-          call build_field(b,block,zoneini,block%associated_phase(1)%type)
+          call build_field(b,block,zoneini)
         enddo
       else
         call zoneini%free
@@ -96,7 +100,7 @@ module lib_ic
         do while (sini%loop(section_name=section_name, option_pairs=option_pairs))
           call zoneini%add(section_name='zone', option_name=option_pairs(1), val=option_pairs(2))
         enddo
-        call build_field(b,block,zoneini,block%associated_phase(1)%type)
+        call build_field(b,block,zoneini)
       endif
 
       write(*,*)' Block n. = ', b, ' -> ', block%type
@@ -106,21 +110,18 @@ module lib_ic
   end subroutine build_IC
 
 
-  !> Builds the field for a given block based on the provided zone initialization and phase type.
-  !! @param self The block object to be initialized.
-  !! @param zoneini The zone initialization object containing configuration data.
-  !! @param phase The type of phase (e.g., 'IG' for ideal gas).
-  subroutine build_field(b,self,zoneini,phase)
+  subroutine build_field(b,self,zoneini)
     use variables, only: nrans
     use Interpolator
-    use species, only: define_composition
+    use species
     implicit none
     integer, intent(in)               :: b
     class(ATLAS_block), intent(inout) :: self
     type(file_ini), intent(in)        :: zoneini
-    character(len=2), intent(in)      :: phase
+    character(len=2)              :: phase
+    type(obj_species)             :: sp
     logical                       :: found(5)
-    integer                       :: throat_cell, i, ib1, ib2, ip, j, s, k, error
+    integer                       :: throat_cell, pi, i, ib1, ib2, ip, j, s, k, error
     real(8)                       :: Rgas, gamma, rho, vel, del, a, cp_
     real(8)                       :: M0, mach
     real(8)                       :: alpha, beta, M, p0, T0, p, T, ux, uy, uz, mit, kappa, omega, rhoRij
@@ -201,31 +202,6 @@ module lib_ic
       if (error/=0) nz_extrude = int(4)
     endif
 
-    self%type = type
-
-    select case (phase)
-    case('IG')
-
-      self%species%massf = 1d-20
-
-      ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
-      call define_composition(zoneini, self%species, T0, p0)
-
-      if (.not.allocated(self%density)) then
-        allocate(self%density(self%species%n,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
-        allocate(self%velocity(3,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
-        allocate(self%pressure(1:self%dim(1),1:self%dim(2),1:self%dim(3)))
-        if (nrans>0) allocate(self%turbprop(nrans,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
-      endif
-
-    case ('SP')
-
-      if (.not.allocated(self%temperature)) then
-        allocate(self%temperature(1:self%dim(1),1:self%dim(2),1:self%dim(3)))
-      endif
-
-    end select
-
     ! Check direction
     dirSize = 0
     call zoneini%get(section_name='zone', option_name='direction', val=dirID, error=error)
@@ -256,29 +232,57 @@ module lib_ic
       do i = dirSize*2+1, 6 ; range(i) = (-1.0)**i*huge(range(i)) ; enddo
     endif
 
-    select case (type)
-
-    case ('interpolation')
+    do pi = 1, size(self%associated_phase)
+      phase = self%associated_phase(pi)%type
 
       select case (phase)
       case('IG')
-        call intersol(self,OMF,OFF,OSF,oldid,b)
-      case('SP')
-        error stop ('--- Interpolation not implemented for SP ---')
+
+        sp = self%associated_phase(pi)%species
+        sp%massf = 1d-20
+
+        ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
+        call define_composition(zoneini, sp, T0, p0)
+
+        if (.not.allocated(self%density)) then
+          allocate(self%density(sp%n,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+          allocate(self%velocity(3,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+          allocate(self%pressure(1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+          if (nrans>0) allocate(self%turbprop(nrans,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+        endif
+
+      case ('SP')
+
+        if (.not.allocated(self%temperature)) then
+          allocate(self%temperature(1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+        endif
+
       end select
 
-    case ('homogeneous')
+      self%type = type
+      select case (type)
 
-      select case (phase)
-      case('IG')
+      case ('interpolation')
+
+        select case (phase)
+        case('IG')
+          call intersol(self,OMF,OFF,OSF,oldid,b)
+        case('SP')
+          error stop ('--- Interpolation not implemented for SP ---')
+        end select
+
+      case ('homogeneous')
+
+        select case (phase)
+        case('IG')
 
         ! R
-        Rgas = sum(Runi*self%species%massf/self%species%w)
+        Rgas = sum(Runi*sp%massf/sp%w)
 
         ! Temperature
         if (T0==0 .and. T==0) T = p/(Rgas*rho)
-        if (T0/=0 .and. T==0) T = T02T(T0,self%species%massf,self%species%cp,self%species%dcp,self%species%h,M,Rgas)
-        cp_ = sum(self%species%massf*self%species%cp(:,nint(T)))
+        if (T0/=0 .and. T==0) T = T02T(T0,sp%massf,sp%cp,sp%dcp,sp%h,M,Rgas)
+        cp_ = sum(sp%massf*sp%cp(:,nint(T)))
         gamma = cp_/(cp_-Rgas)
         del = 0.5*(gamma-1)
         ! Mach
@@ -299,8 +303,8 @@ module lib_ic
               if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
                   here(2)>=range(3) .and. here(2)<=range(4) .and. &
                   here(3)>=range(5) .and. here(3)<=range(6)) then
-                do s = 1, self%species%n
-                  self%density(s,i,j,k) = rho*self%species%massf(s)
+                do s = 1, sp%n
+                  self%density(s,i,j,k) = rho*sp%massf(s)
                 enddo
                 a = sqrt(gamma*Rgas*T)
                 vel = M*a
@@ -331,8 +335,8 @@ module lib_ic
 
     case ('1D-centcomp' , '1D-cubcomp')
 
-      Rgas = sum(Runi*self%species%massf/self%species%w)
-      cp_ = sum(self%species%massf*self%species%cp(:,1))
+      Rgas = sum(Runi*sp%massf/sp%w)
+      cp_ = sum(sp%massf*sp%cp(:,1))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
 
@@ -359,8 +363,8 @@ module lib_ic
       allocate(radius_int(1:self%dim(1)))
       allocate(area(1:self%dim(1)))
 
-      Rgas = sum(Runi*self%species%massf/self%species%w)
-      cp_ = sum(self%species%massf*self%species%cp(:,nint(T0)))
+      Rgas = sum(Runi*sp%massf/sp%w)
+      cp_ = sum(sp%massf*sp%cp(:,nint(T0)))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
 
@@ -393,8 +397,8 @@ module lib_ic
       endif
 
       do i = 1, ib1-1, ip
-        do s = 1, self%species%n
-          self%density(s,i,:,:) = self%species%massf(s)*p0/(Rgas*T0)
+        do s = 1, sp%n
+          self%density(s,i,:,:) = sp%massf(s)*p0/(Rgas*T0)
         enddo
         self%pressure(i,:,:) = p0
         self%velocity(:,i,:,:) = 0.0
@@ -418,8 +422,8 @@ module lib_ic
               dz = self%center(i,j,k)%c(3)-self%center(i-1,j,k)%c(3)
               zeta = atan(dy/sqrt(dx*dx+dz*dz))
               phi = atan(dz/dx)
-              do s = 1, self%species%n
-                self%density(s,i,j,k) = self%species%massf(s)*p0/(Rgas*T0)/((1+del*(Mach**2))**(0.5/del))
+              do s = 1, sp%n
+                self%density(s,i,j,k) = sp%massf(s)*p0/(Rgas*T0)/((1+del*(Mach**2))**(0.5/del))
               enddo
               self%pressure(i,j,k) = p0/((1+del*(Mach**2))**(gamma/(2*del)))
               self%velocity(1,i,j,k) = Mach*sqrt(gamma*Rgas*T0/(1+del*(Mach**2)))*cos(zeta)*cos(phi)
@@ -447,6 +451,8 @@ module lib_ic
         if(omega/=0.0) self%turbprop(7,:,:,:) = omega
       endif
     end select
+
+    enddo
   
   contains
   ! 1D specific ICs
@@ -460,8 +466,8 @@ module lib_ic
       self%velocity(1,i,j,k) = (pol-R1)/(1.d0+del)
       a = R1+del*self%velocity(1,i,j,k)
       self%pressure(i,j,k) = (a/R1)**(gamma/del)
-      do s = 1, self%species%n
-        self%density(s,i,j,k) = gamma*self%pressure(i,j,k)/(a*a)*self%species%massf(s)
+      do s = 1, sp%n
+        self%density(s,i,j,k) = gamma*self%pressure(i,j,k)/(a*a)*sp%massf(s)
       enddo
     end subroutine centered_compression
     
@@ -477,8 +483,8 @@ module lib_ic
       self%velocity(1,i,j,k) = (pol-R1)/(1.d0+del)
       a = R1+del*self%velocity(1,i,j,k)
       self%pressure(i,j,k) = (a/R1)**(gamma/del)
-      do s = 1, self%species%n
-        self%density(s,i,j,k) = gamma*self%pressure(i,j,k)/(a*a)*self%species%massf(s)
+      do s = 1, sp%n
+        self%density(s,i,j,k) = gamma*self%pressure(i,j,k)/(a*a)*sp%massf(s)
       enddo
     end subroutine cubic_compression
 

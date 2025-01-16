@@ -143,7 +143,7 @@ contains
     integer, dimension(3)                :: ind, indold
     logical, dimension(:), allocatable   :: same_dimension
 
-    newspecies = block%species
+    newspecies = block%associated_phase(1)%species
 
     ! First block interpolation requires old solution build
     if (.not. allocated(oldblock)) then

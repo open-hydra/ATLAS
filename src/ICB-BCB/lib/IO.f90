@@ -10,7 +10,7 @@ module ATLAS_IO
   public:: read_idealgas_properties
   public:: read_phase
 
-  integer:: i,j,k,s,ap,p
+  integer:: i,j,k,s
   integer:: unitfile
 
   contains
@@ -244,7 +244,7 @@ module ATLAS_IO
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
     character(len=len(name))      :: name_
-    integer                       :: b, p, f, m, n, mend(6), nend(6)
+    integer                       :: b, mm, p, f, m, n, mend(6), nend(6), pCD
     integer                       :: Ai, Aj, Ak, ii, jj, kk, u
     logical                       :: match
 
@@ -270,20 +270,24 @@ module ATLAS_IO
     do b = 1, size(block)
       match = .false.
       do p = 1, size(block(b)%associated_phase(:))
-        if (index(trim(name),trim(block(b)%associated_phase(p)%name))>0) match = .true.
+        if (index(trim(name),trim(block(b)%associated_phase(p)%name))>0) then
+          match = .true.
+          pCD = p
+        endif
       enddo
       if (.not.match) cycle
       mend(1:2) = block(b)%dim(2); nend(1:2) = block(b)%dim(3)
       mend(3:4) = block(b)%dim(1); nend(3:4) = block(b)%dim(3)
       mend(5:6) = block(b)%dim(1); nend(5:6) = block(b)%dim(2)
-      do p = 1, npCP
+      do mm = 1, block(b)%associated_phase(pCD)%nmat
+      do p = 1, block(b)%associated_phase(pCD)%npCP(mm)
       do f = 1, 6
         do n = 1, nend(f)
           do m = 1, mend(f)
             
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
             
-            write(u,'(7I8)')b,Ai,Aj,Ak,f,p,block(b)%face(f)%center(m,n)%bc%definition
+            write(u,'(8I8)')b,Ai,Aj,Ak,f,mm,p,block(b)%face(f)%center(m,n)%bc%definition
 
             select case (block(b)%face(f)%center(m,n)%bc%definition)
 
@@ -300,12 +304,12 @@ module ATLAS_IO
 
               case(4)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%cp_nproperties
-                  write(u,'(E14.5)',advance='no') block(b)%face(f)%center(m,n)%bc%cp_properties(p,i)
+                  write(u,'(E14.5)',advance='no') block(b)%face(f)%center(m,n)%bc%cp_properties(mm,p,i)
                 enddo
                 write(u,'(A)') ''
               
               case(10)
-                write(u,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%cp_properties(p,1)
+                write(u,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%cp_properties(mm,p,1)
               
               case(666)
                 
@@ -443,20 +447,70 @@ module ATLAS_IO
         enddo
       enddo
     enddo
+    enddo
 
   end subroutine write_cdp_bc_file
 
 
-  !> write media.init
-  subroutine write_solfile(block)
+  !----------------------------------------------------------------------
+  !> \brief Reads a TECplot mesh file and updates the orion data structure.
+  !>
+  !> This subroutine reads a TECplot mesh file specified by the given path
+  !> and updates the orion data structure with the mesh information.
+  !>
+  !> \param[inout] orion The orion_data structure to be updated with the mesh information.
+  !> \param[in] path The path to the TECplot mesh file to be read.
+  !>
+  !> \author Marco Grossi
+  !----------------------------------------------------------------------
+  subroutine read_TECmesh(orion,path)
+    use Lib_Tecplot
+    implicit none
+    type(orion_data), intent(inout) :: orion
+    character(len=*), intent(in)    :: path
+    integer                         :: error
+
+    orion%tec%node = .false.
+    orion%tec%bc = .false.
+    orion%tec%format = 'ascii'
+    error = tec_read_structured_multiblock(orion=orion,filename=path)
+
+  end subroutine read_TECmesh
+
+
+
+  subroutine write_solfile(phase,inblock)
     use variables, only: nrans, outpath
     use ATLAS_high_level, only: ATLAS_block
+    use phase_module
     implicit none
-    type(ATLAS_block), intent(in) :: block(:)
-    integer :: b, nb, s
+    type(phase_type), intent(in)   :: phase
+    type(ATLAS_block), intent(in)  :: inblock(:)
+    type(ATLAS_block), allocatable :: block(:)
+    integer :: b, nb, s, ap, nsc, cnt
 
-    nb = size(block)
-    
+    nb = 0
+    do b = 1, size(inblock)
+      do ap = 1, size(inblock(b)%associated_phase(:))
+        if (index(phase%name,inblock(b)%associated_phase(ap)%name)>0) then
+          nb = nb + 1
+          nsc = inblock(b)%associated_phase(ap)%species%n
+        endif
+      enddo
+    enddo
+    if (allocated(block)) deallocate(block)
+    allocate(block(1:nb))
+
+    cnt = 0
+    do b = 1, size(inblock)
+      do ap = 1, size(inblock(b)%associated_phase(:))
+        if (index(phase%name,inblock(b)%associated_phase(ap)%name)>0) then
+          cnt = cnt + 1 
+          block(cnt) = inblock(b)
+        endif
+      enddo
+    enddo
+  
     write(*,*)
     write(*,*)' Writing native-fomat file'
     open(newunit=unitfile,file=outpath//'/media.init',form='unformatted',convert='big_endian')
@@ -469,7 +523,7 @@ module ATLAS_IO
     !write(*,*)' Writing  variables'
     !write(*,*)'        -----> rho(Ns)'
     do b = 1, nb
-      write(unitfile)((((dble(block(b)%density(s,i,j,k)),s=1,block(b)%species%n), &
+      write(unitfile)((((dble(block(b)%density(s,i,j,k)),s=1,nsc), &
                                              i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
     end do
     !write(*,*)'        -----> u'
@@ -501,21 +555,6 @@ module ATLAS_IO
     close(unitfile)
 
   end subroutine write_solfile
-
-
-  subroutine read_TECmesh(orion,path)
-    use Lib_Tecplot
-    implicit none
-    type(orion_data), intent(inout) :: orion
-    character(len=*), intent(in)    :: path
-    integer                         :: error
-
-    orion%tec%node = .false.
-    orion%tec%bc = .false.
-    orion%tec%format = 'ascii'
-    error = tec_read_structured_multiblock(orion=orion,filename=path)
-
-  end subroutine read_TECmesh
 
 
   subroutine read_solfile(filename,icblock,n)
@@ -596,23 +635,38 @@ module ATLAS_IO
     use Lib_Tecplot
     use variables, only: nrans, llen, outpath
     use ATLAS_high_level
+    use phase_module, only: phase_type
     implicit none
     type(phase_type), intent(in)       :: phase(:)
     character(len=*), intent(in)       :: ICformat
     type(ATLAS_block), intent(in)      :: block(:)
     type(orion_data)                   :: orion
     character(len=llen)                :: localpath_vtk, localpath
-    integer(I4P)                       :: E_IO, b, s, nb, cnt
+    integer(I4P)                       :: E_IO, b, s, nb, cnt, nsc, p, ap
     character(len=llen)                :: varnames
     character(len=llen)                :: name_
+    logical                            :: thereis
 
     localpath = outpath
     varnames=' '
 
     do p = 1, size(phase)
+
+      nb = 0
+      do b = 1, size(block)
+        do ap = 1, size(block(b)%associated_phase(:))
+          if (index(phase(p)%name,block(b)%associated_phase(ap)%name)>0) then
+            nb = nb + 1
+            if (phase(p)%type=='IG') nsc = block(b)%associated_phase(ap)%species%n
+          endif
+        enddo
+      enddo
+      if (allocated(orion%block)) deallocate(orion%block)
+      allocate(orion%block(1:nb))
+
       select case(phase(p)%type)
         case('IG')
-          do s = 1, block(1)%species%n
+          do s = 1, nsc
             varnames = trim(varnames)//' r'//trim(str(.true.,s))
           enddo
           varnames = trim(varnames)//' u v w p'
@@ -627,18 +681,13 @@ module ATLAS_IO
           varnames = 'T'
       end select
 
-      nb = 0
-      do b = 1, size(block)
-        do ap = 1, size(block(b)%associated_phase(:))
-          if (index(phase(p)%name,block(b)%associated_phase(ap)%name)>0) nb = nb + 1
-        enddo
-      enddo
-      if (allocated(orion%block)) deallocate(orion%block)
-      allocate(orion%block(1:nb))
-
       cnt = 0
       do b = 1, size(block)
-        if (index(phase(p)%name,block(b)%associated_phase(1)%name)==0) cycle
+        thereis = .false.
+        do ap = 1, size(block(b)%associated_phase)
+          if (index(phase(p)%name,block(b)%associated_phase(ap)%name)>0) thereis = .true.
+        enddo
+        if (.not.thereis) cycle
         cnt = cnt + 1
         orion%block(cnt)%Ni = block(b)%dim(1)
         orion%block(cnt)%Nj = block(b)%dim(2)
@@ -650,12 +699,12 @@ module ATLAS_IO
         select case(phase(p)%type)
         case('IG')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-IG'
-          allocate(orion%block(cnt)%vars(1:block(b)%species%n+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
-          orion%block(cnt)%vars(1:block(b)%species%n,:,:,:) = block(b)%density
-          orion%block(cnt)%vars(block(b)%species%n+1:block(b)%species%n+3,:,:,:) = block(b)%velocity
-          orion%block(cnt)%vars(block(b)%species%n+4,:,:,:) = block(b)%pressure
+          allocate(orion%block(cnt)%vars(1:nsc+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%density
+          orion%block(cnt)%vars(nsc+1:nsc+3,:,:,:) = block(b)%velocity
+          orion%block(cnt)%vars(nsc+4,:,:,:) = block(b)%pressure
           if (nrans>0) then
-            orion%block(cnt)%vars(block(b)%species%n+5:block(b)%species%n+4+nrans,:,:,:) = block(b)%turbprop
+            orion%block(cnt)%vars(nsc+5:nsc+4+nrans,:,:,:) = block(b)%turbprop
           endif
         case('SP')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'
@@ -745,12 +794,11 @@ module ATLAS_IO
 
   subroutine read_phase(phase)
     use strings, only: parse
-    use ATLAS_high_level, only: phase_type
-    use variables, only: npCP
+    use phase_module, only: phase_type
     implicit none
     type(phase_type), allocatable, intent(out) :: phase(:)
     character(len=128) :: filename, stringa(2)
-    integer :: i, num_files, u, ios
+    integer :: m, i, num_files, u, ios, num_mat
     character(len=128), allocatable :: file_list(:)
     character(len=128) :: type, dummy
 
@@ -769,12 +817,24 @@ module ATLAS_IO
           stringa(2) = stringa(1)
           stringa(1) = ''
         endif
+        phase(i)%nmat = 0
         if (index(stringa(2),'phase')>0) then
           open(newunit=u, file=filename, status="old")
           read(u,'(A)',iostat=ios) type
           if (index(type,'condensed-dispersed')>0) then
             phase(i)%type = 'CD'
-            read(u,*,iostat=ios) dummy, npCP
+            num_mat = -1
+            do while(ios==0)
+              read(u,'(A)',iostat=ios) dummy
+              num_mat = num_mat + 1
+            enddo
+            rewind(u)
+            phase(i)%nmat = num_mat
+            allocate(phase(i)%npCP(1:num_mat))
+            read(u,*)
+            do m = 1, num_mat
+              read(u,*,iostat=ios) dummy, phase(i)%npCP(m)
+            enddo
             close(u)
           elseif (index(type,'solid')>0) then
             phase(i)%type = 'SP'

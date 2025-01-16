@@ -6,6 +6,7 @@ program BCB
   use TOM, only: check_mesh_type
   use variables
   use ATLAS_high_level
+  use phase_module
   use ATLAS_IO
   use Lib_ORION_data
   use input_ini
