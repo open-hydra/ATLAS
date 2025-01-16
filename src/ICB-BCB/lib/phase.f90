@@ -1,17 +1,3 @@
-module phase_module
-  use species
-  implicit none
-
-  type, public :: phase_type
-    character(len=2)        :: type
-    character(len=128)      :: name
-    integer, allocatable    :: npCP(:)
-    integer                 :: nmat
-    type(obj_species)       :: species
-  end type phase_type
-
-end module phase_module
-
 module species
   use CEA_module
   implicit none
@@ -176,3 +162,17 @@ contains
   end subroutine read_KAnT_out
 
 end module species
+
+module phase_module
+  use species
+  implicit none
+
+  type, public :: phase_type
+    character(len=2)        :: type
+    character(len=128)      :: name
+    integer, allocatable    :: npCP(:)
+    integer                 :: nmat
+    type(obj_species)       :: species
+  end type phase_type
+
+end module phase_module
