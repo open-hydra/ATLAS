@@ -1,0 +1,3 @@
+ideal-gas phase
+O2 32.0
+CH4 16.0
