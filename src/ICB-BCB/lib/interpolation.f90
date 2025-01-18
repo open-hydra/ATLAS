@@ -2,12 +2,12 @@ module Interpolator
   use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
   use variables
   use ATLAS_high_level
-  use ATLAS_IO, only: read_solfile, read_TECmesh, read_idealgas_properties 
+  use ATLAS_IO, only: read_solfile, read_TECmesh, read_idealgas_properties, read_vtk_tec
   use Lib_ORION_data
   use species, only: obj_species
   implicit none
 
-  logical                                      :: onemesh, onespecies
+  logical                                      :: onespecies
   integer                                      :: nz_extrude
   real(R8)                                     :: thetamax_extrude
   character(len=20)                            :: law
@@ -34,31 +34,43 @@ contains
       oldspecies = newspecies
     endif
 
-    if (onemesh .and. onespecies) then
-      write(*,*)" Nothing to interpolate!"
-      stop
-    endif
-
     ! Old files reading and data allocation
-    if (verbose) write(*,*)' Reading mesh file: ', trim(oldmeshfile_)
-    call read_TECmesh(oldorion,oldmeshfile_)
-    call import_nodes(input=oldorion,output=oldblock)
-    deallocate(oldorion%block)
-    if (law=='extrude') then
-      if (verbose) write(*,*)" Old mesh extrusion"
-      call extrude360(1)
-      if (verbose) write(*,*) 
-    endif
-    do b = 1, size(oldblock)
-      call oldblock(b)%compute_centers(0)
-      call oldblock(b)%allocate(nrans,oldspecies%n,oldblock(b)%dim(1),oldblock(b)%dim(2),oldblock(b)%dim(3))
-    end do
-    if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
-    call read_solfile(oldsolutionfile,oldblock,oldspecies%n)
-    if (law=='extrude') then
-      if (verbose) write(*,*)" Old solution extrusion"
-      call extrude360(2)
-      if (verbose) write(*,*)
+    if (oldmeshfile_/='Darwin') then
+      if (verbose) write(*,*)' Reading mesh file: ', trim(oldmeshfile_)
+      call read_TECmesh(oldorion,oldmeshfile_)
+      call import_nodes(input=oldorion,output=oldblock)
+      deallocate(oldorion%block)
+      if (law=='extrude') then
+        if (verbose) write(*,*)" Old mesh extrusion"
+        call extrude360(1)
+        if (verbose) write(*,*) 
+      endif
+      do b = 1, size(oldblock)
+        call oldblock(b)%compute_centers(0)
+        call oldblock(b)%allocate(nrans,oldspecies%n,oldblock(b)%dim(1),oldblock(b)%dim(2),oldblock(b)%dim(3))
+      end do
+      if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
+      call read_solfile(oldsolutionfile,oldblock,oldspecies%n)
+      if (law=='extrude') then
+        if (verbose) write(*,*)" Old solution extrusion"
+        call extrude360(2)
+        if (verbose) write(*,*)
+      endif
+
+    else
+
+      if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
+      call read_vtk_tec(oldsolutionfile,oldblock,oldspecies%n)
+      if (law=='extrude') then
+        if (verbose) write(*,*)" Old mesh extrusion"
+        call extrude360(1)
+        if (verbose) write(*,*) 
+      endif
+      if (law=='extrude') then
+        if (verbose) write(*,*)" Old solution extrusion"
+        call extrude360(2)
+        if (verbose) write(*,*)
+      endif
     endif
 
   contains

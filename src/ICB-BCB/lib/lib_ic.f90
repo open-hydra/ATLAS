@@ -184,9 +184,9 @@ module lib_ic
     if (error/=0) L_threshold = huge(alpha)
 
     ! Interpolation specific parameters
-    onemesh = .true.; onespecies = .true.
+    onespecies = .true.
     call zoneini%get(section_name='zone', option_name='oldmesh', val=OMF, error=error)
-    if (error==0) onemesh = .false.
+    if (error/=0) OMF = 'Darwin'
     call zoneini%get(section_name='zone', option_name='oldspecies', val=OSF, error=error)
     if (error==0) onespecies = .false.
     call zoneini%get(section_name='zone', option_name='oldsolution', val=OFF, error=error)

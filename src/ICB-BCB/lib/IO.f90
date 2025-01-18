@@ -4,7 +4,7 @@ module ATLAS_IO
   private
   public:: write_idealgas_bc_file
   public:: write_cdp_bc_file
-  public:: write_vtk_tec
+  public:: read_vtk_tec ,write_vtk_tec
   public:: read_solfile, write_solfile
   public:: read_TECmesh
   public:: read_idealgas_properties
@@ -460,8 +460,6 @@ module ATLAS_IO
   !>
   !> \param[inout] orion The orion_data structure to be updated with the mesh information.
   !> \param[in] path The path to the TECplot mesh file to be read.
-  !>
-  !> \author Marco Grossi
   !----------------------------------------------------------------------
   subroutine read_TECmesh(orion,path)
     use Lib_Tecplot
@@ -623,6 +621,32 @@ module ATLAS_IO
     close(unitfile)
 
   end subroutine read_solfile
+
+
+  subroutine read_vtk_tec ( filename, icblock, n )
+    use Lib_VTK
+    use Lib_Tecplot
+    use Lib_ORION_data
+    use variables, only: nrans, llen
+    use ATLAS_high_level
+    implicit none
+    integer, intent(in)              :: n
+    character(len=llen), intent(in)  :: filename
+    type(ATLAS_block), allocatable, intent(inout) :: icblock(:)
+    type(Orion_Data) :: IOfield
+    integer:: error, b
+
+    IOfield%tec%format = 'ascii'
+    error = tec_read_structured_multiblock(orion=IOfield,filename=trim(filename))
+
+    call import_nodes(input=IOfield,output=icblock)
+
+    do b = 1, size(icblock)
+      call icblock(b)%compute_centers(0)
+      call icblock(b)%allocate(nrans,n,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
+    end do
+
+  end subroutine read_vtk_tec
 
 
   !> \brief Write the initial conditions to VTK or Tecplot format.
