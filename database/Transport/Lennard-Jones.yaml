@@ -123,3 +123,13 @@ species:
     diameter: 3.8
     well-depth: 144.0
     rotational-relaxation: 1.0
+
+# Dummy properties
+- name: AL2O3(L)
+  composition: {Al: 2, O: 3}
+  transport:
+    model: gas
+    geometry: nonlinear
+    diameter: 1.0
+    well-depth: 1.0
+    rotational-relaxation: 1.0

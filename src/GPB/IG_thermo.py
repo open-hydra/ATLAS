@@ -66,7 +66,6 @@ def compute_properties(name,T_low, T_max, all_solutions):
         else:
             # Just one inert mixture
             if 'CEA' in solution.name or 'cte' in solution.name:
-                print('jbe')
                 mix_name = solution.name
             else:
                 mix_name = solution.name[:-7]

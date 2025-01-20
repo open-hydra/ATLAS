@@ -28,13 +28,13 @@ def wilke_mixture_properties(x, mu, k, M):
                 phi_k[i, j] = 1.0
             else:
                 # For viscosity
-                mu_ratio = (mu[i] / mu[j])**0.5
+                mu_ratio = abs((mu[i] / mu[j]))**0.5
                 M_ratio = (M[j] / M[i])**0.25
                 term_mu = (1 + mu_ratio * M_ratio)**2
                 phi_mu[i, j] = term_mu / (np.sqrt(8) * (1 + M[i] / M[j])**0.5)
                 
                 # For thermal conductivity
-                k_ratio = (k[i] / k[j])**0.5
+                k_ratio = abs((k[i] / k[j]))**0.5
                 term_k = (1 + k_ratio * M_ratio)**2
                 phi_k[i, j] = term_k / (np.sqrt(8) * (1 + M[i] / M[j])**0.5)
     
@@ -136,6 +136,8 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
             conductivity_aux[species_name] = []
 
             for T in temperatures:
+                mu, k = None, None
+                species_found = False
                 if (model == 'cantera'):
                     solution.TPY = T, ct.one_atm, identity_matrix[n]
                     mu = solution.viscosity
@@ -145,15 +147,18 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                         if species['element'] == solution.species(n).name:
                             mu, k = CEA_polynomials(T,species)
 
-                try:
+                if mu is not None:
+                    species_found = True
                     viscosity_aux[species_name].append(mu)
                     conductivity_aux[species_name].append(k)
-                except UnboundLocalError:
-                    print(f"Warning: Transport model is not valid for species '{species_name}'.")
-                    print(f"         CEA simplified law is applied!")
+                else:
                     mu, k = simplified_law(T,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
                     viscosity_aux[species_name].append(mu)
                     conductivity_aux[species_name].append(k)
+
+            if not species_found:
+                    print(f"Warning: Transport model is not valid for species '{species_name}'.")
+                    print(f"         CEA simplified law is applied!")
 
         if 'mixture' not in solution.name:
             for sp in species_names_aux:
