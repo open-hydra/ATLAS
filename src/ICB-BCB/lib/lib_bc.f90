@@ -379,9 +379,9 @@ module lib_bc
             read(1,*) dirArray1(i), (array(i,j),j=1,width)
           enddo
           close(1)
+          if (dir(1)==5) dirArray1(:) = dirArray1(:)*pi/180
+          if (dir(2)==5) dirArray2(:) = dirArray2(:)*pi/180
         endif
-        if (dir(1)==5) dirArray1(:) = dirArray1(:)*pi/180
-        if (dir(2)==5) dirArray2(:) = dirArray2(:)*pi/180
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
             here(2) = face%center(m,n)%c(dir(2))
@@ -405,6 +405,8 @@ module lib_bc
               enddo
             endif
             !> Multipatch
+            if (dir(1)==5) range(1:2) = range(1:2)*pi/180
+            if (dir(2)==5) range(3:4) = range(3:4)*pi/180
             if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
                 here(2)>=range(3) .and. here(2)<=range(4)) then
               cnt_bc = cnt_bc+1
