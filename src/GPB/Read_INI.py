@@ -196,7 +196,7 @@ def IG_read_fixgas(ini_file,section):
     mil = Pr*kl/cp
 
   if not species:
-    species = "ABCDEF"
+    species = "ATLAS"
 
   return species, cp, mw, mil, kl
 

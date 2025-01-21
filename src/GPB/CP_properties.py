@@ -49,6 +49,7 @@ def compute_properties(type, name, T_low, T_max, all_materials):
                     h = solution.h
                 mass_cp[species_name].append(cp)
                 enthalpy[species_name].append(h)
+                density[species_name].append(mat.density)
 
         elif mat.type == 'fixed':
 

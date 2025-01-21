@@ -78,10 +78,12 @@ def build(type,inifile,section):
     if fix_cp is None:
         print(' -- Found T-varying properties materials')
         materials = [s for s in all_mat if s.name in material_names]
-        for m in materials:
-            ct_solution = ct.Solution(thermo='fixed-stoichiometry',species=[m])
+        for i, m in enumerate(materials):
+            ct_solution = ct.Solution(thermo='fixed-stoichiometry', species=[m])
             material = Material(name=ct_solution.species_names[0], type='cantera')
             material.load_from_cantera(ct_solution)
+            if material.density is None:
+                material.density = fix_rho[i]
             material_group.append(material)
     # ---------------------------------------------------
 
