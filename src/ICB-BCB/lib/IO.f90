@@ -773,7 +773,7 @@ module ATLAS_IO
     implicit none
     character(len=*), intent(in):: prefix
     type(obj_species), intent(inout) :: sp
-    integer :: n, ios, Ti1, Ti2
+    integer :: n, ios, Ti1, Ti2, unitfile
     character(len=30) :: wholestring, args(2)
     type(orion_data) :: orion
 
@@ -859,7 +859,6 @@ module ATLAS_IO
             do m = 1, num_mat
               read(u,*,iostat=ios) dummy, phase(i)%npCP(m)
             enddo
-            close(u)
           elseif (index(type,'solid')>0) then
             phase(i)%type = 'SP'
           elseif (index(type,'ideal-gas')>0) then
@@ -868,6 +867,7 @@ module ATLAS_IO
             write(*,*) 'Error: unknown phase type'
             stop
           endif
+          close(u)
         endif
         phase(i)%name = stringa(1)
       end do
