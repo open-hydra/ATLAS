@@ -121,10 +121,11 @@ module lib_ic
     character(len=2)              :: phase
     type(obj_species)             :: sp
     logical                       :: found(5)
-    integer                       :: throat_cell, pi, i, ib1, ib2, ip, j, s, k, error
+    integer                       :: throat_cell, pi, i, ib1, ib2, ip, j, s, k, error, nnn
     real(8)                       :: Rgas, gamma, rho, vel, del, a, cp_
     real(8)                       :: M0, mach
     real(8)                       :: alpha, beta, M, p0, T0, p, T, ux, uy, uz, mit, kappa, omega, rhoRij
+    real(8), allocatable          :: krho(:), rp(:)
     real(8)                       :: throat_area, dx, dy, dz, zeta, phi
     real(8), allocatable          :: radius_ext(:), radius_int(:), area(:)
     character(len=llen)           :: OMF, OFF, OSF
@@ -248,7 +249,22 @@ module lib_ic
           allocate(self%density(sp%n,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
           allocate(self%velocity(3,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
           allocate(self%pressure(1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+          allocate(self%temperature(1:self%dim(1),1:self%dim(2),1:self%dim(3)))
           if (nrans>0) allocate(self%turbprop(nrans,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+        endif
+
+      case ('CD')
+
+        nnn = 0
+        do k = 1, self%associated_phase(pi)%nmat
+          nnn = nnn + self%associated_phase(pi)%npCP(k)
+        enddo
+
+        if (.not.allocated(self%densityP)) then
+          allocate(self%densityP    ( nnn ,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+          allocate(self%velocityP   (nnn,3,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+          allocate(self%temperatureP( nnn ,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
+          allocate(self%nP          ( nnn ,1:self%dim(1),1:self%dim(2),1:self%dim(3)))
         endif
 
       case ('SP')
@@ -267,6 +283,8 @@ module lib_ic
         select case (phase)
         case('IG')
           call intersol(self,OMF,OFF,OSF,oldid,b)
+        case('CD')
+          error stop ('--- Interpolation not implemented for CD ---')
         case('SP')
           error stop ('--- Interpolation not implemented for SP ---')
         end select
@@ -308,6 +326,7 @@ module lib_ic
                 enddo
                 a = sqrt(gamma*Rgas*T)
                 vel = M*a
+                self%temperature(i,j,k) = T
                 if (ux==0) then
                   self%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
                 else
@@ -358,6 +377,9 @@ module lib_ic
       enddo; enddo; enddo
 
     case ('nozzle')
+
+      select case(phase)
+      case('IG')
 
       allocate(radius_ext(1:self%dim(1)))
       allocate(radius_int(1:self%dim(1)))
@@ -429,16 +451,21 @@ module lib_ic
               self%velocity(1,i,j,k) = Mach*sqrt(gamma*Rgas*T0/(1+del*(Mach**2)))*cos(zeta)*cos(phi)
               self%velocity(2,i,j,k) = Mach*sqrt(gamma*Rgas*T0/(1+del*(Mach**2)))*sin(zeta)
               self%velocity(3,i,j,k) = Mach*sqrt(gamma*Rgas*T0/(1+del*(Mach**2)))*cos(zeta)*sin(phi)
+              self%temperature(i,j,k) = T0/(1+del*(Mach**2))
             endif
           end do 
         end do
       end do
 
+      end select
+
     end select
 
-    ! Turbulence specific parameters
+    
     select case (phase)
+
     case('IG')
+      ! Turbulence specific parameters
       if (nrans==1) then
         self%turbprop(1,:,:,:) = mit
         if(mit/=0.0) self%turbprop(1,:,:,:) = mit
@@ -450,6 +477,19 @@ module lib_ic
         self%turbprop(4:6,:,:,:) = 1d-8
         if(omega/=0.0) self%turbprop(7,:,:,:) = omega
       endif
+
+    case('CD')
+      allocate(krho(1:nnn))
+      allocate(rp(1:nnn))
+      call zoneini%get(section_name='zone', option_name='krho',   val=R1, error=error)
+      call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
+      rp = 0.5*rp 
+      do j = 1, nnn
+        self%densityP(j,:,:,:) = krho(j) * sum(self%density(:,:,:,:))
+        self%velocityP(j,1:3,:,:,:) = self%velocity(:,:,:,:)
+        self%temperatureP(j,:,:,:) = self%temperature(:,:,:)
+        !self%np(i+ncond(j),:,:,:) = self%densityP(i+1,:,:,:)/rho_al / (4._R8/3._R8*rinj(j)*rinj(j)*rinj(j))
+      enddo
     end select
 
     enddo

@@ -21,14 +21,18 @@
 
     type, extends(block_type), public :: ATLAS_block
       ! IC
-      character(len=20)                        :: type
-      real(8), dimension(:,:,:,:), allocatable :: density
-      real(8), dimension(:,:,:), allocatable   :: temperature
-      real(8), dimension(:,:,:), allocatable   :: pressure
-      real(8), dimension(:,:,:), allocatable   :: mil, kl
-      real(8), dimension(:,:,:,:), allocatable :: turbprop
-      real(8), dimension(:,:,:,:), allocatable :: velocity
-      real(8)                                  :: gamma, R
+      character(len=20)                          :: type
+      real(8), dimension(:,:,:,:), allocatable   :: density
+      real(8), dimension(:,:,:), allocatable     :: temperature
+      real(8), dimension(:,:,:), allocatable     :: pressure
+      real(8), dimension(:,:,:), allocatable     :: mil, kl
+      real(8), dimension(:,:,:,:), allocatable   :: turbprop
+      real(8), dimension(:,:,:,:), allocatable   :: velocity
+      real(8)                                    :: gamma, R
+      real(8), dimension(:,:,:,:), allocatable   :: densityP
+      real(8), dimension(:,:,:,:,:), allocatable :: velocityP
+      real(8), dimension(:,:,:,:), allocatable   :: temperatureP
+      real(8), dimension(:,:,:,:), allocatable   :: nP
       ! BC
       type(obj_face), dimension(6) :: face
       integer :: nproperties
