@@ -16,7 +16,7 @@ module lib_ic
 
   subroutine build_IC(phase,sini,blocks)
     use phase_module, only: phase_type
-    use ATLAS_IO, only: read_idealgas_properties
+    use ATLAS_IO, only: read_idealgas_properties, read_cdp_properties
     use strings, only: parse
     implicit none
     type(phase_type), intent(in)     :: phase(:)
@@ -64,6 +64,9 @@ module lib_ic
         endif
         if (block%associated_phase(p)%type=='IG') then
           call read_idealgas_properties(trim(phase_name),block%associated_phase(p)%species)
+        endif
+        if (block%associated_phase(p)%type=='CD') then
+          call read_cdp_properties(trim(phase_name),block%associated_phase(p)%material)
         endif
         if (.not.allocated(block%associated_phase(p)%species%massf)) &
         allocate(block%associated_phase(p)%species%massf(1:block%associated_phase(p)%species%n))
@@ -114,23 +117,24 @@ module lib_ic
     use variables, only: nrans
     use Interpolator
     use species
+    use material_module
     implicit none
     integer, intent(in)               :: b
     class(ATLAS_block), intent(inout) :: self
     type(file_ini), intent(in)        :: zoneini
-    character(len=2)              :: phase
+    character(len=2)              :: phase_type
     type(obj_species)             :: sp
+    type(obj_material)            :: mat
     logical                       :: found(5)
-    integer                       :: throat_cell, pi, i, ib1, ib2, ip, j, s, k, error, nnn
-    real(8)                       :: Rgas, gamma, rho, vel, del, a, cp_
+    integer                       :: pi, i, ip, j, s, k, error, nnn, g
+    real(8)                       :: Rgas, gamma, rho, vel, del, a, cp_, rho_
     real(8)                       :: M0, mach
     real(8)                       :: alpha, beta, M, p0, T0, p, T, ux, uy, uz, mit, kappa, omega, rhoRij
     real(8), allocatable          :: krho(:), rp(:)
     real(8)                       :: throat_area, dx, dy, dz, zeta, phi
-    real(8), allocatable          :: radius_ext(:), radius_int(:), area(:)
     character(len=llen)           :: OMF, OFF, OSF
     integer                       :: oldid
-    character(len=20)             :: type
+    character(len=20)             :: IC_type
     real(8)                       :: range(6)
     character(len=3)              :: dirID
     integer                       :: dirSize
@@ -138,8 +142,8 @@ module lib_ic
     real(8)                       :: here(3)
     real(8)                       :: R1, uTF
 
-    call zoneini%get(section_name='zone', option_name='type', val=type, error=error)
-    if (error/=0) type='homogeneous'
+    call zoneini%get(section_name='zone', option_name='type', val=IC_type, error=error)
+    if (error/=0) IC_type='homogeneous'
 
     M = 0d0; p0 = 0.0; p = 0.0
     call zoneini%get(section_name='zone', option_name='mach', val=M, error=error)
@@ -191,7 +195,7 @@ module lib_ic
     call zoneini%get(section_name='zone', option_name='oldspecies', val=OSF, error=error)
     if (error==0) onespecies = .false.
     call zoneini%get(section_name='zone', option_name='oldsolution', val=OFF, error=error)
-    if (error==0) type = 'interpolation'
+    if (error==0) IC_type = 'interpolation'
     call zoneini%get(section_name='zone', option_name='oldid', val=oldid, error=error)
     if (error/=0) oldid = 0
     call zoneini%get(section_name='zone', option_name='law', val=law, error=error)
@@ -234,9 +238,9 @@ module lib_ic
     endif
 
     do pi = 1, size(self%associated_phase)
-      phase = self%associated_phase(pi)%type
+      phase_type = self%associated_phase(pi)%type
 
-      select case (phase)
+      select case (phase_type)
       case('IG')
 
         sp = self%associated_phase(pi)%species
@@ -256,8 +260,8 @@ module lib_ic
       case ('CD')
 
         nnn = 0
-        do k = 1, self%associated_phase(pi)%nmat
-          nnn = nnn + self%associated_phase(pi)%npCP(k)
+        do k = 1, self%associated_phase(pi)%material%n
+          nnn = nnn + self%associated_phase(pi)%material%npCP(k)
         enddo
 
         if (.not.allocated(self%densityP)) then
@@ -275,12 +279,12 @@ module lib_ic
 
       end select
 
-      self%type = type
-      select case (type)
+      self%type = IC_type
 
+      select case (IC_type)
       case ('interpolation')
 
-        select case (phase)
+        select case (phase_type)
         case('IG')
           call intersol(self,OMF,OFF,OSF,oldid,b)
         case('CD')
@@ -291,27 +295,73 @@ module lib_ic
 
       case ('homogeneous')
 
-        select case (phase)
+        select case (phase_type)
         case('IG')
 
-        ! R
-        Rgas = sum(Runi*sp%massf/sp%w)
+          ! R
+          Rgas = sum(Runi*sp%massf/sp%w)
 
-        ! Temperature
-        if (T0==0 .and. T==0) T = p/(Rgas*rho)
-        if (T0/=0 .and. T==0) T = T02T(T0,sp%massf,sp%cp,sp%dcp,sp%h,M,Rgas)
-        cp_ = sum(sp%massf*sp%cp(:,nint(T)))
+          ! Temperature
+          if (T0==0 .and. T==0) T = p/(Rgas*rho)
+          if (T0/=0 .and. T==0) T = T02T(T0,sp%massf,sp%cp,sp%dcp,sp%h,M,Rgas)
+          cp_ = sum(sp%massf*sp%cp(:,nint(T)))
+          gamma = cp_/(cp_-Rgas)
+          del = 0.5*(gamma-1)
+          ! Mach
+          if (M==0) M = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*T))
+          ! Pressure
+          if (p0==0 .and. p==0) p = T * (Rgas*rho)
+          if (p0/=0 .and. p==0) p = p0/((1+del*M*M)**(gamma/(gamma-1)))
+          ! Density  
+          if (rho==0) then
+            rho = p/(Rgas*T)
+          endif
+
+          here = 1.0
+          do k = 1, self%dim(3); do j = 1, self%dim(2); do i = 1, self%dim(1)
+                if (dirSize>=1) here(1) = self%center(i,j,k)%c(dir(1))
+                if (dirSize>=2) here(2) = self%center(i,j,k)%c(dir(2))
+                if (dirSize>=3) here(3) = self%center(i,j,k)%c(dir(3))
+                if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
+                    here(2)>=range(3) .and. here(2)<=range(4) .and. &
+                    here(3)>=range(5) .and. here(3)<=range(6)) then
+                  do s = 1, sp%n
+                    self%density(s,i,j,k) = rho*sp%massf(s)
+                  enddo
+                  a = sqrt(gamma*Rgas*T)
+                  vel = M*a
+                  self%temperature(i,j,k) = T
+                  if (ux==0) then
+                    self%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
+                  else
+                    self%velocity(1,i,j,k) = ux
+                  endif
+                  if (uy==0) then
+                    self%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
+                  else
+                    self%velocity(2,i,j,k) = uy
+                  endif
+                  if (uz==0) then
+                    self%velocity(3,i,j,k) = vel*sin(beta)
+                  else
+                    self%velocity(3,i,j,k) = uz
+                  endif
+                  self%pressure(i,j,k) = p
+                endif
+          enddo; enddo; enddo
+
+        case('SP')
+
+          self%temperature = T
+
+        end select
+
+      case ('1D-centcomp' , '1D-cubcomp')
+
+        Rgas = sum(Runi*sp%massf/sp%w)
+        cp_ = sum(sp%massf*sp%cp(:,1))
         gamma = cp_/(cp_-Rgas)
         del = 0.5*(gamma-1)
-        ! Mach
-        if (M==0) M = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*T))
-        ! Pressure
-        if (p0==0 .and. p==0) p = T * (Rgas*rho)
-        if (p0/=0 .and. p==0) p = p0/((1+del*M*M)**(gamma/(gamma-1)))
-        ! Density  
-        if (rho==0) then
-          rho = p/(Rgas*T)
-        endif
 
         here = 1.0
         do k = 1, self%dim(3); do j = 1, self%dim(2); do i = 1, self%dim(1)
@@ -321,65 +371,74 @@ module lib_ic
               if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
                   here(2)>=range(3) .and. here(2)<=range(4) .and. &
                   here(3)>=range(5) .and. here(3)<=range(6)) then
-                do s = 1, sp%n
-                  self%density(s,i,j,k) = rho*sp%massf(s)
-                enddo
-                a = sqrt(gamma*Rgas*T)
-                vel = M*a
-                self%temperature(i,j,k) = T
-                if (ux==0) then
-                  self%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
-                else
-                  self%velocity(1,i,j,k) = ux
-                endif
-                if (uy==0) then
-                  self%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
-                else
-                  self%velocity(2,i,j,k) = uy
-                endif
-                if (uz==0) then
-                  self%velocity(3,i,j,k) = vel*sin(beta)
-                else
-                  self%velocity(3,i,j,k) = uz
-                endif
-                self%pressure(i,j,k) = p
+                select case(IC_type)
+                  case('1D-centcomp'); call centered_compression()
+                  case('1D-cubcomp');  call cubic_compression()
+                end select
+                self%velocity(2,i,j,k) = 0.0
+                self%velocity(3,i,j,k) = 0.0
               endif
         enddo; enddo; enddo
 
-      case('SP')
+      case ('nozzle')
 
-        self%temperature = T
+        select case(phase_type)
+        case('IG')
+          call nozzle1D()
+        end select
 
       end select
 
-    case ('1D-centcomp' , '1D-cubcomp')
+    
+      select case (phase_type)
 
-      Rgas = sum(Runi*sp%massf/sp%w)
-      cp_ = sum(sp%massf*sp%cp(:,1))
-      gamma = cp_/(cp_-Rgas)
-      del = 0.5*(gamma-1)
-
-      here = 1.0
-      do k = 1, self%dim(3); do j = 1, self%dim(2); do i = 1, self%dim(1)
-            if (dirSize>=1) here(1) = self%center(i,j,k)%c(dir(1))
-            if (dirSize>=2) here(2) = self%center(i,j,k)%c(dir(2))
-            if (dirSize>=3) here(3) = self%center(i,j,k)%c(dir(3))
-            if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
-                here(2)>=range(3) .and. here(2)<=range(4) .and. &
-                here(3)>=range(5) .and. here(3)<=range(6)) then
-              select case(type)
-                case('1D-centcomp'); call centered_compression()
-                case('1D-cubcomp');  call cubic_compression()
-              end select
-              self%velocity(2,i,j,k) = 0.0
-              self%velocity(3,i,j,k) = 0.0
-            endif
-      enddo; enddo; enddo
-
-    case ('nozzle')
-
-      select case(phase)
       case('IG')
+        ! Turbulence specific parameters
+        if (nrans==1) then
+          self%turbprop(1,:,:,:) = mit
+          if(mit/=0.0) self%turbprop(1,:,:,:) = mit
+        elseif (nrans==2) then
+          if(kappa/=0.0) self%turbprop(1,:,:,:) = kappa
+          if(omega/=0.0) self%turbprop(2,:,:,:) = omega
+        elseif (nrans==7) then
+          if(rhoRij/=0.0) self%turbprop(1:3,:,:,:) = rhoRij
+          self%turbprop(4:6,:,:,:) = 1d-8
+          if(omega/=0.0) self%turbprop(7,:,:,:) = omega
+        endif
+
+      case('CD')
+        mat = self%associated_phase(pi)%material
+        allocate(krho(1:nnn)); krho = 0.0
+        allocate(rp(1:nnn))
+        call zoneini%get(section_name='zone', option_name='krho',   val=krho, error=error)
+        call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
+        rp = 0.5*rp 
+        do g = 1, nnn
+          if (krho(g)==0.0) then
+            self%densityP(g,:,:,:) = 0.0
+            self%velocityP(g,1:3,:,:,:) = 0.0
+            self%temperatureP(g,:,:,:) = 0.0
+            self%np(g,:,:,:) = 0.0
+          else
+            self%densityP(g,:,:,:) = sum(self%density(:,:,:,:), dim=1) * krho(g)
+            self%velocityP(g,1:3,:,:,:) = self%velocity(:,:,:,:)
+            self%temperatureP(g,:,:,:) = self%temperature(:,:,:)
+            do k = 1, self%dim(3); do j = 1, self%dim(2); do i = 1, self%dim(1)
+                  rho_ = mat%rho(g,nint(self%temperature(i,j,k)))
+                  self%np(g,i,j,k) = self%densityP(g,i,j,k)/rho_/(4._R8/3._R8*rp(g)**3)
+            enddo; enddo; enddo
+          endif
+        enddo
+      end select
+
+    enddo
+  
+  contains
+
+    subroutine nozzle1D()
+      implicit none
+      real(8), allocatable :: radius_ext(:), radius_int(:), area(:)
+      integer :: ib1, ib2, throat_cell
 
       allocate(radius_ext(1:self%dim(1)))
       allocate(radius_int(1:self%dim(1)))
@@ -457,45 +516,9 @@ module lib_ic
         end do
       end do
 
-      end select
+    end subroutine nozzle1D
 
-    end select
-
-    
-    select case (phase)
-
-    case('IG')
-      ! Turbulence specific parameters
-      if (nrans==1) then
-        self%turbprop(1,:,:,:) = mit
-        if(mit/=0.0) self%turbprop(1,:,:,:) = mit
-      elseif (nrans==2) then
-        if(kappa/=0.0) self%turbprop(1,:,:,:) = kappa
-        if(omega/=0.0) self%turbprop(2,:,:,:) = omega
-      elseif (nrans==7) then
-        if(rhoRij/=0.0) self%turbprop(1:3,:,:,:) = rhoRij
-        self%turbprop(4:6,:,:,:) = 1d-8
-        if(omega/=0.0) self%turbprop(7,:,:,:) = omega
-      endif
-
-    case('CD')
-      allocate(krho(1:nnn))
-      allocate(rp(1:nnn))
-      call zoneini%get(section_name='zone', option_name='krho',   val=R1, error=error)
-      call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
-      rp = 0.5*rp 
-      do j = 1, nnn
-        self%densityP(j,:,:,:) = krho(j) * sum(self%density(:,:,:,:))
-        self%velocityP(j,1:3,:,:,:) = self%velocity(:,:,:,:)
-        self%temperatureP(j,:,:,:) = self%temperature(:,:,:)
-        !self%np(i+ncond(j),:,:,:) = self%densityP(i+1,:,:,:)/rho_al / (4._R8/3._R8*rinj(j)*rinj(j)*rinj(j))
-      enddo
-    end select
-
-    enddo
-  
-  contains
-  ! 1D specific ICs
+    ! 1D specific ICs
 
     ! Centered compression assuming rest for the state ahead of the compression wave
     subroutine centered_compression()

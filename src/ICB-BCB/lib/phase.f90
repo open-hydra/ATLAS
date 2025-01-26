@@ -163,15 +163,27 @@ contains
 
 end module species
 
+module material_module
+  implicit none
+
+  type :: obj_material
+    integer :: n
+    character(len=16), allocatable       :: name(:)
+    integer, allocatable                 :: npCP(:)
+    real(8), dimension(:,:), allocatable :: h, rho, cp
+  end type obj_material
+
+end module material_module
+
 module phase_module
   use species
+  use material_module
   implicit none
 
   type, public :: phase_type
     character(len=2)        :: type
     character(len=128)      :: name
-    integer, allocatable    :: npCP(:)
-    integer                 :: nmat
+    type(obj_material)      :: material
     type(obj_species)       :: species
   end type phase_type
 

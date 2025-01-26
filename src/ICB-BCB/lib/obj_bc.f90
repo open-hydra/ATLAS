@@ -62,7 +62,7 @@ module bc
     case('CD')
       self%cp_nproperties = nCP
       if (.not.allocated(self%cp_properties)) &
-        allocate(self%cp_properties(1:phase%nmat,1:maxval(phase%npCP(:)),1:nCP))
+        allocate(self%cp_properties(1:phase%material%n,1:maxval(phase%material%npCP(:)),1:nCP))
       self%cp_properties = 1d0
     end select
 
@@ -236,8 +236,8 @@ module bc
       endif
 
       ! Condensed-phase bc
-      do m = 1, phase%nmat
-        npCP = phase%npCP(m)
+      do m = 1, phase%material%n
+        npCP = phase%material%npCP(m)
         cp_scaling = 1
         allocate(kr(1:npCP)); kr = 0d0; call sourceini%get(section_name=section, option_name='krho',val=kr,error=error)
         if (error==0) cp_scaling = 0

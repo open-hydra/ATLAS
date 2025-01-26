@@ -7,7 +7,7 @@ module ATLAS_IO
   public:: read_vtk_tec ,write_vtk_tec
   public:: read_solfile, write_solfile
   public:: read_TECmesh
-  public:: read_idealgas_properties
+  public:: read_idealgas_properties, read_cdp_properties
   public:: read_phase
 
   integer:: i,j,k,s
@@ -279,8 +279,8 @@ module ATLAS_IO
       mend(1:2) = block(b)%dim(2); nend(1:2) = block(b)%dim(3)
       mend(3:4) = block(b)%dim(1); nend(3:4) = block(b)%dim(3)
       mend(5:6) = block(b)%dim(1); nend(5:6) = block(b)%dim(2)
-      do mm = 1, block(b)%associated_phase(pCD)%nmat
-      do p = 1, block(b)%associated_phase(pCD)%npCP(mm)
+      do mm = 1, block(b)%associated_phase(pCD)%material%n
+      do p = 1, block(b)%associated_phase(pCD)%material%npCP(mm)
       do f = 1, 6
         do n = 1, nend(f)
           do m = 1, mend(f)
@@ -660,21 +660,27 @@ module ATLAS_IO
     use variables, only: nrans, llen, outpath
     use ATLAS_high_level
     use phase_module, only: phase_type
+    use material_module, only: obj_material
     implicit none
     type(phase_type), intent(in)       :: phase(:)
     character(len=*), intent(in)       :: ICformat
     type(ATLAS_block), intent(in)      :: block(:)
     type(orion_data)                   :: orion
+    type(obj_material)                 :: mat
     character(len=llen)                :: localpath_vtk, localpath
     integer(I4P)                       :: E_IO, b, s, nb, cnt, nsc, p, ap
+    integer(I4P)                       :: m, g, nnn
     character(len=llen)                :: varnames
     character(len=llen)                :: name_
     logical                            :: thereis
 
     localpath = outpath
-    varnames=' '
 
     do p = 1, size(phase)
+      write(*,*)
+      write(*,*)' Phase : ',trim(phase(p)%name)
+
+      varnames=' '
 
       nb = 0
       do b = 1, size(block)
@@ -682,6 +688,7 @@ module ATLAS_IO
           if (index(phase(p)%name,block(b)%associated_phase(ap)%name)>0) then
             nb = nb + 1
             if (phase(p)%type=='IG') nsc = block(b)%associated_phase(ap)%species%n
+            if (phase(p)%type=='CD') mat = block(b)%associated_phase(ap)%material
           endif
         enddo
       enddo
@@ -701,6 +708,19 @@ module ATLAS_IO
           elseif (nrans==7) then
             varnames = trim(varnames)//" ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega"
           endif
+        case('CD')
+          nnn = 0
+          do m = 1, mat%n
+            do g = 1, mat%npCP(m)
+              nnn = nnn + 1
+              varnames = trim(varnames)//' rp'//trim(str(.true.,m))//trim(str(.true.,g))
+              varnames = trim(varnames)//' up'//trim(str(.true.,m))//trim(str(.true.,g))
+              varnames = trim(varnames)//' vp'//trim(str(.true.,m))//trim(str(.true.,g))
+              varnames = trim(varnames)//' wp'//trim(str(.true.,m))//trim(str(.true.,g))
+              varnames = trim(varnames)//' Tp'//trim(str(.true.,m))//trim(str(.true.,g))
+              varnames = trim(varnames)//' np'//trim(str(.true.,m))//trim(str(.true.,g))
+            enddo
+          enddo
         case('SP')
           varnames = 'T'
       end select
@@ -730,6 +750,19 @@ module ATLAS_IO
           if (nrans>0) then
             orion%block(cnt)%vars(nsc+5:nsc+4+nrans,:,:,:) = block(b)%turbprop
           endif
+        case('CD')
+          orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-CD'
+          allocate(orion%block(cnt)%vars(1:nnn*6,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          s = 1
+          do m = 1, nnn
+            orion%block(cnt)%vars(s,:,:,:) = block(b)%densityp(m,:,:,:)
+            orion%block(cnt)%vars(s+1,:,:,:) = block(b)%velocityp(m,1,:,:,:)
+            orion%block(cnt)%vars(s+2,:,:,:) = block(b)%velocityp(m,2,:,:,:)
+            orion%block(cnt)%vars(s+3,:,:,:) = block(b)%velocityp(m,3,:,:,:)
+            orion%block(cnt)%vars(s+4,:,:,:) = block(b)%temperatureP(m,:,:,:)
+            orion%block(cnt)%vars(s+5,:,:,:) = block(b)%np(m,:,:,:)
+            s = s + 6
+          enddo
         case('SP')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'
           allocate(orion%block(cnt)%vars(1,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
@@ -746,14 +779,12 @@ module ATLAS_IO
       if (index(ICformat,'vtk')>0) then
         localpath_vtk = trim(localpath)//'/vtk/'
         call execute_command_line('mkdir -p '//trim(localpath_vtk))
-        write(*,*)
         write(*,*)' Writing vtk-fomat file'
         orion%vtk%format = 'ascii'
         orion%vtk%node = .false.
         E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk), &
                                                vtmpath=trim(localpath)//'/'//trim(name_)//'ic',varnames=varnames)
       else
-        write(*,*)
         write(*,*)' Writing tec-fomat file'
         orion%tec%format = 'ascii'
         orion%tec%node = .false.
@@ -816,6 +847,56 @@ module ATLAS_IO
   end subroutine read_idealgas_properties
 
 
+
+  subroutine read_cdp_properties(prefix, mat)
+    use material_module
+    use strings, only: parse
+    use Lib_Tecplot
+    implicit none
+    character(len=*), intent(in):: prefix
+    type(obj_material), intent(inout) :: mat
+    integer :: n, ios, Ti1, Ti2, unitfile
+    character(len=30) :: wholestring, args(2)
+    type(orion_data) :: orion
+
+    open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
+    if (ios/=0) return!error stop ("Error reading phase file")
+    ios = 0; n = -1
+    read(unitfile,*)!skip first line
+    do while(ios==0)
+      read(unitFile,'(A)',iostat=ios) wholestring
+      n = n + 1
+    enddo
+    mat%n = n
+    allocate(mat%name(1:n))
+    allocate(mat%npCP(1:n))
+    rewind(unitFile)
+    read(unitfile,*)!skip first line
+    do i = 1, n
+      read(unitFile,'(A)') wholestring
+      call parse(wholestring,' ',args)
+      mat%name(i) = trim(adjustl(args(1)))
+      read(args(2),*) mat%npCP(i)
+    end do
+    close(unitFile)
+
+    ios = tec_read_points_multivars(orion,3,trim(prefix)//'properties.dat')
+    if (ios/=0) return!error stop ("Error reading ideal-gas thermo file")
+    Ti1 = nint(orion%block(1)%mesh(1,1,1,1))
+    Ti2 = Ti1 + orion%block(1)%Ni - 1
+    allocate(mat%cp(1:mat%n,Ti1:Ti2))
+    allocate(mat%rho(1:mat%n,Ti1:Ti2))
+    allocate(mat%h(1:mat%n,Ti1:Ti2))
+    do i = 1, mat%n
+      mat%cp(i,Ti1:Ti2) = orion%block(i)%vars(1,1:orion%block(1)%Ni,1,1)
+      mat%rho(i,Ti1:Ti2) = orion%block(i)%vars(2,:,1,1)
+      mat%h(i,Ti1:Ti2) = orion%block(i)%vars(3,:,1,1)
+    enddo
+
+  end subroutine read_cdp_properties
+
+
+
   subroutine read_phase(phase)
     use strings, only: parse
     use phase_module, only: phase_type
@@ -841,24 +922,11 @@ module ATLAS_IO
           stringa(2) = stringa(1)
           stringa(1) = ''
         endif
-        phase(i)%nmat = 0
         if (index(stringa(2),'phase')>0) then
           open(newunit=u, file=filename, status="old")
           read(u,'(A)',iostat=ios) type
           if (index(type,'condensed-dispersed')>0) then
             phase(i)%type = 'CD'
-            num_mat = -1
-            do while(ios==0)
-              read(u,'(A)',iostat=ios) dummy
-              num_mat = num_mat + 1
-            enddo
-            rewind(u)
-            phase(i)%nmat = num_mat
-            allocate(phase(i)%npCP(1:num_mat))
-            read(u,*)
-            do m = 1, num_mat
-              read(u,*,iostat=ios) dummy, phase(i)%npCP(m)
-            enddo
           elseif (index(type,'solid')>0) then
             phase(i)%type = 'SP'
           elseif (index(type,'ideal-gas')>0) then
