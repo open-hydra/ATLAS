@@ -239,6 +239,7 @@ contains
       throat_cell = minloc(area,1)
       throat_area = area(throat_cell)
 
+      L_threshold_cell = 0
       ib1 = 1; ib2 = block%dim(1); ip = 1
       do i = ib1, ib2
         if (block%center(i,1,1)%c(1)>L_threshold) then
