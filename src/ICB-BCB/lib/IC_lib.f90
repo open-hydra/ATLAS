@@ -119,20 +119,21 @@ module lib_ic
     use IC_lib_CD
     implicit none
     type(ATLAS_block), intent(inout) :: self
-    type(file_ini), intent(in)        :: zoneini
+    type(file_ini), intent(in)       :: zoneini
     character(len=2)              :: phase_type
-    logical                       :: found(5)
+    logical                       :: found(8), index_based
     integer                       :: pi, i, error
     character(len=20)             :: IC_type
     real(8)                       :: range(6)
     character(len=3)              :: dirID
     integer                       :: dirSize
     integer, allocatable          :: dir(:)
-
+    
     call zoneini%get(section_name='zone', option_name='type', val=IC_type, error=error)
     if (error/=0) IC_type='homogeneous'
-
+    
     ! Check direction
+    index_based=.false.
     dirSize = 0
     call zoneini%get(section_name='zone', option_name='direction', val=dirID, error=error)
     if (error==0) then
@@ -150,6 +151,12 @@ module lib_ic
           dir(i) = 4; found(4)=.true.
         elseif (index(dirID,'t')/=0 .and. .not.found(5)) then
           dir(i) = 5; found(5)=.true.
+        elseif (index(dirID,'i')/=0 .and. .not.found(6)) then
+          dir(i) = 6; found(6)=.true.; index_based=.true.
+        elseif (index(dirID,'j')/=0 .and. .not.found(7)) then
+          dir(i) = 7; found(7)=.true.; index_based=.true.
+        elseif (index(dirID,'k')/=0 .and. .not.found(8)) then
+          dir(i) = 8; found(8)=.true.; index_based=.true.
         endif
       enddo
     endif
@@ -176,8 +183,8 @@ module lib_ic
         call build_CD_field(self,zoneini,self%associated_phase(pi)%material)
 
       case ('SP')
-
-        call build_SP_field(self,zoneini,IC_type,self%associated_phase(pi)%material,range,dirSize,dir)
+        
+        call build_SP_field(self,zoneini,IC_type,self%associated_phase(pi)%material,range,dirSize,dir,index_based)
 
       end select
 
