@@ -10,7 +10,7 @@ module Interpolator
   logical                                      :: onespecies
   integer                                      :: nz_extrude
   real(R8)                                     :: thetamax_extrude
-  character(len=20)                            :: law
+  character(len=16)                            :: law
   type(ATLAS_block), dimension(:), allocatable :: oldblock
   type(obj_species)                            :: oldspecies
   character(len=llen)                          :: oldsolutionfile
@@ -138,13 +138,13 @@ contains
 
   end subroutine build_old_solution
 
-  subroutine intersol(block,oldmeshfile_,oldsolutionfile_,oldspeciesfile_,oldid,id)
+  subroutine intersol(block,oldmeshfile_,oldsolutionfile_,oldspeciesfile_,oldid)
     implicit none
     type(ATLAS_block), intent(inout)     :: block
     character(len=llen), intent(inout)   :: oldspeciesfile_
     character(len=llen), intent(inout)   :: oldsolutionfile_
     character(len=llen), intent(inout)   :: oldmeshfile_
-    integer, intent(in)                  :: oldid, id
+    integer, intent(in)                  :: oldid
     type(obj_species)                    :: newspecies
     character(2)                         :: sym_type
     integer                              :: cnt, s, sold, i, j, k, b, bb, trueb
@@ -172,7 +172,7 @@ contains
       write(*,*) " New species number: ", newspecies%n
     endif
 
-    b = id
+    b = block%id
     if (oldid>0) b = oldid
 
     ! Interpolazion Procedures depending on LAW

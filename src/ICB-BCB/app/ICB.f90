@@ -40,12 +40,16 @@ program ICB
   call build_INI('ICB',size(block),sourceini,ICformat)
 
   ! Phase properties import
+  write(*,*) ' Phase properties import'
   call read_phase(phase)
+  write(*,*)
 
   ! IC computation
+  write(*,*) ' IC computation'
   call build_IC(phase,sourceini,block)
 
   ! IC writing
+  write(*,*)' IC writing'
   call execute_command_line('mkdir -p '//trim(outpath))
   if (index(ICformat,'native')>0) then
     if (phase(1)%type=='IG') call write_solfile(phase(1),block)

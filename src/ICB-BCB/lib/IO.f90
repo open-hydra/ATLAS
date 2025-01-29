@@ -677,8 +677,7 @@ module ATLAS_IO
     localpath = outpath
 
     do p = 1, size(phase)
-      write(*,*)
-      write(*,*)' Phase : ',trim(phase(p)%name)
+      write(*,*)' - Phase : ',trim(phase(p)%name)
 
       varnames=' '
 
@@ -722,7 +721,7 @@ module ATLAS_IO
             enddo
           enddo
         case('SP')
-          varnames = 'T'
+          varnames = trim(varnames)//"mID T"
       end select
 
       cnt = 0
@@ -765,8 +764,9 @@ module ATLAS_IO
           enddo
         case('SP')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'
-          allocate(orion%block(cnt)%vars(1,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
-          orion%block(cnt)%vars(1,:,:,:) = block(b)%temperature
+          allocate(orion%block(cnt)%vars(2,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          orion%block(cnt)%vars(1,:,:,:) = block(b)%mID
+          orion%block(cnt)%vars(2,:,:,:) = block(b)%temperature
         end select
       enddo
 
@@ -779,19 +779,20 @@ module ATLAS_IO
       if (index(ICformat,'vtk')>0) then
         localpath_vtk = trim(localpath)//'/vtk/'
         call execute_command_line('mkdir -p '//trim(localpath_vtk))
-        write(*,*)' Writing vtk-fomat file'
+        write(*,*)' - Writing vtk-fomat file'
         orion%vtk%format = 'ascii'
         orion%vtk%node = .false.
         E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk), &
                                                vtmpath=trim(localpath)//'/'//trim(name_)//'ic',varnames=varnames)
       else
-        write(*,*)' Writing tec-fomat file'
+        write(*,*)' - Writing tec-fomat file'
         orion%tec%format = 'ascii'
         orion%tec%node = .false.
         E_IO = tec_write_structured_multiblock(orion=orion,varnames=varnames, &
                                                filename=trim(localpath)//'/'//trim(name_)//'ic.tec')
       endif
-
+    
+    write(*,*)
     enddo
 
   end subroutine write_vtk_tec
@@ -876,7 +877,7 @@ module ATLAS_IO
       read(unitFile,'(A)') wholestring
       call parse(wholestring,' ',args)
       mat%name(i) = trim(adjustl(args(1)))
-      read(args(2),*) mat%npCP(i)
+      read(args(2),*,iostat=ios) mat%npCP(i)
     end do
     close(unitFile)
 

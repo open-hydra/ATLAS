@@ -20,8 +20,9 @@
     end type obj_face
 
     type, extends(block_type), public :: ATLAS_block
-      ! IC
+      !! IC
       character(len=20)                          :: type
+      ! IC - IG
       real(8), dimension(:,:,:,:), allocatable   :: density
       real(8), dimension(:,:,:), allocatable     :: temperature
       real(8), dimension(:,:,:), allocatable     :: pressure
@@ -29,16 +30,20 @@
       real(8), dimension(:,:,:,:), allocatable   :: turbprop
       real(8), dimension(:,:,:,:), allocatable   :: velocity
       real(8)                                    :: gamma, R
+      ! IC - CD
       real(8), dimension(:,:,:,:), allocatable   :: densityP
       real(8), dimension(:,:,:,:,:), allocatable :: velocityP
       real(8), dimension(:,:,:,:), allocatable   :: temperatureP
       real(8), dimension(:,:,:,:), allocatable   :: nP
-      ! BC
+      ! IC - SP
+      integer, dimension(:,:,:), allocatable     :: mID
+      !! BC
       type(obj_face), dimension(6) :: face
       integer :: nproperties
       real(8), dimension(:), allocatable:: properties
-      ! Misc
+      !! Misc
       type(phase_type), dimension(:), allocatable :: associated_phase
+      integer :: id
     contains
       private
       procedure, pass(self), public :: free
