@@ -18,7 +18,7 @@ module lib_bc
     use TOM, only: delthe
     use variables, only: nrans
     use strings, only: parse
-    use ATLAS_IO, only: read_idealgas_properties
+    use ATLAS_IO, only: read_idealgas_properties, read_cdp_properties
     implicit none
     type(phase_type), intent(in)     :: phase(:)
     type(ATLAS_block), intent(inout) :: blocks(:)
@@ -31,7 +31,7 @@ module lib_bc
     character(len=4)               :: ind, indb, dirID
     character(len=2)               :: patchdirection
     character(len=50)              :: patchname, section_name
-    integer                        :: ff, n, m, p, b, pIG
+    integer                        :: ff, n, m, p, b
     real(8)                        :: patchrange(4)
     character(len=30)              :: wholestring, args(3), phase_name
 
@@ -71,8 +71,10 @@ module lib_bc
           phase_name = trim(block%associated_phase(p)%name)//'-'
         endif
         if (block%associated_phase(p)%type=='IG') then
-          pIG = p
           call read_idealgas_properties(trim(phase_name),block%associated_phase(p)%species)
+        endif
+        if (block%associated_phase(p)%type=='CD') then
+          call read_cdp_properties(trim(phase_name),block%associated_phase(p)%material)
         endif
         if (.not.allocated(block%associated_phase(p)%species%massf)) &
         allocate(block%associated_phase(p)%species%massf(1:block%associated_phase(p)%species%n))
