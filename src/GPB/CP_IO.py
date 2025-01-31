@@ -22,7 +22,7 @@ def write_basics(type, name, mat_phases, groups):
 
 
 
-def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, enthalpy, conductivity):
+def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, enthalpy, conductivity, energy):
 
     # Write the data to a file in Tecplot-readable format
     filename = outpath + name + "properties.dat"
@@ -46,7 +46,7 @@ def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, 
                     f.write(f"{T} {cp_mass:.6f} {rho:.6f} {h_mass:.6f}\n")
 
         else:
-            f.write("VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"Conductivity\", \"Enthalpy\"\n")
+            f.write("VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"Conductivity\", \"Energy\"\n")
             
             for species_name in species_names:
                 f.write(f"ZONE T=\"{species_name}\"\n")
@@ -55,5 +55,5 @@ def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, 
                     cp_mass = mass_cp[species_name][i]
                     rho = density[species_name][i]
                     k = conductivity[species_name][i]
-                    h_mass = enthalpy[species_name][i]
-                    f.write(f"{T} {cp_mass:.6f} {rho:.6f} {k:.6f} {h_mass:.6f}\n")
+                    e_mass = energy[species_name][i]
+                    f.write(f"{T} {cp_mass:.6f} {rho:.6f} {k:.6f} {e_mass:.6f}\n")

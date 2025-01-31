@@ -48,7 +48,7 @@ contains
     select case (IC_type)
     case ('interpolation')
 
-        error stop ("Interopilation procedure not available for CD")
+        error stop "Interopilation procedure not available for CD"
 
     case ('vacuum')
 
