@@ -79,6 +79,7 @@ module lib_bc
         if (.not.allocated(block%associated_phase(p)%species%massf)) &
         allocate(block%associated_phase(p)%species%massf(1:block%associated_phase(p)%species%n))
         block%associated_phase(p)%species%massf = 1d-20
+        if (.not.allocated(block%associated_phase(p)%material%npcp)) block%associated_phase(p)%material%n = 0
       enddo
     
       !> Look for faces bc definition
