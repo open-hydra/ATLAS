@@ -14,7 +14,7 @@ contains
     character(len=32)                 :: IC_type
     integer                       :: i, j, k, error, nnn, g
     real(8)                       :: rho
-    real(8), allocatable          :: krho(:), rp(:)
+    real(8), allocatable          :: krho(:), rp(:), kT(:)
     ! character(len=128)            :: OMF, OFF, OSF
     ! integer                       :: oldid
     ! real(8)                       :: here(3)
@@ -32,15 +32,19 @@ contains
     endif
 
     allocate(krho(1:nnn)); krho = 0.0
+    allocate(kT(1:nnn)); kT = 1.0
     allocate(rp(1:nnn))
     call zoneini%get(section_name='zone', option_name='krho',   val=krho, error=error)
+    call zoneini%get(section_name='zone', option_name='kT',   val=kT, error=error)
     call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
     rp = 0.5*rp
 
     if (sum(krho)==0.0) then
       IC_type = 'vacuum'
-    else
-      IC_type = 'equilibrium'
+    elseif (sum(krho)/=0.0 .and. product(kT)==1.0) then
+      IC_type = 'thermo-mechanical equilibrium'
+    elseif (sum(krho)/=0.0 .and. product(kT)/=1.0) then
+      IC_type = 'mechanical equilibrium'
     endif
 
     write(*,*) ' -- CD type = ',trim(IC_type)
@@ -57,7 +61,7 @@ contains
         block%temperatureP(:,:,:,:) = 1d-20
         block%np(:,:,:,:) = 1d-20
 
-    case('equilibrium')
+    case('equilibrium', 'thermo-mechanical equilibrium', 'mechanical equilibrium')
 
     do g = 1, nnn
         if (krho(g)==0.0) then
@@ -68,10 +72,10 @@ contains
         else
         block%densityP(g,:,:,:) = sum(block%density(:,:,:,:), dim=1) * krho(g)
         block%velocityP(g,1:3,:,:,:) = block%velocity(:,:,:,:)
-        block%temperatureP(g,:,:,:) = block%temperature(:,:,:)
+        block%temperatureP(g,:,:,:) = block%temperature(:,:,:)* kT(g)
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
                 rho = mat%rho(g,nint(block%temperature(i,j,k)))
-                block%np(g,i,j,k) = block%densityP(g,i,j,k)/rho/(4.0/3.0*rp(g)**3)
+                block%np(g,i,j,k) = block%densityP(g,i,j,k)/(4.0/3.0*3.14*rho*rp(g)**3)
         enddo; enddo; enddo
         endif
     enddo
