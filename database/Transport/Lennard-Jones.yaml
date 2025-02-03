@@ -124,6 +124,36 @@ species:
     well-depth: 144.0
     rotational-relaxation: 1.0
 
+- name: CH4
+  composition: {C: 1, H: 4}
+  transport:
+    model: gas
+    geometry: nonlinear
+    diameter: 3.75
+    well-depth: 141.4
+    polarizability: 2.6
+    rotational-relaxation: 13.0
+
+- name: CO
+  composition: {C: 1, O: 1}
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 3.65
+    well-depth: 98.1
+    polarizability: 1.95
+    rotational-relaxation: 1.8
+
+- name: CO2
+  composition: {C: 1, O: 2}
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 3.76
+    well-depth: 244.0
+    polarizability: 2.65
+    rotational-relaxation: 2.1
+
 # Dummy properties
 - name: AL2O3(L)
   composition: {Al: 2, O: 3}
