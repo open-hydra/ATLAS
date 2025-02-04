@@ -87,11 +87,15 @@ module ATLAS_IO
               case(5,6,9,10)
                 write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(1)
               
-              case(7,8)
-                print*, 'Sono qui'
+              case(7)
+                write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(1)
+                write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(2)
+                write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(3)
+
+              case(8)
                 write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(1)
                 write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(2)
-              
+
               case(12)
                 do i = 1, 5
                   write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','

@@ -73,7 +73,7 @@ module bc
     case(4);  call assemble_the_monster
     case(5);  call assigne_q
     case(6);  call assigne_T
-    case(7);  call assigne_hg; call assigne_Taw
+    case(7);  call assigne_hg; call assigne_qrad; call assigne_Taw
     case(8);  call assigne_T; call assigne_qrad
     case(9);  call assigne_qrad
     case(10); call assigne_SF
@@ -104,7 +104,7 @@ module bc
       implicit none
       integer:: error
 
-      call sourceini%get(section_name=section, option_name='Taw', val=self%properties(2), error=error)
+      call sourceini%get(section_name=section, option_name='Taw', val=self%properties(3), error=error)
 
     end subroutine assigne_Taw
 
