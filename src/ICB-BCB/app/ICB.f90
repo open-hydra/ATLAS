@@ -33,7 +33,8 @@ program ICB
   call read_TECmesh(orion,filename)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
-    call block(b)%compute_centers(0)
+    call block(b)%extrapolate_nodes(1)
+    call block(b)%compute_centers(1)
   enddo
 
   ! INI handling
