@@ -43,7 +43,7 @@ module TOM
     integer                            :: dim(3)                      !> Number of cells in i-j-k (ghost not included).
     real(kind=8),         allocatable  :: vol(:,:,:)                  !> Cell volume.
     type(vector_nD_type), allocatable  :: node(:,:,:)                 !> Mesh grid points (including ghost).
-    type(vector_nD_type), allocatable  :: center(:,:,:)
+    type(vector_nD_type), allocatable  :: center(:,:,:)               !> Cell center coordinates
     type(tensor_3D_type), allocatable  :: m(:,:,:)                    !> Metric transformation tensor.
     type(vector_nD_type), allocatable  :: dl(:,:,:)                   !> Average cell length (in i/j/k direction). eg: dl%c(1) is sqrt(dx**2+dy**2+dz**2) of the cell in the i direction.
     type(d_metrics_type)               :: dir(3)                      !> Direction object. Contains: i-faces, j-faces, k-faces; eg: dir(1)%face(i,j,k)%n.

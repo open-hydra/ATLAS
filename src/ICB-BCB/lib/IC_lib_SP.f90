@@ -46,13 +46,12 @@ contains
     call zoneini%get(section_name='zone', option_name='qvol', val=qvol_const, error=error)
     if (error/=0) then
       qvol = 0.0d0
-      call zoneini%get(section_name='zone', option_name='qvol-file', val=qvolfile, error=errorfile)
+      call zoneini%get(section_name='zone', option_name='qvol-file', val=qvolfile, error=errorfile)      
       if (errorfile==0) then
-        call zoneini%get(section_name='zone', option_name='direction', val=qvoldirection, error=errordirection)
+        call zoneini%get(section_name='zone', option_name='qvol-direction', val=qvoldirection, error=errordirection)
         if (errordirection==0) then
           call read_qvolfile (qvol, block, qvolfile, qvoldirection)
         else
-          print*, 'TODO: LEGGERE FILE QVOL.TEC'
           call read_qvolfile (qvol, block, qvolfile)
         endif
       endif
@@ -134,7 +133,6 @@ contains
 
 
 
-
   subroutine read_qvolfile (qvol, block, qvolfile, qvoldirection)
     use ATLAS_high_level
     implicit none
@@ -143,13 +141,53 @@ contains
     character(len=16), intent(in), optional  :: qvoldirection
     real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: qvol
     ! Local
-    integer :: dir
+    integer :: dir, ios, file_length, i, j, k, f
+    real(8), dimension(:), allocatable :: file_dir, file_qvol
+    real(8) :: coord, coordm, coordp, qvolm, qvolp
+    
+    if (present(qvoldirection)) then
+      
+      if (trim(qvoldirection) == 'x') dir = 1
+      if (trim(qvoldirection) == 'y') dir = 2
+      if (trim(qvoldirection) == 'z') dir = 3
 
-    if (index(qvoldirection,'x')/=0) dir = 1
-    if (index(qvoldirection,'y')/=0) dir = 2
-    if (index(qvoldirection,'z')/=0) dir = 3
+      file_length=0; ios=0
+      open(unit=1,file=trim(qvolfile),status='old',action='read')
+      do while (ios==0)
+        read(1,*,iostat=ios)
+        file_length = file_length+1
+      enddo
+      file_length = file_length-1
+      rewind(1)
+      allocate(file_dir(1:file_length))
+      allocate(file_qvol(1:file_length))
+      do i = 1, file_length
+        read(1,*) file_dir(i), file_qvol(i)
+      enddo
+      close(1)
 
-    ! TODO: interpolazione lineare di un file
+      do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+        coord = block%center(i,j,k)%c(dir)
+        do f = 1, file_length
+          if (coord < file_dir(1) .or. coord > file_dir(file_length) ) then
+            exit
+          elseif (coord < file_dir(f)) then
+            coordm = file_dir(f-1)
+            coordp = file_dir(f)
+            qvolm = file_qvol(f-1)
+            qvolp = file_qvol(f)
+            qvol(i,j,k) = qvolm + (coord-coordm)/(coordp-coordm)*(qvolp-qvolm)
+            exit
+          endif
+        enddo
+        
+      enddo; enddo; enddo
+
+    else
+
+      print*, 'TODO: LEGGERE FILE QVOL.TEC'
+
+    endif
 
 
   end subroutine read_qvolfile
