@@ -70,7 +70,7 @@ module bc
     case(1);  self%properties = 0.
     case(2);  call assigne_halfPeriodicInfo
     case(3);  self%properties = 0.
-    case(4);  call assemble_the_monster
+    case(4,22);  call assemble_the_monster
     case(5);  call assigne_q
     case(6);  call assigne_T
     case(7);  call assigne_hg; call assigne_qrad; call assigne_Taw
@@ -177,7 +177,7 @@ module bc
       integer                        :: error, m, npCP
       character(len=200)             :: chardummy
       ! Ideal gas
-      real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij
+      real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt
       ! Condensed-phase
       integer :: cp_scaling
       real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:)
@@ -214,6 +214,15 @@ module bc
       call sourceini%get(section_name=section, option_name='rhoRij',val=rhoRij, error=error)
       if (error/=0) rhoRij = 0.0
 
+      ! Injector
+      call sourceini%get(section_name=section, option_name='psub',val=psub,   error=error)
+      if (error==0) alpha = psub
+      call sourceini%get(section_name=section, option_name='psup',val=psup,    error=error)
+      if (error==0) beta = psup
+      rt = 0.0
+      call sourceini%get(section_name=section, option_name='rt',  val=rt, error=error)
+      if (error==0) pstatic = rt
+
       ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
       call define_composition(sourceini, self%species, T0, p0)
 
@@ -240,7 +249,11 @@ module bc
       if (nmach<0) self%properties(3) = massflux
       self%properties(4) = alpha
       self%properties(5) = beta
-      self%properties(6) = pstatic*1d+5
+      if (rt/=0.0) then
+        self%properties(6) = rt
+      else
+        self%properties(6) = pstatic*1e+5
+      endif
       if (nrans==1) then
         self%properties(7) = mit
       elseif (nrans==2) then
