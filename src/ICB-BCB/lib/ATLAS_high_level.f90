@@ -37,7 +37,7 @@
       real(8), dimension(:,:,:,:), allocatable   :: nP
       ! IC - SP
       integer, dimension(:,:,:), allocatable     :: mID
-      integer, dimension(:,:,:), allocatable     :: qvol
+      real(8), dimension(:,:,:), allocatable     :: qvol
       !! BC
       type(obj_face), dimension(6) :: face
       integer :: nproperties
