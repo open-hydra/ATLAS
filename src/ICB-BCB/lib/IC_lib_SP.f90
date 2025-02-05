@@ -15,13 +15,15 @@ contains
     logical, intent(in)               :: index_based
     real(8), intent(in)               :: range(6)
     integer, intent(in)               :: dirSize
-    integer                       :: dir(:)
-    integer                       :: i, j, k, error, errorfile, mID, h
-    real(8)                       :: T, qvol
-    character(len=16)             :: material_name
+    ! Local
+    integer                       :: dir(:), i, j, k, h, mID
+    integer                       :: error, errorfile, errordirection
+    real(8)                       :: T, qvol_const
+    character(len=16)             :: material_name, qvoldirection
     real(8)                       :: here(3)
     integer                       :: imin, imax, jmin, jmax, kmin, kmax
     character(len=200)            :: qvolfile
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)) :: qvol
     ! character(len=128)            :: OMF, OFF, OSF
     ! integer                       :: oldid
 
@@ -41,15 +43,21 @@ contains
 
     call zoneini%get(section_name='zone', option_name='T', val=T, error=error)
     
-    call zoneini%get(section_name='zone', option_name='qvol', val=qvol, error=error)
+    call zoneini%get(section_name='zone', option_name='qvol', val=qvol_const, error=error)
     if (error/=0) then
+      qvol = 0.0d0
       call zoneini%get(section_name='zone', option_name='qvol-file', val=qvolfile, error=errorfile)
-      if (errorfile/=0) then
-        qvol = 0.0d0
-      else
-        print*, 'TODO: LEGGERE FILE QVOL'
-        qvol = 0.0d0
+      if (errorfile==0) then
+        call zoneini%get(section_name='zone', option_name='direction', val=qvoldirection, error=errordirection)
+        if (errordirection==0) then
+          call read_qvolfile (qvol, block, qvolfile, qvoldirection)
+        else
+          print*, 'TODO: LEGGERE FILE QVOL.TEC'
+          call read_qvolfile (qvol, block, qvolfile)
+        endif
       endif
+    else
+      qvol = qvol_const
     endif
 
     write(*,*) ' -- SP type = ',trim(IC_type)
@@ -71,14 +79,11 @@ contains
               if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
                   here(2)>=range(3) .and. here(2)<=range(4) .and. &
                   here(3)>=range(5) .and. here(3)<=range(6)) then
-                  block%temperature(i,j,k) = T
-                  block%mID(i,j,k) = mID
-                  if (errorfile/=0) then
-                    block%qvol(i,j,k) = qvol
-                  else
-                    print*, 'TODO: LEGGERE FILE QVOL'
-                    block%qvol(i,j,k) = qvol
-                  endif
+
+                block%temperature(i,j,k) = T
+                block%mID(i,j,k) = mID
+                block%qvol(i,j,k) = qvol(i,j,k)
+
               endif
           enddo; enddo; enddo
       
@@ -115,12 +120,8 @@ contains
 
               block%temperature(i,j,k) = T
               block%mID(i,j,k) = mID
-              if (errorfile/=0) then
-                block%qvol(i,j,k) = qvol
-              else
-                print*, 'TODO: LEGGERE FILE QVOL'
-                block%qvol(i,j,k) = qvol
-              endif
+              block%qvol(i,j,k) = qvol(i,j,k)
+
             endif
           enddo; enddo; enddo            
         
@@ -130,5 +131,27 @@ contains
 
 
   end subroutine build_SP_field
+
+
+
+
+  subroutine read_qvolfile (qvol, block, qvolfile, qvoldirection)
+    use ATLAS_high_level
+    implicit none
+    type(ATLAS_block), intent(inout)  :: block
+    character(len=200), intent(in)    :: qvolfile
+    character(len=16), intent(in), optional  :: qvoldirection
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: qvol
+    ! Local
+    integer :: dir
+
+    if (index(qvoldirection,'x')/=0) dir = 1
+    if (index(qvoldirection,'y')/=0) dir = 2
+    if (index(qvoldirection,'z')/=0) dir = 3
+
+    ! TODO: interpolazione lineare di un file
+
+
+  end subroutine read_qvolfile
 
 end module IC_lib_SP
