@@ -24,7 +24,7 @@ module lib_ic
     integer                       :: i, j, b, p, error, error_zone
     character(len=4)              :: indb, ind
     character(len=4)              :: zonedirection
-    real(8)                       :: zonerange(4)
+    real(8)                       :: zonerange(6)
     character(len=20)             :: wholestring, args(3), phase_name
 
     do b = 1, size(blocks)
