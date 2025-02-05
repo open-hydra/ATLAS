@@ -75,7 +75,7 @@ module ATLAS_IO
 
               case(2,3,11)
 
-              case(4)
+              case(4,22)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties
                   write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
                 enddo
@@ -307,7 +307,7 @@ module ATLAS_IO
 
               case(2,3,5,6,8,9,11)
 
-              case(4)
+              case(4,22)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%cp_nproperties
                   write(u,'(E14.5)',advance='no') block(b)%face(f)%center(m,n)%bc%cp_properties(mm,p,i)
                 enddo
@@ -649,6 +649,16 @@ module ATLAS_IO
     do b = 1, size(icblock)
       call icblock(b)%compute_centers(0)
       call icblock(b)%allocate(nrans,n,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
+      if (size(IOfield%block(b)%vars)>0) then
+        do s = 1, n
+          icblock(b)%density(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(s,:,:,:)
+        enddo
+        icblock(b)%velocity(1:3,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+1:n+3,:,:,:)
+        icblock(b)%pressure(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4,:,:,:)
+        do s = 1, nrans
+          icblock(b)%turbprop(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4+s,:,:,:)
+        enddo 
+      endif
     end do
 
   end subroutine read_vtk_tec
