@@ -16,17 +16,19 @@ contains
     real(8), intent(in)               :: range(6)
     integer, intent(in)               :: dirSize
     integer                       :: dir(:)
-    integer                       :: i, j, k, error, mID, h
-    real(8)                       :: T
+    integer                       :: i, j, k, error, errorfile, mID, h
+    real(8)                       :: T, qvol
     character(len=16)             :: material_name
     real(8)                       :: here(3)
     integer                       :: imin, imax, jmin, jmax, kmin, kmax
+    character(len=200)            :: qvolfile
     ! character(len=128)            :: OMF, OFF, OSF
     ! integer                       :: oldid
 
     if (.not.allocated(block%temperature)) then
         allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
         allocate(block%mID(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+        allocate(block%qvol(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
     mID = 0
@@ -38,6 +40,17 @@ contains
     mID = max(mID,1)
 
     call zoneini%get(section_name='zone', option_name='T', val=T, error=error)
+    
+    call zoneini%get(section_name='zone', option_name='qvol', val=qvol, error=error)
+    if (error/=0) then
+      call zoneini%get(section_name='zone', option_name='qvol-file', val=qvolfile, error=errorfile)
+      if (errorfile/=0) then
+        qvol = 0.0d0
+      else
+        print*, 'TODO: LEGGERE FILE QVOL'
+        qvol = 0.0d0
+      endif
+    endif
 
     write(*,*) ' -- SP type = ',trim(IC_type)
 
@@ -45,7 +58,7 @@ contains
     
     case ('interpolation')
 
-      error stop (' Interpolation procedure not available for SP')
+      error stop 'Interpolation procedure not available for SP'
 
     case ('homogeneous')
 
@@ -60,6 +73,12 @@ contains
                   here(3)>=range(5) .and. here(3)<=range(6)) then
                   block%temperature(i,j,k) = T
                   block%mID(i,j,k) = mID
+                  if (errorfile/=0) then
+                    block%qvol(i,j,k) = qvol
+                  else
+                    print*, 'TODO: LEGGERE FILE QVOL'
+                    block%qvol(i,j,k) = qvol
+                  endif
               endif
           enddo; enddo; enddo
       
@@ -96,6 +115,12 @@ contains
 
               block%temperature(i,j,k) = T
               block%mID(i,j,k) = mID
+              if (errorfile/=0) then
+                block%qvol(i,j,k) = qvol
+              else
+                print*, 'TODO: LEGGERE FILE QVOL'
+                block%qvol(i,j,k) = qvol
+              endif
             endif
           enddo; enddo; enddo            
         

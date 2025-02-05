@@ -726,7 +726,7 @@ module ATLAS_IO
             enddo
           enddo
         case('SP')
-          varnames = trim(varnames)//"T mID"
+          varnames = trim(varnames)//"T mID qvol"
       end select
 
       cnt = 0
@@ -769,9 +769,10 @@ module ATLAS_IO
           enddo
         case('SP')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'
-          allocate(orion%block(cnt)%vars(2,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          allocate(orion%block(cnt)%vars(3,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
           orion%block(cnt)%vars(1,:,:,:) = block(b)%temperature
           orion%block(cnt)%vars(2,:,:,:) = block(b)%mID
+          orion%block(cnt)%vars(3,:,:,:) = block(b)%qvol
         end select
       enddo
 
