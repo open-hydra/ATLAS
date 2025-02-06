@@ -188,6 +188,8 @@ contains
   subroutine read_qvolfile_tec ( qvol, block, qvolfile )
     use ATLAS_high_level
     use ATLAS_IO, only: read_TECmesh
+    use chimera, only: fs
+    use intersection_module
     use Lib_ORION_data
     use Lib_Tecplot
     use TOM
@@ -197,8 +199,13 @@ contains
     real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: qvol
     !Local
     type(Orion_Data) :: IOfield
-    integer          :: error, i, j, k, d
+    integer          :: error, i, j, k, d, ii, jj, kk
     type(qvol_block) :: qvol_tec
+    real(8)                                  :: mindist
+    real(8), dimension(:,:,:), allocatable   :: dx, dy, dz, dist
+    integer, dimension(3)                    :: ind
+    real*8, dimension(3,8)                   :: cell
+    logical                                  :: inside_loc, inside
 
     
     IOfield%tec%format = 'ascii'
@@ -230,10 +237,52 @@ contains
       qvol_tec%qvol(i,j,k) = IOfield%block(1)%vars(1,i,j,k)
     enddo; enddo; enddo
 
-    ! TODO: INTERPOLARE LA DISTRIBUZIONE DELLA MESH DEL QVOL SULLA MESH DEL DOMINIO
+    ! Cell centers minimum distance algorithm
+    do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+      
+      inside = .false.
+      do ii = 1, qvol_tec%dim(1); do jj = 1, qvol_tec%dim(2); do kk = 1, qvol_tec%dim(3)
+        
+        cell(:,1) = qvol_tec%node(ii-1,jj-1,kk-1)%c(1:3)*fs
+        cell(:,2) = qvol_tec%node(ii-1,jj  ,kk-1)%c(1:3)*fs
+        cell(:,3) = qvol_tec%node(ii-1,jj-1,kk  )%c(1:3)*fs
+        cell(:,4) = qvol_tec%node(ii-1,jj  ,kk  )%c(1:3)*fs
+        cell(:,5) = qvol_tec%node(ii  ,jj-1,kk-1)%c(1:3)*fs
+        cell(:,6) = qvol_tec%node(ii  ,jj  ,kk-1)%c(1:3)*fs
+        cell(:,7) = qvol_tec%node(ii  ,jj-1,kk  )%c(1:3)*fs
+        cell(:,8) = qvol_tec%node(ii  ,jj  ,kk  )%c(1:3)*fs
+       
+        inside_loc = .false.
+        call pointInsideHexahedron(block%center(i,j,k)%c(1:3)*fs, cell, inside_loc)
+
+        if (inside_loc .eqv. .true.) inside = .true.
+      
+      enddo; enddo; enddo
+
+      if (inside .eqv. .true.) then
+  
+        allocate(dx(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3)))
+        allocate(dy(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3)))
+        allocate(dz(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3)))
+        allocate(dist(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3)))
+              
+        dx(:,:,:) = (block%center(i,j,k)%c(1)-qvol_tec%center(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3))%c(1))**2
+        dy(:,:,:) = (block%center(i,j,k)%c(2)-qvol_tec%center(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3))%c(2))**2
+        dz(:,:,:) = (block%center(i,j,k)%c(3)-qvol_tec%center(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3))%c(3))**2
+        dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
+
+        ind = minloc(dist(:,:,:), MASK=.true.)
+        mindist = dist(ind(1),ind(2),ind(3))
+
+        deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
+
+        qvol(i,j,k) = qvol_tec%qvol(ind(1),ind(2),ind(3))
+
+      endif
+          
+    enddo; enddo; enddo
 
   end subroutine read_qvolfile_tec
-
 
 
 
