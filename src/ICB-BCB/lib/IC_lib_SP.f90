@@ -50,9 +50,9 @@ contains
       if (errorfile==0) then
         call zoneini%get(section_name='zone', option_name='qvol-direction', val=qvoldirection, error=errordirection)
         if (errordirection==0) then
-          call read_qvolfile (qvol, block, qvolfile, qvoldirection)
+          call read_qvolfile_direction (qvol, block, qvolfile, qvoldirection)
         else
-          call read_qvolfile (qvol, block, qvolfile)
+          call read_qvolfile_tec (qvol, block, qvolfile)
         endif
       endif
     else
@@ -128,68 +128,113 @@ contains
 
     end select
 
-
   end subroutine build_SP_field
 
 
 
-  subroutine read_qvolfile (qvol, block, qvolfile, qvoldirection)
+  subroutine read_qvolfile_direction (qvol, block, qvolfile, qvoldirection)
     use ATLAS_high_level
     implicit none
     type(ATLAS_block), intent(inout)  :: block
     character(len=200), intent(in)    :: qvolfile
-    character(len=16), intent(in), optional  :: qvoldirection
+    character(len=16), intent(in)     :: qvoldirection
     real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: qvol
     ! Local
     integer :: dir, ios, file_length, i, j, k, f
     real(8), dimension(:), allocatable :: file_dir, file_qvol
     real(8) :: coord, coordm, coordp, qvolm, qvolp
-    
-    if (present(qvoldirection)) then
+
       
-      if (trim(qvoldirection) == 'x') dir = 1
-      if (trim(qvoldirection) == 'y') dir = 2
-      if (trim(qvoldirection) == 'z') dir = 3
+    if (trim(qvoldirection) == 'x') dir = 1
+    if (trim(qvoldirection) == 'y') dir = 2
+    if (trim(qvoldirection) == 'z') dir = 3
 
-      file_length=0; ios=0
-      open(unit=1,file=trim(qvolfile),status='old',action='read')
-      do while (ios==0)
-        read(1,*,iostat=ios)
-        file_length = file_length+1
-      enddo
-      file_length = file_length-1
-      rewind(1)
-      allocate(file_dir(1:file_length))
-      allocate(file_qvol(1:file_length))
-      do i = 1, file_length
-        read(1,*) file_dir(i), file_qvol(i)
-      enddo
-      close(1)
+    file_length=0; ios=0
+    open(unit=1,file=trim(qvolfile),status='old',action='read')
+    do while (ios==0)
+      read(1,*,iostat=ios)
+      file_length = file_length+1
+    enddo
+    file_length = file_length-1
+    rewind(1)
+    allocate(file_dir(1:file_length))
+    allocate(file_qvol(1:file_length))
+    do i = 1, file_length
+      read(1,*) file_dir(i), file_qvol(i)
+    enddo
+    close(1)
 
-      do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
-        coord = block%center(i,j,k)%c(dir)
-        do f = 1, file_length
-          if (coord < file_dir(1) .or. coord > file_dir(file_length) ) then
-            exit
-          elseif (coord < file_dir(f)) then
-            coordm = file_dir(f-1)
-            coordp = file_dir(f)
-            qvolm = file_qvol(f-1)
-            qvolp = file_qvol(f)
-            qvol(i,j,k) = qvolm + (coord-coordm)/(coordp-coordm)*(qvolp-qvolm)
-            exit
-          endif
-        enddo
+    do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+      coord = block%center(i,j,k)%c(dir)
+      do f = 1, file_length
+        if (coord < file_dir(1) .or. coord > file_dir(file_length) ) then
+          exit
+        elseif (coord < file_dir(f)) then
+          coordm = file_dir(f-1)
+          coordp = file_dir(f)
+          qvolm = file_qvol(f-1)
+          qvolp = file_qvol(f)
+          qvol(i,j,k) = qvolm + (coord-coordm)/(coordp-coordm)*(qvolp-qvolm)
+          exit
+        endif
+      enddo
         
-      enddo; enddo; enddo
+    enddo; enddo; enddo
 
-    else
-
-      print*, 'TODO: LEGGERE FILE QVOL.TEC'
-
-    endif
+  end subroutine read_qvolfile_direction
 
 
-  end subroutine read_qvolfile
+
+  subroutine read_qvolfile_tec ( qvol, block, qvolfile )
+    use ATLAS_high_level
+    use ATLAS_IO, only: read_TECmesh
+    use Lib_ORION_data
+    use Lib_Tecplot
+    use TOM
+    implicit none
+    type(ATLAS_block), intent(inout)  :: block
+    character(len=200), intent(in)    :: qvolfile
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: qvol
+    !Local
+    type(Orion_Data) :: IOfield
+    integer          :: error, i, j, k, d
+    type(qvol_block) :: qvol_tec
+
+    
+    IOfield%tec%format = 'ascii'
+    error = tec_read_structured_multiblock( orion=IOfield, filename=trim(qvolfile) )
+
+    allocate(qvol_tec%node   (0:IOfield%block(1)%Ni,0:IOfield%block(1)%Nj,0:IOfield%block(1)%Nk))
+    allocate(qvol_tec%center (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
+    allocate(qvol_tec%qvol   (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
+
+    qvol_tec%dim(1) = IOfield%block(1)%Ni
+    qvol_tec%dim(2) = IOfield%block(1)%Nj
+    qvol_tec%dim(3) = IOfield%block(1)%Nk
+
+    do i = 0, qvol_tec%dim(1); do j = 0, qvol_tec%dim(2); do k = 0, qvol_tec%dim(3)
+      qvol_tec%node(i,j,k)%c(1:3) = IOfield%block(1)%mesh(:,i,j,k)
+    enddo; enddo; enddo
+   
+    !> Compute the cells center coords
+    do k = 1, qvol_tec%dim(3); do j = 1, qvol_tec%dim(2); do i = 1, qvol_tec%dim(1)
+      do d = 1, 3
+        qvol_tec%center(i,j,k)%c(d)=0.125d0*(qvol_tec%node(i-1,j-1,k-1)%c(d)+qvol_tec%node(i,j-1,k-1)%c(d)+ &
+                                             qvol_tec%node(i-1,j,k-1)%c(d)+qvol_tec%node(i-1,j-1,k)%c(d)+ &
+                                             qvol_tec%node(i,j,k)%c(d)+qvol_tec%node(i,j,k-1)%c(d)+ &
+                                             qvol_tec%node(i,j-1,k)%c(d)+qvol_tec%node(i-1,j,k)%c(d))
+      enddo
+    enddo; enddo; enddo
+
+    do i = 1, qvol_tec%dim(1); do j = 1, qvol_tec%dim(2); do k = 1, qvol_tec%dim(3)
+      qvol_tec%qvol(i,j,k) = IOfield%block(1)%vars(1,i,j,k)
+    enddo; enddo; enddo
+
+    ! TODO: INTERPOLARE LA DISTRIBUZIONE DELLA MESH DEL QVOL SULLA MESH DEL DOMINIO
+
+  end subroutine read_qvolfile_tec
+
+
+
 
 end module IC_lib_SP

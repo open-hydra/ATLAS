@@ -52,6 +52,17 @@
       procedure, pass(self), public :: compute_face_centers
     end type ATLAS_block
 
+    type :: vector_3D_type
+      real(kind=8)   :: c(3)
+    end type vector_3D_type
+
+    type, public :: qvol_block
+      integer                                :: dim(3)
+      type(vector_3D_type), allocatable      :: node(:,:,:)
+      type(vector_3D_type), allocatable      :: center(:,:,:)
+      real(8), allocatable                   :: qvol(:,:,:)
+    end type qvol_block
+
 contains
 
   pure subroutine import_nodes(input,output)
