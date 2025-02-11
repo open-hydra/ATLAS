@@ -200,7 +200,6 @@ contains
     
     ! Turbulence specific parameters
     if (nrans==1) then
-        block%turbprop(1,:,:,:) = mit
         if(mit/=0.0) block%turbprop(1,:,:,:) = mit
     elseif (nrans==2) then
         if(kappa/=0.0) block%turbprop(1,:,:,:) = kappa
