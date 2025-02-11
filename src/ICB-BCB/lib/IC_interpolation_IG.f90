@@ -259,6 +259,7 @@ subroutine index_interpolation()
             do sold = 1, oldspecies%n
               if (newspecies%name(s)==oldspecies%name(sold)) then
                 block%density(s,i,j,k) = oldblock(b)%density(s,i,j,1)
+                exit
               endif
             enddo
           enddo
@@ -296,8 +297,10 @@ subroutine index_interpolation()
           do s = 1, newspecies%n
             block%density(s,i,j,k) = 1e-20
             do sold = 1, oldspecies%n
+              !print*, newspecies%name(s), oldspecies%name(sold)
               if (newspecies%name(s)==oldspecies%name(sold)) then
                 block%density(s,i,j,k) = oldblock(b)%density(s,i,j,k)
+                exit
               endif
             enddo
           enddo
@@ -409,7 +412,8 @@ subroutine multiple_interpolation()
                                               +  coeffs(5)*oldblock(b)%density(s,i2d,j2d,k2)    &
                                               +  coeffs(6)*oldblock(b)%density(s,i2, j2d,k2)    &
                                               +  coeffs(7)*oldblock(b)%density(s,i2d,j2, k2)    &
-                                              +  coeffs(8)*oldblock(b)%density(s,i2, j2, k2)    
+                                              +  coeffs(8)*oldblock(b)%density(s,i2, j2, k2)
+                  exit    
                 endif
               enddo
             enddo
@@ -538,6 +542,7 @@ subroutine multiple_interpolation()
                                                     +  coeffs(6)*oldblock(b)%density(s,id(mask(1)),j,id(mask(3)))   &
                                                     +  coeffs(7)*oldblock(b)%density(s,i,id(mask(2)),id(mask(3)))   &
                                                     +  coeffs(8)*oldblock(b)%density(s,id(mask(1)),id(mask(2)),id(mask(3)))
+                        exit
                       endif
                     enddo
                   enddo
@@ -838,6 +843,7 @@ subroutine multiple_interpolation()
                                                     +  coeffs(6)*oldblock(b)%density(s,id(mask(1)),j,id(mask(3)))   &
                                                     +  coeffs(7)*oldblock(b)%density(s,i,id(mask(2)),id(mask(3)))   &
                                                     +  coeffs(8)*oldblock(b)%density(s,id(mask(1)),id(mask(2)),id(mask(3)))
+                        exit
                       endif
                     enddo
                   end do
@@ -907,6 +913,7 @@ subroutine multiple_interpolation()
               do sold = 1, oldspecies%n
                 if (newspecies%name(s)==oldspecies%name(sold)) then
                   block%density(s,i,j,k) = oldblock(b)%density(s,indi,indj,indk)
+                  exit
                 endif
               enddo
             enddo
@@ -995,6 +1002,7 @@ subroutine distance_interpolation
           do sold = 1, oldspecies%n
             if (newspecies%name(s)==oldspecies%name(sold)) then
               block%density(s,i,j,k) = oldblock(trueb)%density(s,ind(1),ind(2),ind(3))
+              exit
             endif
           enddo
         enddo
@@ -1083,6 +1091,7 @@ subroutine spherical_distance_interpolation
           do sold = 1, oldspecies%n
             if (newspecies%name(s)==oldspecies%name(sold)) then
               block%density(s,i,j,k) = oldblock(trueb)%density(s,ind(1),ind(2),ind(3))
+              exit
             endif
           enddo
         enddo
