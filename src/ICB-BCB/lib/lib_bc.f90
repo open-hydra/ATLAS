@@ -555,13 +555,17 @@ module lib_bc
               this%bc%properties(3) = j2
               this%bc%properties(4) = k2
               this%bc%properties(5) = f2
+              this%bc%connection(1) = 1
+              this%bc%connection(2) = 0
+              this%bc%connection(3) = 0
+              this%bc%connection(4) = 1
             endif
             endassociate
           enddo
         enddo
       enddo
     enddo
-
+    
   end subroutine find_periodic
 
 
