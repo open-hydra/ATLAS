@@ -736,7 +736,7 @@ module ATLAS_IO
             enddo
           enddo
         case('SP')
-          varnames = trim(varnames)//"T mID qvol"
+          varnames = trim(varnames)//"T matID qvol"
       end select
 
       cnt = 0
