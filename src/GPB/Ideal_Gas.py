@@ -58,6 +58,7 @@ def build(inifile,section):
     cea = CEA()
     CEA_equilibrium = False 
     cantera_equilibrium = False
+    ct.add_directory(os.getcwd())
 
     # ---------------------------------------------------
     # Reading input parameters from INI file
@@ -129,6 +130,9 @@ def build(inifile,section):
     if phase_model is not None:
         print(' -- Found phase model:',phase_model)
         phase = ct.Solution(phase_model + '.yaml')
+        if (phase.n_reactions>0):
+            mechanism = phase
+            reaction_model = phase
         species_group.append(phase)
     # ---------------------------------------------------
 
@@ -137,7 +141,7 @@ def build(inifile,section):
     # By default, the thermo properties are read from the chosen database.
     # if one species is not found, it is taken from the reaction model.
     # Transport properties are read from the reaction model.
-    if reaction_model is not None:
+    if reaction_model is not None and phase_model is None:
         print(' -- Found reaction model:',reaction_model)
         # Load the full mechanism
         raw_mechanism = ct.Solution(reaction_model + '.yaml')
@@ -345,5 +349,6 @@ def build(inifile,section):
                 for sp_ in p.species_names: sp.append(sp_)
             elif "mix" in p.name:
                 sp.append('inertMix')
+        print(' -- Build chemistry properties')
         IG_IO.write_chemistry_properties (name, T1, T2, mechanism, sp)
         #IO_Legacy.write_chemistry_properties (T1, T2, mechanism, sp)
