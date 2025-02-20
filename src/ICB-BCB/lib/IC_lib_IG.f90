@@ -253,11 +253,11 @@ contains
         ib2 = block%dim(1)
       elseif (nozzle_dir=='sx') then
         ip = -1
-        ib1 = L_threshold_cell-1
-        ib2 = 0
+        ib1 = block%dim(1)
+        ib2 = L_threshold_cell+1
       endif
 
-      do i = 1, ib1-1, ip
+      do i = ib1, ib2, ip
         do s = 1, sp%n
           block%density(s,i,:,:) = sp%massf(s)*p0/(Rgas*T0)
         enddo
@@ -267,8 +267,9 @@ contains
 
       do i = ib1, ib2, ip
         M0 = 0.001
-        if (i>throat_cell) M0 = 1.30
+        if (ip*i > ip*throat_cell) M0 = 1.30
         call legge_aree(area(i),M0,Mach,throat_area,gamma)
+        Mach = Mach * ip
         here = 1.0
         do k = 1, block%dim(3)
           do j = 1, block%dim(2)
