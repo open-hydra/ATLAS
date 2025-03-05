@@ -698,4 +698,44 @@ pure subroutine compute_volume( b, gc )
 
   end function cartesian2cyl
 
+
+  subroutine ijk2mn(Ai,Aj,Ak,af,am,an)
+    implicit none
+    integer, intent(in) :: Ai, Aj, Ak, af
+    integer, intent(out) :: am, an
+    
+    select case (af)
+    case(1,2)
+      am = Aj; an = Ak
+    case(3,4)
+      am = Ai; an = Ak
+    case(5,6)
+      am = Ai; an = Aj
+    end select
+
+  end subroutine ijk2mn
+
+
+  subroutine fmn2ijk(af,am,an,Nx,Ny,Nz,Ai,Aj,Ak)
+    implicit none
+    integer, intent(in)  :: am, an, af, Nx, Ny, Nz
+    integer, intent(out) :: Ai, Aj, Ak
+
+    select case (af)
+    case(1)
+      Ai = 1; Aj = am; Ak = an
+    case(2)
+      Ai = Nx; Aj = am; Ak = an
+    case(3)
+      Aj = 1; Ai = am; Ak = an
+    case(4)
+      Aj = Ny; Ai = am; Ak = an
+    case(5)
+      Ak = 1; Ai = am; Aj = an
+    case(6)
+      Ak = Nz; Ai = am; Aj = an
+    end select
+
+  end subroutine fmn2ijk
+
 end module TOM

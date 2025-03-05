@@ -10,7 +10,9 @@ program BCB
   use ATLAS_IO
   use Lib_ORION_data
   use input_ini
-  use lib_bc
+  use build_BC_mod
+  use chimera
+  use BC_connection
   use finer, only: file_ini
   implicit none
   type(phase_type), allocatable  :: phase(:)

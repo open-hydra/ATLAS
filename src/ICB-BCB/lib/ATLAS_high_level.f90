@@ -1,7 +1,7 @@
   module ATLAS_high_level
     use TOM
     use phase_module
-    use bc
+    use lib_bc
     implicit none
     private
     public:: import_nodes

@@ -18,7 +18,7 @@ module ATLAS_IO
   subroutine write_idealgas_bc_file(name,block)
     use variables
     use ATLAS_high_level, only: ATLAS_block
-    use chimera
+    use TOM, only: fmn2ijk
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
@@ -60,11 +60,11 @@ module ATLAS_IO
           do m = 1, mend(f)
             
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
-            write(unitfile,'(6I8)')b,Ai,Aj,Ak,f,block(b)%face(f)%center(m,n)%bc%definition
+            write(unitfile,'(6I8)')block(b)%id,Ai,Aj,Ak,f,block(b)%face(f)%center(m,n)%bc%definition
 
             select case (block(b)%face(f)%center(m,n)%bc%definition)
 
-              case(1)
+              case(1,1000)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-1-nrans
                   write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
                 enddo
@@ -244,7 +244,7 @@ module ATLAS_IO
   subroutine write_cdp_bc_file(name,block)
     use variables
     use ATLAS_high_level, only: ATLAS_block
-    use chimera
+    use TOM, only: fmn2ijk
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
@@ -292,7 +292,7 @@ module ATLAS_IO
             
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
             
-            write(u,'(8I8)')b,Ai,Aj,Ak,f,mm,p,block(b)%face(f)%center(m,n)%bc%definition
+            write(u,'(8I8)')block(b)%id,Ai,Aj,Ak,f,mm,p,block(b)%face(f)%center(m,n)%bc%definition
 
             select case (block(b)%face(f)%center(m,n)%bc%definition)
 
