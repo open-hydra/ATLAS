@@ -160,7 +160,7 @@ def build(inifile,section):
                 combined_species.append(raw_mechanism.species(species_name))
         # Create the custom mechanism
         mechanism = ct.Solution(thermo='ideal-gas',kinetics='gas',species=combined_species,reactions=raw_mechanism.reactions())
-        mechanism.name = 'reactive-species'
+        mechanism.name = raw_mechanism.name
         mechanism.transport_model = raw_mechanism.transport_model
         species_group.append(mechanism)
     # ---------------------------------------------------
