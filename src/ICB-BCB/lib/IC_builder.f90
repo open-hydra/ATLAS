@@ -1,4 +1,4 @@
-module lib_ic
+module build_IC_mod
   use ATLAS_high_level
   use finer, only: file_ini
   implicit none
@@ -192,4 +192,4 @@ module lib_ic
 
   end subroutine build_field
 
-end module lib_ic
+end module build_IC_mod

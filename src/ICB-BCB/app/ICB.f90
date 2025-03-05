@@ -9,7 +9,7 @@ program ICB
   use ATLAS_IO
   use Lib_ORION_data
   use input_ini
-  use lib_ic
+  use build_IC_mod
   use Interpolator, only: intersol
   use finer, only: file_ini
   implicit none
