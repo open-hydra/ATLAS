@@ -1,4 +1,4 @@
-module bc
+module lib_bc
   use phase_module
   use intersection_module
   use variables
@@ -328,4 +328,4 @@ module bc
 
   end function h02T0
 
-end module bc
+end module lib_bc

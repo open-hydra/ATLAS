@@ -1,9 +1,129 @@
 module chimera
-implicit none
+  implicit none
+  private
+  public:: chimera_wrapper
 
-  real(8), parameter     :: fs=1000
+  real(8), parameter, public :: fs=1000
 
 contains
+
+  subroutine chimera_wrapper(block)
+    use intersection_module
+    use ATLAS_high_level
+    use TOM, only: gc
+    implicit none
+    type(ATLAS_block), intent(inout) :: block(:)
+    character(len=200) :: master_path
+    integer                 :: ir,jr,kr,br,ni,nint
+    integer                 :: unitfile1, unitfile2
+    type(intersection_type), allocatable :: intersection(:)
+    logical, allocatable                 :: nodeinside(:,:,:,:)
+
+    !% Look for intersections
+    ni = 0; nint = 0
+    open(newunit=unitfile1,file='couples.txt')
+    open(newunit=unitfile2,file='points.txt')
+
+    ! Loop over the receiver block cells
+    do br = 1, size(block)
+
+      allocate(block(br)%face(1)%cell(1-gc:0,                        1-gc:block(br)%dim(2)+gc,          1-gc:block(br)%dim(3)+gc))
+      allocate(block(br)%face(2)%cell(block(br)%dim(1)+1:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,          1-gc:block(br)%dim(3)+gc))
+      allocate(block(br)%face(3)%cell(1-gc:block(br)%dim(1)+gc,          1-gc:0,                        1-gc:block(br)%dim(3)+gc))
+      allocate(block(br)%face(4)%cell(1-gc:block(br)%dim(1)+gc,          block(br)%dim(2)+1:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
+      allocate(block(br)%face(5)%cell(1-gc:block(br)%dim(1)+gc,          1-gc:block(br)%dim(2)+gc,          1-gc:0))
+      allocate(block(br)%face(6)%cell(1-gc:block(br)%dim(1)+gc,          1-gc:block(br)%dim(2)+gc,          block(br)%dim(3)+1:block(br)%dim(3)+gc))
+
+      ! Face 1
+      if (allocated(nodeinside)) deallocate(nodeinside)
+      allocate(nodeinside(8,1-gc:0,1-gc:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
+      nodeinside = .false.
+      do kr = 1-gc, block(br)%dim(3)+gc; do jr = 1-gc, block(br)%dim(2)+gc; do ir = 1-gc, 0
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
+        ni = ni+nint
+      enddo; enddo; enddo
+
+      ! Face 2
+      if (allocated(nodeinside)) deallocate(nodeinside)
+      allocate(nodeinside(8,block(br)%dim(1)+1:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
+      nodeinside = .false.
+      do kr = 1-gc, block(br)%dim(3)+gc; do jr = 1-gc, block(br)%dim(2)+gc; do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[block(br)%dim(1)+1,1-gc,1-gc])
+        ni = ni+nint
+      enddo; enddo; enddo
+
+      ! Face 3
+      if (allocated(nodeinside)) deallocate(nodeinside)
+      allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:0,1-gc:block(br)%dim(3)+gc))
+      nodeinside = .false.
+      do kr = 1-gc, block(br)%dim(3)+gc; do jr = 1-gc, 0; do ir = 1-gc, block(br)%dim(1)+gc
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
+        ni = ni+nint
+      enddo; enddo; enddo
+
+      ! Face 4
+      if (allocated(nodeinside)) deallocate(nodeinside)
+      allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,block(br)%dim(2)+1:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
+      nodeinside = .false.
+      do kr = 1-gc, block(br)%dim(3)+gc; do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc; do ir = 1-gc, block(br)%dim(1)+gc
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,block(br)%dim(2)+1,1-gc])
+        ni = ni+nint
+      enddo; enddo; enddo
+
+      ! Face 5
+      if (allocated(nodeinside)) deallocate(nodeinside)
+      allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,1-gc:0))
+      nodeinside = .false.
+      do kr = 1-gc, 0; do jr = 1-gc, block(br)%dim(2)+gc; do ir = 1-gc, block(br)%dim(1)+gc
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
+        ni = ni+nint
+      enddo; enddo; enddo
+
+      ! Face 6
+      if (allocated(nodeinside)) deallocate(nodeinside)
+      allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,block(br)%dim(3)+1:block(br)%dim(3)+gc))
+      nodeinside = .false.
+      do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc; do jr = 1-gc, block(br)%dim(2)+gc; do ir = 1-gc, block(br)%dim(1)+gc
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,block(br)%dim(3)+1])
+        ni = ni+nint
+      enddo; enddo; enddo
+
+    enddo
+
+    close(unitfile1); close(unitfile2)
+
+    call get_environment_variable('ATLASDIR',master_path)
+    call IntersectionVolumes(trim(master_path)//'/src/lib/convexHull.py',ni,intersection)
+
+    !% Check volume division for receivers
+    do br = 1, size(block)
+      ! Face 1
+      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = 1-gc, 0
+        call VolumeFractions(block,br,1,ir,jr,kr,ni,intersection)
+      enddo; enddo; enddo
+      ! Face 2
+      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc
+        call VolumeFractions(block,br,2,ir,jr,kr,ni,intersection)
+      enddo; enddo; enddo
+      ! Face 3
+      do kr = 1, block(br)%dim(3); do jr = 1-gc, 0; do ir = 1, block(br)%dim(1)
+        call VolumeFractions(block,br,3,ir,jr,kr,ni,intersection)
+      enddo; enddo; enddo
+      ! Face 4
+      do kr = 1, block(br)%dim(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc; do ir = 1, block(br)%dim(1)
+        call VolumeFractions(block,br,4,ir,jr,kr,ni,intersection)
+      enddo; enddo; enddo
+      ! Face 5
+      do kr = 1-gc, 0; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
+        call VolumeFractions(block,br,5,ir,jr,kr,ni,intersection)
+      enddo; enddo; enddo
+      ! Face 6
+      do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
+        call VolumeFractions(block,br,6,ir,jr,kr,ni,intersection)
+      enddo; enddo; enddo
+    enddo
+
+  end subroutine chimera_wrapper
 
   subroutine LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,startingIndexes)
     use atlas_high_level, only: atlas_block
@@ -234,6 +354,7 @@ contains
   subroutine VolumeFractions(block,br,fr,ir,jr,kr,ni,intersection)
     use atlas_high_level, only: atlas_block
     use intersection_module
+    use tom, only: ijk2mn
     implicit none
     type(atlas_block), intent(inout)       :: block(:)
     integer, intent(in)                    :: ir,jr,kr,fr,br,ni
@@ -334,46 +455,5 @@ contains
     close(unitfile1)
 
   end subroutine IntersectionVolumes
-
-
-  subroutine ijk2mn(Ai,Aj,Ak,af,am,an)
-    implicit none
-    integer, intent(in) :: Ai, Aj, Ak, af
-    integer, intent(out) :: am, an
-    
-    select case (af)
-    case(1,2)
-      am = Aj; an = Ak
-    case(3,4)
-      am = Ai; an = Ak
-    case(5,6)
-      am = Ai; an = Aj
-    end select
-
-  end subroutine ijk2mn
-
-
-  subroutine fmn2ijk(af,am,an,Nx,Ny,Nz,Ai,Aj,Ak)
-    implicit none
-    integer, intent(in)  :: am, an, af, Nx, Ny, Nz
-    integer, intent(out) :: Ai, Aj, Ak
-
-    select case (af)
-    case(1)
-      Ai = 1; Aj = am; Ak = an
-    case(2)
-      Ai = Nx; Aj = am; Ak = an
-    case(3)
-      Aj = 1; Ai = am; Ak = an
-    case(4)
-      Aj = Ny; Ai = am; Ak = an
-    case(5)
-      Ak = 1; Ai = am; Aj = an
-    case(6)
-      Ak = Nz; Ai = am; Aj = an
-    end select
-
-  end subroutine fmn2ijk
-  
 
 end module chimera
