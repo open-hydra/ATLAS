@@ -269,6 +269,7 @@ def build(inifile,section):
             dummy_species_list.append(fixgas_species)
         fixgas_phase = ct.Solution(name='constant-cp species', thermo='ideal-gas', species=dummy_species_list)
         species_group.append(fixgas_phase)
+        if fix_mil is not None: transport_model = 'constant'
     # ---------------------------------------------------
 
     # ---------------------------------------------------
@@ -334,6 +335,8 @@ def build(inifile,section):
     if transport_model is not None:
         if transport_model=='CEA':
             IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group, database=CEAdata)
+        elif transport_model=='constant':
+            IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group, mil=fix_mil, kl=fix_kl)
         else:
             IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group)
 
