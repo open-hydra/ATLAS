@@ -13056,7 +13056,7 @@ species:
   composition: {Al: 2, O: 3}
   thermo:
     model: NASA9
-    temperature-ranges: [2327.0, 6000.0]
+    temperature-ranges: [200.0, 6000.0]
     data:
     - [0.0, 0.0, 19.59225499, 0.0, 0.0, 0.0, 0.0, -2.027701571e+05, -110.8590952]
     note: Liquid. TPIS 1996 pt1 p134 pt2 p103. [tpis96]
