@@ -281,6 +281,14 @@ module build_BC_mod
     if (error==0) then
       varname = 'T'; found = .true.
     endif
+    call ini_o%get(section_name='cell', option_name='Taw-file', val=infile, error=error)
+    if (error==0) then
+      varname = 'Taw'; found = .true.
+    endif
+    call ini_o%get(section_name='cell', option_name='hg-file', val=infile, error=error)
+    if (error==0) then
+      varname = 'hg'; found = .true.
+    endif
     call ini_o%get(section_name='cell', option_name='phi-file', val=infile, error=error)
     if (error==0) then
       varname = 'phi'; found = .true.
