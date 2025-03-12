@@ -8,6 +8,13 @@ module build_BC_mod
   private
   public:: build_BC
 
+  type :: bc_file_type
+    character(len=256)   :: name
+    character(len=5)     :: var
+    integer              :: length, width
+    real(8), allocatable :: dirArray1(:), dirArray2(:), array(:,:)
+  end type bc_file_type
+
   contains
 
   subroutine build_BC(phase,sini,blocks)
@@ -212,18 +219,20 @@ module build_BC_mod
     type(file_ini)                 :: ini_o
     type(phase_type), intent(in)   :: phase
     integer, intent(in)            :: nrans
+    type(bc_file_type)             :: bc_file(12)
     real(8), parameter             :: pi=4.0*atan(1.0)
-    integer                        :: error, ios, iosold, length, width, cnt_bc=0
+    integer                        :: error, ios, iosold, cnt_bc=0, n_files
     integer                        :: i, j, m, n, f_, mi, me, ni, ne
-    character(len=200)             :: infile, line
+    character(len=256)             :: line
     character(len=3)               :: dirID
-    character(len=5)               :: varname
-    integer                        :: dirSize=0, type_
+    integer                        :: dirSize=0, type_, unit
     integer, allocatable           :: dir(:)
-    real(8), allocatable           :: dirArray1(:), dirArray2(:), array(:,:), here(:), try(:)
+    real(8), allocatable           :: here(:), try(:)
     real(8)                        :: var=0.0, a1, a2, b1, b2, c11, c12, c21, c22, range(4)
-    logical                        :: found(8), file_present=.false., tecfile_present=.false., index_based=.false.
+    logical                        :: found(8)
     character(len=:), allocatable  :: option_pairs(:)
+    character(len=256)             :: infile_dummy
+    logical                        :: file_present=.false., tecfile_present=.false., index_based=.false.
 
     call ini_o%free
     call ini_o%add(section_name='cell')
@@ -268,52 +277,60 @@ module build_BC_mod
     enddo
 
     ! Check file presence
-    file_present=.false.; tecfile_present=.false.; found = .false.
-    call ini_o%get(section_name='cell', option_name='hs-file', val=infile, error=error)
+    n_files=0
+    file_present=.false.; tecfile_present=.false.
+    call ini_o%get(section_name='cell', option_name='hs-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'hs'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'hs'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='q-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='q-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'q'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'q'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='T-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='T-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'T'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'T'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='phi-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='Taw-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'phi'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'Taw'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='SF-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='hg-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'SF'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'hg'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='qrad-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='phi-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'qrad'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'phi'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='alpha-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='SF-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'alpha'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'SF'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='beta-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='qrad-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'beta'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'qrad'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='g-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='alpha-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'g'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'alpha'; bc_file(n_files)%name = infile_dummy
     endif
-
-    call ini_o%get(section_name='cell', option_name='krho-file', val=infile, error=error)
+    call ini_o%get(section_name='cell', option_name='beta-file', val=infile_dummy, error=error)
     if (error==0) then
-      varname = 'krho'; found = .true.
+      n_files = n_files+1; bc_file(n_files)%var = 'beta'; bc_file(n_files)%name = infile_dummy
+    endif
+    call ini_o%get(section_name='cell', option_name='g-file', val=infile_dummy, error=error)
+    if (error==0) then
+      n_files = n_files+1; bc_file(n_files)%var = 'g'; bc_file(n_files)%name = infile_dummy
+    endif
+    call ini_o%get(section_name='cell', option_name='krho-file', val=infile_dummy, error=error)
+    if (error==0) then
+      n_files = n_files+1; bc_file(n_files)%var = 'krho'; bc_file(n_files)%name = infile_dummy
     endif
 
     ! Check if the file is in free-format or Tecplot-format
-    if (found(1)) then
-      if (index(infile,'.tec')>0) then
+    if (n_files>0) then
+      if (index(bc_file(1)%name,'.tec')>0) then
         tecfile_present = .true.
         if(allocated(here)) deallocate(here)
         allocate(here(2))
@@ -328,32 +345,40 @@ module build_BC_mod
       select case (dirSize)
       ! One dimensional variation
       case(1)
-        length=0; ios=0
         if (file_present) then
-          open(unit=1,file=infile,status='old',action='read')
-          do while (ios==0)
-            read(1,*,iostat=ios)
-            length = length+1
+          do f_ = 1, n_files
+            associate( length=> bc_file(f_)%length )
+            length=0; ios=0
+            open(newunit=unit,file=bc_file(f_)%name,status='old',action='read')
+            do while (ios==0)
+              read(unit,*,iostat=ios)
+              length = length+1
+            enddo
+            length = length-1
+            rewind(unit)
+            allocate(bc_file(f_)%dirArray1(1:length))
+            allocate(bc_file(f_)%array(1:length,1))
+            do i = 1, length
+              read(unit,*) bc_file(f_)%dirArray1(i), bc_file(f_)%array(i,1)
+            enddo
+            close(unit)
+            if (dir(1)==5) bc_file(f_)%dirArray1 = bc_file(f_)%dirArray1*pi/180
+            endassociate
           enddo
-          length = length-1
-          rewind(1)
-          allocate(dirArray1(1:length))
-          allocate(array(1:length,1))
-          do i = 1, length
-            read(1,*) dirArray1(i), array(i,1)
-          enddo
-          close(1)
         endif
-        if (dir(1)==5) dirArray1 = dirArray1*pi/180
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
             if (file_present) then
               ! Interpolazione lineare
-              do i = 2, length
-                if (here(1)>dirArray1(i-1) .and. here(1)<=dirArray1(i)) then
-                  var = (array(i,1)-array(i-1,1))/(dirArray1(i)-dirArray1(i-1))*(here(1)-dirArray1(i-1))+array(i-1,1)
-                  call ini_o%add(section_name='cell', option_name=trim(varname), val=var)
-                  exit
+              do f_ = 1, n_files
+                if (here(1)>bc_file(f_)%dirArray1(1) .and. here(1)<=bc_file(f_)%dirArray1(bc_file(f_)%length)) then
+                  do i = 2, bc_file(f_)%length
+                    if (here(1)>bc_file(f_)%dirArray1(i-1) .and. here(1)<=bc_file(f_)%dirArray1(i)) then
+                      var = (bc_file(f_)%array(i,1)-bc_file(f_)%array(i-1,1))/(bc_file(f_)%dirArray1(i)-bc_file(f_)%dirArray1(i-1))*(here(1)-bc_file(f_)%dirArray1(i-1))+bc_file(f_)%array(i-1,1)
+                      call ini_o%add(section_name='cell', option_name=trim(bc_file(f_)%var), val=var)
+                      exit
+                    endif
+                  enddo
                 endif
               enddo
             endif
@@ -366,54 +391,60 @@ module build_BC_mod
         enddo; enddo
       ! Two dimensional variaton
       case(2)
-        length=0; width=10000; ios=0
         if (file_present) then
-          open(unit=1,file=infile,status='old',action='read')
-          do while (ios==0)
-            read(1,*,iostat=ios)
-            length = length+1
+          do f_ = 1, n_files
+            associate( length=> bc_file(f_)%length, width=> bc_file(f_)%width )
+            length=0; width=10000; ios=0
+            open(newunit=unit,file=bc_file(f_)%name,status='old',action='read')
+            do while (ios==0)
+              read(unit,*,iostat=ios)
+              length = length+1
+            enddo
+            length = length-2
+            do while(ios/=0)
+              rewind(unit)
+              allocate(try(1:width))
+              read(unit,*,iostat=ios) try(1:width)
+              deallocate(try)
+              width = width-1
+            enddo
+            width = (width+2)/(length+1)-1
+            rewind(unit)
+            allocate(bc_file(f_)%dirArray1(1:length))
+            allocate(bc_file(f_)%dirArray2(1:width))
+            allocate(bc_file(f_)%array(1:length,1:width))
+            read(unit,*) (bc_file(f_)%dirArray2(j),j=1,width)
+            do i = 1, length
+              read(unit,*) bc_file(f_)%dirArray1(i), (bc_file(f_)%array(i,j),j=1,width)
+            enddo
+            close(unit)
+            if (dir(1)==5) bc_file(f_)%dirArray1(:) = bc_file(f_)%dirArray1(:)*pi/180
+            if (dir(2)==5) bc_file(f_)%dirArray2(:) = bc_file(f_)%dirArray2(:)*pi/180
+            endassociate
           enddo
-          length = length-2
-          do while(ios/=0)
-            rewind(1)
-            allocate(try(1:width))
-            read(1,*,iostat=ios) try(1:width)
-            deallocate(try)
-            width = width-1
-          enddo
-          width = (width+2)/(length+1)-1
-          rewind(1)
-          allocate(dirArray1(1:length))
-          allocate(dirArray2(1:width))
-          allocate(array(1:length,1:width))
-          read(1,*) (dirArray2(j),j=1,width)
-          do i = 1, length
-            read(1,*) dirArray1(i), (array(i,j),j=1,width)
-          enddo
-          close(1)
-          if (dir(1)==5) dirArray1(:) = dirArray1(:)*pi/180
-          if (dir(2)==5) dirArray2(:) = dirArray2(:)*pi/180
         endif
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
             here(2) = face%center(m,n)%c(dir(2))
             if (file_present) then
               ! Doppia interpolazione lineare
-              do i = 2, length
-                if (here(1)>=dirArray1(i-1) .and. here(1)<=dirArray1(i)) then
-                  do j = 2, width
-                    if (here(2)>dirArray2(j-1) .and. here(2)<=dirArray2(j)) then
-                      a1 = dirArray1(i-1); a2 = dirArray1(i)
-                      b1 = dirArray2(j-1); b2 = dirArray2(j)
-                      c11 = array(i-1,j-1); c12 = array(i,j-1)
-                      c21 = array( i ,j-1); c22 = array(i, j )
-                      var = ((b2-here(2))/(b2-b1)*c11+(here(2)-b1)/(b2-b1)*c12)*(a2-here(1))/(a2-a1)
-                      var = var+((b2-here(2))/(b2-b1)*c21+(here(2)-b1)/(b2-b1)*c22)*(here(1)-a1)/(a2-a1)
-                      call ini_o%add(section_name='cell', option_name=trim(varname), val=var)
-                      exit
-                    endif
-                  enddo
-                endif
+              do f_ = 1, n_files
+                do i = 2, bc_file(f_)%length
+                  if (here(1)>=bc_file(f_)%dirArray1(i-1) .and. here(1)<=bc_file(f_)%dirArray1(i)) then
+                    do j = 2, bc_file(f_)%width
+                      if (here(2)>bc_file(f_)%dirArray2(j-1) .and. here(2)<=bc_file(f_)%dirArray2(j)) then
+                        a1 = bc_file(f_)%dirArray1(i-1); a2 = bc_file(f_)%dirArray1(i)
+                        b1 = bc_file(f_)%dirArray2(j-1); b2 = bc_file(f_)%dirArray2(j)
+                        c11 = bc_file(f_)%array(i-1,j-1); c12 = bc_file(f_)%array(i,j-1)
+                        c21 = bc_file(f_)%array( i ,j-1); c22 = bc_file(f_)%array(i, j )
+                        var = ((b2-here(2))/(b2-b1)*c11+(here(2)-b1)/(b2-b1)*c12)*(a2-here(1))/(a2-a1)
+                        var = var+((b2-here(2))/(b2-b1)*c21+(here(2)-b1)/(b2-b1)*c22)*(here(1)-a1)/(a2-a1)
+                        call ini_o%add(section_name='cell', option_name=trim(bc_file(f_)%var), val=var)
+                        exit
+                      endif
+                    enddo
+                  endif
+                enddo
               enddo
             endif
             ! Multipatch
@@ -431,14 +462,14 @@ module build_BC_mod
     elseif (tecfile_present .and. .not.index_based) then
       ! Importing data from files in Tecplot format
 
-      open(unit=1, file=infile, status='old', action='read', iostat=ios)
+      open(unit=1, file=trim(bc_file(1)%name), status='old', action='read', iostat=ios)
       if (ios /= 0) error stop ("Error opening the file.")
 
       f_ = 0; iosold = 0
       ! Skip lines upto the desired face and block
       do while(ios /= -1 .and. f_ < 4*(b-1)+f)
         read(1, '(A)', iostat=ios) line
-        if (ios == -1) write(*,*) "EOF", infile
+        if (ios == -1) write(*,*) "EOF", bc_file(1)%name
         ! Check if the line contains a real number
         read(line,*,iostat=ios) var    
         if (index(line,'=')>0 .or. index(line,',')>0) ios=1
@@ -467,7 +498,7 @@ module build_BC_mod
           if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
               here(2)>=range(3) .and. here(2)<=range(4)) then
               cnt_bc = cnt_bc+1
-              call ini_o%add(section_name='cell', option_name=trim(varname), val=var)
+              call ini_o%add(section_name='cell', option_name=trim(bc_file(1)%var), val=var)
               face%center(m,n)%bc%definition = type_
               call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
             endif

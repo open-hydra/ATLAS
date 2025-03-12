@@ -97,6 +97,7 @@ module lib_bc
       integer:: error
 
       call sourceini%get(section_name=section, option_name='hg', val=self%properties(1), error=error)
+      if (error/=0) self%properties(1) = 0.
 
     end subroutine assigne_hg
 
@@ -105,6 +106,7 @@ module lib_bc
       integer:: error
 
       call sourceini%get(section_name=section, option_name='Taw', val=self%properties(3), error=error)
+      if (error/=0) self%properties(3) = 0.
 
     end subroutine assigne_Taw
 
