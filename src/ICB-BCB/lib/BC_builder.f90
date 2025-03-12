@@ -221,7 +221,7 @@ module build_BC_mod
     integer, intent(in)            :: nrans
     type(bc_file_type)             :: bc_file(12)
     real(8), parameter             :: pi=4.0*atan(1.0)
-    integer                        :: error, ios, iosold, cnt_bc=0, n_files=0
+    integer                        :: error, ios, iosold, cnt_bc=0, n_files
     integer                        :: i, j, m, n, f_, mi, me, ni, ne
     character(len=256)             :: line
     character(len=3)               :: dirID
@@ -277,6 +277,7 @@ module build_BC_mod
     enddo
 
     ! Check file presence
+    n_files=0
     file_present=.false.; tecfile_present=.false.
     call ini_o%get(section_name='cell', option_name='hs-file', val=infile_dummy, error=error)
     if (error==0) then
