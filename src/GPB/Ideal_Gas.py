@@ -304,7 +304,11 @@ def build(inifile,section):
             all_species = [sp for sp in solution.species() if "(L)" not in sp.name]
             cond_species = [sp for sp in solution.species() if "(L)" in sp.name]
             for sp in cond_species:
-                all_species.append(sp)
+                HG_species = ct.Species(name=sp.name + '-HG', composition={'H': sp.molecular_weight / 1.008}, 
+                                         thermo=None, transport=None)
+                HG_species.thermo = sp.thermo
+                if sp.transport is not None: HG_species.transport = sp.transport
+                all_species.append(HG_species)
             new_phase = ct.Solution(thermo=solution.thermo_model,species=all_species, kinetics=solution.kinetics_model)
             new_phase.Y = solution.Y
         else:

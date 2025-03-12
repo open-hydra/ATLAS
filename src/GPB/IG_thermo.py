@@ -113,7 +113,7 @@ def compute_properties(name,T_low, T_max, all_solutions):
 
         # Define the target substring and modification factor
         target_substring = '-HG'  # Modify all species containing this substring
-
+        
         # Get original molecular weights
         molecular_weights_ = solution.molecular_weights.copy()  # Copy original values
 
@@ -127,7 +127,7 @@ def compute_properties(name,T_low, T_max, all_solutions):
 
         # Compute the mean molecular weight manually
         M_mix = 1.0 / sum(Y[i] / molecular_weights_[i] for i in range(solution.n_species))
-        molecular_weights.append(M_mix)
+        if 'mixture' in solution.name: molecular_weights.append(M_mix)
 
     IG_IO.write_thermo_properties(name,T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)
     #IO_Legacy.write_thermo_properties(T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)
