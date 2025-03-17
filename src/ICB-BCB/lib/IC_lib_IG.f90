@@ -187,24 +187,20 @@ contains
 
     write(*,*) ' -- IG type = ',trim(IC_type)
 
+    if (.not.allocated(block%density)) then
+      allocate(block%density(sp%n,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      if (nrans>0) allocate(block%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    endif
+
     select case (IC_type)
       case ('interpolation')
 
-        ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
-        sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
-
-        if (.not.allocated(block%density)) then
-            allocate(block%density(sp%n,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            allocate(block%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            allocate(block%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            if (nrans>0) allocate(block%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        endif
-
         call intersol(block,OMF,OFF,OSF,oldid)
 
-    case ('homogeneous')
+      case ('homogeneous')
 
         here = 1.0
 
@@ -213,14 +209,6 @@ contains
             sp%massf = 1d-20
             call define_composition(zoneini, sp, T0(i,j,k), p0(i,j,k))
     
-            if (.not.allocated(block%density)) then
-                allocate(block%density(sp%n,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-                allocate(block%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-                allocate(block%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-                allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-                if (nrans>0) allocate(block%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            endif
-
             ! R
             Rgas = sum(Runi*sp%massf/sp%w)
 
@@ -270,19 +258,11 @@ contains
 
         enddo; enddo; enddo
 
-    case ('1D-centcomp' , '1D-cubcomp')
+      case ('1D-centcomp' , '1D-cubcomp')
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
         sp%massf = 1d-20
         call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
-
-        if (.not.allocated(block%density)) then
-            allocate(block%density(sp%n,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            allocate(block%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            allocate(block%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            if (nrans>0) allocate(block%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        endif
 
         here = 1.0
 
@@ -308,19 +288,11 @@ contains
               endif
         enddo; enddo; enddo
 
-    case ('nozzle')
+      case ('nozzle')
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
         sp%massf = 1d-20
         call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
-
-        if (.not.allocated(block%density)) then
-            allocate(block%density(sp%n,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            allocate(block%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            allocate(block%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-            if (nrans>0) allocate(block%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        endif
 
         call nozzle1D()
 
