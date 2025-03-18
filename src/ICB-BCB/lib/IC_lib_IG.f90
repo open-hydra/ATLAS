@@ -35,13 +35,16 @@ contains
     character(len=200)            :: val_file
     character(len=16)             :: val_direction
     integer                       :: errorfile, errordirection
+    logical                       :: is_variable
 
 
+    is_variable = .false.
     call zoneini%get(section_name='zone', option_name='mach', val=val_const, error=error)
     if (error/=0) then
       M = 0.0d0
-      call zoneini%get(section_name='zone', option_name='mach-file', val=val_file, error=errorfile)      
+      call zoneini%get(section_name='zone', option_name='mach-file', val=val_file, error=errorfile)
       if (errorfile==0) then
+        is_variable = .true.
         call zoneini%get(section_name='zone', option_name='mach-direction', val=val_direction, error=errordirection)
         if (errordirection==0) then
           call read_file_direction (M, block, val_file, val_direction)
@@ -58,6 +61,7 @@ contains
       p0 = 0.0d0
       call zoneini%get(section_name='zone', option_name='p0-file', val=val_file, error=errorfile)      
       if (errorfile==0) then
+        is_variable = .true.
         call zoneini%get(section_name='zone', option_name='p0-direction', val=val_direction, error=errordirection)
         if (errordirection==0) then
           call read_file_direction (p0, block, val_file, val_direction)
@@ -75,6 +79,7 @@ contains
       T0 = 0.0d0
       call zoneini%get(section_name='zone', option_name='T0-file', val=val_file, error=errorfile)      
       if (errorfile==0) then
+        is_variable = .true.
         call zoneini%get(section_name='zone', option_name='T0-direction', val=val_direction, error=errordirection)
         if (errordirection==0) then
           call read_file_direction (T0, block, val_file, val_direction)
@@ -91,6 +96,7 @@ contains
       p = 0.0d0
       call zoneini%get(section_name='zone', option_name='p-file', val=val_file, error=errorfile)      
       if (errorfile==0) then
+        is_variable = .true.
         call zoneini%get(section_name='zone', option_name='p-direction', val=val_direction, error=errordirection)
         if (errordirection==0) then
           call read_file_direction (p, block, val_file, val_direction)
@@ -108,6 +114,7 @@ contains
       T = 0.0d0
       call zoneini%get(section_name='zone', option_name='T-file', val=val_file, error=errorfile)      
       if (errorfile==0) then
+        is_variable = .true.
         call zoneini%get(section_name='zone', option_name='T-direction', val=val_direction, error=errordirection)
         if (errordirection==0) then
           call read_file_direction (T, block, val_file, val_direction)
@@ -124,6 +131,7 @@ contains
       rho = 0.0d0
       call zoneini%get(section_name='zone', option_name='rho-file', val=val_file, error=errorfile)      
       if (errorfile==0) then
+        is_variable = .true.
         call zoneini%get(section_name='zone', option_name='rho-direction', val=val_direction, error=errordirection)
         if (errordirection==0) then
           call read_file_direction (rho, block, val_file, val_direction)
@@ -134,6 +142,8 @@ contains
     else
       rho = val_const
     endif
+
+    if (is_variable) IC_type = 'variable'
 
     call zoneini%get(section_name='zone', option_name='alpha',val=alpha, error=error)
     if (error/=0) alpha = 0.0
@@ -195,12 +205,74 @@ contains
       if (nrans>0) allocate(block%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
+
     select case (IC_type)
+
       case ('interpolation')
 
         call intersol(block,OMF,OFF,OSF,oldid)
 
+
       case ('homogeneous')
+
+        sp%massf = 1d-20
+        call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
+
+        here = 1.0
+
+        do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+
+            ! R
+            Rgas = sum(Runi*sp%massf/sp%w)
+
+            ! Temperature
+            if (T0(1,1,1)==0 .and. T(1,1,1)==0) T(1,1,1) = p(1,1,1)/(Rgas*rho(1,1,1))
+            if (T0(1,1,1)/=0 .and. T(1,1,1)==0) T(1,1,1) = T02T(T0(1,1,1),sp%massf,sp%cp,sp%dcp,sp%h,M(1,1,1),Rgas)
+            cp_ = sum(sp%massf*sp%cp(:,nint(T(1,1,1))))
+            gamma = cp_/(cp_-Rgas)
+            del = 0.5*(gamma-1)
+            ! Mach
+            if (M(1,1,1)==0) M(1,1,1) = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*T(1,1,1)))
+            ! Pressure
+            if (p0(1,1,1)==0 .and. p(1,1,1)==0) p(1,1,1) = T(1,1,1) * (Rgas*rho(1,1,1))
+            if (p0(1,1,1)/=0 .and. p(1,1,1)==0) p(1,1,1) = p0(1,1,1)/((1+del*M(1,1,1)*M(1,1,1))**(gamma/(gamma-1)))
+            ! Density  
+            if (rho(1,1,1)==0) rho(1,1,1) = p(1,1,1)/(Rgas*T(1,1,1))
+
+            if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
+            if (dirSize>=2) here(2) = block%center(i,j,k)%c(dir(2))
+            if (dirSize>=3) here(3) = block%center(i,j,k)%c(dir(3))
+            if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
+                here(2)>=range(3) .and. here(2)<=range(4) .and. &
+                here(3)>=range(5) .and. here(3)<=range(6)) then
+                do s = 1, sp%n
+                block%density(s,i,j,k) = rho(1,1,1)*sp%massf(s)
+                enddo
+                a = sqrt(gamma*Rgas*T(1,1,1))
+                vel = M(1,1,1)*a
+                block%temperature(i,j,k) = T(1,1,1)
+                if (ux==0) then
+                  block%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
+                else
+                  block%velocity(1,i,j,k) = ux
+                endif
+                if (uy==0) then
+                  block%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
+                else
+                  block%velocity(2,i,j,k) = uy
+                endif
+                if (uz==0) then
+                  block%velocity(3,i,j,k) = vel*sin(beta)
+                else
+                  block%velocity(3,i,j,k) = uz
+                endif
+                block%pressure(i,j,k) = p(1,1,1)
+            endif
+
+        enddo; enddo; enddo
+
+
+      case ('variable')
 
         here = 1.0
 
@@ -208,7 +280,7 @@ contains
 
             sp%massf = 1d-20
             call define_composition(zoneini, sp, T0(i,j,k), p0(i,j,k))
-    
+
             ! R
             Rgas = sum(Runi*sp%massf/sp%w)
 
@@ -258,6 +330,7 @@ contains
 
         enddo; enddo; enddo
 
+
       case ('1D-centcomp' , '1D-cubcomp')
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
@@ -288,6 +361,7 @@ contains
               endif
         enddo; enddo; enddo
 
+        
       case ('nozzle')
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
