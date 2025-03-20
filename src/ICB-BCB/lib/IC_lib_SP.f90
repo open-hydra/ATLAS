@@ -18,12 +18,12 @@ contains
     ! Local
     integer                       :: dir(:), i, j, k, h, mID
     integer                       :: error, errorfile, errordirection
-    real(8)                       :: T, qvol_const
-    character(len=16)             :: material_name, qvoldirection
+    real(8)                       :: val_const
+    character(len=16)             :: material_name, val_direction
     real(8)                       :: here(3)
     integer                       :: imin, imax, jmin, jmax, kmin, kmax
-    character(len=200)            :: qvolfile
-    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)) :: qvol
+    character(len=200)            :: val_file
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)) :: qvol, T
     ! character(len=128)            :: OMF, OFF, OSF
     ! integer                       :: oldid
 
@@ -41,22 +41,36 @@ contains
     enddo
     mID = max(mID,1)
 
-    call zoneini%get(section_name='zone', option_name='T', val=T, error=error)
-    
-    call zoneini%get(section_name='zone', option_name='qvol', val=qvol_const, error=error)
+    call zoneini%get(section_name='zone', option_name='T', val=val_const, error=error)
     if (error/=0) then
-      qvol = 0.0d0
-      call zoneini%get(section_name='zone', option_name='qvol-file', val=qvolfile, error=errorfile)      
+      T = 0.0d0
+      call zoneini%get(section_name='zone', option_name='T-file', val=val_file, error=errorfile)      
       if (errorfile==0) then
-        call zoneini%get(section_name='zone', option_name='qvol-direction', val=qvoldirection, error=errordirection)
+        call zoneini%get(section_name='zone', option_name='T-direction', val=val_direction, error=errordirection)
         if (errordirection==0) then
-          call read_qvolfile_direction (qvol, block, qvolfile, qvoldirection)
+          call read_file_direction (T, block, val_file, val_direction)
         else
-          call read_qvolfile_tec (qvol, block, qvolfile)
+          call read_file_tec (T, block, val_file)
         endif
       endif
     else
-      qvol = qvol_const
+      T = val_const
+    endif
+    
+    call zoneini%get(section_name='zone', option_name='qvol', val=val_const, error=error)
+    if (error/=0) then
+      qvol = 0.0d0
+      call zoneini%get(section_name='zone', option_name='qvol-file', val=val_file, error=errorfile)      
+      if (errorfile==0) then
+        call zoneini%get(section_name='zone', option_name='qvol-direction', val=val_direction, error=errordirection)
+        if (errordirection==0) then
+          call read_file_direction (qvol, block, val_file, val_direction)
+        else
+          call read_file_tec (qvol, block, val_file)
+        endif
+      endif
+    else
+      qvol = val_const
     endif
 
     write(*,*) ' -- SP type = ',trim(IC_type)
@@ -79,7 +93,7 @@ contains
                   here(2)>=range(3) .and. here(2)<=range(4) .and. &
                   here(3)>=range(5) .and. here(3)<=range(6)) then
 
-                block%temperature(i,j,k) = T
+                block%temperature(i,j,k) = T(i,j,k)
                 block%mID(i,j,k) = mID
                 block%qvol(i,j,k) = qvol(i,j,k)
 
@@ -117,7 +131,7 @@ contains
                 j>=jmin .and. j<=jmax .and. &
                 k>=kmin .and. k<=kmax) then
 
-              block%temperature(i,j,k) = T
+              block%temperature(i,j,k) = T(i,j,k)
               block%mID(i,j,k) = mID
               block%qvol(i,j,k) = qvol(i,j,k)
 
@@ -132,25 +146,25 @@ contains
 
 
 
-  subroutine read_qvolfile_direction (qvol, block, qvolfile, qvoldirection)
+  subroutine read_file_direction (var, block, varfile, vardirection)
     use ATLAS_high_level
     implicit none
     type(ATLAS_block), intent(inout)  :: block
-    character(len=200), intent(in)    :: qvolfile
-    character(len=16), intent(in)     :: qvoldirection
-    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: qvol
+    character(len=200), intent(in)    :: varfile
+    character(len=16), intent(in)     :: vardirection
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: var
     ! Local
     integer :: dir, ios, file_length, i, j, k, f
-    real(8), dimension(:), allocatable :: file_dir, file_qvol
-    real(8) :: coord, coordm, coordp, qvolm, qvolp
+    real(8), dimension(:), allocatable :: file_dir, file_var
+    real(8) :: coord, coordm, coordp, varm, varp
 
       
-    if (trim(qvoldirection) == 'x') dir = 1
-    if (trim(qvoldirection) == 'y') dir = 2
-    if (trim(qvoldirection) == 'z') dir = 3
+    if (trim(vardirection) == 'x') dir = 1
+    if (trim(vardirection) == 'y') dir = 2
+    if (trim(vardirection) == 'z') dir = 3
 
     file_length=0; ios=0
-    open(unit=1,file=trim(qvolfile),status='old',action='read')
+    open(unit=1,file=trim(varfile),status='old',action='read')
     do while (ios==0)
       read(1,*,iostat=ios)
       file_length = file_length+1
@@ -158,9 +172,9 @@ contains
     file_length = file_length-1
     rewind(1)
     allocate(file_dir(1:file_length))
-    allocate(file_qvol(1:file_length))
+    allocate(file_var(1:file_length))
     do i = 1, file_length
-      read(1,*) file_dir(i), file_qvol(i)
+      read(1,*) file_dir(i), file_var(i)
     enddo
     close(1)
 
@@ -172,20 +186,20 @@ contains
         elseif (coord < file_dir(f)) then
           coordm = file_dir(f-1)
           coordp = file_dir(f)
-          qvolm = file_qvol(f-1)
-          qvolp = file_qvol(f)
-          qvol(i,j,k) = qvolm + (coord-coordm)/(coordp-coordm)*(qvolp-qvolm)
+          varm = file_var(f-1)
+          varp = file_var(f)
+          var(i,j,k) = varm + (coord-coordm)/(coordp-coordm)*(varp-varm)
           exit
         endif
       enddo
         
     enddo; enddo; enddo
 
-  end subroutine read_qvolfile_direction
+  end subroutine read_file_direction
 
 
 
-  subroutine read_qvolfile_tec ( qvol, block, qvolfile )
+  subroutine read_file_tec ( var, block, varfile )
     use ATLAS_high_level
     use ATLAS_IO, only: read_TECmesh
     use chimera, only: fs
@@ -195,12 +209,12 @@ contains
     use TOM
     implicit none
     type(ATLAS_block), intent(inout)  :: block
-    character(len=200), intent(in)    :: qvolfile
-    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: qvol
+    character(len=200), intent(in)    :: varfile
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: var
     !Local
     type(Orion_Data) :: IOfield
     integer          :: error, i, j, k, d, ii, jj, kk
-    type(qvol_block) :: qvol_tec
+    type(var_block) :: var_tec
     real(8)                                  :: mindist
     real(8), dimension(:,:,:), allocatable   :: dx, dy, dz, dist
     integer, dimension(3)                    :: ind
@@ -209,48 +223,48 @@ contains
 
     
     IOfield%tec%format = 'ascii'
-    error = tec_read_structured_multiblock( orion=IOfield, filename=trim(qvolfile) )
+    error = tec_read_structured_multiblock( orion=IOfield, filename=trim(varfile) )
 
-    allocate(qvol_tec%node   (0:IOfield%block(1)%Ni,0:IOfield%block(1)%Nj,0:IOfield%block(1)%Nk))
-    allocate(qvol_tec%center (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
-    allocate(qvol_tec%qvol   (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
+    allocate(var_tec%node   (0:IOfield%block(1)%Ni,0:IOfield%block(1)%Nj,0:IOfield%block(1)%Nk))
+    allocate(var_tec%center (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
+    allocate(var_tec%var   (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
 
-    qvol_tec%dim(1) = IOfield%block(1)%Ni
-    qvol_tec%dim(2) = IOfield%block(1)%Nj
-    qvol_tec%dim(3) = IOfield%block(1)%Nk
+    var_tec%dim(1) = IOfield%block(1)%Ni
+    var_tec%dim(2) = IOfield%block(1)%Nj
+    var_tec%dim(3) = IOfield%block(1)%Nk
 
-    do i = 0, qvol_tec%dim(1); do j = 0, qvol_tec%dim(2); do k = 0, qvol_tec%dim(3)
-      qvol_tec%node(i,j,k)%c(1:3) = IOfield%block(1)%mesh(:,i,j,k)
+    do i = 0, var_tec%dim(1); do j = 0, var_tec%dim(2); do k = 0, var_tec%dim(3)
+      var_tec%node(i,j,k)%c(1:3) = IOfield%block(1)%mesh(:,i,j,k)
     enddo; enddo; enddo
    
     !> Compute the cells center coords
-    do k = 1, qvol_tec%dim(3); do j = 1, qvol_tec%dim(2); do i = 1, qvol_tec%dim(1)
+    do k = 1, var_tec%dim(3); do j = 1, var_tec%dim(2); do i = 1, var_tec%dim(1)
       do d = 1, 3
-        qvol_tec%center(i,j,k)%c(d)=0.125d0*(qvol_tec%node(i-1,j-1,k-1)%c(d)+qvol_tec%node(i,j-1,k-1)%c(d)+ &
-                                             qvol_tec%node(i-1,j,k-1)%c(d)+qvol_tec%node(i-1,j-1,k)%c(d)+ &
-                                             qvol_tec%node(i,j,k)%c(d)+qvol_tec%node(i,j,k-1)%c(d)+ &
-                                             qvol_tec%node(i,j-1,k)%c(d)+qvol_tec%node(i-1,j,k)%c(d))
+        var_tec%center(i,j,k)%c(d)=0.125d0*(var_tec%node(i-1,j-1,k-1)%c(d)+var_tec%node(i,j-1,k-1)%c(d)+ &
+                                             var_tec%node(i-1,j,k-1)%c(d)+var_tec%node(i-1,j-1,k)%c(d)+ &
+                                             var_tec%node(i,j,k)%c(d)+var_tec%node(i,j,k-1)%c(d)+ &
+                                             var_tec%node(i,j-1,k)%c(d)+var_tec%node(i-1,j,k)%c(d))
       enddo
     enddo; enddo; enddo
 
-    do i = 1, qvol_tec%dim(1); do j = 1, qvol_tec%dim(2); do k = 1, qvol_tec%dim(3)
-      qvol_tec%qvol(i,j,k) = IOfield%block(1)%vars(1,i,j,k)
+    do i = 1, var_tec%dim(1); do j = 1, var_tec%dim(2); do k = 1, var_tec%dim(3)
+      var_tec%var(i,j,k) = IOfield%block(1)%vars(1,i,j,k)
     enddo; enddo; enddo
 
     ! Cell centers minimum distance algorithm
     do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
       
       inside = .false.
-      do ii = 1, qvol_tec%dim(1); do jj = 1, qvol_tec%dim(2); do kk = 1, qvol_tec%dim(3)
+      do ii = 1, var_tec%dim(1); do jj = 1, var_tec%dim(2); do kk = 1, var_tec%dim(3)
         
-        cell(:,1) = qvol_tec%node(ii-1,jj-1,kk-1)%c(1:3)*fs
-        cell(:,2) = qvol_tec%node(ii-1,jj  ,kk-1)%c(1:3)*fs
-        cell(:,3) = qvol_tec%node(ii-1,jj-1,kk  )%c(1:3)*fs
-        cell(:,4) = qvol_tec%node(ii-1,jj  ,kk  )%c(1:3)*fs
-        cell(:,5) = qvol_tec%node(ii  ,jj-1,kk-1)%c(1:3)*fs
-        cell(:,6) = qvol_tec%node(ii  ,jj  ,kk-1)%c(1:3)*fs
-        cell(:,7) = qvol_tec%node(ii  ,jj-1,kk  )%c(1:3)*fs
-        cell(:,8) = qvol_tec%node(ii  ,jj  ,kk  )%c(1:3)*fs
+        cell(:,1) = var_tec%node(ii-1,jj-1,kk-1)%c(1:3)*fs
+        cell(:,2) = var_tec%node(ii-1,jj  ,kk-1)%c(1:3)*fs
+        cell(:,3) = var_tec%node(ii-1,jj-1,kk  )%c(1:3)*fs
+        cell(:,4) = var_tec%node(ii-1,jj  ,kk  )%c(1:3)*fs
+        cell(:,5) = var_tec%node(ii  ,jj-1,kk-1)%c(1:3)*fs
+        cell(:,6) = var_tec%node(ii  ,jj  ,kk-1)%c(1:3)*fs
+        cell(:,7) = var_tec%node(ii  ,jj-1,kk  )%c(1:3)*fs
+        cell(:,8) = var_tec%node(ii  ,jj  ,kk  )%c(1:3)*fs
        
         inside_loc = .false.
         call pointInsideHexahedron(block%center(i,j,k)%c(1:3)*fs, cell, inside_loc)
@@ -261,14 +275,14 @@ contains
 
       if (inside .eqv. .true.) then
   
-        allocate(dx(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3)))
-        allocate(dy(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3)))
-        allocate(dz(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3)))
-        allocate(dist(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3)))
+        allocate(dx(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+        allocate(dy(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+        allocate(dz(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+        allocate(dist(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
               
-        dx(:,:,:) = (block%center(i,j,k)%c(1)-qvol_tec%center(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3))%c(1))**2
-        dy(:,:,:) = (block%center(i,j,k)%c(2)-qvol_tec%center(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3))%c(2))**2
-        dz(:,:,:) = (block%center(i,j,k)%c(3)-qvol_tec%center(1:qvol_tec%dim(1),1:qvol_tec%dim(2),1:qvol_tec%dim(3))%c(3))**2
+        dx(:,:,:) = (block%center(i,j,k)%c(1)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(1))**2
+        dy(:,:,:) = (block%center(i,j,k)%c(2)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(2))**2
+        dz(:,:,:) = (block%center(i,j,k)%c(3)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(3))**2
         dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
 
         ind = minloc(dist(:,:,:), MASK=.true.)
@@ -276,13 +290,13 @@ contains
 
         deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
 
-        qvol(i,j,k) = qvol_tec%qvol(ind(1),ind(2),ind(3))
+        var(i,j,k) = var_tec%var(ind(1),ind(2),ind(3))
 
       endif
           
     enddo; enddo; enddo
 
-  end subroutine read_qvolfile_tec
+  end subroutine read_file_tec
 
 
 
