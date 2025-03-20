@@ -252,7 +252,7 @@ reactions:
   rate-constant: {A: 1.45E+05, b: -1.0, Ea: 0.0}
 
 - equation: CO + OH <=> CO2 + H
-  rate-constant: {A: 6.32E+00, b: 1.5, Ea: -2080.0}
+  rate-constant: {A: 6.32E+00, b: -1.5, Ea: -2080.0}
 
 - equation: CO + O2 <=> CO2 + O
   rate-constant: {A: 2.50E+06, b: 0.0, Ea: 200000.0}
@@ -267,7 +267,7 @@ reactions:
   rate-constant: {A: 8.55E+07, b: 0.0, Ea: 4890.0}
 
 - equation: HCL + OH <=> H2O + CL
-  rate-constant: {A: 2.71E+01, b: 1.65, Ea: -920.0}
+  rate-constant: {A: 2.71E+04, b: 1.65, Ea: -920.0}
 
 - equation: HCL + O <=> OH + CL
   rate-constant: {A: 3.37E-03, b: 2.87, Ea: 14700.0}
