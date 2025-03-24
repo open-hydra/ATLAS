@@ -201,7 +201,6 @@ contains
 
   subroutine read_file_tec ( var, block, varfile )
     use ATLAS_high_level
-    use ATLAS_IO, only: read_TECmesh
     use chimera, only: fs
     use intersection_module
     use Lib_ORION_data

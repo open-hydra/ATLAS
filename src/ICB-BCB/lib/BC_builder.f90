@@ -189,6 +189,8 @@ module build_BC_mod
                 block%face(ff)%center(m,n)%bc%connection = block%face(ff)%bc%connection
                 block%face(ff)%center(m,n)%bc%definition = block%face(ff)%bc%definition
                 block%face(ff)%center(m,n)%bc%properties = block%face(ff)%bc%properties
+                block%face(ff)%center(m,n)%bc%IG_time_properties = block%face(ff)%bc%IG_time_properties
+                block%face(ff)%center(m,n)%bc%IG_time_BC = block%face(ff)%bc%IG_time_BC
                 block%face(ff)%center(m,n)%bc%species%n = block%face(ff)%bc%species%n
                 if (block%face(ff)%bc%species%n>0) &
                   block%face(ff)%center(m,n)%bc%species%massf = block%face(ff)%bc%species%massf

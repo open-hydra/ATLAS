@@ -9,7 +9,7 @@ program BCB
   use phase_module
   use ATLAS_IO
   use Lib_ORION_data
-  use input_ini
+  use ATLAS_IO_INI
   use build_BC_mod
   use chimera
   use BC_connection
@@ -18,7 +18,6 @@ program BCB
   type(phase_type), allocatable  :: phase(:)
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
-  character(len=llen)            :: filename
   type(file_ini)                 :: sourceini
   integer                        :: b
   logical                        :: force_connect, chimeraon
@@ -28,11 +27,11 @@ program BCB
   write(*,*)
 
   call command_line_argument()
+  call execute_command_line('mkdir -p '//trim(outpath))
 
   ! Geometry import
-  filename = 'mesh.tec'
   write(*,*)' Reading mesh file'
-  call read_TECmesh(orion,filename)
+  call read_mesh(orion)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
     call block(b)%extrapolate_nodes(2)
@@ -61,7 +60,6 @@ program BCB
   endif
 
   ! BC writing
-  call execute_command_line('mkdir -p '//trim(outpath))
   do b = 1, size(phase)
     select case(phase(b)%type)
     case('IG')

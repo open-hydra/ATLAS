@@ -6,7 +6,7 @@ module ATLAS_IO
   public:: write_cdp_bc_file
   public:: read_vtk_tec ,write_vtk_tec
   public:: read_solfile, write_solfile
-  public:: read_TECmesh
+  public:: read_mesh
   public:: read_idealgas_properties, read_cdp_properties
   public:: read_phase
 
@@ -77,7 +77,11 @@ module ATLAS_IO
 
               case(4,22)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties
-                  write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
+                  if (block(b)%face(f)%center(m,n)%bc%IG_time_BC(i)) then
+                    write(unitfile,'(X,A,A1)',advance='no') trim(block(b)%face(f)%center(m,n)%bc%IG_time_properties(i)),','
+                  else
+                    write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
+                  endif
                 enddo
                 do i = 1, block(b)%face(f)%center(m,n)%bc%species%n
                   write(unitfile,'(E14.5,A)',advance='no') block(b)%face(f)%center(m,n)%bc%species%massf(i),','
@@ -457,29 +461,37 @@ module ATLAS_IO
   end subroutine write_cdp_bc_file
 
 
-  !----------------------------------------------------------------------
-  !> \brief Reads a TECplot mesh file and updates the orion data structure.
-  !>
-  !> This subroutine reads a TECplot mesh file specified by the given path
-  !> and updates the orion data structure with the mesh information.
-  !>
-  !> \param[inout] orion The orion_data structure to be updated with the mesh information.
-  !> \param[in] path The path to the TECplot mesh file to be read.
-  !----------------------------------------------------------------------
-  subroutine read_TECmesh(orion,path)
+  subroutine read_mesh(orion,path)
     use Lib_Tecplot
+    use Lib_PLOT3D
     implicit none
-    type(orion_data), intent(inout) :: orion
-    character(len=*), intent(in)    :: path
-    integer                         :: error
+    type(orion_data), intent(inout)        :: orion
+    character(len=*), intent(in), optional :: path
+    integer :: error
 
-    orion%tec%node = .false.
-    orion%tec%bc = .false.
-    orion%tec%format = 'ascii'
-    error = tec_read_structured_multiblock(orion=orion,filename=path)
+    if (present(path)) then
+      if (index(path,'.tec')>0) then
+        orion%tec%node = .false.
+        orion%tec%bc = .false.
+        orion%tec%format = 'ascii'
+        error = tec_read_structured_multiblock(orion=orion,filename=path)
+      else
+        error = p3d_read_multiblock(orion=orion,filename=path)
+      endif
+    else
+      orion%tec%node = .false.
+      orion%tec%bc = .false.
+      orion%tec%format = 'ascii'
+      error = tec_read_structured_multiblock(orion=orion,filename='mesh.tec')
+      if (error==0) return
+      error = tec_read_structured_multiblock(orion=orion,filename='mesh.p3d')
+      if (error/=0) then
+        write(*,*) 'ERROR: mesh file is not readable'
+        stop
+      endif
+    endif
 
-  end subroutine read_TECmesh
-
+  end subroutine read_mesh
 
 
   subroutine write_solfile(phase,inblock)
