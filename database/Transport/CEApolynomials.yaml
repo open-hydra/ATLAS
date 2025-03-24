@@ -243,6 +243,23 @@
       - temperature_range: [5000.0, 15000.0]
         coefficients: [-0.41858737E+00, -0.14096649E+05, 0.19179190E+08, 0.14345613E+02]
 
+  - element: "H2ONassini"
+    source: "V3C3 SENGERS & WATSON (1986) SVEHLA (1994)"
+    viscosity:
+      - temperature_range: [373.2, 1073.2]
+        coefficients: [0.50019557, -0.69712796E+03, 0.88163892E+05, 0.30836508E+01]
+      - temperature_range: [1073.2, 5000.0]
+        coefficients: [0.58988538, -0.53769814E+03, 0.54263513E+05, 0.23386375E+01]
+      - temperature_range: [5000.0, 15000.0]
+        coefficients: [0.64330087, -0.95668913E+02, -0.37742283E+06, 0.18125190E+01]
+    conductivity:
+      - temperature_range: [373.2, 1073.2]
+        coefficients: [0.10966389E+01, -0.55513429E+03, 0.10623408E+06, -0.24664550E+00]
+      - temperature_range: [1073.2, 5000.0]
+        coefficients: [0.39367933, -0.22524226E+04, 0.61217458E+06, 0.58011317E+01]
+      - temperature_range: [5000.0, 15000.0]
+        coefficients: [-0.41858737E+00, -0.14096649E+05, 0.19179190E+08, 0.14345613E+02]
+
   - element: "H2S"
     source: "V2C2 ZELEZNIK & SVEHLA (1970) SVEHLA (1994)"
     viscosity:
