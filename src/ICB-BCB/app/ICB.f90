@@ -8,8 +8,8 @@ program ICB
   use phase_module
   use ATLAS_IO
   use Lib_ORION_data
-  use input_ini
-  use lib_ic
+  use ATLAS_IO_INI
+  use build_IC_mod
   use Interpolator, only: intersol
   use finer, only: file_ini
   implicit none
@@ -17,7 +17,6 @@ program ICB
   type(ATLAS_block), allocatable :: block(:)
   type(orion_data)               :: orion
   character(len=30)              :: ICformat
-  character(len=llen)            :: filename
   type(file_ini)                 :: sourceini
   integer                        :: b
 
@@ -28,9 +27,8 @@ program ICB
   call command_line_argument()
 
   ! Geometry import
-  filename = 'mesh.tec'
   write(*,*)' Reading mesh file'
-  call read_TECmesh(orion,filename)
+  call read_mesh(orion)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
     call block(b)%extrapolate_nodes(1)

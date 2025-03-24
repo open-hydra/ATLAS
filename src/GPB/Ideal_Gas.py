@@ -58,6 +58,7 @@ def build(inifile,section):
     cea = CEA()
     CEA_equilibrium = False 
     cantera_equilibrium = False
+    ct.add_directory(os.getcwd())
 
     # ---------------------------------------------------
     # Reading input parameters from INI file
@@ -129,6 +130,9 @@ def build(inifile,section):
     if phase_model is not None:
         print(' -- Found phase model:',phase_model)
         phase = ct.Solution(phase_model + '.yaml')
+        if (phase.n_reactions>0):
+            mechanism = phase
+            reaction_model = phase
         species_group.append(phase)
     # ---------------------------------------------------
 
@@ -137,7 +141,7 @@ def build(inifile,section):
     # By default, the thermo properties are read from the chosen database.
     # if one species is not found, it is taken from the reaction model.
     # Transport properties are read from the reaction model.
-    if reaction_model is not None:
+    if reaction_model is not None and phase_model is None:
         print(' -- Found reaction model:',reaction_model)
         # Load the full mechanism
         raw_mechanism = ct.Solution(reaction_model + '.yaml')
@@ -156,7 +160,7 @@ def build(inifile,section):
                 combined_species.append(raw_mechanism.species(species_name))
         # Create the custom mechanism
         mechanism = ct.Solution(thermo='ideal-gas',kinetics='gas',species=combined_species,reactions=raw_mechanism.reactions())
-        mechanism.name = 'reactive-species'
+        mechanism.name = raw_mechanism.name
         mechanism.transport_model = raw_mechanism.transport_model
         species_group.append(mechanism)
     # ---------------------------------------------------
@@ -265,6 +269,7 @@ def build(inifile,section):
             dummy_species_list.append(fixgas_species)
         fixgas_phase = ct.Solution(name='constant-cp species', thermo='ideal-gas', species=dummy_species_list)
         species_group.append(fixgas_phase)
+        if fix_mil is not None: transport_model = 'constant'
     # ---------------------------------------------------
 
     # ---------------------------------------------------
@@ -299,8 +304,8 @@ def build(inifile,section):
             all_species = [sp for sp in solution.species() if "(L)" not in sp.name]
             cond_species = [sp for sp in solution.species() if "(L)" in sp.name]
             for sp in cond_species:
-                HG_species = ct.Species(name=sp.name + '-HG', composition={'H': 1e+5 * sp.molecular_weight / 1.008}, 
-                                        thermo=None, transport=None)
+                HG_species = ct.Species(name=sp.name + '-HG', composition={'H': sp.molecular_weight / 1.008}, 
+                                         thermo=None, transport=None)
                 HG_species.thermo = sp.thermo
                 if sp.transport is not None: HG_species.transport = sp.transport
                 all_species.append(HG_species)
@@ -330,6 +335,8 @@ def build(inifile,section):
     if transport_model is not None:
         if transport_model=='CEA':
             IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group, database=CEAdata)
+        elif transport_model=='constant':
+            IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group, mil=fix_mil, kl=fix_kl)
         else:
             IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group)
 
@@ -345,5 +352,6 @@ def build(inifile,section):
                 for sp_ in p.species_names: sp.append(sp_)
             elif "mix" in p.name:
                 sp.append('inertMix')
+        print(' -- Build chemistry properties')
         IG_IO.write_chemistry_properties (name, T1, T2, mechanism, sp)
         #IO_Legacy.write_chemistry_properties (T1, T2, mechanism, sp)

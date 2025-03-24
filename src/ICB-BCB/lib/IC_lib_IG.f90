@@ -20,9 +20,9 @@ contains
     type(obj_species), intent(inout)  :: sp
     integer                       :: dir(:)
     integer                       :: i, ip, j, s, k, error
-    real(8)                       :: Rgas, gamma, rho, vel, del, a, cp_
+    real(8)                       :: Rgas, gamma, vel, del, a, cp_
     real(8)                       :: M0, mach
-    real(8)                       :: alpha, beta, M, p0, T0, p, T, ux, uy, uz, mit, kappa, omega, rhoRij
+    real(8)                       :: alpha, beta, ux, uy, uz, mit, kappa, omega, rhoRij
     real(8)                       :: throat_area, dx, dy, dz, zeta, phi
     character(len=llen)           :: OMF, OFF, OSF
     integer                       :: oldid
@@ -30,19 +30,121 @@ contains
     real(8)                       :: R1, uTF
     character(len=2)              :: nozzle_dir
     real(8)                       :: L_threshold
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)) :: M, p0, T0, p, T, rho
+    real(8)                       :: val_const
+    character(len=200)            :: val_file
+    character(len=16)             :: val_direction
+    integer                       :: errorfile, errordirection
+    logical                       :: is_variable
 
-    M = 0d0; p0 = 0.0; p = 0.0
-    call zoneini%get(section_name='zone', option_name='mach', val=M, error=error)
-    call zoneini%get(section_name='zone', option_name='p0',   val=p0, error=error)
-    if (error==0) p0 = p0*1d+5
-    call zoneini%get(section_name='zone', option_name='T0',   val=T0, error=error)
-    if (error/=0) T0 = 0.0
-    call zoneini%get(section_name='zone', option_name='p',    val=p, error=error)
-    if (error==0) p = p*1d+5
-    call zoneini%get(section_name='zone', option_name='rho',  val=rho, error=error)
-    if (error/=0) rho = 0.0
-    call zoneini%get(section_name='zone', option_name='T',    val=T, error=error)
-    if (error/=0) T = 0.0
+
+    is_variable = .false.
+    call zoneini%get(section_name='zone', option_name='mach', val=val_const, error=error)
+    if (error/=0) then
+      M = 0.0d0
+      call zoneini%get(section_name='zone', option_name='mach-file', val=val_file, error=errorfile)
+      if (errorfile==0) then
+        is_variable = .true.
+        call zoneini%get(section_name='zone', option_name='mach-direction', val=val_direction, error=errordirection)
+        if (errordirection==0) then
+          call read_file_direction (M, block, val_file, val_direction)
+        else
+          call read_file_tec (M, block, val_file)
+        endif
+      endif
+    else
+      M = val_const
+    endif
+
+    call zoneini%get(section_name='zone', option_name='p0', val=val_const, error=error)
+    if (error/=0) then
+      p0 = 0.0d0
+      call zoneini%get(section_name='zone', option_name='p0-file', val=val_file, error=errorfile)      
+      if (errorfile==0) then
+        is_variable = .true.
+        call zoneini%get(section_name='zone', option_name='p0-direction', val=val_direction, error=errordirection)
+        if (errordirection==0) then
+          call read_file_direction (p0, block, val_file, val_direction)
+        else
+          call read_file_tec (p0, block, val_file)
+        endif
+      endif
+    else
+      p0 = val_const
+    endif
+    p0 = p0*1d+5
+
+    call zoneini%get(section_name='zone', option_name='T0', val=val_const, error=error)
+    if (error/=0) then
+      T0 = 0.0d0
+      call zoneini%get(section_name='zone', option_name='T0-file', val=val_file, error=errorfile)      
+      if (errorfile==0) then
+        is_variable = .true.
+        call zoneini%get(section_name='zone', option_name='T0-direction', val=val_direction, error=errordirection)
+        if (errordirection==0) then
+          call read_file_direction (T0, block, val_file, val_direction)
+        else
+          call read_file_tec (T0, block, val_file)
+        endif
+      endif
+    else
+      T0 = val_const
+    endif
+
+    call zoneini%get(section_name='zone', option_name='p', val=val_const, error=error)
+    if (error/=0) then
+      p = 0.0d0
+      call zoneini%get(section_name='zone', option_name='p-file', val=val_file, error=errorfile)      
+      if (errorfile==0) then
+        is_variable = .true.
+        call zoneini%get(section_name='zone', option_name='p-direction', val=val_direction, error=errordirection)
+        if (errordirection==0) then
+          call read_file_direction (p, block, val_file, val_direction)
+        else
+          call read_file_tec (p, block, val_file)
+        endif
+      endif
+    else
+      p = val_const
+    endif
+    p = p*1d+5
+
+    call zoneini%get(section_name='zone', option_name='T', val=val_const, error=error)
+    if (error/=0) then
+      T = 0.0d0
+      call zoneini%get(section_name='zone', option_name='T-file', val=val_file, error=errorfile)      
+      if (errorfile==0) then
+        is_variable = .true.
+        call zoneini%get(section_name='zone', option_name='T-direction', val=val_direction, error=errordirection)
+        if (errordirection==0) then
+          call read_file_direction (T, block, val_file, val_direction)
+        else
+          call read_file_tec (T, block, val_file)
+        endif
+      endif
+    else
+      T = val_const
+    endif
+
+    call zoneini%get(section_name='zone', option_name='rho', val=val_const, error=error)
+    if (error/=0) then
+      rho = 0.0d0
+      call zoneini%get(section_name='zone', option_name='rho-file', val=val_file, error=errorfile)      
+      if (errorfile==0) then
+        is_variable = .true.
+        call zoneini%get(section_name='zone', option_name='rho-direction', val=val_direction, error=errordirection)
+        if (errordirection==0) then
+          call read_file_direction (rho, block, val_file, val_direction)
+        else
+          call read_file_tec (rho, block, val_file)
+        endif
+      endif
+    else
+      rho = val_const
+    endif
+
+    if (is_variable) IC_type = 'variable'
+
     call zoneini%get(section_name='zone', option_name='alpha',val=alpha, error=error)
     if (error/=0) alpha = 0.0
     call zoneini%get(section_name='zone', option_name='beta', val=beta, error=error)
@@ -93,49 +195,50 @@ contains
       if (error/=0) nz_extrude = int(4)
     endif
 
-    sp%massf = 1d-20
-
-    ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
-    call define_composition(zoneini, sp, T0, p0)
-
-    if (.not.allocated(block%density)) then
-        allocate(block%density(sp%n,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        allocate(block%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        allocate(block%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        if (nrans>0) allocate(block%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-    endif
-
     write(*,*) ' -- IG type = ',trim(IC_type)
 
+    if (.not.allocated(block%density)) then
+      allocate(block%density(sp%n,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      if (nrans>0) allocate(block%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    endif
+
+
     select case (IC_type)
-    case ('interpolation')
+
+      case ('interpolation')
 
         call intersol(block,OMF,OFF,OSF,oldid)
 
-    case ('homogeneous')
 
-        ! R
-        Rgas = sum(Runi*sp%massf/sp%w)
+      case ('homogeneous')
 
-        ! Temperature
-        if (T0==0 .and. T==0) T = p/(Rgas*rho)
-        if (T0/=0 .and. T==0) T = T02T(T0,sp%massf,sp%cp,sp%dcp,sp%h,M,Rgas)
-        cp_ = sum(sp%massf*sp%cp(:,nint(T)))
-        gamma = cp_/(cp_-Rgas)
-        del = 0.5*(gamma-1)
-        ! Mach
-        if (M==0) M = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*T))
-        ! Pressure
-        if (p0==0 .and. p==0) p = T * (Rgas*rho)
-        if (p0/=0 .and. p==0) p = p0/((1+del*M*M)**(gamma/(gamma-1)))
-        ! Density  
-        if (rho==0) then
-        rho = p/(Rgas*T)
-        endif
+        sp%massf = 1d-20
+        call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
 
         here = 1.0
+
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+
+            ! R
+            Rgas = sum(Runi*sp%massf/sp%w)
+
+            ! Temperature
+            if (T0(1,1,1)==0 .and. T(1,1,1)==0) T(1,1,1) = p(1,1,1)/(Rgas*rho(1,1,1))
+            if (T0(1,1,1)/=0 .and. T(1,1,1)==0) T(1,1,1) = T02T(T0(1,1,1),sp%massf,sp%cp,sp%dcp,sp%h,M(1,1,1),Rgas)
+            cp_ = sum(sp%massf*sp%cp(:,nint(T(1,1,1))))
+            gamma = cp_/(cp_-Rgas)
+            del = 0.5*(gamma-1)
+            ! Mach
+            if (M(1,1,1)==0) M(1,1,1) = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*T(1,1,1)))
+            ! Pressure
+            if (p0(1,1,1)==0 .and. p(1,1,1)==0) p(1,1,1) = T(1,1,1) * (Rgas*rho(1,1,1))
+            if (p0(1,1,1)/=0 .and. p(1,1,1)==0) p(1,1,1) = p0(1,1,1)/((1+del*M(1,1,1)*M(1,1,1))**(gamma/(gamma-1)))
+            ! Density  
+            if (rho(1,1,1)==0) rho(1,1,1) = p(1,1,1)/(Rgas*T(1,1,1))
+
             if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
             if (dirSize>=2) here(2) = block%center(i,j,k)%c(dir(2))
             if (dirSize>=3) here(3) = block%center(i,j,k)%c(dir(3))
@@ -143,39 +246,106 @@ contains
                 here(2)>=range(3) .and. here(2)<=range(4) .and. &
                 here(3)>=range(5) .and. here(3)<=range(6)) then
                 do s = 1, sp%n
-                block%density(s,i,j,k) = rho*sp%massf(s)
+                block%density(s,i,j,k) = rho(1,1,1)*sp%massf(s)
                 enddo
-                a = sqrt(gamma*Rgas*T)
-                vel = M*a
-                block%temperature(i,j,k) = T
+                a = sqrt(gamma*Rgas*T(1,1,1))
+                vel = M(1,1,1)*a
+                block%temperature(i,j,k) = T(1,1,1)
                 if (ux==0) then
-                block%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
+                  block%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
                 else
-                block%velocity(1,i,j,k) = ux
+                  block%velocity(1,i,j,k) = ux
                 endif
                 if (uy==0) then
-                block%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
+                  block%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
                 else
-                block%velocity(2,i,j,k) = uy
+                  block%velocity(2,i,j,k) = uy
                 endif
                 if (uz==0) then
-                block%velocity(3,i,j,k) = vel*sin(beta)
+                  block%velocity(3,i,j,k) = vel*sin(beta)
                 else
-                block%velocity(3,i,j,k) = uz
+                  block%velocity(3,i,j,k) = uz
                 endif
-                block%pressure(i,j,k) = p
+                block%pressure(i,j,k) = p(1,1,1)
             endif
+
         enddo; enddo; enddo
 
-    case ('1D-centcomp' , '1D-cubcomp')
 
-        Rgas = sum(Runi*sp%massf/sp%w)
-        cp_ = sum(sp%massf*sp%cp(:,1))
-        gamma = cp_/(cp_-Rgas)
-        del = 0.5*(gamma-1)
+      case ('variable')
 
         here = 1.0
+
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+
+            sp%massf = 1d-20
+            call define_composition(zoneini, sp, T0(i,j,k), p0(i,j,k))
+
+            ! R
+            Rgas = sum(Runi*sp%massf/sp%w)
+
+            ! Temperature
+            if (T0(i,j,k)==0 .and. T(i,j,k)==0) T(i,j,k) = p(i,j,k)/(Rgas*rho(i,j,k))
+            if (T0(i,j,k)/=0 .and. T(i,j,k)==0) T(i,j,k) = T02T(T0(i,j,k),sp%massf,sp%cp,sp%dcp,sp%h,M(i,j,k),Rgas)
+            cp_ = sum(sp%massf*sp%cp(:,nint(T(i,j,k))))
+            gamma = cp_/(cp_-Rgas)
+            del = 0.5*(gamma-1)
+            ! Mach
+            if (M(i,j,k)==0) M(i,j,k) = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*T(i,j,k)))
+            ! Pressure
+            if (p0(i,j,k)==0 .and. p(i,j,k)==0) p(i,j,k) = T(i,j,k) * (Rgas*rho(i,j,k))
+            if (p0(i,j,k)/=0 .and. p(i,j,k)==0) p(i,j,k) = p0(i,j,k)/((1+del*M(i,j,k)*M(i,j,k))**(gamma/(gamma-1)))
+            ! Density  
+            if (rho(i,j,k)==0) rho(i,j,k) = p(i,j,k)/(Rgas*T(i,j,k))
+
+            if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
+            if (dirSize>=2) here(2) = block%center(i,j,k)%c(dir(2))
+            if (dirSize>=3) here(3) = block%center(i,j,k)%c(dir(3))
+            if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
+                here(2)>=range(3) .and. here(2)<=range(4) .and. &
+                here(3)>=range(5) .and. here(3)<=range(6)) then
+                do s = 1, sp%n
+                block%density(s,i,j,k) = rho(i,j,k)*sp%massf(s)
+                enddo
+                a = sqrt(gamma*Rgas*T(i,j,k))
+                vel = M(i,j,k)*a
+                block%temperature(i,j,k) = T(i,j,k)
+                if (ux==0) then
+                  block%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
+                else
+                  block%velocity(1,i,j,k) = ux
+                endif
+                if (uy==0) then
+                  block%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
+                else
+                  block%velocity(2,i,j,k) = uy
+                endif
+                if (uz==0) then
+                  block%velocity(3,i,j,k) = vel*sin(beta)
+                else
+                  block%velocity(3,i,j,k) = uz
+                endif
+                block%pressure(i,j,k) = p(i,j,k)
+            endif
+
+        enddo; enddo; enddo
+
+
+      case ('1D-centcomp' , '1D-cubcomp')
+
+        ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
+        sp%massf = 1d-20
+        call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
+
+        here = 1.0
+
+        do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+
+              Rgas = sum(Runi*sp%massf/sp%w)
+              cp_ = sum(sp%massf*sp%cp(:,1))
+              gamma = cp_/(cp_-Rgas)
+              del = 0.5*(gamma-1)
+
               if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
               if (dirSize>=2) here(2) = block%center(i,j,k)%c(dir(2))
               if (dirSize>=3) here(3) = block%center(i,j,k)%c(dir(3))
@@ -191,13 +361,17 @@ contains
               endif
         enddo; enddo; enddo
 
-    case ('nozzle')
+        
+      case ('nozzle')
+
+        ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
+        sp%massf = 1d-20
+        call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
 
         call nozzle1D()
 
     end select
 
-    
     ! Turbulence specific parameters
     if (nrans==1) then
         if(mit/=0.0) block%turbprop(1,:,:,:) = mit
@@ -224,7 +398,7 @@ contains
       allocate(area(1:block%dim(1)))
 
       Rgas = sum(Runi*sp%massf/sp%w)
-      cp_ = sum(sp%massf*sp%cp(:,nint(T0)))
+      cp_ = sum(sp%massf*sp%cp(:,nint(T0(1,1,1))))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
 
@@ -253,22 +427,23 @@ contains
         ib2 = block%dim(1)
       elseif (nozzle_dir=='sx') then
         ip = -1
-        ib1 = L_threshold_cell-1
-        ib2 = 0
+        ib1 = block%dim(1)
+        ib2 = L_threshold_cell+1
       endif
 
-      do i = 1, ib1-1, ip
+      do i = ib1, ib2, ip
         do s = 1, sp%n
-          block%density(s,i,:,:) = sp%massf(s)*p0/(Rgas*T0)
+          block%density(s,i,:,:) = sp%massf(s)*p0(1,1,1)/(Rgas*T0(1,1,1))
         enddo
-        block%pressure(i,:,:) = p0
+        block%pressure(i,:,:) = p0(1,1,1)
         block%velocity(:,i,:,:) = 0.0
       enddo
 
       do i = ib1, ib2, ip
         M0 = 0.001
-        if (i>throat_cell) M0 = 1.30
+        if (ip*i > ip*throat_cell) M0 = 1.30
         call legge_aree(area(i),M0,Mach,throat_area,gamma)
+        Mach = Mach * ip
         here = 1.0
         do k = 1, block%dim(3)
           do j = 1, block%dim(2)
@@ -284,13 +459,13 @@ contains
               zeta = atan(dy/sqrt(dx*dx+dz*dz))
               phi = atan(dz/dx)
               do s = 1, sp%n
-                block%density(s,i,j,k) = sp%massf(s)*p0/(Rgas*T0)/((1+del*(Mach**2))**(0.5/del))
+                block%density(s,i,j,k) = sp%massf(s)*p0(1,1,1)/(Rgas*T0(1,1,1))/((1+del*(Mach**2))**(0.5/del))
               enddo
-              block%pressure(i,j,k) = p0/((1+del*(Mach**2))**(gamma/(2*del)))
-              block%velocity(1,i,j,k) = Mach*sqrt(gamma*Rgas*T0/(1+del*(Mach**2)))*cos(zeta)*cos(phi)
-              block%velocity(2,i,j,k) = Mach*sqrt(gamma*Rgas*T0/(1+del*(Mach**2)))*sin(zeta)
-              block%velocity(3,i,j,k) = Mach*sqrt(gamma*Rgas*T0/(1+del*(Mach**2)))*cos(zeta)*sin(phi)
-              block%temperature(i,j,k) = T0/(1+del*(Mach**2))
+              block%pressure(i,j,k) = p0(1,1,1)/((1+del*(Mach**2))**(gamma/(2*del)))
+              block%velocity(1,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*cos(zeta)*cos(phi)
+              block%velocity(2,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*sin(zeta)
+              block%velocity(3,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*cos(zeta)*sin(phi)
+              block%temperature(i,j,k) = T0(1,1,1)/(1+del*(Mach**2))
             endif
           end do 
         end do
@@ -304,6 +479,7 @@ contains
     subroutine centered_compression()
       implicit none
       real(8) :: alpha(2), pol
+
       alpha(1) = uTF; alpha(2) = -1/(range(2)-range(1))
       pol = alpha(1)+alpha(2)*(here(1)-range(1))
       block%velocity(1,i,j,k) = (pol-R1)/(1.d0+del)
@@ -312,12 +488,14 @@ contains
       do s = 1, sp%n
         block%density(s,i,j,k) = gamma*block%pressure(i,j,k)/(a*a)*sp%massf(s)
       enddo
+
     end subroutine centered_compression
     
     ! Cubic compression assuming rest for the state ahead of the compression wave
     subroutine cubic_compression()
       implicit none
       real(8) :: alpha(4), pol, csi
+
       alpha(1) = uTF; alpha(2) = 0
       alpha(3) = 3*(R1-uTF)/((range(2)-range(1))**2)
       alpha(4) = -2*(R1-uTF)/((range(2)-range(1))**3)
@@ -329,6 +507,7 @@ contains
       do s = 1, sp%n
         block%density(s,i,j,k) = gamma*block%pressure(i,j,k)/(a*a)*sp%massf(s)
       enddo
+      
     end subroutine cubic_compression
 
   end subroutine build_IG_field
@@ -406,5 +585,157 @@ contains
     T = TT
 
   end function T02T
+
+
+  subroutine read_file_direction (var, block, varfile, vardirection)
+    use ATLAS_high_level
+    implicit none
+    type(ATLAS_block), intent(inout)  :: block
+    character(len=200), intent(in)    :: varfile
+    character(len=16), intent(in)     :: vardirection
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: var
+    ! Local
+    integer :: dir, ios, file_length, i, j, k, f
+    real(8), dimension(:), allocatable :: file_dir, file_var
+    real(8) :: coord, coordm, coordp, varm, varp
+
+      
+    if (trim(vardirection) == 'x') dir = 1
+    if (trim(vardirection) == 'y') dir = 2
+    if (trim(vardirection) == 'z') dir = 3
+
+    file_length=0; ios=0
+    open(unit=1,file=trim(varfile),status='old',action='read')
+    do while (ios==0)
+      read(1,*,iostat=ios)
+      file_length = file_length+1
+    enddo
+    file_length = file_length-1
+    rewind(1)
+    allocate(file_dir(1:file_length))
+    allocate(file_var(1:file_length))
+    do i = 1, file_length
+      read(1,*) file_dir(i), file_var(i)
+    enddo
+    close(1)
+
+    do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+      coord = block%center(i,j,k)%c(dir)
+      do f = 1, file_length
+        if (coord < file_dir(1) .or. coord > file_dir(file_length) ) then
+          exit
+        elseif (coord < file_dir(f)) then
+          coordm = file_dir(f-1)
+          coordp = file_dir(f)
+          varm = file_var(f-1)
+          varp = file_var(f)
+          var(i,j,k) = varm + (coord-coordm)/(coordp-coordm)*(varp-varm)
+          exit
+        endif
+      enddo
+        
+    enddo; enddo; enddo
+
+  end subroutine read_file_direction
+
+
+  subroutine read_file_tec ( var, block, varfile )
+    use ATLAS_high_level
+    use chimera, only: fs
+    use intersection_module
+    use Lib_ORION_data
+    use Lib_Tecplot
+    use TOM
+    implicit none
+    type(ATLAS_block), intent(inout)  :: block
+    character(len=200), intent(in)    :: varfile
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: var
+    !Local
+    type(Orion_Data) :: IOfield
+    integer          :: error, i, j, k, d, ii, jj, kk
+    type(var_block) :: var_tec
+    real(8)                                  :: mindist
+    real(8), dimension(:,:,:), allocatable   :: dx, dy, dz, dist
+    integer, dimension(3)                    :: ind
+    real*8, dimension(3,8)                   :: cell
+    logical                                  :: inside_loc, inside
+
+    
+    IOfield%tec%format = 'ascii'
+    error = tec_read_structured_multiblock( orion=IOfield, filename=trim(varfile) )
+
+    allocate(var_tec%node   (0:IOfield%block(1)%Ni,0:IOfield%block(1)%Nj,0:IOfield%block(1)%Nk))
+    allocate(var_tec%center (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
+    allocate(var_tec%var   (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
+
+    var_tec%dim(1) = IOfield%block(1)%Ni
+    var_tec%dim(2) = IOfield%block(1)%Nj
+    var_tec%dim(3) = IOfield%block(1)%Nk
+
+    do i = 0, var_tec%dim(1); do j = 0, var_tec%dim(2); do k = 0, var_tec%dim(3)
+      var_tec%node(i,j,k)%c(1:3) = IOfield%block(1)%mesh(:,i,j,k)
+    enddo; enddo; enddo
+   
+    !> Compute the cells center coords
+    do k = 1, var_tec%dim(3); do j = 1, var_tec%dim(2); do i = 1, var_tec%dim(1)
+      do d = 1, 3
+        var_tec%center(i,j,k)%c(d)=0.125d0*(var_tec%node(i-1,j-1,k-1)%c(d)+var_tec%node(i,j-1,k-1)%c(d)+ &
+                                             var_tec%node(i-1,j,k-1)%c(d)+var_tec%node(i-1,j-1,k)%c(d)+ &
+                                             var_tec%node(i,j,k)%c(d)+var_tec%node(i,j,k-1)%c(d)+ &
+                                             var_tec%node(i,j-1,k)%c(d)+var_tec%node(i-1,j,k)%c(d))
+      enddo
+    enddo; enddo; enddo
+
+    do i = 1, var_tec%dim(1); do j = 1, var_tec%dim(2); do k = 1, var_tec%dim(3)
+      var_tec%var(i,j,k) = IOfield%block(1)%vars(1,i,j,k)
+    enddo; enddo; enddo
+
+    ! Cell centers minimum distance algorithm
+    do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+      
+      inside = .false.
+      do ii = 1, var_tec%dim(1); do jj = 1, var_tec%dim(2); do kk = 1, var_tec%dim(3)
+        
+        cell(:,1) = var_tec%node(ii-1,jj-1,kk-1)%c(1:3)*fs
+        cell(:,2) = var_tec%node(ii-1,jj  ,kk-1)%c(1:3)*fs
+        cell(:,3) = var_tec%node(ii-1,jj-1,kk  )%c(1:3)*fs
+        cell(:,4) = var_tec%node(ii-1,jj  ,kk  )%c(1:3)*fs
+        cell(:,5) = var_tec%node(ii  ,jj-1,kk-1)%c(1:3)*fs
+        cell(:,6) = var_tec%node(ii  ,jj  ,kk-1)%c(1:3)*fs
+        cell(:,7) = var_tec%node(ii  ,jj-1,kk  )%c(1:3)*fs
+        cell(:,8) = var_tec%node(ii  ,jj  ,kk  )%c(1:3)*fs
+       
+        inside_loc = .false.
+        call pointInsideHexahedron(block%center(i,j,k)%c(1:3)*fs, cell, inside_loc)
+
+        if (inside_loc .eqv. .true.) inside = .true.
+      
+      enddo; enddo; enddo
+
+      if (inside .eqv. .true.) then
+  
+        allocate(dx(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+        allocate(dy(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+        allocate(dz(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+        allocate(dist(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+              
+        dx(:,:,:) = (block%center(i,j,k)%c(1)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(1))**2
+        dy(:,:,:) = (block%center(i,j,k)%c(2)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(2))**2
+        dz(:,:,:) = (block%center(i,j,k)%c(3)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(3))**2
+        dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
+
+        ind = minloc(dist(:,:,:), MASK=.true.)
+        mindist = dist(ind(1),ind(2),ind(3))
+
+        deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
+
+        var(i,j,k) = var_tec%var(ind(1),ind(2),ind(3))
+
+      endif
+          
+    enddo; enddo; enddo
+
+  end subroutine read_file_tec
+  
 
 end module IC_lib_IG

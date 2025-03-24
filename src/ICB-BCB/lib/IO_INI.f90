@@ -1,4 +1,4 @@
-module input_ini
+module ATLAS_IO_INI
   use finer, only: file_ini
   implicit none
   private
@@ -125,4 +125,4 @@ contains
 
   end subroutine scan_turbo_input
 
-end module input_ini
+end module ATLAS_IO_INI

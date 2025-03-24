@@ -169,7 +169,7 @@ def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
     with open(filename_, mode='w') as file:
     
         # Write the header
-        file.write(f"Reaction, Species, Reagent Coefficient, Product Coefficient, Efficiency\n")
+        file.write(f'{phase.name}\n')
     
         # Iterate over each reaction
         for i in range(phase.n_reactions):

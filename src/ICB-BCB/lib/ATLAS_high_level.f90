@@ -1,7 +1,7 @@
   module ATLAS_high_level
     use TOM
     use phase_module
-    use bc
+    use lib_bc
     implicit none
     private
     public:: import_nodes
@@ -56,12 +56,12 @@
       real(kind=8)   :: c(3)
     end type vector_3D_type
 
-    type, public :: qvol_block
+    type, public :: var_block
       integer                                :: dim(3)
       type(vector_3D_type), allocatable      :: node(:,:,:)
       type(vector_3D_type), allocatable      :: center(:,:,:)
-      real(8), allocatable                   :: qvol(:,:,:)
-    end type qvol_block
+      real(8), allocatable                   :: var(:,:,:)
+    end type var_block
 
 contains
 

@@ -132,7 +132,7 @@ def IG_read_mixture(ini_file,section):
 #
 def IG_read_fixgas(ini_file,section):
 
-  ecp = ecv = egamma = eR = ew = emil = ekl = 0
+  ecp = ecv = egamma = eR = ew = emil = ekl = ePr = 0
 
   Runi = 8314.51
 

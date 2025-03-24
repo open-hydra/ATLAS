@@ -2,6 +2,9 @@ import numpy as np
 import cantera as ct
 import IG_IO as IG_IO, IO_Legacy
 
+HG_factor = 1.0e+5
+HG_substring = '-HG'
+
 def compute_properties(name,T_low, T_max, all_solutions):
 
     print(' -- Build thermo properties')
@@ -61,7 +64,11 @@ def compute_properties(name,T_low, T_max, all_solutions):
                     mass_cp_values[species_name].append(cp)
                     enthalpy_values[species_name].append(h)
                     entropy_values[species_name].append(s)
-                molecular_weights.append(solution.molecular_weights[solution.species_index(species_name)])
+
+                if (HG_substring not in species_name):
+                    molecular_weights.append(solution.molecular_weights[solution.species_index(species_name)])
+                else:
+                    molecular_weights.append(HG_factor*solution.molecular_weights[solution.species_index(species_name)])
 
         else:
             # Just one inert mixture
@@ -104,7 +111,21 @@ def compute_properties(name,T_low, T_max, all_solutions):
                 mass_cp_values[mix_name].append(cp)
                 enthalpy_values[mix_name].append(h)
                 entropy_values[mix_name].append(s)
-            molecular_weights.append(solution.mean_molecular_weight)
+            
+            # Get original molecular weights
+            molecular_weights_ = solution.molecular_weights.copy()  # Copy original values
+
+            # Identify species to modify and apply the factor
+            for i, species_name in enumerate(solution.species_names):
+                if HG_substring in species_name:  # Check if substring is in species name
+                    molecular_weights_[i] *= HG_factor
+
+            # Get mass fractions
+            Y = solution.Y  # Mass fractions of all species
+
+            # Compute the mean molecular weight manually
+            M_mix = 1.0 / sum(Y[i] / molecular_weights_[i] for i in range(solution.n_species))
+            molecular_weights.append(M_mix)
 
     IG_IO.write_thermo_properties(name,T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)
     #IO_Legacy.write_thermo_properties(T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)

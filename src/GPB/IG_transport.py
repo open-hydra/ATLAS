@@ -146,6 +146,9 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                     for species in kwargs["database"]:
                         if species['element'] == solution.species(n).name:
                             mu, k = CEA_polynomials(T,species)
+                elif (model=='constant'):
+                    mu = kwargs['mil'][n]
+                    k = kwargs['kl'][n]
 
                 if mu is not None:
                     species_found = True

@@ -1,4 +1,4 @@
-module bc
+module lib_bc
   use phase_module
   use intersection_module
   use variables
@@ -16,7 +16,9 @@ module bc
     logical:: adj_assigned
     ! Ideal gas
     integer:: nproperties
-    real(8), dimension(:), allocatable:: properties
+    logical, dimension(:), allocatable       :: IG_time_BC
+    character(32), dimension(:), allocatable :: IG_time_properties
+    real(8), dimension(:), allocatable       :: properties
     type(obj_species):: species
     ! Condensed phase
     integer:: cp_nproperties
@@ -48,6 +50,8 @@ module bc
     self%adj_assigned = .false.
     self%nproperties = nIG+nrans
     if (.not.allocated(self%properties) )allocate(self%properties(1:self%nproperties))
+    if (.not.allocated(self%IG_time_properties) )allocate(self%IG_time_properties(1:self%nproperties))
+    if (.not.allocated(self%IG_time_BC) )allocate(self%IG_time_BC(1:self%nproperties))
     self%properties = 0.d0
     self%cp_nproperties = 0
 
@@ -97,6 +101,7 @@ module bc
       integer:: error
 
       call sourceini%get(section_name=section, option_name='hg', val=self%properties(1), error=error)
+      if (error/=0) self%properties(1) = 0.
 
     end subroutine assigne_hg
 
@@ -105,6 +110,7 @@ module bc
       integer:: error
 
       call sourceini%get(section_name=section, option_name='Taw', val=self%properties(3), error=error)
+      if (error/=0) self%properties(3) = 0.
 
     end subroutine assigne_Taw
 
@@ -175,7 +181,6 @@ module bc
       implicit none
       logical                        :: found_CEA, force_inflow
       integer                        :: error, m, npCP
-      character(len=200)             :: chardummy
       ! Ideal gas
       real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt
       ! Condensed-phase
@@ -184,6 +189,8 @@ module bc
       real(8), allocatable :: rhop(:), up(:), vp(:), wp(:), mvp(:), alphap(:), betap(:), Tp(:)
 
       ! Ideal gas bc
+      self%IG_time_BC = .false.
+      self%IG_time_properties = 'None'
       found_cea = .false.
       nmach = 0.0; p0 = 0.0; force_inflow = .false.
       call sourceini%get(section_name=section, option_name='force-inflow', val=force_inflow,    error=error)
@@ -233,13 +240,14 @@ module bc
       endif
 
       ! Time bc
-      call sourceini%get(section_name=section,option_name='p0-time-file',val=chardummy,error=error)
-      if (error==0) p0 = 1732
+      ! Only total pressure is currently allowed
+      call sourceini%get(section_name=section,option_name='p0-time-file',val=self%IG_time_properties(3),error=error)
+      if (error==0) self%IG_time_BC(3) = .true.
 
       ! Force inflow
       if (force_inflow) pstatic = -3.14d-5
 
-      !> Choose between total temperature and static one
+      ! Choose between total temperature and static one
       if (nmach<0.0 .and. T>0) nmach = -5.0
 
       self%properties(1) = nmach
@@ -328,4 +336,4 @@ module bc
 
   end function h02T0
 
-end module bc
+end module lib_bc

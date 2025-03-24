@@ -1,0 +1,2 @@
+ideal-gas phase
+N2 28.014000
