@@ -15,20 +15,17 @@ contains
     integer                       :: i, j, k, error, nnn, g
     real(8)                       :: rho
     real(8), allocatable          :: krho(:), rp(:), kT(:)
-    ! character(len=128)            :: OMF, OFF, OSF
-    ! integer                       :: oldid
-    ! real(8)                       :: here(3)
 
     nnn = 0
     do k = 1, mat%n
-        nnn = nnn + mat%npCP(k)
+      nnn = nnn + mat%npCP(k)
     enddo
 
     if (.not.allocated(block%densityP)) then
-        allocate(block%densityP    ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        allocate(block%velocityP   (nnn,3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        allocate(block%temperatureP( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-        allocate(block%nP          ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%densityP    ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%velocityP   (nnn,3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%temperatureP( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%nP          ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
     allocate(krho(1:nnn)); krho = 0.0
@@ -52,32 +49,32 @@ contains
     select case (IC_type)
     case ('interpolation')
 
-        error stop "Interopilation procedure not available for CD"
+      error stop "Interopilation procedure not available for CD"
 
     case ('vacuum')
 
-        block%densityP(:,:,:,:) = 1d-20
-        block%velocityP(:,1:3,:,:,:) = 1d-20
-        block%temperatureP(:,:,:,:) = 1d-20
-        block%np(:,:,:,:) = 1d-20
+      block%densityP(:,:,:,:) = 1d-20
+      block%velocityP(:,1:3,:,:,:) = 1d-20
+      block%temperatureP(:,:,:,:) = 1d-20
+      block%np(:,:,:,:) = 1d-20
 
     case('equilibrium', 'thermo-mechanical equilibrium', 'mechanical equilibrium')
 
     do g = 1, nnn
-        if (krho(g)==0.0) then
+      if (krho(g)==0.0) then
         block%densityP(g,:,:,:) = 0.0
         block%velocityP(g,1:3,:,:,:) = 0.0
         block%temperatureP(g,:,:,:) = 0.0
         block%np(g,:,:,:) = 0.0
-        else
+      else
         block%densityP(g,:,:,:) = sum(block%density(:,:,:,:), dim=1) * krho(g)
         block%velocityP(g,1:3,:,:,:) = block%velocity(:,:,:,:)
         block%temperatureP(g,:,:,:) = block%temperature(:,:,:)* kT(g)
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
-                rho = mat%rho(g,nint(block%temperature(i,j,k)))
-                block%np(g,i,j,k) = block%densityP(g,i,j,k)/(4.0/3.0*3.14*rho*rp(g)**3)
+              rho = mat%rho(g,nint(block%temperature(i,j,k)))
+              block%np(g,i,j,k) = block%densityP(g,i,j,k)/(4.0/3.0*3.14*rho*rp(g)**3)
         enddo; enddo; enddo
-        endif
+      endif
     enddo
 
     end select

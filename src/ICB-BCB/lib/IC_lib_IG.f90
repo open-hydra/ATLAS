@@ -20,7 +20,9 @@ contains
     type(obj_species), intent(inout)  :: sp
     integer                       :: dir(:)
     integer                       :: i, ip, j, s, k, error
+    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)) :: M, p0, T0, p, T, rho
     real(8)                       :: Rgas, gamma, vel, del, a, cp_
+    real(8)                       :: massf(1:sp%n)
     real(8)                       :: M0, mach
     real(8)                       :: alpha, beta, ux, uy, uz, mit, kappa, omega, rhoRij
     real(8)                       :: throat_area, dx, dy, dz, zeta, phi
@@ -30,7 +32,6 @@ contains
     real(8)                       :: R1, uTF
     character(len=2)              :: nozzle_dir
     real(8)                       :: L_threshold
-    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)) :: M, p0, T0, p, T, rho
     real(8)                       :: val_const
     character(len=200)            :: val_file
     character(len=16)             :: val_direction
@@ -206,17 +207,24 @@ contains
     endif
 
 
+    associate( T0c => T0(1,1,1) , p0c => p0(1,1,1) , Tc => T(1,1,1) , pc => p(1,1,1) , rhoc => rho(1,1,1) , Mc => M(1,1,1) )
     select case (IC_type)
 
       case ('interpolation')
 
         call intersol(block,OMF,OFF,OSF,oldid)
+        ! Temperature evaluation (not performed during interpolation but needed for multi-phase coupling)
+        do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
+              massf = block%density(:,i,j,k)/sum(block%density(:,i,j,k))
+              Rgas = sum(Runi*massf/sp%w)
+              block%temperature(i,j,k) = block%pressure(i,j,k)/(Rgas*sum(block%density(:,i,j,k)))
+        enddo; enddo; enddo
 
 
       case ('homogeneous')
 
         sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
+        call define_composition(zoneini, sp, T0c, p0c)
 
         here = 1.0
 
@@ -226,18 +234,18 @@ contains
             Rgas = sum(Runi*sp%massf/sp%w)
 
             ! Temperature
-            if (T0(1,1,1)==0 .and. T(1,1,1)==0) T(1,1,1) = p(1,1,1)/(Rgas*rho(1,1,1))
-            if (T0(1,1,1)/=0 .and. T(1,1,1)==0) T(1,1,1) = T02T(T0(1,1,1),sp%massf,sp%cp,sp%dcp,sp%h,M(1,1,1),Rgas)
-            cp_ = sum(sp%massf*sp%cp(:,nint(T(1,1,1))))
+            if (T0c==0 .and. Tc==0) Tc = pc/(Rgas*rhoc)
+            if (T0c/=0 .and. Tc==0) Tc = T02T(T0c,sp%massf,sp%cp,sp%dcp,sp%h,Mc,Rgas)
+            cp_ = sum(sp%massf*sp%cp(:,nint(Tc)))
             gamma = cp_/(cp_-Rgas)
             del = 0.5*(gamma-1)
             ! Mach
-            if (M(1,1,1)==0) M(1,1,1) = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*T(1,1,1)))
+            if (Mc==0) Mc = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*Tc))
             ! Pressure
-            if (p0(1,1,1)==0 .and. p(1,1,1)==0) p(1,1,1) = T(1,1,1) * (Rgas*rho(1,1,1))
-            if (p0(1,1,1)/=0 .and. p(1,1,1)==0) p(1,1,1) = p0(1,1,1)/((1+del*M(1,1,1)*M(1,1,1))**(gamma/(gamma-1)))
+            if (p0c==0 .and. pc==0) pc = Tc * (Rgas*rhoc)
+            if (p0c/=0 .and. pc==0) pc = p0c/((1+del*Mc*Mc)**(gamma/(gamma-1)))
             ! Density  
-            if (rho(1,1,1)==0) rho(1,1,1) = p(1,1,1)/(Rgas*T(1,1,1))
+            if (rhoc==0) rhoc = pc/(Rgas*Tc)
 
             if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
             if (dirSize>=2) here(2) = block%center(i,j,k)%c(dir(2))
@@ -246,11 +254,11 @@ contains
                 here(2)>=range(3) .and. here(2)<=range(4) .and. &
                 here(3)>=range(5) .and. here(3)<=range(6)) then
                 do s = 1, sp%n
-                block%density(s,i,j,k) = rho(1,1,1)*sp%massf(s)
+                block%density(s,i,j,k) = rhoc*sp%massf(s)
                 enddo
-                a = sqrt(gamma*Rgas*T(1,1,1))
-                vel = M(1,1,1)*a
-                block%temperature(i,j,k) = T(1,1,1)
+                a = sqrt(gamma*Rgas*Tc)
+                vel = Mc*a
+                block%temperature(i,j,k) = Tc
                 if (ux==0) then
                   block%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
                 else
@@ -266,7 +274,7 @@ contains
                 else
                   block%velocity(3,i,j,k) = uz
                 endif
-                block%pressure(i,j,k) = p(1,1,1)
+                block%pressure(i,j,k) = pc
             endif
 
         enddo; enddo; enddo
@@ -335,7 +343,7 @@ contains
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
         sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
+        call define_composition(zoneini, sp, T0c, p0c)
 
         here = 1.0
 
@@ -366,11 +374,12 @@ contains
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
         sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0(1,1,1), p0(1,1,1))
+        call define_composition(zoneini, sp, T0c, p0c)
 
         call nozzle1D()
 
     end select
+    endassociate
 
     ! Turbulence specific parameters
     if (nrans==1) then
