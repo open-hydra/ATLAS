@@ -184,9 +184,9 @@ module lib_bc
       ! Ideal gas
       real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt
       ! Condensed-phase
-      integer :: cp_scaling
+      integer :: cp_scaling, error_gp
       real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:)
-      real(8), allocatable :: rhop(:), up(:), vp(:), wp(:), mvp(:), alphap(:), betap(:), Tp(:)
+      real(8), allocatable :: gp(:), up(:), vp(:), wp(:), mvp(:), alphap(:), betap(:), Tp(:)
 
       ! Ideal gas bc
       self%IG_time_BC = .false.
@@ -276,13 +276,11 @@ module lib_bc
       ! Condensed-phase bc
       do m = 1, phase%material%n
         npCP = phase%material%npCP(m)
-        cp_scaling = 1
         allocate(kr(1:npCP)); kr = 0d0; call sourceini%get(section_name=section, option_name='krho',val=kr,error=error)
-        if (error==0) cp_scaling = 0
         allocate(ku(1:npCP)); ku = 1d0; call sourceini%get(section_name=section, option_name='kV',val=ku,error=error)
         allocate(kt(1:npCP)); kt = 1d0; call sourceini%get(section_name=section, option_name='kT',val=kt,error=error)
 
-        allocate(rhop(1:npCP)); rhop = 0d0; call sourceini%get(section_name=section, option_name='rhop',val=rhop,error=error)
+        allocate(gp(1:npCP)); gp = 0d0; call sourceini%get(section_name=section, option_name='gp',val=gp,error=error_gp)
         allocate(up(1:npCP)); up = 0d0; call sourceini%get(section_name=section, option_name='up',val=up,error=error)
         allocate(vp(1:npCP)); vp = 0d0; call sourceini%get(section_name=section, option_name='vp',val=vp,error=error)
         allocate(wp(1:npCP)); wp = 0d0; call sourceini%get(section_name=section, option_name='wp',val=wp,error=error)
@@ -299,14 +297,22 @@ module lib_bc
         allocate(betap(1:npCP)); betap = 0d0
         call sourceini%get(section_name=section, option_name='betap',val=betap,error=error)
 
+        if (error_gp/=0) cp_scaling = 0
+        if (error_gp==0 .and. all(mvp/=0.d0)) cp_scaling = 1
+        if (error_gp==0 .and. all(mvp==0.d0)) cp_scaling = 2
+
         self%cp_properties(m,1:npCP,1) = dble(cp_scaling)
         if (cp_scaling==0) then
           self%cp_properties(m,1:npCP,2) = kr
           self%cp_properties(m,1:npCP,3) = ku
           self%cp_properties(m,1:npCP,6) = kt
-        else
-          self%cp_properties(m,1:npCP,2) = rhop
+        elseif (cp_scaling==1) then
+          self%cp_properties(m,1:npCP,2) = gp
           self%cp_properties(m,1:npCP,3) = mvp
+          self%cp_properties(m,1:npCP,6) = Tp
+        elseif (cp_scaling==2) then
+          self%cp_properties(m,1:npCP,2) = gp
+          self%cp_properties(m,1:npCP,3) = ku
           self%cp_properties(m,1:npCP,6) = Tp
         endif
         self%cp_properties(m,1:npCP,4) = alphap
