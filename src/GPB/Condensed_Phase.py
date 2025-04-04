@@ -75,7 +75,7 @@ def build(type,inifile,section):
 
     # ---------------------------------------------------
     # T-varying material
-    if fix_cp is None:
+    if fix_cp is None and thermo_model != 'SP-database':
         print(' -- Found T-varying properties materials')
         materials = [s for s in all_mat if s.name in material_names]
         for i, m in enumerate(materials):
@@ -99,6 +99,15 @@ def build(type,inifile,section):
                 material.thermal_conductivity = fix_k[i]
             except:
                 material.thermal_conductivity = 0.0
+            material_group.append(material)
+    # ---------------------------------------------------
+
+    # ---------------------------------------------------
+    # T-constant material
+    if thermo_model == 'SP-database':
+        print(' -- Found T-varying properties materials from database')
+        for i in range(len(material_names)):
+            material = Material(name=material_names[i],type='SP-database')
             material_group.append(material)
     # ---------------------------------------------------
 
