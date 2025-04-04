@@ -77,7 +77,7 @@ module lib_bc
     case(4,22);  call assemble_the_monster
     case(5);  call assigne_q
     case(6);  call assigne_T
-    case(7);  call assigne_hg; call assigne_qrad; call assigne_Taw
+    case(7);  call assigne_hconv; call assigne_qrad; call assigne_Tref
     case(8);  call assigne_T; call assigne_qrad
     case(9);  call assigne_qrad
     case(10); call assigne_SF
@@ -96,23 +96,23 @@ module lib_bc
 
     end subroutine assigne_q
 
-    subroutine assigne_hg
+    subroutine assigne_hconv
       implicit none
       integer:: error
 
-      call sourceini%get(section_name=section, option_name='hg', val=self%properties(1), error=error)
+      call sourceini%get(section_name=section, option_name='hconv', val=self%properties(1), error=error)
       if (error/=0) self%properties(1) = 0.
 
-    end subroutine assigne_hg
+    end subroutine assigne_hconv
 
-    subroutine assigne_Taw
+    subroutine assigne_Tref
       implicit none
       integer:: error
 
-      call sourceini%get(section_name=section, option_name='Taw', val=self%properties(3), error=error)
+      call sourceini%get(section_name=section, option_name='Tref', val=self%properties(3), error=error)
       if (error/=0) self%properties(3) = 0.
 
-    end subroutine assigne_Taw
+    end subroutine assigne_Tref
 
     subroutine assigne_qrad
       implicit none

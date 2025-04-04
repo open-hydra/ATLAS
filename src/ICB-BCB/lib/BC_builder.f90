@@ -293,13 +293,13 @@ module build_BC_mod
     if (error==0) then
       n_files = n_files+1; bc_file(n_files)%var = 'T'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='Taw-file', val=infile_dummy, error=error)
+    call ini_o%get(section_name='cell', option_name='Tref-file', val=infile_dummy, error=error)
     if (error==0) then
-      n_files = n_files+1; bc_file(n_files)%var = 'Taw'; bc_file(n_files)%name = infile_dummy
+      n_files = n_files+1; bc_file(n_files)%var = 'Tref'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='hg-file', val=infile_dummy, error=error)
+    call ini_o%get(section_name='cell', option_name='hconv-file', val=infile_dummy, error=error)
     if (error==0) then
-      n_files = n_files+1; bc_file(n_files)%var = 'hg'; bc_file(n_files)%name = infile_dummy
+      n_files = n_files+1; bc_file(n_files)%var = 'hconv'; bc_file(n_files)%name = infile_dummy
     endif
     call ini_o%get(section_name='cell', option_name='phi-file', val=infile_dummy, error=error)
     if (error==0) then
