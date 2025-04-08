@@ -724,15 +724,15 @@ module ATLAS_IO
       select case(phase(p)%type)
         case('IG')
           do s = 1, nsc
-            varnames = trim(varnames)//' r'//trim(str(.true.,s))
+            varnames = trim(varnames)//' "rho'//trim(str(.true.,s))//'"'
           enddo
-          varnames = trim(varnames)//' u v w p'
+          varnames = trim(varnames)//' "u" "v" "w" "p"'
           if (nrans==1) then
-            varnames = trim(varnames)//' mi_t'
+            varnames = trim(varnames)//' "mi_t"'
           elseif (nrans==2) then
-            varnames = trim(varnames)//' kappa omega'
+            varnames = trim(varnames)//' "kappa" "omega"'
           elseif (nrans==7) then
-            varnames = trim(varnames)//" ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega"
+            varnames = trim(varnames)//' "ru''u''" "rv''v''" "rw''w''" "ru''v''" "ru''w''" "rv''w''" "omega"'
           endif
         case('CD')
           nnn = 0
