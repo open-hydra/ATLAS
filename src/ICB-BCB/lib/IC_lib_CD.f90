@@ -7,6 +7,7 @@ contains
     use ATLAS_high_level
     use finer, only: file_ini
     use material_module
+    use variables, only: neuler
     implicit none
     type(ATLAS_block), intent(inout)  :: block
     type(file_ini), intent(in)        :: zoneini
@@ -14,7 +15,7 @@ contains
     character(len=32)                 :: IC_type
     integer                       :: i, j, k, error, nnn, g
     real(8)                       :: rho
-    real(8), allocatable          :: krho(:), rp(:), kT(:)
+    real(8), allocatable          :: krho(:), rp(:), kT(:), Pp(:)
 
     nnn = 0
     do k = 1, mat%n
@@ -26,14 +27,18 @@ contains
       allocate(block%velocityP   (nnn,3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
       allocate(block%temperatureP( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
       allocate(block%nP          ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%PP          ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
     allocate(krho(1:nnn)); krho = 0.0
     allocate(kT(1:nnn)); kT = 1.0
     allocate(rp(1:nnn))
+    allocate(Pp(1:nnn))
     call zoneini%get(section_name='zone', option_name='krho',   val=krho, error=error)
     call zoneini%get(section_name='zone', option_name='kT',   val=kT, error=error)
     call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
+    call zoneini%get(section_name='zone', option_name='Pp', val=Pp, error=error)
+    if (error==0) neuler = 1
     rp = 0.5*rp
 
     if (sum(krho)==0.0) then
@@ -57,6 +62,9 @@ contains
       block%velocityP(:,1:3,:,:,:) = 1d-20
       block%temperatureP(:,:,:,:) = 1d-20
       block%np(:,:,:,:) = 1d-20
+      if (neuler==1) then
+        block%PP(:,:,:,:) = 1D-20
+      endif
 
     case('equilibrium', 'thermo-mechanical equilibrium', 'mechanical equilibrium')
 
@@ -74,6 +82,9 @@ contains
               rho = mat%rho(g,nint(block%temperature(i,j,k)))
               block%np(g,i,j,k) = block%densityP(g,i,j,k)/(4.0/3.0*3.14*rho*rp(g)**3)
         enddo; enddo; enddo
+      endif
+      if (neuler==1) then
+        block%PP(g,:,:,:) = Pp(g)
       endif
     enddo
 

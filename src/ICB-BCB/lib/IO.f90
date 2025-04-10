@@ -684,7 +684,7 @@ module ATLAS_IO
     use IR_Precision
     use Lib_VTK
     use Lib_Tecplot
-    use variables, only: nrans, llen, outpath
+    use variables, only: nrans, neuler, llen, outpath
     use ATLAS_high_level
     use phase_module, only: phase_type
     use material_module, only: obj_material
@@ -739,12 +739,15 @@ module ATLAS_IO
           do m = 1, mat%n
             do g = 1, mat%npCP(m)
               nnn = nnn + 1
-              varnames = trim(varnames)//' rp'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' up'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' vp'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' wp'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' Tp'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' np'//trim(str(.true.,m))//trim(str(.true.,g))
+              varnames = trim(varnames)//' "rp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "up'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "vp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "wp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              if (neuler==1) then
+                varnames = trim(varnames)//' "Pp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              endif
+              varnames = trim(varnames)//' "Tp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "np'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
             enddo
           enddo
         case('SP')
@@ -778,16 +781,19 @@ module ATLAS_IO
           endif
         case('CD')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-CD'
-          allocate(orion%block(cnt)%vars(1:nnn*6,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          allocate(orion%block(cnt)%vars(1:nnn*(6+neuler),1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
           s = 1
           do m = 1, nnn
             orion%block(cnt)%vars(s,:,:,:) = block(b)%densityp(m,:,:,:)
             orion%block(cnt)%vars(s+1,:,:,:) = block(b)%velocityp(m,1,:,:,:)
             orion%block(cnt)%vars(s+2,:,:,:) = block(b)%velocityp(m,2,:,:,:)
             orion%block(cnt)%vars(s+3,:,:,:) = block(b)%velocityp(m,3,:,:,:)
-            orion%block(cnt)%vars(s+4,:,:,:) = block(b)%temperatureP(m,:,:,:)
-            orion%block(cnt)%vars(s+5,:,:,:) = block(b)%np(m,:,:,:)
-            s = s + 6
+            if (neuler==1) then
+              orion%block(cnt)%vars(s+4,:,:,:) = block(b)%PP(m,:,:,:)
+            endif
+            orion%block(cnt)%vars(s+4+neuler,:,:,:) = block(b)%temperatureP(m,:,:,:)
+            orion%block(cnt)%vars(s+5+neuler,:,:,:) = block(b)%np(m,:,:,:)
+            s = s + 6 + neuler
           enddo
         case('SP')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'

@@ -35,6 +35,7 @@
       real(8), dimension(:,:,:,:,:), allocatable :: velocityP
       real(8), dimension(:,:,:,:), allocatable   :: temperatureP
       real(8), dimension(:,:,:,:), allocatable   :: nP
+      real(8), dimension(:,:,:,:), allocatable   :: PP
       ! IC - SP
       integer, dimension(:,:,:), allocatable     :: mID
       real(8), dimension(:,:,:), allocatable     :: qvol

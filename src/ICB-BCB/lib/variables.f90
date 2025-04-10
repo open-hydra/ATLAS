@@ -8,4 +8,7 @@ module variables
   ! Gas-phase | Turbulent variables number
   integer:: nrans=0
 
+  ! Eulerian condensed-phase | Model switch number
+  integer:: neuler=0
+
 end module variables 
