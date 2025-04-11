@@ -213,7 +213,7 @@ contains
     !Local
     type(Orion_Data) :: IOfield
     integer          :: error, i, j, k, d, ii, jj, kk
-    type(var_block) :: var_tec
+    type(var_block)  :: var_tec
     real(8)                                  :: mindist
     real(8), dimension(:,:,:), allocatable   :: dx, dy, dz, dist
     integer, dimension(3)                    :: ind

@@ -98,7 +98,7 @@ contains
       call block(b)%extrapolate_nodes(gc)
       call block(b)%compute_volume(gc)
       call block(b)%compute_centers(gc)
-      call block(b)%compute_bounding()
+      call block(b)%compute_bounding(gc)
     enddo
 
   end subroutine build_geometry

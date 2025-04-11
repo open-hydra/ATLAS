@@ -10,7 +10,7 @@ module Interpolator
   logical                                      :: onespecies
   integer                                      :: nz_extrude
   real(R8)                                     :: thetamax_extrude
-  character(len=16)                            :: law
+  character(len=32)                            :: law
   type(ATLAS_block), dimension(:), allocatable :: oldblock
   type(obj_species)                            :: oldspecies
   character(len=llen)                          :: oldsolutionfile
@@ -974,27 +974,48 @@ subroutine distance_interpolation
     do j = 1, block%dim(2)
       do i = 1, block%dim(1)
 
-      ! Cell centers minimum distance algorithm
+        ! Cell centers minimum distance algorithm
         truedist = 1d+5
-        do bb = 1, size(oldblock)
-          allocate(dx(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-          allocate(dy(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-          allocate(dz(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-          allocate(dist(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-          dx(:,:,:) = (block%center(i,j,k)%c(1)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(1))**2
-          dy(:,:,:) = (block%center(i,j,k)%c(2)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(2))**2
-          dz(:,:,:) = (block%center(i,j,k)%c(3)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(3))**2
+        if (oldid == 0) then
+          do bb = 1, size(oldblock)
+            allocate(dx(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
+            allocate(dy(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
+            allocate(dz(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
+            allocate(dist(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
+            dx(:,:,:) = (block%center(i,j,k)%c(1)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(1))**2
+            dy(:,:,:) = (block%center(i,j,k)%c(2)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(2))**2
+            dz(:,:,:) = (block%center(i,j,k)%c(3)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(3))**2
+            dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
+            indold = minloc(dist(:,:,:),MASK=.true.)
+            mindist = dist(indold(1),indold(2),indold(3))
+            if (mindist<truedist) then
+              truedist = mindist
+              ind = indold
+              trueb = bb
+            endif
+            deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
+          enddo
+        
+        else
+          allocate(dx(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
+          allocate(dy(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
+          allocate(dz(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
+          allocate(dist(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
+          dx(:,:,:) = (block%center(i,j,k)%c(1)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(1))**2
+          dy(:,:,:) = (block%center(i,j,k)%c(2)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(2))**2
+          dz(:,:,:) = (block%center(i,j,k)%c(3)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(3))**2
           dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
           indold = minloc(dist(:,:,:),MASK=.true.)
           mindist = dist(indold(1),indold(2),indold(3))
           if (mindist<truedist) then
             truedist = mindist
             ind = indold
-            trueb = bb
+            trueb = oldid
           endif
           deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
-        enddo
         
+        endif
+
         ! Density
         do s = 1, newspecies%n
           block%density(s,i,j,k) = 1e-20
@@ -1038,6 +1059,8 @@ subroutine spherical_distance_interpolation
     write(*,*)
   endif
 
+  call block%compute_bounding(0)
+
   do k = 1, block%dim(3)
     do j = 1, block%dim(2)
       do i = 1, block%dim(1)
@@ -1052,24 +1075,59 @@ subroutine spherical_distance_interpolation
         r = 0.0
         c = 0
         
-        do while (c == 0)
-          r = r + max(dx,dy,dz)
+        if (oldid == 0) then
 
-          do bb = 1, size(oldblock)
-            do kk = 1, oldblock(bb)%dim(3)
-              do jj = 1, oldblock(bb)%dim(2)
-                do ii = 1, oldblock(bb)%dim(1)
+          do while (c == 0)
+            r = r + max(dx,dy,dz)
+
+            do bb = 1, size(oldblock)
+              do kk = 1, oldblock(bb)%dim(3)
+                do jj = 1, oldblock(bb)%dim(2)
+                  do ii = 1, oldblock(bb)%dim(1)
+                  
+                    x = oldblock(bb)%center(ii,jj,kk)%c(1)
+                    y = oldblock(bb)%center(ii,jj,kk)%c(2)
+                    z = oldblock(bb)%center(ii,jj,kk)%c(3)
+
+                    dist = sqrt((xc-x)**2 + (yc-y)**2 + (zc-z)**2)
+
+                    if (dist < r) then
+                      c = 1
+                      if (dist < truedist) then
+                        trueb = bb
+                        ind(1) = ii
+                        ind(2) = jj
+                        ind(3) = kk
+                        truedist = dist
+                      endif
+                    endif
+
+                  enddo
+                enddo
+              enddo
+            enddo
+
+          enddo
+
+        else
+
+          do while (c == 0)
+            r = r + max(dx,dy,dz)
+
+            do kk = 1, oldblock(oldid)%dim(3)
+              do jj = 1, oldblock(oldid)%dim(2)
+                do ii = 1, oldblock(oldid)%dim(1)
                 
-                  x = oldblock(bb)%center(ii,jj,kk)%c(1)
-                  y = oldblock(bb)%center(ii,jj,kk)%c(2)
-                  z = oldblock(bb)%center(ii,jj,kk)%c(3)
+                  x = oldblock(oldid)%center(ii,jj,kk)%c(1)
+                  y = oldblock(oldid)%center(ii,jj,kk)%c(2)
+                  z = oldblock(oldid)%center(ii,jj,kk)%c(3)
 
                   dist = sqrt((xc-x)**2 + (yc-y)**2 + (zc-z)**2)
 
                   if (dist < r) then
                     c = 1
                     if (dist < truedist) then
-                      trueb = bb
+                      trueb = oldid
                       ind(1) = ii
                       ind(2) = jj
                       ind(3) = kk
@@ -1080,9 +1138,11 @@ subroutine spherical_distance_interpolation
                 enddo
               enddo
             enddo
+
           enddo
 
-        enddo
+        endif
+
 
         ! Density
         do s = 1, newspecies%n

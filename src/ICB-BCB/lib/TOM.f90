@@ -608,18 +608,21 @@ pure subroutine compute_volume( b, gc )
 
   end subroutine check_mesh_type
 
-  pure subroutine compute_bounding(self)
+  pure subroutine compute_bounding(self, gc_)
+
     implicit none
     class(block_type), intent(inout) :: self
+    integer, intent(in)              :: gc_
+    ! Local
     integer :: i, j, k, d
     real(8) :: min_x,max_x,min_y,max_y,min_z,max_z
 
     allocate(self%bbmin (1-gc:self%dim(1)+gc,1-gc:self%dim(2)+gc,1-gc:self%dim(3)+gc))
     allocate(self%bbmax (1-gc:self%dim(1)+gc,1-gc:self%dim(2)+gc,1-gc:self%dim(3)+gc))
 
-    do k = 1-gc, self%dim(3)+gc
-      do j = 1-gc, self%dim(2)+gc
-        do i = 1-gc, self%dim(1)+gc
+    do k = 1-gc_, self%dim(3)+gc_
+      do j = 1-gc_, self%dim(2)+gc_
+        do i = 1-gc_, self%dim(1)+gc_
           do d = 1, 3
             self%bbmin(i,j,k)%c(d) = min(self%node(i-1,j-1,k-1)%c(d),self%node(i,j-1,k-1)%c(d), &
                                              self%node(i-1,j,k-1)%c(d),self%node(i-1,j-1,k)%c(d), &
@@ -667,6 +670,7 @@ pure subroutine compute_volume( b, gc )
     implicit none
     class(block_type), intent(inout) :: self
     integer, intent(in)              :: gc_
+    ! local
     integer :: i, j, k, d
 
     allocate(self%center(1-gc:self%dim(1)+gc,1-gc:self%dim(2)+gc,1-gc:self%dim(3)+gc))
