@@ -11,7 +11,7 @@ ct.add_directory(datapath+'Chemistry')
 def write_1D(models, x, y, xlabel, ylabel):
 
     # Write the data to a file in Tecplot-readable format
-    filename =  "KAnT-out.tec"
+    filename =  "KAnT-out.dat"
     with open(filename, 'w') as f:
         f.write("TITLE = \"KAnT Output\"\n")
         f.write(f"VARIABLES = \"{xlabel}\"\"{ylabel}\"\n")

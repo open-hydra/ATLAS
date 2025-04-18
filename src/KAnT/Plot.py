@@ -15,6 +15,7 @@ def get_random_style():
         'markersize': 6
     }
 
+#
 def plot_1D(models, x, y, xlabel, ylabel, logy):
 
     random_styles = {}  # Store random styles for models not in 'styles'
@@ -37,7 +38,7 @@ def plot_1D(models, x, y, xlabel, ylabel, logy):
     plt.tight_layout()
     if (logy): plt.yscale('log')
 
-
+#
 def plot_2D(mixture_ratio, pressure, Ta):
     import matplotlib.pyplot as plt
     """
