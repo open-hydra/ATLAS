@@ -69,16 +69,34 @@ def wilke_mixture_properties(x, mu, k, M):
     # double f_trans = 2.5 * (1.0 - c1 * cv_rot/1.5);
     # double cond = (visc/mw[k])*GasConstant*(f_trans * 1.5
     #                                     + f_rot * cv_rot + f_int * cv_int);
-def simplified_law(T,wm,cp):
-    
-    omega = np.log(50.0 * wm**4.6 / T**1.4)
-    mu = 26.6957937 * np.sqrt(wm * T) / omega
-    cpadim = cp * wm / ct.gas_constant
-    k = mu * ct.gas_constant * (0.00375 + 0.00132 * (cpadim - 2.5)) / wm
-    mu *= 1.0e-07
-    k *= 1.0e-04
+def simplified_law(solution,T,n,wm,cp):
+  identity_matrix = np.eye(solution.n_species)
+  if T < solution.species(n).thermo.min_temp or T > solution.species(n).thermo.max_temp:
+    if T < solution.species(n).thermo.min_temp:
+        Tdum = solution.species(n).thermo.min_temp
+    else:
+        Tdum = solution.species(n).thermo.max_temp
+    solution.TPY = Tdum, ct.one_atm, identity_matrix[n]
+    cp = solution.cp
+    h = solution.h + solution.cp * (T - Tdum)
+    s = solution.s + cp * np.log(T / Tdum)
+  else:
+    solution.TPY = T, ct.one_atm, identity_matrix[n]
+    cp = solution.cp
+    h = solution.h
+    s = solution.s
 
-    return mu, k
+  omega = max(np.log(50.0 * wm**4.6 / T**1.4),1.0)
+  mu = 26.6957937 * np.sqrt(wm * T) / omega
+  cpadim = cp * wm / ct.gas_constant
+  k = mu * ct.gas_constant * (0.00375 + 0.00132 * (cpadim - 2.5)) / wm
+  mu *= 1.0e-07
+  k *= 1.0e-04
+  if (k<0):
+    print(T,wm,omega,cp,ct.gas_constant)
+    exit(1)
+  return mu, k
+
 
 def CEA_polynomials(T,database):
 
@@ -155,7 +173,7 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                     viscosity_aux[species_name].append(mu)
                     conductivity_aux[species_name].append(k)
                 else:
-                    mu, k = simplified_law(T,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
+                    mu, k = simplified_law(solution,T,n,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
                     viscosity_aux[species_name].append(mu)
                     conductivity_aux[species_name].append(k)
 
