@@ -88,7 +88,7 @@ module ATLAS_IO
                 enddo
                 write(unitfile,'(A)') ''
               
-              case(5,6,9,10)
+              case(5,6,9,10,13)
                 write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(1)
               
               case(7)

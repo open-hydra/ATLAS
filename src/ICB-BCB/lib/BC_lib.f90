@@ -83,6 +83,7 @@ module lib_bc
     case(10); call assigne_SF
     case(11); self%properties = 0.
     case(12); call assigne_ablation
+    case(13);  call assigne_qrad
     end select
 
     contains
