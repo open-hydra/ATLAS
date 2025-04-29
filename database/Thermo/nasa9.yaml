@@ -4939,6 +4939,15 @@ species:
     - [0.0, 0.0, 30.90506, 0.030349988, -1.1095048e-05, 1.775581e-09, -1.0332327e-13,
       2883.4453, -142.4390028]
     note: NASA TM-83800, 1985. [G12/84]
+- name: C32H66
+  composition: {C: 32, H: 66}
+  thermo:
+    model: NASA9
+    temperature-ranges: [273.0, 573.0]
+    data:
+    - [0.0e+0, 0.0e+0, 4.978452151e+0, 6.354811390e-01, -1.018012000e-03,
+       6.15e-07, 0.0e+0, -1.152937171e+05, -5.791619128e+02]
+    note: "Leccese ha scelto questa paraffina."
 - name: Ca
   composition: {Ca: 1}
   thermo:

@@ -1,6 +1,18 @@
 import numpy as np
 import cantera as ct
 import IG_IO as IG_IO, IO_Legacy
+import os, sys
+
+# Ensure the environment variable is set
+ATLASDIR = os.environ.get("ATLASDIR")
+if ATLASDIR is None:
+    print("ERROR: ATLASDIR environment variable is not set.")
+    sys.exit(1)
+
+# Import required module
+lib = os.path.join(ATLASDIR, "database/Transport/")
+sys.path.append(lib)
+from Marano import Marano_f
 
 def wilke_mixture_properties(x, mu, k, M):
     """
@@ -156,7 +168,9 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
             for T in temperatures:
                 mu, k = None, None
                 species_found = False
-                if (model == 'cantera'):
+                if (species_name=='C32H66'): #for now only exception
+                  mu, k = Marano_f(T)
+                elif (model == 'cantera'):
                     solution.TPY = T, ct.one_atm, identity_matrix[n]
                     mu = solution.viscosity
                     k = solution.thermal_conductivity

@@ -238,6 +238,7 @@ def build(inifile,section):
             if s.name in transport_species_dict:
                 s.transport = transport_species_dict[s.name].transport
             else:
+              if (transport_model=='cantera'):
                 print(f"No transport data found for species: {s.name}")
         if reaction_model is not None:
             manual_inert_species = [s for s in manual_inert_species if s.name not in raw_mechanism.species_names]
@@ -248,7 +249,7 @@ def build(inifile,section):
         if manual_inert_species != []:
             manual_inert_phase = ct.Solution(thermo='ideal-gas',species=manual_inert_species)
             manual_inert_phase.name = 'Manual-inert-species'
-            manual_inert_phase.transport_model = 'mixture-averaged'
+            # manual_inert_phase.transport_model = 'mixture-averaged'
             species_group.append(manual_inert_phase)
     # ---------------------------------------------------
 
