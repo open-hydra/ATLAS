@@ -80,7 +80,7 @@ module ATLAS_IO
                   if (block(b)%face(f)%center(m,n)%bc%IG_time_BC(i)) then
                     write(unitfile,'(X,A,A1)',advance='no') trim(block(b)%face(f)%center(m,n)%bc%IG_time_properties(i)),','
                   else
-                    write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
+                    write(unitfile,'(E16.6,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
                   endif
                 enddo
                 do i = 1, block(b)%face(f)%center(m,n)%bc%species%n
