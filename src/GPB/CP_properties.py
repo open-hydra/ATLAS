@@ -1,6 +1,18 @@
 import numpy as np
 import cantera as ct
 import CP_IO
+import os, sys
+
+# Ensure the environment variable is set
+ATLASDIR = os.environ.get("ATLASDIR")
+if ATLASDIR is None:
+    print("ERROR: ATLASDIR environment variable is not set.")
+    sys.exit(1)
+
+# Import required module
+lib = os.path.join(ATLASDIR, "database/Thermo/")
+sys.path.append(lib)
+from SP_database import compute_properties_from_database
 
 def compute_properties(type, name, T_low, T_max, all_materials):
 
@@ -61,5 +73,10 @@ def compute_properties(type, name, T_low, T_max, all_materials):
             density[mat.name] = np.ones(len(temperatures)) * mat.density
             conductivity[mat.name] = np.ones(len(temperatures)) * mat.thermal_conductivity
             energy[mat.name] = density[mat.name] * mass_cp[mat.name] * temperatures
+
+        elif mat.type == 'SP-database':
+
+            materials.append(mat.name)
+            mass_cp[mat.name], density[mat.name], conductivity[mat.name], energy[mat.name] = compute_properties_from_database(mat.name,temperatures)
 
     CP_IO.write_properties(type, name, T_low, T_max, materials, mass_cp, density, enthalpy, conductivity, energy)

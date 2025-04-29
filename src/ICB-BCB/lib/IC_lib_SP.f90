@@ -201,7 +201,6 @@ contains
 
   subroutine read_file_tec ( var, block, varfile )
     use ATLAS_high_level
-    use ATLAS_IO, only: read_TECmesh
     use chimera, only: fs
     use intersection_module
     use Lib_ORION_data
@@ -214,7 +213,7 @@ contains
     !Local
     type(Orion_Data) :: IOfield
     integer          :: error, i, j, k, d, ii, jj, kk
-    type(var_block) :: var_tec
+    type(var_block)  :: var_tec
     real(8)                                  :: mindist
     real(8), dimension(:,:,:), allocatable   :: dx, dy, dz, dist
     integer, dimension(3)                    :: ind

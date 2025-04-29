@@ -13,7 +13,7 @@ ct.add_directory(datapath+'Chemistry')
 
 thermo_model = None
 
-def single_case(model, fuel_string, oxi_string, pressure, of):
+def single_case(model, reactor_type, fuel_string, oxi_string, pressure, of):
 
     temperature_f = convert2si(float(fuel_string[0]), 'K')
     temperature_o = convert2si(float(oxi_string[0]), 'K')
@@ -62,12 +62,12 @@ def single_case(model, fuel_string, oxi_string, pressure, of):
     mix = ct.Mixture([(fuel, moles_fuel), (oxi, moles_oxi), (products, 0)])
 
     # Solve for the equilibrium state, at constant enthalpy and pressure
-    mix.equilibrate('HP', solver='vcs')
+    mix.equilibrate(reactor_type, solver='vcs')
 
     return products
 
 
-def run_all(models, fuel_string, oxi_string, pressure, mixture_ratio):
+def run_all(models, reactor_type, fuel_string, oxi_string, pressure, mixture_ratio):
    
     solutions = {}
     for model in models:
@@ -75,7 +75,7 @@ def run_all(models, fuel_string, oxi_string, pressure, mixture_ratio):
         solutions[model] = []
         for of in mixture_ratio:
             for p in pressure:
-                cte_solution = single_case(model+'.yaml', fuel_string, oxi_string, p, of)
+                cte_solution = single_case(model+'.yaml', reactor_type, fuel_string, oxi_string, p, of)
                 solutions[model].append(cte_solution)
 
     return solutions

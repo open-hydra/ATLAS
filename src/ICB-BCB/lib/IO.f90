@@ -6,7 +6,7 @@ module ATLAS_IO
   public:: write_cdp_bc_file
   public:: read_vtk_tec ,write_vtk_tec
   public:: read_solfile, write_solfile
-  public:: read_TECmesh
+  public:: read_mesh
   public:: read_idealgas_properties, read_cdp_properties
   public:: read_phase
 
@@ -77,14 +77,18 @@ module ATLAS_IO
 
               case(4,22)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties
-                  write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
+                  if (block(b)%face(f)%center(m,n)%bc%IG_time_BC(i)) then
+                    write(unitfile,'(X,A,A1)',advance='no') trim(block(b)%face(f)%center(m,n)%bc%IG_time_properties(i)),','
+                  else
+                    write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
+                  endif
                 enddo
                 do i = 1, block(b)%face(f)%center(m,n)%bc%species%n
                   write(unitfile,'(E14.5,A)',advance='no') block(b)%face(f)%center(m,n)%bc%species%massf(i),','
                 enddo
                 write(unitfile,'(A)') ''
               
-              case(5,6,9,10)
+              case(5,6,9,10,13)
                 write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(1)
               
               case(7)
@@ -457,29 +461,37 @@ module ATLAS_IO
   end subroutine write_cdp_bc_file
 
 
-  !----------------------------------------------------------------------
-  !> \brief Reads a TECplot mesh file and updates the orion data structure.
-  !>
-  !> This subroutine reads a TECplot mesh file specified by the given path
-  !> and updates the orion data structure with the mesh information.
-  !>
-  !> \param[inout] orion The orion_data structure to be updated with the mesh information.
-  !> \param[in] path The path to the TECplot mesh file to be read.
-  !----------------------------------------------------------------------
-  subroutine read_TECmesh(orion,path)
+  subroutine read_mesh(orion,path)
     use Lib_Tecplot
+    use Lib_PLOT3D
     implicit none
-    type(orion_data), intent(inout) :: orion
-    character(len=*), intent(in)    :: path
-    integer                         :: error
+    type(orion_data), intent(inout)        :: orion
+    character(len=*), intent(in), optional :: path
+    integer :: error
 
-    orion%tec%node = .false.
-    orion%tec%bc = .false.
-    orion%tec%format = 'ascii'
-    error = tec_read_structured_multiblock(orion=orion,filename=path)
+    if (present(path)) then
+      if (index(path,'.tec')>0) then
+        orion%tec%node = .false.
+        orion%tec%bc = .false.
+        orion%tec%format = 'ascii'
+        error = tec_read_structured_multiblock(orion=orion,filename=path)
+      else
+        error = p3d_read_multiblock(orion=orion,filename=path)
+      endif
+    else
+      orion%tec%node = .false.
+      orion%tec%bc = .false.
+      orion%tec%format = 'ascii'
+      error = tec_read_structured_multiblock(orion=orion,filename='mesh.tec')
+      if (error==0) return
+      error = tec_read_structured_multiblock(orion=orion,filename='mesh.p3d')
+      if (error/=0) then
+        write(*,*) 'ERROR: mesh file is not readable'
+        stop
+      endif
+    endif
 
-  end subroutine read_TECmesh
-
+  end subroutine read_mesh
 
 
   subroutine write_solfile(phase,inblock)
@@ -672,7 +684,7 @@ module ATLAS_IO
     use IR_Precision
     use Lib_VTK
     use Lib_Tecplot
-    use variables, only: nrans, llen, outpath
+    use variables, only: nrans, neuler, llen, outpath
     use ATLAS_high_level
     use phase_module, only: phase_type
     use material_module, only: obj_material
@@ -712,27 +724,30 @@ module ATLAS_IO
       select case(phase(p)%type)
         case('IG')
           do s = 1, nsc
-            varnames = trim(varnames)//' r'//trim(str(.true.,s))
+            varnames = trim(varnames)//' "rho'//trim(str(.true.,s))//'"'
           enddo
-          varnames = trim(varnames)//' u v w p'
+          varnames = trim(varnames)//' "u" "v" "w" "p"'
           if (nrans==1) then
-            varnames = trim(varnames)//' mi_t'
+            varnames = trim(varnames)//' "mi_t"'
           elseif (nrans==2) then
-            varnames = trim(varnames)//' kappa omega'
+            varnames = trim(varnames)//' "kappa" "omega"'
           elseif (nrans==7) then
-            varnames = trim(varnames)//" ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega"
+            varnames = trim(varnames)//' "ru''u''" "rv''v''" "rw''w''" "ru''v''" "ru''w''" "rv''w''" "omega"'
           endif
         case('CD')
           nnn = 0
           do m = 1, mat%n
             do g = 1, mat%npCP(m)
               nnn = nnn + 1
-              varnames = trim(varnames)//' rp'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' up'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' vp'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' wp'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' Tp'//trim(str(.true.,m))//trim(str(.true.,g))
-              varnames = trim(varnames)//' np'//trim(str(.true.,m))//trim(str(.true.,g))
+              varnames = trim(varnames)//' "rp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "up'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "vp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "wp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              if (neuler==1) then
+                varnames = trim(varnames)//' "Pp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              endif
+              varnames = trim(varnames)//' "Tp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "np'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
             enddo
           enddo
         case('SP')
@@ -766,16 +781,19 @@ module ATLAS_IO
           endif
         case('CD')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-CD'
-          allocate(orion%block(cnt)%vars(1:nnn*6,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          allocate(orion%block(cnt)%vars(1:nnn*(6+neuler),1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
           s = 1
           do m = 1, nnn
             orion%block(cnt)%vars(s,:,:,:) = block(b)%densityp(m,:,:,:)
             orion%block(cnt)%vars(s+1,:,:,:) = block(b)%velocityp(m,1,:,:,:)
             orion%block(cnt)%vars(s+2,:,:,:) = block(b)%velocityp(m,2,:,:,:)
             orion%block(cnt)%vars(s+3,:,:,:) = block(b)%velocityp(m,3,:,:,:)
-            orion%block(cnt)%vars(s+4,:,:,:) = block(b)%temperatureP(m,:,:,:)
-            orion%block(cnt)%vars(s+5,:,:,:) = block(b)%np(m,:,:,:)
-            s = s + 6
+            if (neuler==1) then
+              orion%block(cnt)%vars(s+4,:,:,:) = block(b)%PP(m,:,:,:)
+            endif
+            orion%block(cnt)%vars(s+4+neuler,:,:,:) = block(b)%temperatureP(m,:,:,:)
+            orion%block(cnt)%vars(s+5+neuler,:,:,:) = block(b)%np(m,:,:,:)
+            s = s + 6 + neuler
           enddo
         case('SP')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'

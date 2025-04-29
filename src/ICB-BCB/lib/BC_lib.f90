@@ -16,7 +16,9 @@ module lib_bc
     logical:: adj_assigned
     ! Ideal gas
     integer:: nproperties
-    real(8), dimension(:), allocatable:: properties
+    logical, dimension(:), allocatable       :: IG_time_BC
+    character(32), dimension(:), allocatable :: IG_time_properties
+    real(8), dimension(:), allocatable       :: properties
     type(obj_species):: species
     ! Condensed phase
     integer:: cp_nproperties
@@ -48,6 +50,8 @@ module lib_bc
     self%adj_assigned = .false.
     self%nproperties = nIG+nrans
     if (.not.allocated(self%properties) )allocate(self%properties(1:self%nproperties))
+    if (.not.allocated(self%IG_time_properties) )allocate(self%IG_time_properties(1:self%nproperties))
+    if (.not.allocated(self%IG_time_BC) )allocate(self%IG_time_BC(1:self%nproperties))
     self%properties = 0.d0
     self%cp_nproperties = 0
 
@@ -73,12 +77,13 @@ module lib_bc
     case(4,22);  call assemble_the_monster
     case(5);  call assigne_q
     case(6);  call assigne_T
-    case(7);  call assigne_hg; call assigne_qrad; call assigne_Taw
+    case(7);  call assigne_hconv; call assigne_qrad; call assigne_Tref
     case(8);  call assigne_T; call assigne_qrad
     case(9);  call assigne_qrad
     case(10); call assigne_SF
     case(11); self%properties = 0.
     case(12); call assigne_ablation
+    case(13);  call assigne_qrad
     end select
 
     contains
@@ -92,23 +97,23 @@ module lib_bc
 
     end subroutine assigne_q
 
-    subroutine assigne_hg
+    subroutine assigne_hconv
       implicit none
       integer:: error
 
-      call sourceini%get(section_name=section, option_name='hg', val=self%properties(1), error=error)
+      call sourceini%get(section_name=section, option_name='hconv', val=self%properties(1), error=error)
       if (error/=0) self%properties(1) = 0.
 
-    end subroutine assigne_hg
+    end subroutine assigne_hconv
 
-    subroutine assigne_Taw
+    subroutine assigne_Tref
       implicit none
       integer:: error
 
-      call sourceini%get(section_name=section, option_name='Taw', val=self%properties(3), error=error)
+      call sourceini%get(section_name=section, option_name='Tref', val=self%properties(3), error=error)
       if (error/=0) self%properties(3) = 0.
 
-    end subroutine assigne_Taw
+    end subroutine assigne_Tref
 
     subroutine assigne_qrad
       implicit none
@@ -177,15 +182,16 @@ module lib_bc
       implicit none
       logical                        :: found_CEA, force_inflow
       integer                        :: error, m, npCP
-      character(len=200)             :: chardummy
       ! Ideal gas
       real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt
       ! Condensed-phase
-      integer :: cp_scaling
+      integer :: cp_scaling, error_gp
       real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:)
-      real(8), allocatable :: rhop(:), up(:), vp(:), wp(:), mvp(:), alphap(:), betap(:), Tp(:)
+      real(8), allocatable :: gp(:), up(:), vp(:), wp(:), mvp(:), alphap(:), betap(:), Tp(:)
 
       ! Ideal gas bc
+      self%IG_time_BC = .false.
+      self%IG_time_properties = 'None'
       found_cea = .false.
       nmach = 0.0; p0 = 0.0; force_inflow = .false.
       call sourceini%get(section_name=section, option_name='force-inflow', val=force_inflow,    error=error)
@@ -235,13 +241,14 @@ module lib_bc
       endif
 
       ! Time bc
-      call sourceini%get(section_name=section,option_name='p0-time-file',val=chardummy,error=error)
-      if (error==0) p0 = 1732
+      ! Only total pressure is currently allowed
+      call sourceini%get(section_name=section,option_name='p0-time-file',val=self%IG_time_properties(3),error=error)
+      if (error==0) self%IG_time_BC(3) = .true.
 
       ! Force inflow
       if (force_inflow) pstatic = -3.14d-5
 
-      !> Choose between total temperature and static one
+      ! Choose between total temperature and static one
       if (nmach<0.0 .and. T>0) nmach = -5.0
 
       self%properties(1) = nmach
@@ -270,13 +277,11 @@ module lib_bc
       ! Condensed-phase bc
       do m = 1, phase%material%n
         npCP = phase%material%npCP(m)
-        cp_scaling = 1
         allocate(kr(1:npCP)); kr = 0d0; call sourceini%get(section_name=section, option_name='krho',val=kr,error=error)
-        if (error==0) cp_scaling = 0
         allocate(ku(1:npCP)); ku = 1d0; call sourceini%get(section_name=section, option_name='kV',val=ku,error=error)
         allocate(kt(1:npCP)); kt = 1d0; call sourceini%get(section_name=section, option_name='kT',val=kt,error=error)
 
-        allocate(rhop(1:npCP)); rhop = 0d0; call sourceini%get(section_name=section, option_name='rhop',val=rhop,error=error)
+        allocate(gp(1:npCP)); gp = 0d0; call sourceini%get(section_name=section, option_name='gp',val=gp,error=error_gp)
         allocate(up(1:npCP)); up = 0d0; call sourceini%get(section_name=section, option_name='up',val=up,error=error)
         allocate(vp(1:npCP)); vp = 0d0; call sourceini%get(section_name=section, option_name='vp',val=vp,error=error)
         allocate(wp(1:npCP)); wp = 0d0; call sourceini%get(section_name=section, option_name='wp',val=wp,error=error)
@@ -293,14 +298,22 @@ module lib_bc
         allocate(betap(1:npCP)); betap = 0d0
         call sourceini%get(section_name=section, option_name='betap',val=betap,error=error)
 
+        if (error_gp/=0) cp_scaling = 0
+        if (error_gp==0 .and. all(mvp/=0.d0)) cp_scaling = 1
+        if (error_gp==0 .and. all(mvp==0.d0)) cp_scaling = 2
+
         self%cp_properties(m,1:npCP,1) = dble(cp_scaling)
         if (cp_scaling==0) then
           self%cp_properties(m,1:npCP,2) = kr
           self%cp_properties(m,1:npCP,3) = ku
           self%cp_properties(m,1:npCP,6) = kt
-        else
-          self%cp_properties(m,1:npCP,2) = rhop
+        elseif (cp_scaling==1) then
+          self%cp_properties(m,1:npCP,2) = gp
           self%cp_properties(m,1:npCP,3) = mvp
+          self%cp_properties(m,1:npCP,6) = Tp
+        elseif (cp_scaling==2) then
+          self%cp_properties(m,1:npCP,2) = gp
+          self%cp_properties(m,1:npCP,3) = ku
           self%cp_properties(m,1:npCP,6) = Tp
         endif
         self%cp_properties(m,1:npCP,4) = alphap

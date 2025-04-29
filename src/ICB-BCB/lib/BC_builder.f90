@@ -189,6 +189,8 @@ module build_BC_mod
                 block%face(ff)%center(m,n)%bc%connection = block%face(ff)%bc%connection
                 block%face(ff)%center(m,n)%bc%definition = block%face(ff)%bc%definition
                 block%face(ff)%center(m,n)%bc%properties = block%face(ff)%bc%properties
+                block%face(ff)%center(m,n)%bc%IG_time_properties = block%face(ff)%bc%IG_time_properties
+                block%face(ff)%center(m,n)%bc%IG_time_BC = block%face(ff)%bc%IG_time_BC
                 block%face(ff)%center(m,n)%bc%species%n = block%face(ff)%bc%species%n
                 if (block%face(ff)%bc%species%n>0) &
                   block%face(ff)%center(m,n)%bc%species%massf = block%face(ff)%bc%species%massf
@@ -291,13 +293,13 @@ module build_BC_mod
     if (error==0) then
       n_files = n_files+1; bc_file(n_files)%var = 'T'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='Taw-file', val=infile_dummy, error=error)
+    call ini_o%get(section_name='cell', option_name='Tref-file', val=infile_dummy, error=error)
     if (error==0) then
-      n_files = n_files+1; bc_file(n_files)%var = 'Taw'; bc_file(n_files)%name = infile_dummy
+      n_files = n_files+1; bc_file(n_files)%var = 'Tref'; bc_file(n_files)%name = infile_dummy
     endif
-    call ini_o%get(section_name='cell', option_name='hg-file', val=infile_dummy, error=error)
+    call ini_o%get(section_name='cell', option_name='hconv-file', val=infile_dummy, error=error)
     if (error==0) then
-      n_files = n_files+1; bc_file(n_files)%var = 'hg'; bc_file(n_files)%name = infile_dummy
+      n_files = n_files+1; bc_file(n_files)%var = 'hconv'; bc_file(n_files)%name = infile_dummy
     endif
     call ini_o%get(section_name='cell', option_name='phi-file', val=infile_dummy, error=error)
     if (error==0) then

@@ -35,6 +35,7 @@
       real(8), dimension(:,:,:,:,:), allocatable :: velocityP
       real(8), dimension(:,:,:,:), allocatable   :: temperatureP
       real(8), dimension(:,:,:,:), allocatable   :: nP
+      real(8), dimension(:,:,:,:), allocatable   :: PP
       ! IC - SP
       integer, dimension(:,:,:), allocatable     :: mID
       real(8), dimension(:,:,:), allocatable     :: qvol
@@ -97,7 +98,7 @@ contains
       call block(b)%extrapolate_nodes(gc)
       call block(b)%compute_volume(gc)
       call block(b)%compute_centers(gc)
-      call block(b)%compute_bounding()
+      call block(b)%compute_bounding(gc)
     enddo
 
   end subroutine build_geometry
