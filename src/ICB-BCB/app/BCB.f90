@@ -37,6 +37,8 @@ program BCB
     call block(b)%extrapolate_nodes(2)
     call block(b)%compute_centers(2)
     call block(b)%compute_face_centers()
+    call block(b)%compute_bounding(2)
+    call block(b)%compute_volume(2)
   enddo
   call check_mesh_type(block(1))
 

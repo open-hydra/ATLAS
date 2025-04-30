@@ -93,7 +93,7 @@ contains
     close(unitfile1); close(unitfile2)
 
     call get_environment_variable('ATLASDIR',master_path)
-    call IntersectionVolumes(trim(master_path)//'/src/lib/convexHull.py',ni,intersection)
+    call IntersectionVolumes(trim(master_path)//'/src/ICB-BCB/lib/convexHull.py',ni,intersection)
 
     !% Check volume division for receivers
     do br = 1, size(block)

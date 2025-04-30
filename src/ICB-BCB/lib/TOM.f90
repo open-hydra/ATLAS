@@ -251,7 +251,6 @@ pure subroutine compute_norm_area( b )
 end subroutine compute_norm_area
 
 
-!>@brief: legacy subroutine from AFFS gridfile to compute cell volumes for a block
 pure subroutine compute_volume( b, gc )
   implicit none
   class(block_type), intent(inout) :: b
@@ -270,7 +269,7 @@ pure subroutine compute_volume( b, gc )
 
   ! cell volume computation
   !$omp do collapse(3)
-  do k = 1, km ; do j = 1, jm ; do i = 1, im
+  do k = 1-gc, km+gc ; do j = 1-gc, jm+gc ; do i = 1-gc, im+gc
 
     vx(1)=b%node(i-1,j-1,k-1)%c(1)
     vy(1)=b%node(i-1,j-1,k-1)%c(2)
@@ -311,7 +310,7 @@ pure subroutine compute_volume( b, gc )
 
     if( vol <= 0d0 ) then
       !write(*,*) 'Negative volume in i,j,k', i, j, k
-      return
+      cycle
     endif
 
     !% Assign computed volume to metrics object
