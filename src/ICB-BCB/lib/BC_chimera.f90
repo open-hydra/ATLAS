@@ -38,7 +38,7 @@ contains
       if (allocated(nodeinside)) deallocate(nodeinside)
       allocate(nodeinside(8,1-gc:0,1-gc:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
       nodeinside = .false.
-      do kr = 1-gc, block(br)%dim(3)+gc; do jr = 1-gc, block(br)%dim(2)+gc; do ir = 1-gc, 0
+      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = 1-gc, 0
         call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
         ni = ni+nint
       enddo; enddo; enddo
@@ -47,7 +47,7 @@ contains
       if (allocated(nodeinside)) deallocate(nodeinside)
       allocate(nodeinside(8,block(br)%dim(1)+1:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
       nodeinside = .false.
-      do kr = 1-gc, block(br)%dim(3)+gc; do jr = 1-gc, block(br)%dim(2)+gc; do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc
+      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc
         call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[block(br)%dim(1)+1,1-gc,1-gc])
         ni = ni+nint
       enddo; enddo; enddo
@@ -56,7 +56,7 @@ contains
       if (allocated(nodeinside)) deallocate(nodeinside)
       allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:0,1-gc:block(br)%dim(3)+gc))
       nodeinside = .false.
-      do kr = 1-gc, block(br)%dim(3)+gc; do jr = 1-gc, 0; do ir = 1-gc, block(br)%dim(1)+gc
+      do kr = 1, block(br)%dim(3); do jr = 1-gc, 0; do ir = 1, block(br)%dim(1)
         call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
         ni = ni+nint
       enddo; enddo; enddo
@@ -65,28 +65,30 @@ contains
       if (allocated(nodeinside)) deallocate(nodeinside)
       allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,block(br)%dim(2)+1:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
       nodeinside = .false.
-      do kr = 1-gc, block(br)%dim(3)+gc; do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc; do ir = 1-gc, block(br)%dim(1)+gc
+      do kr = 1, block(br)%dim(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc; do ir = 1, block(br)%dim(1)
         call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,block(br)%dim(2)+1,1-gc])
         ni = ni+nint
       enddo; enddo; enddo
 
-      ! Face 5
-      if (allocated(nodeinside)) deallocate(nodeinside)
-      allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,1-gc:0))
-      nodeinside = .false.
-      do kr = 1-gc, 0; do jr = 1-gc, block(br)%dim(2)+gc; do ir = 1-gc, block(br)%dim(1)+gc
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
-        ni = ni+nint
-      enddo; enddo; enddo
+      if (block(br)%dim(3) /= 1) then
+        ! Face 5
+        if (allocated(nodeinside)) deallocate(nodeinside)
+        allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,1-gc:0))
+        nodeinside = .false.
+        do kr = 1-gc, 0; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
+          call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
+          ni = ni+nint
+        enddo; enddo; enddo
 
-      ! Face 6
-      if (allocated(nodeinside)) deallocate(nodeinside)
-      allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,block(br)%dim(3)+1:block(br)%dim(3)+gc))
-      nodeinside = .false.
-      do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc; do jr = 1-gc, block(br)%dim(2)+gc; do ir = 1-gc, block(br)%dim(1)+gc
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,block(br)%dim(3)+1])
-        ni = ni+nint
-      enddo; enddo; enddo
+        ! Face 6
+        if (allocated(nodeinside)) deallocate(nodeinside)
+        allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,block(br)%dim(3)+1:block(br)%dim(3)+gc))
+        nodeinside = .false.
+        do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
+          call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,block(br)%dim(3)+1])
+          ni = ni+nint
+        enddo; enddo; enddo
+      endif
 
     enddo
 
