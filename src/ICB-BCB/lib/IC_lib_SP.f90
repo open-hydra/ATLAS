@@ -17,7 +17,7 @@ contains
     real(8), intent(in)               :: range(6)
     integer, intent(in)               :: dirSize
     ! Local
-    integer                       :: dir(:), i, j, k, h, mID
+    integer                       :: dir(:), i, j, k, h
     integer                       :: error, errorfile, errordirection
     real(8)                       :: val_const
     character(len=16)             :: material_name, val_direction
@@ -25,6 +25,7 @@ contains
     integer                       :: imin, imax, jmin, jmax, kmin, kmax
     character(len=200)            :: val_file
     real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)) :: qvol, T
+    real(8)                       :: mID
     character(len=llen)           :: OMF, OFF
     integer                       :: oldid
 
@@ -34,11 +35,11 @@ contains
         allocate(block%qvol(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
-    mID = 0
+    mID = 0.0
     call zoneini%get(section_name='zone', option_name='material', val=material_name, error=error)
     do i = 1, mat%n
         if (trim(mat%name(i))==trim(material_name)) &
-        mID = i
+        mID = real(i)
     enddo
     mID = max(mID,1)
 
