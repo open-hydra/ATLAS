@@ -25,6 +25,7 @@
       ! IC - IG
       real(8), dimension(:,:,:,:), allocatable   :: density
       real(8), dimension(:,:,:), allocatable     :: temperature
+      real(8), dimension(:,:,:), allocatable     :: mID, qvol
       real(8), dimension(:,:,:), allocatable     :: pressure
       real(8), dimension(:,:,:), allocatable     :: mil, kl
       real(8), dimension(:,:,:,:), allocatable   :: turbprop
@@ -124,6 +125,8 @@ contains
     allocate(self%mil(1:ii,1:jj,1:kk))
     allocate(self%kl(1:ii,1:jj,1:kk))
     allocate(self%temperature(1:ii,1:jj,1:kk))
+    allocate(self%mID(1:ii,1:jj,1:kk))
+    allocate(self%qvol(1:ii,1:jj,1:kk))
 
   end subroutine allocate
 

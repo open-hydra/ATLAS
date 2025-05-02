@@ -572,14 +572,16 @@ module ATLAS_IO
   end subroutine write_solfile
 
 
-  subroutine read_solfile(filename,icblock,n)
+  subroutine read_solfile(phase_type,filename,icblock,n)
     use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
     use variables, only: nrans, llen
     use ATLAS_high_level, only: ATLAS_block
     implicit none
-    integer, intent(in)              :: n
+    character(len=2), intent(in)     :: phase_type
+    integer, intent(in), optional    :: n
     character(len=llen), intent(in)  :: filename
     type(ATLAS_block), intent(inout) :: icblock(:)
+    ! Local
     integer                          :: b, nb, Nmax(3), cnt, io
     integer, allocatable             :: Nx(:), Ny(:), Nz(:)
     real(kind=R8), dimension(:,:,:,:), allocatable      :: var
@@ -607,49 +609,74 @@ module ATLAS_IO
     end do
     Nmax(3) = maxval(Nz)
 
-    allocate(var(1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
-    allocate(vars(1:n,1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
-    allocate(vart(1:nrans,1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
+    if (phase_type=='IG') then
+
+      allocate(var(1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
+      allocate(vars(1:n,1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
+      allocate(vart(1:nrans,1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
     
-    do b = 1, nb
-      read(unitfile)((((vars(s,b,i,j,k),s=1,n),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-      icblock(b)%density(1:n,1:Nx(b),1:Ny(b),1:Nz(b)) = vars(1:n,b,1:Nx(b),1:Ny(b),1:Nz(b))
-    end do
-    do cnt = 1, 3
+      do b = 1, nb
+        read(unitfile)((((vars(s,b,i,j,k),s=1,n),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
+        icblock(b)%density(1:n,1:Nx(b),1:Ny(b),1:Nz(b)) = vars(1:n,b,1:Nx(b),1:Ny(b),1:Nz(b))
+      end do
+      do cnt = 1, 3
+        do b = 1, nb
+          read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
+          icblock(b)%velocity(cnt,1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+        end do
+      end do
       do b = 1, nb
         read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-        icblock(b)%velocity(cnt,1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+        icblock(b)%pressure(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
       end do
-    end do
-    do b = 1, nb
-      read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-      icblock(b)%pressure(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
-    end do
-    ! Turbulent models
-    do b = 1, nb
-      read(unitfile,iostat=io)((((vart(s,b,i,j,k),s=1,nrans),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-      if (io==0) then
-        icblock(b)%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = vart(:,b,1:Nx(b),1:Ny(b),1:Nz(b))
-      else
-        icblock(b)%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = 0.0
-      endif
-    enddo
+      ! Turbulent models
+      do b = 1, nb
+        read(unitfile,iostat=io)((((vart(s,b,i,j,k),s=1,nrans),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
+        if (io==0) then
+          icblock(b)%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = vart(:,b,1:Nx(b),1:Ny(b),1:Nz(b))
+        else
+          icblock(b)%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = 0.0
+        endif
+      enddo
+
+    elseif (phase_type=='SP') then
+
+      allocate(var(1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
+    
+      do b = 1, nb
+        read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
+        icblock(b)%temperature(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+      end do
+
+      do b = 1, nb
+        read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
+        icblock(b)%mID(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+      end do
+
+      do b = 1, nb
+        read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
+        icblock(b)%qvol(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+      end do
+
+    endif
     
     close(unitfile)
 
   end subroutine read_solfile
 
 
-  subroutine read_vtk_tec ( filename, icblock, n )
+  subroutine read_vtk_tec (phase_type,filename,icblock,n)
     use Lib_VTK
     use Lib_Tecplot
     use Lib_ORION_data
     use variables, only: nrans, llen
     use ATLAS_high_level
     implicit none
-    integer, intent(in)              :: n
+    character(len=2), intent(in)     :: phase_type
+    integer, intent(in), optional    :: n
     character(len=llen), intent(in)  :: filename
     type(ATLAS_block), allocatable, intent(inout) :: icblock(:)
+    ! Local
     type(Orion_Data) :: IOfield
     integer:: error, b
 
@@ -658,20 +685,31 @@ module ATLAS_IO
 
     call import_nodes(input=IOfield,output=icblock)
 
-    do b = 1, size(icblock)
-      call icblock(b)%compute_centers(0)
-      call icblock(b)%allocate(nrans,n,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
-      if (size(IOfield%block(b)%vars)>0) then
-        do s = 1, n
-          icblock(b)%density(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(s,:,:,:)
-        enddo
-        icblock(b)%velocity(1:3,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+1:n+3,:,:,:)
-        icblock(b)%pressure(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4,:,:,:)
-        do s = 1, nrans
-          icblock(b)%turbprop(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4+s,:,:,:)
-        enddo 
-      endif
-    end do
+    if (phase_type=='IG') then
+      do b = 1, size(icblock)
+        call icblock(b)%compute_centers(0)
+        call icblock(b)%allocate(nrans,n,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
+        if (size(IOfield%block(b)%vars)>0) then
+          do s = 1, n
+            icblock(b)%density(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(s,:,:,:)
+          enddo
+          icblock(b)%velocity(1:3,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+1:n+3,:,:,:)
+          icblock(b)%pressure(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4,:,:,:)
+          do s = 1, nrans
+            icblock(b)%turbprop(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4+s,:,:,:)
+          enddo 
+        endif
+      end do
+    elseif (phase_type=='SP') then
+      do b = 1, size(icblock)
+        call icblock(b)%compute_centers(0)
+        if (size(IOfield%block(b)%vars)>0) then
+          icblock(b)%tmperature(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(1,:,:,:)
+          icblock(b)%mID(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(2,:,:,:)
+          icblock(b)%qvol(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(3,:,:,:)
+        endif
+      end do
+    endif
 
   end subroutine read_vtk_tec
 

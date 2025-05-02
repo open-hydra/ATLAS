@@ -1,38 +1,27 @@
-module Interpolator_IG
+module Interpolator_SP
   use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
   use variables
   use ATLAS_high_level
-  use ATLAS_IO, only: read_solfile, read_mesh, read_idealgas_properties, read_vtk_tec
+  use ATLAS_IO, only: read_solfile, read_mesh, read_vtk_tec
   use Lib_ORION_data
-  use species, only: obj_species
   implicit none
 
-  logical                                      :: onespecies
   integer                                      :: nz_extrude
   real(R8)                                     :: thetamax_extrude
   character(len=32)                            :: law
   type(ATLAS_block), dimension(:), allocatable :: oldblock
-  type(obj_species)                            :: oldspecies
   character(len=llen)                          :: oldsolutionfile
 
 contains
 
-  subroutine build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,newspecies)
+  subroutine build_old_solution(oldmeshfile_,oldsolutionfile_)
     implicit none
-    character(len=llen), intent(inout) :: oldspeciesfile_
     character(len=llen), intent(inout) :: oldsolutionfile_
     character(len=llen), intent(inout) :: oldmeshfile_
-    type(obj_species), intent(in)      :: newspecies
     type(orion_data)                   :: oldorion
     integer :: b
 
     oldsolutionfile = oldsolutionfile_
-
-    if (.not.onespecies) then
-      call read_idealgas_properties(oldspeciesfile_, oldspecies)
-    else
-      oldspecies = newspecies
-    endif
 
     ! Old files reading and data allocation
     if (oldmeshfile_/='Darwin') then
@@ -47,10 +36,9 @@ contains
       endif
       do b = 1, size(oldblock)
         call oldblock(b)%compute_centers(0)
-        call oldblock(b)%allocate(nrans,oldspecies%n,oldblock(b)%dim(1),oldblock(b)%dim(2),oldblock(b)%dim(3))
       end do
       if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
-      call read_solfile('IG',oldsolutionfile,oldblock,oldspecies%n)
+      call read_solfile('SP',oldsolutionfile,oldblock)
       if (law=='extrude') then
         if (verbose) write(*,*)" Old solution extrusion"
         call extrude360(2)
@@ -60,7 +48,7 @@ contains
     else
 
       if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
-      call read_vtk_tec('IG',oldsolutionfile,oldblock,oldspecies%n)
+      call read_vtk_tec('SP',oldsolutionfile,oldblock)
       if (law=='extrude') then
         if (verbose) write(*,*)" Old mesh extrusion"
         call extrude360(1)
@@ -123,12 +111,9 @@ contains
 
         do b = 1, size(oldblock)
           do k = 1, oldblock(b)%dim(3)
-            oldblock(b)%density(:,:,:,k) = oldblock(b)%density(:,:,:,1)
-            oldblock(b)%velocity(1,:,:,k) = oldblock(b)%velocity(1,:,:,1)
-            oldblock(b)%velocity(2,:,:,k) = oldblock(b)%velocity(2,:,:,1)*cos(theta(k))
-            oldblock(b)%velocity(3,:,:,k) = oldblock(b)%velocity(2,:,:,1)*sin(theta(k))
-            oldblock(b)%pressure(:,:,k) = oldblock(b)%pressure(:,:,1)
-            if (nrans>0) oldblock(b)%turbprop(1:nrans,:,:,k) = oldblock(b)%turbprop(1:nrans,:,:,1)
+            oldblock(b)%temperature(:,:,k) = oldblock(b)%temperature(:,:,1)
+            oldblock(b)%mID(:,:,k) = oldblock(b)%mID(:,:,1)
+            oldblock(b)%qvol(:,:,k) = oldblock(b)%qvol(:,:,1)
           enddo
         enddo
 
@@ -138,14 +123,13 @@ contains
 
   end subroutine build_old_solution
 
-  subroutine intersol(block,oldmeshfile_,oldsolutionfile_,oldspeciesfile_,oldid)
+
+  subroutine intersol(block,oldmeshfile_,oldsolutionfile_,oldid)
     implicit none
     type(ATLAS_block), intent(inout)     :: block
-    character(len=llen), intent(inout)   :: oldspeciesfile_
     character(len=llen), intent(inout)   :: oldsolutionfile_
     character(len=llen), intent(inout)   :: oldmeshfile_
     integer, intent(in)                  :: oldid
-    type(obj_species)                    :: newspecies
     character(2)                         :: sym_type
     integer                              :: cnt, s, sold, i, j, k, b, bb, trueb
     integer                              :: ii, jj, kk, counter
@@ -155,21 +139,18 @@ contains
     integer, dimension(3)                :: ind, indold
     logical, dimension(:), allocatable   :: same_dimension
 
-    newspecies = block%associated_phase(1)%species
 
     ! First block interpolation requires old solution build
     if (.not. allocated(oldblock)) then
-      call build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,newspecies)
+      call build_old_solution(oldmeshfile_,oldsolutionfile_)
     ! if multiple solutions files are employed, the old solution is rebuilt
     elseif (allocated(oldblock) .and. oldsolutionfile_/=oldsolutionfile) then
       deallocate(oldblock)
-      call build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,newspecies)
+      call build_old_solution(oldmeshfile_,oldsolutionfile_)
     endif
 
     if (verbose) then
       write(*,*) " Building new solution"
-      write(*,*) " Old species number: ", oldspecies%n
-      write(*,*) " New species number: ", newspecies%n
     endif
 
     b = block%id
@@ -253,29 +234,10 @@ subroutine index_interpolation()
       do j = 1, block%dim(2)
         do i = 1, block%dim(1)
           
-          ! Density
-          do s = 1, newspecies%n
-            block%density(s,i,j,k) = 1e-20
-            do sold = 1, oldspecies%n
-              if (newspecies%name(s)==oldspecies%name(sold)) then
-                block%density(s,i,j,k) = oldblock(b)%density(sold,i,j,1)
-                exit
-              endif
-            enddo
-          enddo
-          
-          ! Velocity
-          block%velocity(1,i,j,k) = oldblock(b)%velocity(1,i,j,1)
-          block%velocity(2,i,j,k) = oldblock(b)%velocity(2,i,j,1)*&
-          cos(atan2(block%center(i,j,k)%c(3),block%center(i,j,k)%c(2)))
-          block%velocity(3,i,j,k) = oldblock(b)%velocity(3,i,j,1)*&
-          sin(atan2(block%center(i,j,k)%c(3),block%center(i,j,k)%c(2)))
-          
-          ! Pressure
-          block%pressure(i,j,k) = oldblock(b)%pressure(i,j,1)
-          
-          ! Turbulent properties
-          block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,1)
+          ! Temperature / matID / qvol
+          block%temperature(i,j,k) = oldblock(b)%temperature(i,j,1)
+          block%mID(i,j,k) = oldblock(b)%mID(i,j,1)
+          block%qvol(i,j,k) = oldblock(b)%qvol(i,j,1)
           
         enddo
       enddo
@@ -293,28 +255,11 @@ subroutine index_interpolation()
       do j = 1, block%dim(2)
         do i = 1, block%dim(1)
 
-          ! Density
-          do s = 1, newspecies%n
-            block%density(s,i,j,k) = 1e-20
-            do sold = 1, oldspecies%n
-              if (newspecies%name(s)==oldspecies%name(sold)) then
-                block%density(s,i,j,k) = oldblock(b)%density(sold,i,j,k)
-                exit
-              endif
-            enddo
-          enddo
+          ! Temperature / matID / qvol
+          block%temperature(i,j,k) = oldblock(b)%temperature(i,j,k)
+          block%mID(i,j,k) = oldblock(b)%mID(i,j,k)
+          block%qvol(i,j,k) = oldblock(b)%qvol(i,j,k)
           
-          ! Velocity
-          block%velocity(1,i,j,k) = oldblock(b)%velocity(1,i,j,k)
-          block%velocity(2,i,j,k) = oldblock(b)%velocity(2,i,j,k)                
-          block%velocity(3,i,j,k) = oldblock(b)%velocity(3,i,j,k)
-          
-          ! Pressure
-          block%pressure(i,j,k) = oldblock(b)%pressure(i,j,k)
-          
-          ! Turbulent properties
-          block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,k)
-
         enddo
       enddo
     enddo
@@ -399,57 +344,25 @@ subroutine multiple_interpolation()
               k2d = 1
             endif
 
-            ! Density
-            do s = 1, newspecies%n
-              block%density(s,i,j,k) = 1e-20
-              do sold = 1, oldspecies%n
-                if (newspecies%name(s)==oldspecies%name(sold)) then
-                  block%density(s,i,j,k)      =  coeffs(1)*oldblock(b)%density(sold,i2d,j2d,k2d)   &
-                                              +  coeffs(2)*oldblock(b)%density(sold,i2, j2d,k2d)   &
-                                              +  coeffs(3)*oldblock(b)%density(sold,i2d,j2, k2d)   &
-                                              +  coeffs(4)*oldblock(b)%density(sold,i2, j2, k2d)   &
-                                              +  coeffs(5)*oldblock(b)%density(sold,i2d,j2d,k2)    &
-                                              +  coeffs(6)*oldblock(b)%density(sold,i2, j2d,k2)    &
-                                              +  coeffs(7)*oldblock(b)%density(sold,i2d,j2, k2)    &
-                                              +  coeffs(8)*oldblock(b)%density(sold,i2, j2, k2)
-                  exit    
-                endif
-              enddo
-            enddo
+            ! Temperature / matID / qvol
+            block%temperature(i,j,k)  =  coeffs(1)*oldblock(b)%temperature(i2d,j2d,k2d)   &
+                                      +  coeffs(2)*oldblock(b)%temperature(i2, j2d,k2d)   &
+                                      +  coeffs(3)*oldblock(b)%temperature(i2d,j2, k2d)   &
+                                      +  coeffs(4)*oldblock(b)%temperature(i2, j2, k2d)   &
+                                      +  coeffs(5)*oldblock(b)%temperature(i2d,j2d,k2)    &
+                                      +  coeffs(6)*oldblock(b)%temperature(i2, j2d,k2)    &
+                                      +  coeffs(7)*oldblock(b)%temperature(i2d,j2, k2)    &
+                                      +  coeffs(8)*oldblock(b)%temperature(i2, j2, k2)
+            block%mID(i,j,k) = oldblock(b)%mID(i,j,k)    
+            block%qvol(i,j,k)  =  coeffs(1)*oldblock(b)%qvol(i2d,j2d,k2d)   &
+                               +  coeffs(2)*oldblock(b)%qvol(i2, j2d,k2d)   &
+                               +  coeffs(3)*oldblock(b)%qvol(i2d,j2, k2d)   &
+                               +  coeffs(4)*oldblock(b)%qvol(i2, j2, k2d)   &
+                               +  coeffs(5)*oldblock(b)%qvol(i2d,j2d,k2)    &
+                               +  coeffs(6)*oldblock(b)%qvol(i2, j2d,k2)    &
+                               +  coeffs(7)*oldblock(b)%qvol(i2d,j2, k2)    &
+                               +  coeffs(8)*oldblock(b)%qvol(i2, j2, k2)
 
-            ! Velocity
-            do cnt = 1, 3
-              block%velocity(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%velocity(cnt,i2d,j2d,k2d)   &
-                                            +  coeffs(2)*oldblock(b)%velocity(cnt,i2, j2d,k2d)   &
-                                            +  coeffs(3)*oldblock(b)%velocity(cnt,i2d,j2, k2d)   &
-                                            +  coeffs(4)*oldblock(b)%velocity(cnt,i2, j2, k2d)   &
-                                            +  coeffs(5)*oldblock(b)%velocity(cnt,i2d,j2d,k2)    &
-                                            +  coeffs(6)*oldblock(b)%velocity(cnt,i2, j2d,k2)    &
-                                            +  coeffs(7)*oldblock(b)%velocity(cnt,i2d,j2, k2)    &
-                                            +  coeffs(8)*oldblock(b)%velocity(cnt,i2, j2, k2)    
-            enddo
-
-            ! Pressure
-            block%pressure(i,j,k)     =  coeffs(1)*oldblock(b)%pressure(i2d,j2d,k2d)   &
-                                      +  coeffs(2)*oldblock(b)%pressure(i2, j2d,k2d)   &
-                                      +  coeffs(3)*oldblock(b)%pressure(i2d,j2, k2d)   &
-                                      +  coeffs(4)*oldblock(b)%pressure(i2, j2, k2d)   &
-                                      +  coeffs(5)*oldblock(b)%pressure(i2d,j2d,k2)    &
-                                      +  coeffs(6)*oldblock(b)%pressure(i2, j2d,k2)    &
-                                      +  coeffs(7)*oldblock(b)%pressure(i2d,j2, k2)    &
-                                      +  coeffs(8)*oldblock(b)%pressure(i2, j2, k2)    
-
-            ! Turbulent properties
-            do cnt = 1, nrans
-            block%turbprop(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%turbprop(cnt,i2d,j2d,k2d)   &
-                                          +  coeffs(2)*oldblock(b)%turbprop(cnt,i2, j2d,k2d)   &
-                                          +  coeffs(3)*oldblock(b)%turbprop(cnt,i2d,j2, k2d)   &
-                                          +  coeffs(4)*oldblock(b)%turbprop(cnt,i2, j2, k2d)   &
-                                          +  coeffs(5)*oldblock(b)%turbprop(cnt,i2d,j2d,k2)    &
-                                          +  coeffs(6)*oldblock(b)%turbprop(cnt,i2, j2d,k2)    &
-                                          +  coeffs(7)*oldblock(b)%turbprop(cnt,i2d,j2, k2)    &
-                                          +  coeffs(8)*oldblock(b)%turbprop(cnt,i2, j2, k2)
-            enddo
           enddo
         enddo     
       enddo
@@ -528,57 +441,24 @@ subroutine multiple_interpolation()
                     if (counter==8) mask(1:3)=[4,5,6]
                   endif
 
-                  ! Density
-                  do s = 1, newspecies%n
-                    block%density(s,ii,jj,kk) = 1e-20
-                    do sold = 1, oldspecies%n
-                      if (newspecies%name(s)==oldspecies%name(sold)) then
-                        block%density(s,ii,jj,kk)   = coeffs(1)*oldblock(b)%density(sold,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%density(sold,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%density(sold,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%density(sold,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%density(sold,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%density(sold,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%density(sold,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%density(sold,id(mask(1)),id(mask(2)),id(mask(3)))
-                        exit
-                      endif
-                    enddo
-                  enddo
-
-                  ! Velocity
-                  do cnt = 1, 3
-                    block%velocity(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%velocity(cnt,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%velocity(cnt,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%velocity(cnt,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%velocity(cnt,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%velocity(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%velocity(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%velocity(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%velocity(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
-                  enddo
-
-                  ! Pressure
-                  block%pressure(ii,jj,kk)    = coeffs(1)*oldblock(b)%pressure(i,j,k)     &
-                                              +  coeffs(2)*oldblock(b)%pressure(id(mask(1)),j,k)    &
-                                              +  coeffs(3)*oldblock(b)%pressure(i,id(mask(2)),k)    &
-                                              +  coeffs(4)*oldblock(b)%pressure(i,j,id(mask(3)))    &
-                                              +  coeffs(5)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),k)   &
-                                              +  coeffs(6)*oldblock(b)%pressure(id(mask(1)),j,id(mask(3)))   &
-                                              +  coeffs(7)*oldblock(b)%pressure(i,id(mask(2)),id(mask(3)))   &
-                                              +  coeffs(8)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
-
-                  ! Turbulent properties
-                  do cnt = 1, nrans
-                  block%turbprop(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
-                                                  +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
-                                                  +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
-                                                  +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
-                                                  +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                  +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                  +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                  +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
-                  enddo
+                  ! Temperature / matID / qvol
+                  block%temperature(ii,jj,kk) = coeffs(1)*oldblock(b)%temperature(i,j,k)     &
+                                              + coeffs(2)*oldblock(b)%temperature(id(mask(1)),j,k)    &
+                                              + coeffs(3)*oldblock(b)%temperature(i,id(mask(2)),k)    &
+                                              + coeffs(4)*oldblock(b)%temperature(i,j,id(mask(3)))    &
+                                              + coeffs(5)*oldblock(b)%temperature(id(mask(1)),id(mask(2)),k)   &
+                                              + coeffs(6)*oldblock(b)%temperature(id(mask(1)),j,id(mask(3)))   &
+                                              + coeffs(7)*oldblock(b)%temperature(i,id(mask(2)),id(mask(3)))   &
+                                              + coeffs(8)*oldblock(b)%temperature(id(mask(1)),id(mask(2)),id(mask(3)))
+                  block%mID(ii,jj,kk) = oldblock(b)%mID(i,j,k)
+                  block%qvol(ii,jj,kk) = coeffs(1)*oldblock(b)%qvol(i,j,k)     &
+                                       +  coeffs(2)*oldblock(b)%qvol(id(mask(1)),j,k)    &
+                                       +  coeffs(3)*oldblock(b)%qvol(i,id(mask(2)),k)    &
+                                       +  coeffs(4)*oldblock(b)%qvol(i,j,id(mask(3)))    &
+                                       +  coeffs(5)*oldblock(b)%qvol(id(mask(1)),id(mask(2)),k)   &
+                                       +  coeffs(6)*oldblock(b)%qvol(id(mask(1)),j,id(mask(3)))   &
+                                       +  coeffs(7)*oldblock(b)%qvol(i,id(mask(2)),id(mask(3)))   &
+                                       +  coeffs(8)*oldblock(b)%qvol(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   counter = counter + 1
 
@@ -829,57 +709,24 @@ subroutine multiple_interpolation()
                     endif   
                   endif
                   
-                  ! Density
-                  do s = 1, newspecies%n
-                    block%density(s,ii,jj,kk) = 1e-20
-                    do sold = 1, oldspecies%n
-                      if (newspecies%name(s)==oldspecies%name(sold)) then
-                        block%density(s,ii,jj,kk)   =  coeffs(1)*oldblock(b)%density(sold,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%density(sold,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%density(sold,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%density(sold,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%density(sold,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%density(sold,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%density(sold,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%density(sold,id(mask(1)),id(mask(2)),id(mask(3)))
-                        exit
-                      endif
-                    enddo
-                  end do
-
-                  ! Velocity
-                  do cnt = 1, 3
-                    block%velocity(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%velocity(cnt,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%velocity(cnt,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%velocity(cnt,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%velocity(cnt,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%velocity(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%velocity(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%velocity(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%velocity(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
-                  enddo
-
-                  ! Pressure
-                  block%pressure(ii,jj,kk)    =  coeffs(1)*oldblock(b)%pressure(i,j,k)     &
-                                              +  coeffs(2)*oldblock(b)%pressure(id(mask(1)),j,k)    &
-                                              +  coeffs(3)*oldblock(b)%pressure(i,id(mask(2)),k)    &
-                                              +  coeffs(4)*oldblock(b)%pressure(i,j,id(mask(3)))    &
-                                              +  coeffs(5)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),k)   &
-                                              +  coeffs(6)*oldblock(b)%pressure(id(mask(1)),j,id(mask(3)))   &
-                                              +  coeffs(7)*oldblock(b)%pressure(i,id(mask(2)),id(mask(3)))   &
-                                              +  coeffs(8)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
-
-                  ! Turbulent properties
-                  do cnt = 1, nrans
-                  block%turbprop(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
-                                                  +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
-                                                  +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
-                                                  +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
-                                                  +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                  +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                  +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                  +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
-                  enddo
+                  ! Temperature / matID / qvol
+                  block%temperature(ii,jj,kk) = coeffs(1)*oldblock(b)%temperature(i,j,k)     &
+                                              + coeffs(2)*oldblock(b)%temperature(id(mask(1)),j,k)    &
+                                              + coeffs(3)*oldblock(b)%temperature(i,id(mask(2)),k)    &
+                                              + coeffs(4)*oldblock(b)%temperature(i,j,id(mask(3)))    &
+                                              + coeffs(5)*oldblock(b)%temperature(id(mask(1)),id(mask(2)),k)   &
+                                              + coeffs(6)*oldblock(b)%temperature(id(mask(1)),j,id(mask(3)))   &
+                                              + coeffs(7)*oldblock(b)%temperature(i,id(mask(2)),id(mask(3)))   &
+                                              + coeffs(8)*oldblock(b)%temperature(id(mask(1)),id(mask(2)),id(mask(3)))
+                  block%mID(ii,jj,kk) = oldblock(b)%mID(i,j,k)
+                  block%qvol(ii,jj,kk) = coeffs(1)*oldblock(b)%qvol(i,j,k)     &
+                                       +  coeffs(2)*oldblock(b)%qvol(id(mask(1)),j,k)    &
+                                       +  coeffs(3)*oldblock(b)%qvol(i,id(mask(2)),k)    &
+                                       +  coeffs(4)*oldblock(b)%qvol(i,j,id(mask(3)))    &
+                                       +  coeffs(5)*oldblock(b)%qvol(id(mask(1)),id(mask(2)),k)   &
+                                       +  coeffs(6)*oldblock(b)%qvol(id(mask(1)),j,id(mask(3)))   &
+                                       +  coeffs(7)*oldblock(b)%qvol(i,id(mask(2)),id(mask(3)))   &
+                                       +  coeffs(8)*oldblock(b)%qvol(id(mask(1)),id(mask(2)),id(mask(3)))
                 
                   counter = counter + 1
                 
@@ -906,27 +753,10 @@ subroutine multiple_interpolation()
           indi = 1
           do i = 1, block%dim(1)
             
-            ! Density           
-            do s = 1, newspecies%n
-              block%density(s,i,j,k) = 1e-20
-              do sold = 1, oldspecies%n
-                if (newspecies%name(s)==oldspecies%name(sold)) then
-                  block%density(s,i,j,k) = oldblock(b)%density(sold,indi,indj,indk)
-                  exit
-                endif
-              enddo
-            enddo
-            
-            ! Velocity
-            do cnt = 1, 3
-              block%velocity(cnt,i,j,k) = oldblock(b)%velocity(cnt,indi,indj,indk)
-            enddo
-            
-            ! Pressure        
-            block%pressure(i,j,k) = oldblock(b)%pressure(indi,indj,indk)
-            
-            ! Turbulent properties
-            block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,indi,indj,indk)
+            ! Temperature / matID / qvol        
+            block%temperature(i,j,k) = oldblock(b)%temperature(indi,indj,indk)
+            block%mID(i,j,k) = oldblock(b)%mID(indi,indj,indk)
+            block%qvol(i,j,k) = oldblock(b)%qvol(indi,indj,indk)
             
             if (mod(i,rap)==0) then
               indi = indi+1
@@ -1016,30 +846,11 @@ subroutine distance_interpolation
         
         endif
 
-        ! Density
-        do s = 1, newspecies%n
-          block%density(s,i,j,k) = 1e-20
-          do sold = 1, oldspecies%n
-            if (newspecies%name(s)==oldspecies%name(sold)) then
-              block%density(s,i,j,k) = oldblock(trueb)%density(sold,ind(1),ind(2),ind(3))
-              exit
-            endif
-          enddo
-        enddo
+        ! Temperature / matID / qvol
+        block%temperature(i,j,k) = oldblock(trueb)%temperature(ind(1),ind(2),ind(3))
+        block%mID(i,j,k) = oldblock(trueb)%mID(ind(1),ind(2),ind(3))
+        block%qvol(i,j,k) = oldblock(trueb)%qvol(ind(1),ind(2),ind(3))
 
-        ! Velocity
-        do cnt = 1, 3
-          block%velocity(cnt,i,j,k) = oldblock(trueb)%velocity(cnt,ind(1),ind(2),ind(3))
-        end do
-        
-        ! Pressure
-        block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
-        
-        ! Turbulent properties
-        do cnt = 1, nrans
-          block%turbprop(cnt,i,j,k) = oldblock(trueb)%turbprop(cnt,ind(1),ind(2),ind(3))
-        enddo
-        
       enddo
     enddo
   enddo
@@ -1143,28 +954,10 @@ subroutine spherical_distance_interpolation
 
         endif
 
-
-        ! Density
-        do s = 1, newspecies%n
-          block%density(s,i,j,k) = 1e-20
-          do sold = 1, oldspecies%n
-            if (newspecies%name(s)==oldspecies%name(sold)) then
-              block%density(s,i,j,k) = oldblock(trueb)%density(sold,ind(1),ind(2),ind(3))
-              exit
-            endif
-          enddo
-        enddo
-
-        ! Velocity
-        do cnt = 1, 3
-          block%velocity(cnt,i,j,k) = oldblock(trueb)%velocity(cnt,ind(1),ind(2),ind(3))
-        end do
-        
-        ! Pressure
-        block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
-        
-        ! Turbulent properties
-        block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(1:nrans,ind(1),ind(2),ind(3))
+        ! Temperature / matID / qvol
+        block%temperature(i,j,k) = oldblock(trueb)%temperature(ind(1),ind(2),ind(3))
+        block%mID(i,j,k) = oldblock(trueb)%mID(ind(1),ind(2),ind(3))
+        block%qvol(i,j,k) = oldblock(trueb)%qvol(ind(1),ind(2),ind(3))
 
       enddo
     enddo
@@ -1174,4 +967,4 @@ end subroutine spherical_distance_interpolation
 
 end subroutine intersol
 
-end module Interpolator_IG
+end module Interpolator_SP
