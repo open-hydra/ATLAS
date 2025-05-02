@@ -25,7 +25,7 @@ contains
     integer                       :: imin, imax, jmin, jmax, kmin, kmax
     character(len=200)            :: val_file
     real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)) :: qvol, T
-    character(len=128)            :: OMF, OFF
+    character(len=llen)           :: OMF, OFF
     integer                       :: oldid
 
     if (.not.allocated(block%temperature)) then
