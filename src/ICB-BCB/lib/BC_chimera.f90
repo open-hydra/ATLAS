@@ -3,7 +3,7 @@ module chimera
   private
   public:: chimera_wrapper
 
-  real(8), parameter, public :: fs=1000
+  real(8), parameter, public :: fs=1000000
 
 contains
 
@@ -410,7 +410,7 @@ contains
         write(*,*) ' - Receiver ID           = ', br,ir,jr,kr
         write(*,*) ' - Receiver total volume = ', volume
         write(*,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
-        stop
+        !stop
       else
         write(*,*) 'Volume division succesful (not checkable)'
         write(*,*) ' - Receiver ID           = ', br,ir,jr,kr
