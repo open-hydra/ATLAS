@@ -25,7 +25,6 @@
       ! IC - IG
       real(8), dimension(:,:,:,:), allocatable   :: density
       real(8), dimension(:,:,:), allocatable     :: temperature
-      real(8), dimension(:,:,:), allocatable     :: mID, qvol
       real(8), dimension(:,:,:), allocatable     :: pressure
       real(8), dimension(:,:,:), allocatable     :: mil, kl
       real(8), dimension(:,:,:,:), allocatable   :: turbprop
