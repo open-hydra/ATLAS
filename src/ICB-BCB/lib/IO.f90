@@ -700,9 +700,11 @@ module ATLAS_IO
           enddo 
         endif
       end do
+    
     elseif (phase_type=='SP') then
       do b = 1, size(icblock)
         call icblock(b)%compute_centers(0)
+        call icblock(b)%allocate(1,1,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
         if (size(IOfield%block(b)%vars)>0) then
           icblock(b)%temperature(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(1,:,:,:)
           icblock(b)%mID(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(2,:,:,:)

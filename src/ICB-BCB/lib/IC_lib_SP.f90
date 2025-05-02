@@ -31,7 +31,11 @@ contains
 
     if (.not.allocated(block%temperature)) then
         allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    endif
+    if (.not.allocated(block%mID)) then
         allocate(block%mID(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    endif
+    if (.not.allocated(block%qvol)) then
         allocate(block%qvol(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
@@ -98,7 +102,6 @@ contains
     case ('interpolation')
 
       call intersol(block,OMF,OFF,oldid)
-      error stop 'Interpolation procedure not available for SP'
 
     case ('homogeneous')
 
