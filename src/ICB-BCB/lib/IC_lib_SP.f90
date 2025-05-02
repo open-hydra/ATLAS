@@ -41,7 +41,7 @@ contains
         if (trim(mat%name(i))==trim(material_name)) &
         mID = real(i)
     enddo
-    mID = max(mID,1)
+    mID = max(mID,1.0)
 
     call zoneini%get(section_name='zone', option_name='T', val=val_const, error=error)
     if (error/=0) then
