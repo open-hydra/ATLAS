@@ -6,6 +6,7 @@ contains
   subroutine build_SP_field(block,zoneini,IC_type,mat,range,dirSize,dir,index_based)
     use ATLAS_high_level
     use finer, only: file_ini
+    use Interpolator_SP
     use material_module
     implicit none
     type(ATLAS_block), intent(inout)  :: block
@@ -16,7 +17,7 @@ contains
     real(8), intent(in)               :: range(6)
     integer, intent(in)               :: dirSize
     ! Local
-    integer                       :: dir(:), i, j, k, h, mID
+    integer                       :: dir(:), i, j, k, h
     integer                       :: error, errorfile, errordirection
     real(8)                       :: val_const
     character(len=16)             :: material_name, val_direction
@@ -24,22 +25,27 @@ contains
     integer                       :: imin, imax, jmin, jmax, kmin, kmax
     character(len=200)            :: val_file
     real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)) :: qvol, T
-    ! character(len=128)            :: OMF, OFF, OSF
-    ! integer                       :: oldid
+    real(8)                       :: mID
+    character(len=llen)           :: OMF, OFF
+    integer                       :: oldid
 
     if (.not.allocated(block%temperature)) then
         allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    endif
+    if (.not.allocated(block%mID)) then
         allocate(block%mID(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    endif
+    if (.not.allocated(block%qvol)) then
         allocate(block%qvol(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
-    mID = 0
+    mID = 0.0
     call zoneini%get(section_name='zone', option_name='material', val=material_name, error=error)
     do i = 1, mat%n
         if (trim(mat%name(i))==trim(material_name)) &
-        mID = i
+        mID = real(i)
     enddo
-    mID = max(mID,1)
+    mID = max(mID,1.0)
 
     call zoneini%get(section_name='zone', option_name='T', val=val_const, error=error)
     if (error/=0) then
@@ -73,13 +79,29 @@ contains
       qvol = val_const
     endif
 
+    ! Interpolation specific parameters
+    call zoneini%get(section_name='zone', option_name='oldmesh', val=OMF, error=error)
+    if (error/=0) OMF = 'Darwin'
+    call zoneini%get(section_name='zone', option_name='oldsolution', val=OFF, error=error)
+    if (error==0) IC_type = 'interpolation'
+    call zoneini%get(section_name='zone', option_name='oldid', val=oldid, error=error)
+    if (error/=0) oldid = 0
+    call zoneini%get(section_name='zone', option_name='law', val=law, error=error)
+    if (error/=0) law = 'outlaw'
+    if (law=='extrude') then
+      call zoneini%get(section_name='zone', option_name='theta', val=thetamax_extrude, error=error)
+      if (error/=0) thetamax_extrude = float(90)
+      call zoneini%get(section_name='zone', option_name='nz', val=nz_extrude, error=error)
+      if (error/=0) nz_extrude = int(4)
+    endif
+
     write(*,*) ' -- SP type = ',trim(IC_type)
 
     select case (IC_type)
     
     case ('interpolation')
 
-      error stop 'Interpolation procedure not available for SP'
+      call intersol(block,OMF,OFF,oldid)
 
     case ('homogeneous')
 

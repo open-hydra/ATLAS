@@ -10,7 +10,6 @@ program ICB
   use Lib_ORION_data
   use ATLAS_IO_INI
   use build_IC_mod
-  use Interpolator, only: intersol
   use finer, only: file_ini
   implicit none
   type(phase_type), allocatable  :: phase(:)

@@ -9,7 +9,7 @@ contains
     use variables, only: nrans
     use ATLAS_high_level
     use finer, only: file_ini
-    use Interpolator
+    use Interpolator_IG
     use species
     implicit none
     type(ATLAS_block), intent(inout)  :: block

@@ -37,7 +37,7 @@
       real(8), dimension(:,:,:,:), allocatable   :: nP
       real(8), dimension(:,:,:,:), allocatable   :: PP
       ! IC - SP
-      integer, dimension(:,:,:), allocatable     :: mID
+      real(8), dimension(:,:,:), allocatable     :: mID
       real(8), dimension(:,:,:), allocatable     :: qvol
       !! BC
       type(obj_face), dimension(6) :: face
@@ -124,6 +124,8 @@ contains
     allocate(self%mil(1:ii,1:jj,1:kk))
     allocate(self%kl(1:ii,1:jj,1:kk))
     allocate(self%temperature(1:ii,1:jj,1:kk))
+    allocate(self%mID(1:ii,1:jj,1:kk))
+    allocate(self%qvol(1:ii,1:jj,1:kk))
 
   end subroutine allocate
 
