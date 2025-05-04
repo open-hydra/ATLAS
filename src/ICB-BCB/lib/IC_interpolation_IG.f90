@@ -275,7 +275,7 @@ subroutine index_interpolation()
           block%pressure(i,j,k) = oldblock(b)%pressure(i,j,1)
           
           ! Turbulent properties
-          block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,1)
+          if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,1)
           
         enddo
       enddo
@@ -313,7 +313,7 @@ subroutine index_interpolation()
           block%pressure(i,j,k) = oldblock(b)%pressure(i,j,k)
           
           ! Turbulent properties
-          block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,k)
+          if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,k)
 
         enddo
       enddo
@@ -440,16 +440,18 @@ subroutine multiple_interpolation()
                                       +  coeffs(8)*oldblock(b)%pressure(i2, j2, k2)    
 
             ! Turbulent properties
-            do cnt = 1, nrans
-            block%turbprop(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%turbprop(cnt,i2d,j2d,k2d)   &
-                                          +  coeffs(2)*oldblock(b)%turbprop(cnt,i2, j2d,k2d)   &
-                                          +  coeffs(3)*oldblock(b)%turbprop(cnt,i2d,j2, k2d)   &
-                                          +  coeffs(4)*oldblock(b)%turbprop(cnt,i2, j2, k2d)   &
-                                          +  coeffs(5)*oldblock(b)%turbprop(cnt,i2d,j2d,k2)    &
-                                          +  coeffs(6)*oldblock(b)%turbprop(cnt,i2, j2d,k2)    &
-                                          +  coeffs(7)*oldblock(b)%turbprop(cnt,i2d,j2, k2)    &
-                                          +  coeffs(8)*oldblock(b)%turbprop(cnt,i2, j2, k2)
-            enddo
+            if (nrans > 0 ) then
+              do cnt = 1, nrans
+              block%turbprop(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%turbprop(cnt,i2d,j2d,k2d)   &
+                                            +  coeffs(2)*oldblock(b)%turbprop(cnt,i2, j2d,k2d)   &
+                                            +  coeffs(3)*oldblock(b)%turbprop(cnt,i2d,j2, k2d)   &
+                                            +  coeffs(4)*oldblock(b)%turbprop(cnt,i2, j2, k2d)   &
+                                            +  coeffs(5)*oldblock(b)%turbprop(cnt,i2d,j2d,k2)    &
+                                            +  coeffs(6)*oldblock(b)%turbprop(cnt,i2, j2d,k2)    &
+                                            +  coeffs(7)*oldblock(b)%turbprop(cnt,i2d,j2, k2)    &
+                                            +  coeffs(8)*oldblock(b)%turbprop(cnt,i2, j2, k2)
+              enddo
+            endif
           enddo
         enddo     
       enddo
@@ -569,16 +571,18 @@ subroutine multiple_interpolation()
                                               +  coeffs(8)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   ! Turbulent properties
-                  do cnt = 1, nrans
-                  block%turbprop(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
-                                                  +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
-                                                  +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
-                                                  +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
-                                                  +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                  +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                  +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                  +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
-                  enddo
+                  if (nrans > 0 ) then
+                    do cnt = 1, nrans
+                    block%turbprop(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
+                                                    +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
+                                                    +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
+                                                    +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
+                                                    +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
+                                                    +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
+                                                    +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
+                                                    +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
+                    enddo
+                  endif
 
                   counter = counter + 1
 
@@ -870,16 +874,18 @@ subroutine multiple_interpolation()
                                               +  coeffs(8)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   ! Turbulent properties
-                  do cnt = 1, nrans
-                  block%turbprop(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
-                                                  +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
-                                                  +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
-                                                  +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
-                                                  +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                  +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                  +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                  +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
-                  enddo
+                  if (nrans > 0 ) then
+                    do cnt = 1, nrans
+                    block%turbprop(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
+                                                    +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
+                                                    +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
+                                                    +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
+                                                    +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
+                                                    +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
+                                                    +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
+                                                    +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
+                    enddo
+                  endif
                 
                   counter = counter + 1
                 
@@ -926,7 +932,7 @@ subroutine multiple_interpolation()
             block%pressure(i,j,k) = oldblock(b)%pressure(indi,indj,indk)
             
             ! Turbulent properties
-            block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,indi,indj,indk)
+            if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,indi,indj,indk)
             
             if (mod(i,rap)==0) then
               indi = indi+1
@@ -1036,9 +1042,7 @@ subroutine distance_interpolation
         block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
         
         ! Turbulent properties
-        do cnt = 1, nrans
-          block%turbprop(cnt,i,j,k) = oldblock(trueb)%turbprop(cnt,ind(1),ind(2),ind(3))
-        enddo
+        if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(nrans,ind(1),ind(2),ind(3))
         
       enddo
     enddo
@@ -1164,7 +1168,7 @@ subroutine spherical_distance_interpolation
         block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
         
         ! Turbulent properties
-        block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(1:nrans,ind(1),ind(2),ind(3))
+        if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(1:nrans,ind(1),ind(2),ind(3))
 
       enddo
     enddo
