@@ -16,7 +16,7 @@
 #         CEA             Run the CEA program with the specified input file
 #         GPB, KAnT       Run the specified Python-based ATLAS program
 #         ICB, BCB        Run the specified Fortran-based ATLAS program
-#
+#         YTF             Run the specified Python-based ATLAS program
 #       EXAMPLES:
 #         ./ATLAS.sh --verbose GPB
 #         ./ATLAS.sh CEA inputfile
@@ -28,6 +28,7 @@ function print_usage {
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
   echo "   ATLAS ICB"
+  echo "   ATLAS YTF"
   echo
   echo "General tools:"
   echo "   ATLAS CEA"
@@ -91,7 +92,7 @@ if [[ $1 == CEA ]]; then
   mv CEAfile.plt $2.plt 2>/dev/null
 else
   for program in $@; do
-    if [[ $program == 'GPB' || $program == 'KAnT' ]]; then
+    if [[ $program == 'GPB' || $program == 'KAnT' || $program == 'YTF' ]]; then
       source $RCFILE > /dev/null 2>&1
       conda activate ct-env
       python3 -B $ATLASDIR/src/$program/$program.py $P
