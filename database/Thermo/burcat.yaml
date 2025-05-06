@@ -28,8 +28,8 @@ units: {length: cm, quantity: mol, activation-energy: cal/mol}
 # phases:
 # - name: gas
 #   thermo: ideal-gas
-#   elements: [He, Ag, Pb, F, E, Pt, Fe, N, Ca, Zr, Ni, Br, Rn, Kr, Os, Sb,
-#     Hg, W, Mg, K, Al, C, H, I, Xe, Si, Po, Tc, Na, Cl, P, Ra, Cr, Pd, Ne,
+#   elements: [He, Ag, Pb, F, E, Pt, Fe, N, Ca, Zr, Ni, Br, Kr, Os, Sb,
+#     Hg, W, Mg, K, Al, C, H, I, Xe, Si, Po, Na, Cl, P, Cr, Pd, Ne,
 #     Zn, Ti, D, Cu, Mn, Ba, Bi, Sn, Mo, Ir, Ge, Te, S, Ar, O, B]
 #   species: [Pb(G), H2O2(L), C3H7N3O5, C5H5, C11H22O2, FeOCL(cr), C3H9P,
 #     H3O+, CaCO3(s), CBrCLF2, OS(g), DO2, C5H10, C11N, W(cr), C6HCL3OH, FO2+,
@@ -52,7 +52,7 @@ units: {length: cm, quantity: mol, activation-energy: cal/mol}
 #     I, C2H7O+, CNO+, CrCl3, CH3CBr3, C25H20, C11, C2H4, BH5, MgF2(cr)I,
 #     PFCL2, Ni3S2(b), C6H5NO2, C3Br2, P2H-, 'C4H8,cis2-buten', C12H5CL5O2,
 #     HNOH, C2H4O2(L), C2Br2, WCL6(I), Fe2CL6, C5H13O+, Fe3O4(S), C6H5O, Mg,
-#     (NH2)2C=N-NO2, PF3CL2, C5H6O, CBr2F2, Ra(cr), MoC, C3HBr2*, CHI3, NH2OH,
+#     (NH2)2C=N-NO2, PF3CL2, C5H6O, CBr2F2, MoC, C3HBr2*, CHI3, NH2OH,
 #     C6H12O7, C5H6, HCCO, PBr3+, SbF, CH3CCl3, ZnS(cr), C2H5, KNO3(G), NO3+,
 #     C3F7H, BrNO2, CH4S3, C4H10, C4H10S, C(cr), C5H6O2, H2S-, C19H32O2, Mg2SiO4(cr),
 #     BiCl, C6H3N3O7, C7H8OS, H2O+, C12H7, P2O4, Cr+, INO2, H2+, Sb, MgH2(L),
@@ -64,7 +64,7 @@ units: {length: cm, quantity: mol, activation-energy: cal/mol}
 #     NH2O+, C13H10O, C12H, CHOS, N2H4+, N2H, C3H5O, CL3P, SF6-, C3H9P+, IR(L),
 #     C2HF3, NH4NO3(II), DBr, CH2S2, C(NO), SiC, SCL, C3H10Si, C2Cl4, Na2O2,
 #     C30H10, D2-, CH3-CO-O-O-CO-CH3, CDClO, B2CL4, C9H12, NeH+, C11H11, C5F6,
-#     '1,2,3,5-C6H2Cl4', C10H12O3, HC(OO), Ra(g), C3H2F3, C2H6, C5H12, MgCL,
+#     '1,2,3,5-C6H2Cl4', C10H12O3, HC(OO), C3H2F3, C2H6, C5H12, MgCL,
 #     HClO3, P2H+, HSO2, C6N6O12, CH2NH+, PbS(L), WF4, C6H12O6, ALCL3, PO2-,
 #     o-C6H3, BrI, FeCL2(S), Ca(b), C13H9, DI, C2HBr3, C3H5NO4, HCNO, C16H30O2,
 #     H3O2+, BF2+, BrS, Zr+, PD3, C4H6S, C6H6, C3H6, IO, HNCO, HI, C2H4Cl,
@@ -92,7 +92,7 @@ units: {length: cm, quantity: mol, activation-energy: cal/mol}
 #     C14H13, NOO-, P2H4, C18H33O2, C4H7O2, CCl2+, C12H10, DOBR, Na2CO3(liq),
 #     C6H4ClO, NH2O-, F+, NH4NO3(I), C12H9N, S2F2, PH2, Ca+, Cu, AL2, C7H14O,
 #     1-C10H7-C*=CH2, ZrF2, C5H12O(L), SO2F2, O3-, FeCL2, NH2CH2C(O)OH, C10H7-CH2CH2*,
-#     Te(liq), C3H9P-, PF2CL3, HeH+, C2H6O, NH2, K, NO2HCCNO2, Tc+(g), MUSTARD,
+#     Te(liq), C3H9P-, PF2CL3, HeH+, C2H6O, NH2, K, NO2HCCNO2, MUSTARD,
 #     ST, MgAL2O4(L), N3+, XeH+, C2H2+, ICN, SF4-, C7H5(NO2)2-ONO, C8H, WOCL4,
 #     C4H6O2, COH-, W-, Mg2, BrO2, C4H9N, W3O9, C3H9Si, CrCl6, C7H5(NO2)2,
 #     '1,2-C2H2F2-trans', 1-C10H7C*O, 1-C10H7CH=CH2, OH-, WO2CL2(cr), C6H,
@@ -138,7 +138,7 @@ units: {length: cm, quantity: mol, activation-energy: cal/mol}
 #     HCN, C3H2N4O4, Fe(L), SiCL, Mo, CH3CN, C4H8O2, ZnSO4(b), PF2-, C3H4O,
 #     HNC, C12H12, HFCO, MgO, SiF2, C5H9N, Br, 'C6H12,cy-Hexane', C2HCl3,
 #     Na2O(L), NiS2(L), S3, B3O3F3, Mg+, Si+, BH, C3H6(NO2)2, Te(g), FeS(c),
-#     BF2, C2H2-, Mo(cr), PS, COO-, NO2-cyclo, C21H44, NHF, Tc, CH2O, CH3N3O4,
+#     BF2, C2H2-, Mo(cr), PS, COO-, NO2-cyclo, C21H44, NHF, CH2O, CH3N3O4,
 #     C5H7CL, '1,4-C6H4', HALO, CHBr2CHBr2, m-CHLOROPHENYL, Cr2O3(I'), Cu2,
 #     SiO2(L), COS, C5H7NO, CNO-, HO3-, C2F2, HOF, AL2O3(b), P2H2-, C2F, NBrH2,
 #     PH3, C9H18O2, N-C10H22, CH3SS, GeS(s), C4H10O2, CH3OO+, H2S, CH3O-,
@@ -153,9 +153,9 @@ units: {length: cm, quantity: mol, activation-energy: cal/mol}
 #     BrH2+, C8H18, C5H10O2, BiCl2, CH3N2, C3H9PO4, Ge2, POCL+, P, SF5Br,
 #     CL2-, cy-C5H5+, C8H18O, HOOOH, 2-C4H10O, CH2-NH-CH3, C6Cl6, Cr2FeO4,
 #     PbCL, WO, COC, C4N8O6, PF2+, SO2, HN2O2, N2H2, PbF4, p-C13H12, AlB2,
-#     FO, B3O3CL3, HNO4, Rn, HOBr, C2H2Br2, CHI2, CN-, C13H28, HSO+, C3H6O(L),
+#     FO, B3O3CL3, HNO4, HOBr, C2H2Br2, CHI2, CN-, C13H28, HSO+, C3H6O(L),
 #     C5H8O2, SN, C5H4OH, BOF2, MgO(s), S7, COO, HN3O4, O2-, ALBr, '1,2-C6H4',
-#     NO2+, C6D6, SbH3, C10H7-CCH, C5H2Cl3, D+, C2BR3, ALF, Ra(l), 'C4H6,cyclo-',
+#     NO2+, C6D6, SbH3, C10H7-CCH, C5H2Cl3, D+, C2BR3, ALF, 'C4H6,cyclo-',
 #     NOH, COHCL2, D-, p-C12H9Cl, C2HCL, FO2, C4H8N8O8, C3H5, C10, NH3+, CH2OH2+,
 #     C24H18, BCL+, C5H3Cl3O, CHOH2+, CH3C(O)O-ONO2, C3H3NS, CHClO, CD3F,
 #     DOCL, C6H9, FeCL3(s), CH5O+, HNO-, CDO, PbO2, BiF, BHF2, SB(L), S(b),
@@ -182,7 +182,7 @@ units: {length: cm, quantity: mol, activation-energy: cal/mol}
 #     HFCO+, CuF, HNO, SF2-, CH3-S-CH=S, C6H5-, Br2-, C2Br2F4, HCN-, ALO2-,
 #     C8H16, C2F6, C4D6, 'C6H10,cyclo-', BBr3, I2(cr), SO-, C4H8, CF2H-CCLF2,
 #     BCL3, C22H18, Mn2O3, CFBr3, Mg(cr)REF, CH5OP, C2H3F2, C8H17, C17H12,
-#     H2CN+, C3HBr2O*, CH2CLF, C3H3F2, Ra+(g), C2H3NH2, HO2, MgOH, C24H48O2,
+#     H2CN+, C3HBr2O*, CH2CLF, C3H3F2, C2H3NH2, HO2, MgOH, C24H48O2,
 #     WO3-, CH2N, Mn5N2(S), ZnSO4(a), C4H5, HOBr+, C8H10(L), ArH, C19H36O2,
 #     CrO2Cl2, CL+, C10H20, PbBr, CH4N2O, C12H5CL4O2, C18H34O3, C6H10O5, CH3ONO,
 #     C5H10O, C2H5Br, NOCL, C6H5CL+, N+, HgBr2, C12H22O11, C12H6CL4O2, H4F4,
@@ -255,7 +255,7 @@ units: {length: cm, quantity: mol, activation-energy: cal/mol}
 #     CHCL, C3N2O, C16H29O2, CH2N*-, C5Cl6, C6H15N, ZrC(L), POCL-, Pt(gas),
 #     C2H5S, Zr-, C10H9+, S2O, C8H6O2, C12H26O, SOS-, C10H16, CrO2, CH2N2O2,
 #     I-, '1,3,5-C6H3Cl3', CH2, H2O3+, CrO, C8H9, CH3Br+, C2CL3, BFCL, C6H7,
-#     CH2OH+, Rn+, O=COH-CH=O, CrCl, PBr3, Zr(b), HONO, C4H9N3O5, N3H, C10H6,
+#     CH2OH+, O=COH-CH=O, CrCl, PBr3, Zr(b), HONO, C4H9N3O5, N3H, C10H6,
 #     C6H15P, CF3+, PH4+, Bi(CH3)2, C4H2S, C2H2FCl, C24H12, H2PO, C10H22,
 #     CHON3, CHCLF2, N-DODECANE, B, PbS(cr), COF2-, P+, CCl3, GeH3Cl, ALCL2,
 #     CHBrClF, C3H3Cl, PCL, GeCL3, CH3I+, C13H14, CH3C(CH3)2CH3, C4H9O, CHBrCL2,
@@ -2406,16 +2406,6 @@ species:
     - [10.9382687, 2.1203794e-03, -8.32403094e-07, 1.4232489e-10, -8.86069092e-15,
       -5.00049177e+04, -24.7517671]
   note: T7/11
-- name: Ra(cr)
-  composition: {Ra: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [298.15, 298.15, 969.0]
-    data:
-    - [2.62348115, 2.93359755e-03, -1.60780115e-07, 1.68141326e-10, -6.36034098e-14,
-      -911.461446, -7.51785729]
-    - [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-  note: RadiumREFT7/13
 - name: MoC
   composition: {C: 1, Mo: 1}
   thermo:
@@ -3649,17 +3639,6 @@ species:
     - [5.25882706, 4.36477293e-03, -1.6039936e-06, 2.62960973e-10, -1.59131574e-14,
       2.34793706e+04, -2.49085973]
   note: cycloradT9/11
-- name: Ra(g)
-  composition: {Ra: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [298.15, 1000.0, 6000.0]
-    data:
-    - [2.50111031, -7.31001681e-06, 1.55546342e-08, -1.39323344e-11, 4.57115909e-15,
-      1.84980153e+04, 6.97444719]
-    - [3.39838654, -1.32127362e-03, 3.39901151e-07, 1.0070348e-10, -1.77238023e-14,
-      1.81254054e+04, 1.8954347]
-  note: RadiumT7/13
 - name: C3H2F3
   composition: {C: 3, F: 3, H: 2}
   thermo:
@@ -6585,17 +6564,6 @@ species:
     - [16.5742874, 7.40297624e-03, -2.99655898e-06, 5.16982382e-10, -3.22543486e-14,
       3.30993324e+04, -54.5844892]
   note: radicalT3/08
-- name: Tc+(g)
-  composition: {E: -1, Tc: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [298.15, 1000.0, 6000.0]
-    data:
-    - [2.33741711, 1.42034698e-03, -4.34669061e-06, 5.28184592e-09, -1.83607663e-12,
-      8.4612838e+04, 8.33820007]
-    - [-0.168847527, 4.74193575e-03, -2.04625024e-06, 3.51159548e-10, -2.11547665e-14,
-      8.5561182e+04, 22.3688855]
-  note: CationT1/15
 - name: MUSTARD
   composition: {C: 4, Cl: 2, H: 8, S: 1}
   thermo:
@@ -11331,17 +11299,6 @@ species:
     - [3.8957856, 2.6972954e-03, -9.6413416e-07, 1.5656481e-10, -9.3275479e-15,
       1.2097631e+04, 4.5781245]
   note: RUS89
-- name: Tc
-  composition: {Tc: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [298.15, 1000.0, 2430.0]
-    data:
-    - [2.07385558, 4.78954377e-03, -7.79166238e-06, 6.74624891e-09, -2.19183692e-12,
-      -774.658369, -8.98398625]
-    - [2.80123297, 9.5134942e-04, -1.79886863e-07, 6.13564705e-11, -7.90303699e-15,
-      -885.760758, -12.2939107]
-  note: (cr)REFELEMET02/13
 - name: CH2O
   composition: {C: 1, H: 2, O: 1}
   thermo:
@@ -12862,17 +12819,6 @@ species:
     - [9.75692716, 5.636671e-03, -2.05043239e-06, 3.34256715e-10, -2.01600097e-14,
       -1.05073977e+04, -22.6938087]
   note: HOONO2PeroxT2/16
-- name: Rn
-  composition: {Rn: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 6000.0]
-    data:
-    - [2.5, 6.21681818e-15, -1.88857927e-17, 2.33288882e-20, -9.97834755e-24,
-      -745.375, 6.95244199]
-    - [2.50201794, -3.96550063e-06, 2.53877445e-09, -6.484004e-13, 5.71902113e-17,
-      -746.105782, 6.94140053]
-  note: REFELEMENTg5/97
 - name: HOBr
   composition: {Br: 1, H: 1, O: 1}
   thermo:
@@ -13156,16 +13102,6 @@ species:
     - [4.13314261, 4.54970185e-04, -1.67977415e-07, 2.93497104e-11, -1.31791837e-15,
       -3.30850208e+04, 2.02275631]
   note: tpis96
-- name: Ra(l)
-  composition: {Ra: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [969.0, 1000.0, 1779.66]
-    data:
-    - [5.37738845, -5.84764834e-04, 0.0, 0.0, 0.0, -1024.34244, -22.1276072]
-    - [5.5361616, -1.05040076e-03, 5.01543536e-07, -2.35695885e-10, 4.10151281e-14,
-      -1066.75786, -22.9411976]
-  note: RadiumREFT7/13
 - name: C4H6,cyclo-
   composition: {C: 4, H: 6}
   thermo:
@@ -15870,17 +15806,6 @@ species:
     - [12.02997, 9.70691406e-03, -3.7322892e-06, 6.22509259e-10, -3.79752629e-14,
       -3.17724415e+04, -34.3106125]
   note: '*CF2CH=CH2T08/10'
-- name: Ra+(g)
-  composition: {E: -1, Ra: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [298.15, 1000.0, 6000.0]
-    data:
-    - [2.49725313, 1.98972885e-05, -4.9884564e-08, 5.21928663e-11, -1.94879264e-14,
-      8.0496721e+04, 7.68361325]
-    - [2.72648321, -3.36984087e-04, 8.6481642e-08, 2.85183593e-11, -4.52833004e-15,
-      8.04034029e+04, 6.39299783]
-  note: RadiumCatT7/13
 - name: C2H3NH2
   composition: {C: 2, H: 5, N: 1}
   thermo:
@@ -23363,17 +23288,6 @@ species:
     - [3.15788623, 8.47226665e-03, -2.90024459e-06, 4.5223473e-10, -2.6424092e-14,
       8.46086423e+04, 6.4629218]
   note: ATcT/A
-- name: Rn+
-  composition: {E: -1, Rn: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [298.15, 1000.0, 6000.0]
-    data:
-    - [2.5, -3.1323286e-12, 7.96293133e-15, -8.46905561e-18, 3.21090834e-21,
-      1.24730481e+05, 8.33873264]
-    - [2.49999922, -3.36370008e-07, 6.03007882e-10, -3.16377155e-13, 5.05154703e-17,
-      1.24730519e+05, 8.3388657]
-  note: g1/97
 - name: O=COH-CH=O
   composition: {C: 2, H: 2, O: 3}
   thermo:
