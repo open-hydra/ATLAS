@@ -1,5 +1,12 @@
 from PiNeR import get, check_section
 import numpy as np
+import os, sys
+masterpath = os.environ.get("ATLASDIR")
+if masterpath is None:
+    print("ATLAS environment variable is not set.")
+    sys.exit(1)
+src = os.path.join(masterpath, "src/equilibrate")
+sys.path.append(src)
 
 #
 def check_phases(ini_file):
@@ -220,20 +227,36 @@ def read_eq_CEA(ini_file,section,cea):
 
 #
 def read_eq_cantera(ini_file, section):
+  from units import convert2si
+  from ast import literal_eval
+
+  def quote_keys(dstr):
+    import re
+    # Quote unquoted keys including those with parentheses or special characters
+    return re.sub(r'([{,]\s*)([^":\s][^:]*?)(\s*:)', r'\1"\2"\3', dstr)
 
   pressure_string = get(ini_file, section, 'eq-pressure', list)
   if pressure_string is None:
     return
+  
+  pressure = float(pressure_string[0])
+  if len(pressure_string)==1:
+    pressure_unit = 'bar'
+  else:
+    pressure_unit = pressure_string[1]
+  si_pressure = convert2si(pressure, pressure_unit)
 
-  fuel_string = []
   fuel_entry = get(ini_file, section, 'eq-fuel', str)
-  if '{' not in fuel_entry: fuel_entry = '{'+fuel_entry+':1.0}'
-  fuel_string.append(fuel_entry)
+  if '{' not in fuel_entry:
+      fuel_entry = '{' + fuel_entry + ':1.0}'
+  fuel_entry = quote_keys(fuel_entry)
+  fuel_dict = literal_eval(fuel_entry)
 
-  oxi_string = []
   oxi_entry = get(ini_file, section, 'eq-oxidizer', str)
-  if '{' not in oxi_entry: oxi_entry = '{'+oxi_entry+':1.0}'
-  oxi_string.append(oxi_entry)
+  if '{' not in oxi_entry:
+      oxi_entry = '{' + oxi_entry + ':1.0}'
+  oxi_entry = quote_keys(oxi_entry)
+  oxi_dict = literal_eval(oxi_entry)
 
   of = get(ini_file, section, 'eq-of', float)
 
@@ -243,9 +266,25 @@ def read_eq_cantera(ini_file, section):
   To = get(ini_file, section, 'eq-oxidizer-T', float)
   if To is None: To = 90.170
 
-  fuel_string.insert(0, str(Tf))
-  oxi_string.insert(0, str(To))
+  # Initialize Reactants
+  from reactants import Reactant, ReactantStore
 
-  return fuel_string, oxi_string, pressure_string, of
+  store = ReactantStore()
+  store.pressure = si_pressure
+  store.mixture_ratio = of
+
+  # Add fuel reactants
+  for name, frac in fuel_dict.items():
+      r = Reactant()
+      r.build(f"{name}:{frac}", "F", Tf)
+      store.reactants.append(r)
+
+  # Add oxidizer reactants
+  for name, frac in oxi_dict.items():
+      r = Reactant()
+      r.build(f"{name}:{frac}", "O", To)
+      store.reactants.append(r)
+
+  return store
 
 # -----------------------------------------------------------------------

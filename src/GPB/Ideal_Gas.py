@@ -3,7 +3,6 @@ import IG_IO, IO_Legacy
 import IG_transport
 import IG_thermo
 from phase_tools import update_thermo_model
-from equilibrium import equilibrium
 from Read_INI import *
 from NewCEA import CEA
 import os, sys, re
@@ -85,7 +84,7 @@ def build(inifile,section):
     # Determine if and which equilibrium to use (Cantera/CEA)
     # ---------------------------------------------------
     if inputCTE is not None:
-        fuel, oxy, pressure, of = inputCTE
+        cte_reactants = inputCTE
         cantera_equilibrium = True
     if inputCEA is not None:
         CEAfile = inputCEA
@@ -169,35 +168,37 @@ def build(inifile,section):
     # Cantera equilibrium calculation (if applicable)
     if cantera_equilibrium:
         print(' -- Found Cantera equilibrium')
-        # Perform equilibrium calculation using an existing function
-        cte_solution = equilibrium(thermo_model, fuel, oxy, pressure, of)
+        # Perform equilibrium calculation
+        local_model = update_thermo_model('FFCM2.yaml',thermo_model)
+        eq_mix, eq_gas = cte_reactants.build_cantera_mixture(model=local_model)
+        eq_mix.equilibrate('HP', solver='gibbs', rtol=1e-6, max_steps=1000)
         # Extract species objects (not just names) with non-zero mole fractions
-        cte_species = [cte_solution.species(i) for i in range(cte_solution.n_species) if cte_solution[i].X > 1e-5]
+        eq_species = [eq_gas.species(i) for i in range(eq_gas.n_species) if eq_gas[i].X > 1e-5]
         # If a reaction model exists, exclude species already in the reaction model
         if reaction_model is not None:
-            cte_species = [s for s in cte_species if s.name not in raw_mechanism.species_names]
+            eq_species = [s for s in eq_species if s.name not in raw_mechanism.species_names]
         # Proceed if there are species left
-        if cte_species:
+        if eq_species:
             # Create a new phase using the filtered species objects (not just names)
-            cte_phase = ct.Solution(thermo='ideal-gas', species=cte_species, transport='mixture-averaged')
+            eq_phase = ct.Solution(thermo='ideal-gas', species=eq_species, transport='mixture-averaged')
             # Name the new phase based on whether inert mixing is considered
             if inerts_mixing:
-                cte_phase.name = 'cte-mixture'
+                eq_phase.name = 'cte-mixture'
             else:
-                cte_phase.name = 'cte-species'
+                eq_phase.name = 'cte-species'
             # Extract mass fractions for the species in the original solution
             mass_fractions = []
-            for s in cte_solution.species_names:
-                if cte_solution[s].Y > 0:
-                    mass_fractions.append(cte_solution[s].Y)
+            for s in eq_gas.species_names:
+                if eq_gas[s].Y > 0:
+                    mass_fractions.append(eq_gas[s].Y)
             # Map species names to their mass fractions
-            species_fraction_dict = dict(zip([s.name for s in cte_species], mass_fractions))
+            species_fraction_dict = dict(zip([s.name for s in eq_species], mass_fractions))
             # Convert the species fraction dictionary into an ordered array of mass fractions
             mass_fraction_array = np.array([species_fraction_dict[s.name] if s.name in species_fraction_dict else 0.0
-                                            for s in cte_phase.species()])
+                                            for s in eq_phase.species()])
             # Assign mass fractions to the new phase
-            cte_phase.Y = mass_fraction_array
-            species_group.append(cte_phase)
+            eq_phase.Y = mass_fraction_array
+            species_group.append(eq_phase)
     # ---------------------------------------------------
 
     # ---------------------------------------------------
