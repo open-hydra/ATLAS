@@ -17,3 +17,4 @@ dependencies:
 - pip:
     - -e lib/PiNeR
     - -e lib/NewCEA
+    - -e lib/ORION
