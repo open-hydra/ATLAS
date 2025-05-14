@@ -107,8 +107,14 @@ contains
     implicit none
     class(ATLAS_block), intent(inout) :: self
 
+    if (allocated(self%vol)) deallocate(self%vol)
     if (allocated(self%node)) deallocate(self%node)
     if (allocated(self%center)) deallocate(self%center)
+    if (allocated(self%m)) deallocate(self%m)
+    if (allocated(self%dl)) deallocate(self%dl)
+    if (allocated(self%bbmin)) deallocate(self%bbmin)
+    if (allocated(self%bbmax)) deallocate(self%bbmax)
+    if (allocated(self%yn)) deallocate(self%yn)
 
   end subroutine free
 

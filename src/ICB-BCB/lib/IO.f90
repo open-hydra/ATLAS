@@ -1,5 +1,7 @@
 module ATLAS_IO
   use Lib_ORION_data
+  use IR_Precision
+
   implicit none
   private
   public:: write_idealgas_bc_file
@@ -9,19 +11,21 @@ module ATLAS_IO
   public:: read_mesh
   public:: read_idealgas_properties, read_cdp_properties
   public:: read_phase
+  public:: coarse_mesh, check_multigrid
 
   integer:: i,j,k,s
   integer:: unitfile
 
   contains
   
-  subroutine write_idealgas_bc_file(name,block)
+  subroutine write_idealgas_bc_file(name,block,level)
     use variables
     use ATLAS_high_level, only: ATLAS_block
     use TOM, only: fmn2ijk
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
+    integer, intent(in)           :: level
     character(len=len(name))      :: name_
     integer                       :: p, b, f, m, n, mend(6), nend(6)
     integer                       :: Ai, Aj, Ak, ii, jj, kk
@@ -41,7 +45,11 @@ module ATLAS_IO
     enddo
 
     if (match) then
-      open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+      if (level == 1) then
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+      else
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc'//trim(str(.true.,level))//'.txt',action='write')
+      endif
     else
       return
     endif
@@ -1050,5 +1058,81 @@ module ATLAS_IO
 
       close(u)
   end subroutine get_file_list
+
+
+  subroutine coarse_mesh ( fine, coarse )
+    use Lib_ORION_data
+
+    implicit none
+    type(ORION_data), intent(in)    :: fine
+    type(ORION_data), intent(inout) :: coarse
+    ! Local
+    integer :: b, nb, Ni, Nj, Nk, i, j, k, i2, j2, k2
+
+
+    nb = size( fine % block )
+    if ( allocated ( coarse % block )) deallocate (coarse % block)
+    allocate ( coarse % block( nb ) )
+    
+    do b = 1, nb
+      Ni = fine % block(b)%Ni /2
+      Nj = fine % block(b)%Nj /2
+      Nk = fine % block(b)%Nk /2
+      Nk = Max ( 1, Nk ) ! 2D case
+      coarse % block(b) % Ni = Ni
+      coarse % block(b) % Nj = Nj
+      coarse % block(b) % Nk = Nk
+      if ( allocated ( coarse % block(b) % mesh )) deallocate (coarse % block(b) % mesh)
+      allocate( coarse%block(b)%mesh(1:3,0:Ni,0:Nj,0:Nk) )
+
+      do k = 0, fine % block(b)%Nk, 2-Mod(fine % block(b)%Nk,2)
+      do j = 0, fine % block(b)%Nj, 2
+      do i = 0, fine % block(b)%Ni, 2
+          
+          i2 = i / 2
+          j2 = j / 2
+          k2 = k / 2
+    
+          if ( fine % block(b)%Nk == 1 ) then ! 2D
+            k2 = k
+          end if
+    
+          coarse%block(b)%mesh(1:3,i2,j2,k2) = fine%block(b)%mesh(1:3,i,j,k)
+        
+        enddo; enddo; enddo
+
+    enddo
+
+  end subroutine coarse_mesh
+
+
+  subroutine check_multigrid ( orion, MGL )
+    use Lib_ORION_data
+
+    implicit none
+    type(ORION_data), intent(in)    :: orion
+    integer, intent(in)             :: MGL
+    ! Local
+    integer :: b, rap, check
+
+
+    rap = 2**(MGL-1)
+
+    do b = 1, size( orion % block )
+
+      check = 0
+
+      if ( Mod ( orion % block(b) % Ni, rap ) == 0 ) check = check + 1
+      if ( Mod ( orion % block(b) % Nj, rap ) == 0 ) check = check + 1
+      if ( Mod ( orion % block(b) % Nk, rap ) == 0 .or. orion % block(b) % Nk == 1 ) check = check + 1
+
+      if ( check < 3 ) then
+        write(*,*) ' Error in check_multigrid, block: ', b
+        stop
+      endif
+
+    enddo
+
+  end subroutine check_multigrid
 
 end module ATLAS_IO

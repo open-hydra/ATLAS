@@ -17,9 +17,9 @@ program BCB
   implicit none
   type(phase_type), allocatable  :: phase(:)
   type(ATLAS_block), allocatable :: block(:)
-  type(orion_data)               :: orion
+  type(orion_data)               :: fine_orion, coarse_orion 
   type(file_ini)                 :: sourceini
-  integer                        :: b
+  integer                        :: b, m, MG_levels
   logical                        :: force_connect, chimeraon
 
   write(*,*)
@@ -31,48 +31,69 @@ program BCB
 
   ! Geometry import
   write(*,*)' Reading mesh file'
-  call read_mesh(orion)
-  call import_nodes(input=orion,output=block)
-  do b = 1, size(block)
-    call block(b)%extrapolate_nodes(2)
-    call block(b)%compute_centers(2)
-    call block(b)%compute_face_centers()
-    call block(b)%compute_bounding(2)
-    call block(b)%compute_volume(2)
-  enddo
-  call check_mesh_type(block(1))
-
+  call read_mesh(fine_orion)
+  
   ! INI handling
-  call build_INI(prog='BCB',nb=size(block),inisource=sourceini,force_connect=force_connect,chimeraon=chimeraon)
+  call build_INI(prog='BCB',nb=size(fine_orion%block),inisource=sourceini,MG_levels=MG_levels,force_connect=force_connect,chimeraon=chimeraon)
 
   ! Phase properties import
   call read_phase(phase)
 
-  ! BC computation
-  call build_BC(phase,sourceini,block)
+  do m = 1, MG_levels
 
-  ! Multiblock operations
-  call find_periodic(block)
-  if (size(block)>1) then
-    if (chimeraon) then
-      call chimera_wrapper(block)
+    write(*,*)
+    write(*,*) ' Grid Level ', m
+    write(*,*)
+
+    if ( m == 1 ) then
+      call import_nodes ( input=fine_orion, output=block )
+      call check_multigrid ( fine_orion, MG_levels )
     else
-      call find_connect(block,force_connect)
+      do b = 1, size(block)
+        call block(b)%free
+      enddo
+      call coarse_mesh ( fine_orion, coarse_orion)
+      call import_nodes ( input=coarse_orion, output=block )
+      call copyORION ( coarse_orion, fine_orion )
     endif
-  endif
+    
+    do b = 1, size(block)
+      call block(b)%extrapolate_nodes(2)
+      call block(b)%compute_centers(2)
+      call block(b)%compute_face_centers()
+      call block(b)%compute_bounding(2)
+      call block(b)%compute_volume(2)
+    enddo
 
-  ! BC writing
-  do b = 1, size(phase)
-    select case(phase(b)%type)
-    case('IG')
-      call write_idealgas_bc_file(phase(b)%name,block)
-    case('CD')
-      call write_cdp_bc_file(phase(b)%name,block)
-    case('SP')
-      ! Currently the solid phase shares the same boundaries and file format as the ideal-gas phase.
-      ! Indeed, only imposed heat flux and temnperature are considered along with connectivity.
-      call write_idealgas_bc_file(phase(b)%name,block)
-    end select
+    call check_mesh_type(block(1))
+
+    ! BC computation
+    call build_BC(phase,sourceini,block)
+
+    ! Multiblock operations
+    call find_periodic(block)
+    if (size(block)>1) then
+      if (chimeraon) then
+        call chimera_wrapper(block)
+      else
+        call find_connect(block,force_connect)
+      endif
+    endif
+
+    ! BC writing
+    do b = 1, size(phase)
+      select case(phase(b)%type)
+      case('IG')
+        call write_idealgas_bc_file(phase(b)%name,block,m)
+      case('CD')
+        call write_cdp_bc_file(phase(b)%name,block)
+      case('SP')
+        ! Currently the solid phase shares the same boundaries and file format as the ideal-gas phase.
+        ! Indeed, only imposed heat flux and temnperature are considered along with connectivity.
+        call write_idealgas_bc_file(phase(b)%name,block,m)
+      end select
+    enddo
+
   enddo
 
   contains
