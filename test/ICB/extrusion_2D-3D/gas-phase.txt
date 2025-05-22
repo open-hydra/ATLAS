@@ -1,2 +1,0 @@
-ideal-gas phase
-inertMix     28.0
