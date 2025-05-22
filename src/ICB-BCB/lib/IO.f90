@@ -482,9 +482,17 @@ module ATLAS_IO
         orion%tec%node = .false.
         orion%tec%bc = .false.
         orion%tec%format = 'ascii'
-        error = tec_read_structured_multiblock(orion=orion,filename=path)
-      else
+        error = tec_read_structured_multiblock(orion=orion,filename=trim(path))
+      elseif (index(path,'.szplt')>0) then
+        orion%tec%node = .false.
+        orion%tec%bc = .false.
+        orion%tec%format = 'binary'
+        error = tec_read_structured_multiblock(orion=orion,filename=trim(path))
+      elseif (index(path,'.p3d')>0) then
         error = p3d_read_multiblock(orion=orion,filename=path)
+      else
+        write(*,*) 'ERROR: mesh file is not readable'
+        stop
       endif
     else
       orion%tec%node = .false.
@@ -492,12 +500,18 @@ module ATLAS_IO
       orion%tec%format = 'ascii'
       error = tec_read_structured_multiblock(orion=orion,filename='mesh.tec')
       if (error==0) return
-      error = tec_read_structured_multiblock(orion=orion,filename='mesh.p3d')
+      orion%tec%format = 'binary'
+      error = tec_read_structured_multiblock(orion=orion,filename='mesh.szplt')
+      if (error==0) return      
+      error = p3d_read_multiblock(orion=orion,filename='mesh.p3d')
       if (error/=0) then
         write(*,*) 'ERROR: mesh file is not readable'
         stop
       endif
     endif
+
+    if (error/=0) &
+      stop ("ERROR: mesh reading failed")
 
   end subroutine read_mesh
 

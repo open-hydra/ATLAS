@@ -41,7 +41,8 @@ add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/lib/NewCEA/ )
 
 # # ORION
 if(MASTER STREQUAL None)
-  set ( orionD ${CMAKE_CURRENT_SOURCE_DIR}/lib/ORION/ )
+  #set ( orionD ${CMAKE_CURRENT_SOURCE_DIR}/lib/ORION/ )
+  set ( orionD $ENV{ATLASDIR}/../ORION/ "${CMAKE_CURRENT_SOURCE_DIR}/build/lib/ORION/")
 elseif(MASTER STREQUAL hydra)
   set ( orionD $ENV{HYDRADIR}/lib/ORION/ "${CMAKE_CURRENT_SOURCE_DIR}/build/lib/ORION/")
 endif()
