@@ -1,2 +1,2 @@
 ideal-gas phase
-dummy 1
+N2 28.014000
