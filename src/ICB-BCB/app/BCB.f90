@@ -3,7 +3,6 @@
 !>
 
 program BCB
-  use TOM, only: check_mesh_type
   use variables
   use ATLAS_high_level
   use phase_module
@@ -56,16 +55,8 @@ program BCB
       call import_nodes ( input=coarse_orion, output=block )
       call copyORION ( coarse_orion, fine_orion )
     endif
-    
-    do b = 1, size(block)
-      call block(b)%extrapolate_nodes(2)
-      call block(b)%compute_centers(2)
-      call block(b)%compute_face_centers()
-      call block(b)%compute_bounding(2)
-      call block(b)%compute_volume(2)
-    enddo
 
-    call check_mesh_type(block(1))
+    call build_geometry(block)
 
     ! BC computation
     call build_BC(phase,sourceini,block)

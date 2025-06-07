@@ -58,9 +58,9 @@ module lib_bc
     select case(phase%type)
     !% Ideal gas
     case('IG')
-    self%species = phase%species
-    if (.not.allocated(self%species%massf)) allocate(self%species%massf(1:self%species%n))
-    self%species%massf = 1d-20
+      self%species = phase%species
+      if (.not.allocated(self%species%massf)) allocate(self%species%massf(1:self%species%n))
+      self%species%massf = 1d-20
 
     !% Condensed phase
     case('CD')
@@ -190,136 +190,141 @@ module lib_bc
       real(8), allocatable :: gp(:), up(:), vp(:), wp(:), mvp(:), alphap(:), betap(:), Tp(:)
 
       ! Ideal gas bc
-      self%IG_time_BC = .false.
-      self%IG_time_properties = 'None'
-      found_cea = .false.
-      nmach = 0.0; p0 = 0.0; force_inflow = .false.
-      call sourceini%get(section_name=section, option_name='force-inflow', val=force_inflow,    error=error)
-      call sourceini%get(section_name=section, option_name='mach', val=mach,    error=error)
-      if (error==0) nmach = mach
-      call sourceini%get(section_name=section, option_name='p0',   val=p0,      error=error)
-      if (error==0) p0 = p0*1d+5
-      call sourceini%get(section_name=section, option_name='T0',   val=T0,      error=error)
-      if (error/=0) T0 = 0.0
-      call sourceini%get(section_name=section, option_name='h0',   val=h0,      error=error)
-      if (error/=0) h0 = 0.0
-      call sourceini%get(section_name=section, option_name='T',    val=T,       error=error)
-      if (error/=0) T = 0.0
-      call sourceini%get(section_name=section, option_name='g', val=massflux,    error=error)
-      if (error==0 .and. nmach==0.0) nmach = -10.0
-      call sourceini%get(section_name=section, option_name='alpha',val=alpha,   error=error)
-      if (error/=0) alpha = 0.0
-      call sourceini%get(section_name=section, option_name='beta', val=beta,    error=error)
-      if (error/=0) beta = 0.0
-      call sourceini%get(section_name=section, option_name='p',    val=pstatic, error=error)
-      if (error/=0) pstatic = 0.0
-      call sourceini%get(section_name=section, option_name='mit',  val=mit,     error=error)
-      if (error/=0) mit = 0.0
-      call sourceini%get(section_name=section, option_name='kappa',val=kappa,   error=error)
-      if (error/=0) kappa = 0.0
-      call sourceini%get(section_name=section, option_name='omega',val=omega,   error=error)
-      if (error/=0) omega = 0.0
-      call sourceini%get(section_name=section, option_name='rhoRij',val=rhoRij, error=error)
-      if (error/=0) rhoRij = 0.0
+      if (phase%type=='IG') then
+        self%IG_time_BC = .false.
+        self%IG_time_properties = 'None'
+        found_cea = .false.
+        nmach = 0.0; p0 = 0.0; force_inflow = .false.
+        call sourceini%get(section_name=section, option_name='force-inflow', val=force_inflow,    error=error)
+        call sourceini%get(section_name=section, option_name='mach', val=mach,    error=error)
+        if (error==0) nmach = mach
+        call sourceini%get(section_name=section, option_name='p0',   val=p0,      error=error)
+        if (error==0) p0 = p0*1d+5
+        call sourceini%get(section_name=section, option_name='T0',   val=T0,      error=error)
+        if (error/=0) T0 = 0.0
+        call sourceini%get(section_name=section, option_name='h0',   val=h0,      error=error)
+        if (error/=0) h0 = 0.0
+        call sourceini%get(section_name=section, option_name='T',    val=T,       error=error)
+        if (error/=0) T = 0.0
+        call sourceini%get(section_name=section, option_name='g', val=massflux,    error=error)
+        if (error==0 .and. nmach==0.0) nmach = -10.0
+        call sourceini%get(section_name=section, option_name='alpha',val=alpha,   error=error)
+        if (error/=0) alpha = 0.0
+        call sourceini%get(section_name=section, option_name='beta', val=beta,    error=error)
+        if (error/=0) beta = 0.0
+        call sourceini%get(section_name=section, option_name='p',    val=pstatic, error=error)
+        if (error/=0) pstatic = 0.0
+        call sourceini%get(section_name=section, option_name='mit',  val=mit,     error=error)
+        if (error/=0) mit = 0.0
+        call sourceini%get(section_name=section, option_name='kappa',val=kappa,   error=error)
+        if (error/=0) kappa = 0.0
+        call sourceini%get(section_name=section, option_name='omega',val=omega,   error=error)
+        if (error/=0) omega = 0.0
+        call sourceini%get(section_name=section, option_name='rhoRij',val=rhoRij, error=error)
+        if (error/=0) rhoRij = 0.0
 
-      ! Injector
-      call sourceini%get(section_name=section, option_name='psub',val=psub,   error=error)
-      if (error==0) alpha = psub
-      call sourceini%get(section_name=section, option_name='psup',val=psup,    error=error)
-      if (error==0) beta = psup
-      rt = 0.0
-      call sourceini%get(section_name=section, option_name='rt',  val=rt, error=error)
-      if (error==0) pstatic = rt
+        ! Injector
+        call sourceini%get(section_name=section, option_name='psub',val=psub,   error=error)
+        if (error==0) alpha = psub
+        call sourceini%get(section_name=section, option_name='psup',val=psup,    error=error)
+        if (error==0) beta = psup
+        rt = 0.0
+        call sourceini%get(section_name=section, option_name='rt',  val=rt, error=error)
+        if (error==0) pstatic = rt
 
-      ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
-      call define_composition(sourceini, self%species, T0, p0)
+        ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
+        call define_composition(sourceini, self%species, T0, p0)
 
-      if (h0/=0 .and. self%species%n>1) then
-        error stop ("Not possible to assign h0 to a multispecies flow!")
-      elseif (h0/=0 .and. self%species%n==1) then
-        T0 = h02T0(h0,self%species%h)
-      endif
-
-      ! Time bc
-      ! Only total pressure is currently allowed
-      call sourceini%get(section_name=section,option_name='p0-time-file',val=self%IG_time_properties(3),error=error)
-      if (error==0) self%IG_time_BC(3) = .true.
-
-      ! Force inflow
-      if (force_inflow) pstatic = -3.14d-5
-
-      ! Choose between total temperature and static one
-      if (nmach<0.0 .and. T>0) nmach = -5.0
-
-      self%properties(1) = nmach
-      self%properties(2) = T0
-      if (T>0) self%properties(2) = T
-      if (nmach>=0) self%properties(3) = p0
-      if (nmach<0) self%properties(3) = massflux
-      self%properties(4) = alpha
-      self%properties(5) = beta
-      if (rt/=0.0) then
-        self%properties(6) = rt
-      else
-        self%properties(6) = pstatic*1e+5
-      endif
-      if (nrans==1) then
-        self%properties(7) = mit
-      elseif (nrans==2) then
-        self%properties(7) = kappa
-        self%properties(8) = omega
-      elseif (nrans==7) then
-        self%properties(7:9) = rhoRij
-        self%properties(10:12) = 1d-8
-        self%properties(13) = omega
-      endif
-
-      ! Condensed-phase bc
-      do m = 1, phase%material%n
-        npCP = phase%material%npCP(m)
-        allocate(kr(1:npCP)); kr = 0d0; call sourceini%get(section_name=section, option_name='krho',val=kr,error=error)
-        allocate(ku(1:npCP)); ku = 1d0; call sourceini%get(section_name=section, option_name='kV',val=ku,error=error)
-        allocate(kt(1:npCP)); kt = 1d0; call sourceini%get(section_name=section, option_name='kT',val=kt,error=error)
-
-        allocate(gp(1:npCP)); gp = 0d0; call sourceini%get(section_name=section, option_name='gp',val=gp,error=error_gp)
-        allocate(up(1:npCP)); up = 0d0; call sourceini%get(section_name=section, option_name='up',val=up,error=error)
-        allocate(vp(1:npCP)); vp = 0d0; call sourceini%get(section_name=section, option_name='vp',val=vp,error=error)
-        allocate(wp(1:npCP)); wp = 0d0; call sourceini%get(section_name=section, option_name='wp',val=wp,error=error)
-        allocate(mvp(1:npCP)); mvp = 0d0; call sourceini%get(section_name=section, option_name='|up|',val=mvp,error=error)
-        if (error/=0) mvp = sqrt(up**2+vp**2+wp**2)
-        allocate(Tp(1:npCP)); Tp = 0d0; call sourceini%get(section_name=section, option_name='Tp',val=Tp,error=error)
-
-        allocate(rp(1:npCP)); call sourceini%get(section_name=section, option_name='rp',val=rp,error=error)
-        allocate(dp(1:npCP)); call sourceini%get(section_name=section, option_name='dp',val=dp,error=error)
-        if (error==0) rp = 0.5*dp
-
-        allocate(alphap(1:npCP)); alphap = 0d0
-        call sourceini%get(section_name=section, option_name='alphap',val=alphap,error=error)
-        allocate(betap(1:npCP)); betap = 0d0
-        call sourceini%get(section_name=section, option_name='betap',val=betap,error=error)
-
-        if (error_gp/=0) cp_scaling = 0
-        if (error_gp==0 .and. all(mvp/=0.d0)) cp_scaling = 1
-        if (error_gp==0 .and. all(mvp==0.d0)) cp_scaling = 2
-
-        self%cp_properties(m,1:npCP,1) = dble(cp_scaling)
-        if (cp_scaling==0) then
-          self%cp_properties(m,1:npCP,2) = kr
-          self%cp_properties(m,1:npCP,3) = ku
-          self%cp_properties(m,1:npCP,6) = kt
-        elseif (cp_scaling==1) then
-          self%cp_properties(m,1:npCP,2) = gp
-          self%cp_properties(m,1:npCP,3) = mvp
-          self%cp_properties(m,1:npCP,6) = Tp
-        elseif (cp_scaling==2) then
-          self%cp_properties(m,1:npCP,2) = gp
-          self%cp_properties(m,1:npCP,3) = ku
-          self%cp_properties(m,1:npCP,6) = Tp
+        if (h0/=0 .and. self%species%n>1) then
+          error stop ("Not possible to assign h0 to a multispecies flow!")
+        elseif (h0/=0 .and. self%species%n==1) then
+          T0 = h02T0(h0,self%species%h)
         endif
-        self%cp_properties(m,1:npCP,4) = alphap
-        self%cp_properties(m,1:npCP,5) = betap
-        self%cp_properties(m,1:npCP,7) = rp
-      enddo
+
+        ! Time bc
+        ! Only total pressure is currently allowed
+        call sourceini%get(section_name=section,option_name='p0-time-file',val=self%IG_time_properties(3),error=error)
+        if (error==0) self%IG_time_BC(3) = .true.
+
+        ! Force inflow
+        if (force_inflow) pstatic = -3.14d-5
+
+        ! Choose between total temperature and static one
+        if (nmach<0.0 .and. T>0) nmach = -5.0
+
+        self%properties(1) = nmach
+        self%properties(2) = T0
+        if (T>0) self%properties(2) = T
+        if (nmach>=0) self%properties(3) = p0
+        if (nmach<0) self%properties(3) = massflux
+        self%properties(4) = alpha
+        self%properties(5) = beta
+        if (rt/=0.0) then
+          self%properties(6) = rt
+        else
+          self%properties(6) = pstatic*1e+5
+        endif
+        if (nrans==1) then
+          self%properties(7) = mit
+        elseif (nrans==2) then
+          self%properties(7) = kappa
+          self%properties(8) = omega
+        elseif (nrans==7) then
+          self%properties(7:9) = rhoRij
+          self%properties(10:12) = 1d-8
+          self%properties(13) = omega
+        endif
+
+      else
+
+        ! Condensed-phase bc
+        do m = 1, phase%material%n
+          npCP = phase%material%npCP(m)
+          allocate(kr(1:npCP)); kr = 0d0; call sourceini%get(section_name=section, option_name='krho',val=kr,error=error)
+          allocate(ku(1:npCP)); ku = 1d0; call sourceini%get(section_name=section, option_name='kV',val=ku,error=error)
+          allocate(kt(1:npCP)); kt = 1d0; call sourceini%get(section_name=section, option_name='kT',val=kt,error=error)
+
+          allocate(gp(1:npCP)); gp = 0d0; call sourceini%get(section_name=section, option_name='gp',val=gp,error=error_gp)
+          allocate(up(1:npCP)); up = 0d0; call sourceini%get(section_name=section, option_name='up',val=up,error=error)
+          allocate(vp(1:npCP)); vp = 0d0; call sourceini%get(section_name=section, option_name='vp',val=vp,error=error)
+          allocate(wp(1:npCP)); wp = 0d0; call sourceini%get(section_name=section, option_name='wp',val=wp,error=error)
+          allocate(mvp(1:npCP)); mvp = 0d0; call sourceini%get(section_name=section, option_name='|up|',val=mvp,error=error)
+          if (error/=0) mvp = sqrt(up**2+vp**2+wp**2)
+          allocate(Tp(1:npCP)); Tp = 0d0; call sourceini%get(section_name=section, option_name='Tp',val=Tp,error=error)
+
+          allocate(rp(1:npCP)); call sourceini%get(section_name=section, option_name='rp',val=rp,error=error)
+          allocate(dp(1:npCP)); call sourceini%get(section_name=section, option_name='dp',val=dp,error=error)
+          if (error==0) rp = 0.5*dp
+
+          allocate(alphap(1:npCP)); alphap = 0d0
+          call sourceini%get(section_name=section, option_name='alphap',val=alphap,error=error)
+          allocate(betap(1:npCP)); betap = 0d0
+          call sourceini%get(section_name=section, option_name='betap',val=betap,error=error)
+
+          if (error_gp/=0) cp_scaling = 0
+          if (error_gp==0 .and. all(mvp/=0.d0)) cp_scaling = 1
+          if (error_gp==0 .and. all(mvp==0.d0)) cp_scaling = 2
+
+          self%cp_properties(m,1:npCP,1) = dble(cp_scaling)
+          if (cp_scaling==0) then
+            self%cp_properties(m,1:npCP,2) = kr
+            self%cp_properties(m,1:npCP,3) = ku
+            self%cp_properties(m,1:npCP,6) = kt
+          elseif (cp_scaling==1) then
+            self%cp_properties(m,1:npCP,2) = gp
+            self%cp_properties(m,1:npCP,3) = mvp
+            self%cp_properties(m,1:npCP,6) = Tp
+          elseif (cp_scaling==2) then
+            self%cp_properties(m,1:npCP,2) = gp
+            self%cp_properties(m,1:npCP,3) = ku
+            self%cp_properties(m,1:npCP,6) = Tp
+          endif
+          self%cp_properties(m,1:npCP,4) = alphap
+          self%cp_properties(m,1:npCP,5) = betap
+          self%cp_properties(m,1:npCP,7) = rp
+        enddo
+
+      endif
 
     end subroutine assemble_the_monster
 

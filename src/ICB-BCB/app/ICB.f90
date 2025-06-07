@@ -30,8 +30,8 @@ program ICB
   call read_mesh(orion)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
-    call block(b)%extrapolate_nodes(1)
-    call block(b)%compute_centers(1)
+    call block(b)%extrapolate_nodes([0,0,0])
+    call block(b)%compute_centers([1,0,0])
   enddo
 
   ! INI handling

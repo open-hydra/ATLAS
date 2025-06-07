@@ -115,7 +115,7 @@ contains
     di00 =di00+1; dj00 =dj00+1; dk00 =dk00+1
 
     do b1 = 1, nb
-    do f1 = 1, 6
+    do f1 = 1, block(b1)%nfaces
       do n1 = 1, block(b1)%face(f1)%Nn
         do m1 = 1, block(b1)%face(f1)%Nm
 
@@ -275,7 +275,7 @@ contains
       nx(b1) = block(b1)%face(3)%Nm
       ny(b1) = block(b1)%face(1)%Nm
       nz(b1) = block(b1)%face(1)%Nn
-      do f1 = 1, 6
+      do f1 = 1, block(b1)%nfaces
         nboundb(b1) = nboundb(b1)+(block(b1)%face(f1)%Nm*block(b1)%face(f1)%Nn)
         nbound = nbound+(block(b1)%face(f1)%Nm*block(b1)%face(f1)%Nn)
       enddo
@@ -286,7 +286,7 @@ contains
     allocate(prop(1:nbound,1:5))
     i = 0
     do b1 = 1, nb
-      do f1 = 1, 6
+      do f1 = 1, block(b1)%nfaces
         do n1 = 1, block(b1)%face(f1)%Nn
           do m1 = 1, block(b1)%face(f1)%Nm
             i = i +1
@@ -356,7 +356,7 @@ contains
 
     i = 0
     do b1 = 1, nb
-      do f1 = 1, 6
+      do f1 = 1, block(b1)%nfaces
         do n1 = 1, block(b1)%face(f1)%Nn
           do m1 = 1, block(b1)%face(f1)%Nm
             i = i +1
@@ -419,7 +419,7 @@ contains
     di00 =di00+1; dj00 =dj00+1; dk00 =dk00+1
 
     do b1 = 1, nb
-    do f1 = 1, 6
+    do f1 = 1, block(b1)%nfaces
       do n1 = 1, block(b1)%face(f1)%Nn
         do m1 = 1, block(b1)%face(f1)%Nm
 
@@ -532,7 +532,7 @@ contains
 
     i = 0
     do b1 = 1, nb
-      do f1 = 1, 6
+      do f1 = 1, block(b1)%nfaces
         do n1 = 1, block(b1)%face(f1)%Nn
           do m1 = 1, block(b1)%face(f1)%Nm
             i = i +1

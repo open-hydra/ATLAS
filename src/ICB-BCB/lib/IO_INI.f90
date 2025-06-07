@@ -127,7 +127,6 @@ contains
     if (nrans==1) write(*,*)' One-equation turbulent model properties found'
     if (nrans==2) write(*,*)' Two-equation turbulent model properties found'
     if (nrans==7) write(*,*)' Full Reynolds Stress Model properties found'
-    write(*,*)
 
   end subroutine scan_turbo_input
 

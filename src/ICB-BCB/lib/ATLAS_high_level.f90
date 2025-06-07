@@ -40,7 +40,8 @@
       real(8), dimension(:,:,:), allocatable     :: mID
       real(8), dimension(:,:,:), allocatable     :: qvol
       !! BC
-      type(obj_face), dimension(6) :: face
+      integer :: nfaces
+      type(obj_face), dimension(:), allocatable  :: face
       integer :: nproperties
       real(8), dimension(:), allocatable:: properties
       !! Misc
@@ -66,23 +67,37 @@
 
 contains
 
-  pure subroutine import_nodes(input,output)
+  subroutine import_nodes(input,output)
     use Lib_ORION_data
     implicit none
     type(orion_data), intent(in)                :: input
     type(ATLAS_block), allocatable, intent(out) :: output(:)
     integer :: b, i, j, k
 
+    call check_mesh_type(input%block(1)%mesh)
+
+    if (meshType==-2) then
+      gc = [2, 2, 0]
+    else
+      gc = 2
+    endif 
+
     allocate(output(size(input%block)))
     do b = 1, size(input%block)
       output(b)%dim(1) = input%block(b)%Ni
       output(b)%dim(2) = input%block(b)%Nj
-      output(b)%dim(3) = input%block(b)%Nk
-      allocate(output(b)%node(0-gc:output(b)%dim(1)+gc,0-gc:output(b)%dim(2)+gc,0-gc:output(b)%dim(3)+gc))
-      do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
-      !call output(b)%allocate_coords(5)
-        output(b)%node(i,j,k)%c(1:3) = input%block(b)%mesh(:,i,j,k)
-      enddo; enddo; enddo
+      output(b)%dim(3) = max(input%block(b)%Nk,1) ! Handle 2D meshes
+      allocate(output(b)%node(0-gc(1):output(b)%dim(1)+gc(1),0-gc(2):output(b)%dim(2)+gc(2),0-gc(3):output(b)%dim(3)+gc(3)))
+      if (meshType/=-2) then
+        do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
+              output(b)%node(i,j,k)%c(1:3) = input%block(b)%mesh(1:3,i,j,k)
+        enddo; enddo; enddo
+      else
+        do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
+              output(b)%node(i,j,k)%c(1:2) = input%block(b)%mesh(1:2,i,j,0)
+              output(b)%node(i,j,k)%c(3) = dble(k)
+        enddo; enddo; enddo
+      endif
     enddo
 
   end subroutine import_nodes
@@ -92,12 +107,11 @@ contains
     type(ATLAS_block), intent(inout) :: block(:)
     integer :: b
 
-    call check_mesh_type(block(1))
-
     do b = 1, size(block)
       call block(b)%extrapolate_nodes(gc)
       call block(b)%compute_volume(gc)
       call block(b)%compute_centers(gc)
+      call block(b)%compute_face_centers()
       call block(b)%compute_bounding(gc)
     enddo
 
@@ -140,20 +154,32 @@ contains
     class(ATLAS_block), intent(inout) :: self
     integer :: m, n
 
+    if (meshType==-2) then
+      self%nfaces = 4
+    else
+      self%nfaces = 6
+    endif
+
+    allocate(self%face(1:self%nfaces))
+
     !> Compute the face center coords
     self%face(1)%Nm = self%dim(2); self%face(1)%Nn = self%dim(3)
     self%face(2)%Nm = self%dim(2); self%face(2)%Nn = self%dim(3)
     self%face(3)%Nm = self%dim(1); self%face(3)%Nn = self%dim(3)
     self%face(4)%Nm = self%dim(1); self%face(4)%Nn = self%dim(3)
-    self%face(5)%Nm = self%dim(1); self%face(5)%Nn = self%dim(2)
-    self%face(6)%Nm = self%dim(1); self%face(6)%Nn = self%dim(2)
+    if (meshType>=2) then
+      self%face(5)%Nm = self%dim(1); self%face(5)%Nn = self%dim(2)
+      self%face(6)%Nm = self%dim(1); self%face(6)%Nn = self%dim(2)
+    endif
 
-    allocate(self%face(1)%center(1-gc:self%dim(2)+gc,1-gc:self%dim(3)+gc))
-    allocate(self%face(2)%center(1-gc:self%dim(2)+gc,1-gc:self%dim(3)+gc))
-    allocate(self%face(3)%center(1-gc:self%dim(1)+gc,1-gc:self%dim(3)+gc))
-    allocate(self%face(4)%center(1-gc:self%dim(1)+gc,1-gc:self%dim(3)+gc))
-    allocate(self%face(5)%center(1-gc:self%dim(1)+gc,1-gc:self%dim(2)+gc))
-    allocate(self%face(6)%center(1-gc:self%dim(1)+gc,1-gc:self%dim(2)+gc))
+    allocate(self%face(1)%center(1-gc(2):self%dim(2)+gc(2),1-gc(3):self%dim(3)+gc(3)))
+    allocate(self%face(2)%center(1-gc(2):self%dim(2)+gc(2),1-gc(3):self%dim(3)+gc(3)))
+    allocate(self%face(3)%center(1-gc(1):self%dim(1)+gc(1),1-gc(3):self%dim(3)+gc(3)))
+    allocate(self%face(4)%center(1-gc(1):self%dim(1)+gc(1),1-gc(3):self%dim(3)+gc(3)))
+    if (meshType>=2) then
+      allocate(self%face(5)%center(1-gc(1):self%dim(1)+gc(1),1-gc(2):self%dim(2)+gc(2)))
+      allocate(self%face(6)%center(1-gc(1):self%dim(1)+gc(1),1-gc(2):self%dim(2)+gc(2)))
+    endif
 
     associate( this => self%face(1) )
     do n = 1, this%Nn
@@ -215,6 +241,9 @@ contains
       enddo
     enddo
     endassociate
+
+    if (meshType<2) return
+
     associate( this => self%face(5) )
     do n = 1, this%Nn
       do m = 1, this%Nm

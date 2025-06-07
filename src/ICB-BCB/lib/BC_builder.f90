@@ -1,4 +1,5 @@
 module build_BC_mod
+  use ir_precision
   use finer, only: file_ini
   use species, only: obj_species
   use phase_module, only: phase_type
@@ -32,7 +33,7 @@ module build_BC_mod
     type(file_ini)                 :: faceini, patchini
     integer                        :: error, error_patch=0
     character(len=:), allocatable  :: option_pairs(:)
-    character(len=4)               :: ind, indb, dirID
+    character(len=4)               :: ind, dirID
     character(len=2)               :: patchdirection
     character(len=50)              :: patchname, section_name
     integer                        :: ff, n, m, p, b
@@ -42,8 +43,7 @@ module build_BC_mod
     n_blocks_phase = 0
 
     do b = 1, size(blocks)
-      write(indb,'(I4)') b
-      section_name = 'BCB-Block'//adjustl(indb)   
+      section_name = 'BCB-Block'//trim(str(.true.,b))   
       associate(block => blocks(b))
 
       do while (sini%loop(section_name=section_name, option_pairs=option_pairs))
@@ -99,10 +99,9 @@ module build_BC_mod
       enddo
     
       ! Look for faces bc definition
-      do ff = 1, 6
+      do ff = 1, block%nfaces
 
-        write(ind,'(I4)') ff
-        call sini%get(section_name=section_name, option_name='face'//adjustl(ind), &
+        call sini%get(section_name=section_name, option_name='face'//trim(str(.true.,ff)), &
                                                               val=block%face(ff)%bc%name, error=error)
 
         if (error/=0) then
