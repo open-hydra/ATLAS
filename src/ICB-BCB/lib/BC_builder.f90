@@ -280,9 +280,9 @@ module build_BC_mod
     ! Check file presence
     n_files=0
     file_present=.false.; tecfile_present=.false.
-    call ini_o%get(section_name='cell', option_name='hs-file', val=infile_dummy, error=error)
+    call ini_o%get(section_name='cell', option_name='ks-file', val=infile_dummy, error=error)
     if (error==0) then
-      n_files = n_files+1; bc_file(n_files)%var = 'hs'; bc_file(n_files)%name = infile_dummy
+      n_files = n_files+1; bc_file(n_files)%var = 'ks'; bc_file(n_files)%name = infile_dummy
     endif
     call ini_o%get(section_name='cell', option_name='q-file', val=infile_dummy, error=error)
     if (error==0) then

@@ -101,7 +101,8 @@ module ATLAS_IO
                 write(unitfile,'(A)') ''
               
               case(5,6,9,10,13)
-                write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(1)
+                write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(1)
+                write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(2) ! roughness
               
               case(7)
                 write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(1)
@@ -116,7 +117,7 @@ module ATLAS_IO
                 do i = 1, 5
                   write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
                 enddo
-                write(unitfile,'(A)') ''
+                write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(6) ! roughness
               
               case(666)
                 

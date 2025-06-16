@@ -75,18 +75,29 @@ module lib_bc
     case(2);  call assigne_halfPeriodicInfo
     case(3);  self%properties = 0.
     case(4,22);  call assemble_the_monster
-    case(5);  call assigne_q
-    case(6);  call assigne_T
+    case(5);  call assigne_q; call assigne_roughness(2)
+    case(6);  call assigne_T; call assigne_roughness(2)
     case(7);  call assigne_hconv; call assigne_qrad; call assigne_Tref
     case(8);  call assigne_T; call assigne_qrad
-    case(9);  call assigne_qrad
-    case(10); call assigne_SF
+    case(9);  call assigne_qrad; call assigne_rugosity(2)
+    case(10); call assigne_SF; call assigne_roughness(2)
     case(11); self%properties = 0.
-    case(12); call assigne_ablation
-    case(13);  call assigne_qrad
+    case(12); call assigne_ablation; call assigne_roughness(6)
+    case(13);  call assigne_qrad; call assigne_roughness(2)
     end select
 
     contains
+
+    subroutine assigne_roughness(pos)
+      implicit none
+      integer, intent(in) :: pos
+      integer:: error
+
+      call sourceini%get(section_name=section, option_name='ks', val=self%properties(pos), error=error)
+      if (error/=0) self%properties(pos) = 0.
+      !if (error==0) print *, ' rugosity: ', self%properties(1)
+
+    end subroutine assigne_roughness
 
     subroutine assigne_q
       implicit none
