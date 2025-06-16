@@ -79,7 +79,7 @@ module lib_bc
     case(6);  call assigne_T; call assigne_roughness(2)
     case(7);  call assigne_hconv; call assigne_qrad; call assigne_Tref
     case(8);  call assigne_T; call assigne_qrad
-    case(9);  call assigne_qrad; call assigne_rugosity(2)
+    case(9);  call assigne_qrad; call assigne_roughness(2)
     case(10); call assigne_SF; call assigne_roughness(2)
     case(11); self%properties = 0.
     case(12); call assigne_ablation; call assigne_roughness(6)
