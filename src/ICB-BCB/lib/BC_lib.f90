@@ -52,13 +52,12 @@ module lib_bc
     if (.not.allocated(self%properties) )allocate(self%properties(1:self%nproperties))
     if (.not.allocated(self%IG_time_properties) )allocate(self%IG_time_properties(1:self%nproperties))
     if (.not.allocated(self%IG_time_BC) )allocate(self%IG_time_BC(1:self%nproperties))
-    self%properties = 0.d0
-    self%cp_nproperties = 0
 
     select case(phase%type)
     !% Ideal gas
     case('IG')
       self%species = phase%species
+      self%properties = 0.d0
       if (.not.allocated(self%species%massf)) allocate(self%species%massf(1:self%species%n))
       self%species%massf = 1d-20
 
