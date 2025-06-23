@@ -68,7 +68,8 @@ module ATLAS_IO
         do n = 1, nend(f)
           do m = 1, mend(f)
 
-            if (block(b)%face(f)%center(m,n)%bc%properties(3)==0.0) then
+            if (block(b)%face(f)%center(m,n)%bc%properties(3)==0.0 .and. &
+                block(b)%face(f)%center(m,n)%bc%definition==4) then
               print_def = 3
             else
               print_def = block(b)%face(f)%center(m,n)%bc%definition
