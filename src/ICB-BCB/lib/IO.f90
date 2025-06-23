@@ -29,6 +29,7 @@ module ATLAS_IO
     character(len=len(name))      :: name_
     integer                       :: p, b, f, m, n, mend(6), nend(6)
     integer                       :: Ai, Aj, Ak, ii, jj, kk
+    integer                       :: print_def
     logical                       :: match
 
     if (trim(name)=='') then
@@ -66,15 +67,21 @@ module ATLAS_IO
       do f = 1, block(b)%nfaces
         do n = 1, nend(f)
           do m = 1, mend(f)
+
+            if (block(b)%face(f)%center(m,n)%bc%properties(3)==0.0) then
+              print_def = 3
+            else
+              print_def = block(b)%face(f)%center(m,n)%bc%definition
+            endif
             
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
             if (meshtype==-2) then
-              write(unitfile,'(5I8)')block(b)%id,Ai,Aj,f,block(b)%face(f)%center(m,n)%bc%definition
+              write(unitfile,'(5I8)')block(b)%id,Ai,Aj,f,print_def
             else
-              write(unitfile,'(6I8)')block(b)%id,Ai,Aj,Ak,f,block(b)%face(f)%center(m,n)%bc%definition
+              write(unitfile,'(6I8)')block(b)%id,Ai,Aj,Ak,f,print_def
             endif
 
-            select case (block(b)%face(f)%center(m,n)%bc%definition)
+            select case (print_def)
 
               case(1,1000)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-1-nrans
