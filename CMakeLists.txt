@@ -1,6 +1,6 @@
 # CMake project file for ATLAS
 
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.23)
 
 # Force the compiler depending on the host name
 # cmake_host_system_information(RESULT host QUERY HOSTNAME)
@@ -68,8 +68,3 @@ set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 
 add_subdirectory(src/ICB-BCB/lib)
 add_subdirectory(src/ICB-BCB/app)
-
-# Add a distclean target to the Makefile
-ADD_CUSTOM_TARGET(distclean 
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_SOURCE_DIR}/distclean.cmake
-)
