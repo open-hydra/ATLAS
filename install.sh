@@ -1,44 +1,48 @@
-#!/bin/bash -
-#===============================================================================
-#
-#          FILE: intstall.sh
-#
-#         USAGE: run "./install.sh [options]" from ATLAS master directory
-#
-#   DESCRIPTION: A utility script that builds ATLAS project
-#===============================================================================
+#!/bin/bash
 
-# DEBUGGING
-set -e
-set -C # noclobber
+set -e  # Exit on any command failure
+set -u  # Treat unset variables as an error
 
-# INTERNAL VARIABLES AND INITIALIZATIONS
-readonly PROJECT="ATLAS"
+PROGRAM=$(basename "$0")
 readonly DIR=$(pwd)
-readonly PROGRAM=`basename "$0"`
+BUILD_DIR="$DIR/build"
+VERBOSE=false
 
-function usage () {
-    echo "Install script of $PROJECT"
-    echo "Usage:"
-    echo
-    echo "$PROGRAM --help|-?"
-    echo "    Print this usage output and exit"
-    echo
-    echo "$PROGRAM --build  |-b <master>"
-    echo "    Build the project and libraries via CMake (<master> = standalone,hydra)"
-    echo
-    echo "$PROGRAM --compile|-c <build> <program>"
-    echo "    Compile a program with a build type (<build> = RELEASE,DEBUG,TESTING)"
-    echo
-    echo "$PROGRAM --setvars|-s"
-    echo "    Set the project paths in the environment variables"
-    echo
-    echo "$PROGRAM --update |-u"
-    echo "    Download the latest version of each submodule"
-    echo
-    echo "$PROGRAM --load |-l"
-    echo "    Download the current version of each submodule"
-    echo
+function usage() {
+    cat <<EOF
+
+Install script for ATLAS
+
+Usage:
+  $PROGRAM [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
+
+Global Options:
+  -h       , --help         Show this help message and exit
+  -v       , --verbose      Enable verbose output
+
+Commands:
+  build                     Perform a full build
+    --compiler=<name>       Set compilers suit (intel,gnu)
+    --master=<name>         Set master (None, hydra)
+    --use-openmp            Use OpenMP
+    --use-tecio             Use TecIO
+
+  compile                   Compile the program using the CMakePresets file
+
+  update                    Download git submodules
+    --remote                Use the latest remote commit
+
+  setvars                   Set project paths in environment variables
+
+EOF
+    exit 1
+}
+
+
+function log() {
+    if [ "$VERBOSE" = true ]; then
+        echo "$1"
+    fi
 }
 
 
@@ -59,148 +63,187 @@ function define_path () {
   echo 'source '$DIR'/.setvars.sh' >> $RCFILE
 }
 
-function create_env () {
-  echo -e "\033[0;34mCreating Conda environment...\033[0m"
-  cd $DIR
-  #conda env remove --name ct-env --yes
-  conda env create -f ct-env.yaml
+
+# Create default CMakePresets.json if it doesn't exist
+function write_presets() {
+  FC=$(grep '^CMAKE_Fortran_COMPILER:FILEPATH=' "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-)
+  CXX=$(grep '^CMAKE_CXX_COMPILER:FILEPATH=' "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-)
+
+  cat <<EOF > CMakePresets.json
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "description": "Default preset",
+      "binaryDir": "\${sourceDir}/build",
+      "cacheVariables": {
+        "MASTER": "${MASTER_TYPE}",
+        "CMAKE_BUILD_TYPE": "${BUILD_TYPE}",
+        "CMAKE_Fortran_COMPILER": "${FC}",
+        "CMAKE_CXX_COMPILER": "${CXX}",
+        "USE_TECIO": "${USE_TECIO}",
+        "USE_OPENMP": "${USE_OPENMP}"
+      }
+    }
+  ]
+}
+EOF
+
 }
 
-function compile_fortran () {
-  echo -e "\033[0;34mBuilding Fortran sources via CMake...\033[0m"
-  mkdir -p $DIR/build
-  cd $DIR/build
-  cmake .. -DUSE_TECIO=OFF -DCMAKE_BUILD_TYPE=$TYPE -DMASTER=$Master
-  make $EXE
-}
 
-function build_project () {
+# Default global values
+COMMAND=""
+MASTER_TYPE=""
+COMPILERS=""
+USE_OPENMP="false"
+USE_TECIO="false"
+REMOTE="false"
+BUILD_TYPE="RELEASE"
 
-  rm -rf bin build
-  if [[ $BUILD == standalone ]]; then
-    echo 
-    echo -e "\033[0;32mStand-alone building \033[0m"
-    echo
-    git submodule update --init --recursive
-    Master=None
-  elif [[ $BUILD == "hydra" ]]; then 
-    echo
-    echo -e "\033[0;32mHydra-related building \033[0m"
-    echo
-    Master=hydra
-    git submodule update --init lib/NewCEA
-    git submodule update --init lib/PiNeR
-  fi
+# Define allowed options for each command using regular arrays
+CMD_OPTIONS_BUILD=("--master" "--compilers" "--use-openmp" "--use-tecio")
+CMD_OPTIONS_UPDATE=("--remote")
 
-  echo -e "\033[0;34mAdd NewCEA path ...\033[0m"
-  cd lib/NewCEA
-  ./install.sh -s
-  cd $DIR
+# Parse options with getopts
+while getopts "hv:-:" opt; do
+    case "$opt" in
+        -)
+            case "$OPTARG" in
+                verbose) VERBOSE=true ;;
+                help) usage ;;
+                *) echo "Error: Unknown global option '--$OPTARG'"; usage ;;
+            esac
+            ;;
+        h) usage ;;
+        v) VERBOSE=true ;;
+        *) echo "Error: Unknown global option '-$opt'"; usage ;;
+    esac
+done
+shift $((OPTIND -1))
 
-  compile_fortran
-
-  create_env
-
-  echo -e "\033[0;32mInstallation completed successfully.\033[0m"
-}
-
-EXE=F
-TYPE=F
-SETVARS=F
-UPDATE=F
-LOAD=F
-BUILD=F
-COMPILE=F
-
-# PROCESS COMMAND-LINE ARGUMENTS
-if [ $# -eq 0 ]; then
-  usage
-  exit 0
+# Ensure a command was provided
+if [[ $# -eq 0 ]]; then
+    echo "Error: No command provided!"
+    usage
 fi
 
-while test $# -gt 0; do
-  if [ x"$1" == x"--" ]; then
-    # detect argument termination
+COMMAND="$1"
+shift
+
+# Parse command-specific options
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --master=*)
+            [[ "$COMMAND" == "build" ]] || { echo "Error: --master is only valid for 'build' command"; exit 1; }
+            if [[ ! "$1" =~ ^--master=(None|hydra)$ ]]; then
+                echo "Error: Invalid value for --master. Valid values are 'None' or 'hydra'."
+                exit 1
+            fi
+            MASTER_TYPE="${1#*=}"
+            ;;
+        --compilers=*)
+            [[ "$COMMAND" == "build" ]] || { echo "Error: --compilers is only valid for 'build' command"; exit 1; }
+            if [[ ! "$1" =~ ^--compilers=(intel|gnu)$ ]]; then
+                echo "Error: Invalid value for --compilers. Valid values are 'intel' or 'gnu'."
+                exit 1
+            fi
+            COMPILERS="${1#*=}"
+            ;;       
+        --use-openmp)
+            [[ "$COMMAND" == "build" ]] || { echo "Error: --use-openmp is only valid for 'build' command"; exit 1; }
+            USE_OPENMP="true"
+            ;;
+        --use-tecio)
+            [[ "$COMMAND" == "build" ]] || { echo "Error: --use-tecio is only valid for 'build' command"; exit 1; }
+            USE_TECIO="true"
+            ;;
+        --remote)
+            [[ "$COMMAND" == "update" ]] || { echo "Error: --remote is only valid for 'update' command"; exit 1; }
+            REMOTE="true"
+            ;;
+        *)
+            echo "Error: Unknown option '$1' for command '$COMMAND'. Valid options: ${CMD_OPTIONS_$COMMAND[@]}"
+            exit 1
+            ;;
+    esac
     shift
-    break
-  fi
-  case $1 in
-
-    --build | -b )
-      shift
-      if (( $# > 0 )); then
-        BUILD=$1
-      else
-        BUILD=standalone
-      fi
-      TYPE=RELEASE
-      EXE=''
-      ;;
-
-    --compile | -c )
-      shift
-      if [ "$1" != "RELEASE" ] && [ "$1" != "DEBUG" ] && [ "$1" != "TESTING" ]; then
-        EXE="$1"
-      else
-        TYPE="$1"
-        EXE="$2"
-      fi
-      COMPILE=T
-      if [ -n "$HYDRADIR" ]; then
-        Master=hydra
-      else
-        Master=None
-      fi
-      ;;
-
-    --setvars | -s )
-      shift
-      SETVARS=T
-      ;;
-
-    --update | -u )
-      shift
-      UPDATE=T
-      ;;
-
-    --load | -l )
-      shift
-      LOAD=T
-      ;;
-
-    -? | --help )
-      usage
-      exit
-      ;;
-
-    -* )
-      echo "Unrecognized option: $1" >&2
-      usage
-      exit $E_BAD_OPTION
-      ;;
-
-    * )
-      break
-      ;;
-  esac
 done
 
-if [ "$SETVARS" != "F" ]; then
-  define_path
 
-elif [ "$UPDATE" != "F" ]; then
-  git submodule update --init --remote
-
-elif [ "$LOAD" != "F" ]; then
-  git submodule update --init
-
-elif [[ "$BUILD" != "F" ]]; then
-  define_path
-  build_project
-
-elif [[ "$COMPILE" != "F" ]]; then
-  compile_fortran
-
-else
-  usage
-fi
+# Execute the selected command
+case "$COMMAND" in
+    build)
+        if [[ -z "$MASTER_TYPE" ]]; then
+            echo "Error: --master is required for the 'build' command!"
+            exit 1
+        fi
+        log "Building project with master: $MASTER_TYPE"
+        log "Use OpenMP: $USE_OPENMP"
+        log "Use TecIO: $USE_TECIO"
+        rm -rf $BUILD_DIR
+        if [[ $MASTER_TYPE == "None" ]]; then
+          log "Stand-alone building"
+          git submodule update --init --recursive
+        elif [[ $MASTER_TYPE == "hydra" ]]; then
+          log "Hydra-related building"
+          git submodule update --init lib/NewCEA
+          git submodule update --init lib/PiNeR
+        fi
+        if [[ $COMPILERS == "intel" ]]; then 
+            log "Using Intel compilers"
+            export FC=ifx
+            export CC=icx
+            export CXX=icpx
+        elif [[ $COMPILERS == "gnu" ]]; then 
+            log "Using GNU compilers"
+            export FC=gfortran
+            export CC=gcc
+            export CXX=g++
+        fi
+        # Compile the project
+        cmake -B $BUILD_DIR -DMASTER=$MASTER_TYPE -DUSE_TECIO=$USE_TECIO -DUSE_OPENMP=$USE_OPENMP -DCMAKE_BUILD_TYPE=$BUILD_TYPE || exit 1
+        cmake --build $BUILD_DIR || exit 1
+        # Write CMakePresets.json
+        echo -e "\033[0;34mWrite CMakePresets.json ...\033[0m"
+        write_presets
+        # Define environment variables
+        echo -e "\033[0;34mDefine environment variables ...\033[0m"
+        cd lib/NewCEA
+        ./install.sh setvars
+        cd $DIR
+        define_path
+        # Create Conda environment
+        echo -e "\033[0;34mCreate Conda environment...\033[0m"
+        #conda env remove --name ct-env --yes
+        conda env create -f ct-env.yaml
+        echo -e "\033[0;32mInstallation completed successfully.\033[0m"
+        ;;
+    compile)
+        # Configure and build using the default preset
+        cmake --preset default || exit 1
+        cmake --build build || exit 1
+        ;;
+    update)
+        if [[ "$REMOTE" == "true" ]]; then
+            log "Updating submodules to latest remote commit"
+            git submodule update --init --remote
+        else
+            log "Updating submodules to current commit"
+            git submodule update --init
+        fi
+        ;;
+    setvars)
+        log "Setting project environment variables"
+        define_path
+        ;;
+    *)
+        echo "Error: Unknown command '$COMMAND'"
+        usage
+        ;;
+esac
