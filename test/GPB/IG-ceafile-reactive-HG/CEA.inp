@@ -1,0 +1,20 @@
+problem   case=RSRM
+      rocket  equilibrium  frozen  nfz=1  tcest,k=3800
+  p,bar=42.8854
+  sup,ae/at=7.72,
+react
+  fuel=AL(cr) wt=16  t,k=298.15
+  oxid=NH4CLO4(I) wt=70  t,k=298.15
+  fuel=PBAN  wt=14  t,k=298.15
+    h,j/mol=4118.791  C 1.00 H 1.430 O 0.036 N 0.032
+  only
+
+  AL        ALCL        ALCL2       ALCL3       ALO
+  ALOCL ALOH        CO      CO2     CL
+  CL        CL2     H       HCL     H2
+  H2O       NO      N2      O       OH
+  ALO2H AL2O3(L)
+
+output
+siunits massf transport
+end
