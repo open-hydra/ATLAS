@@ -5,13 +5,10 @@ test/*.txt
 # database
 database/Tec-eqn/*.eqn
 
-# lib exes
-*.exe
-
-# CMake building directory
+# Build
 build
-bin
-
-# Miscellanea
 .setvars.sh
-.DS_Store
+CMakePresets.json
+
+# Executables
+bin
