@@ -18,23 +18,23 @@ def compute_properties_from_database(name,temperatures):
 
         kT.close()
 
-        k = 0.0 * temperatures
-        cp = 0.0 * temperatures
+        k   = 0.0 * temperatures
+        cp  = 0.0 * temperatures
         rho = 0.0 * temperatures
-        e = 0.0 * temperatures
+        e   = 0.0 * temperatures
         for i in range(0, len(temperatures)):
 
             for j in range(0, len(T_dat)):
 
-                if temperatures[i] < T_dat[0]:
+                if temperatures[i] <= T_dat[0]:
                     k[i] = k_dat[0]
-                elif temperatures[i] > T_dat[-1]:
+                elif temperatures[i] >= T_dat[-1]:
                     k[i] = k_dat[-1]
                 elif temperatures[i] < T_dat[j]:
                     k[i] = k_dat[j-1]+(temperatures[i]-T_dat[j-1])/(T_dat[j]-T_dat[j-1])*(k_dat[j]-k_dat[j-1])
                     break
             
-            cp[i] = 300.0     # [J/kg*K]
+            cp[i]  = 300.0    # [J/kg*K]
             rho[i] = 1000.0   # [kg/m^3]
             
             if (i > 0):

@@ -35,7 +35,7 @@ contains
         if (verbose) write(*,*) 
       endif
       do b = 1, size(oldblock)
-        call oldblock(b)%compute_centers(0)
+        call oldblock(b)%compute_centers([0,0,0])
       end do
       if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
       call read_solfile('SP',oldsolutionfile,oldblock)
@@ -870,7 +870,7 @@ subroutine spherical_distance_interpolation
     write(*,*)
   endif
 
-  call block%compute_bounding(0)
+  call block%compute_bounding([0,0,0])
 
   do k = 1, block%dim(3)
     do j = 1, block%dim(2)

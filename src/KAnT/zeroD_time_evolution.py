@@ -51,7 +51,7 @@ def run_all(models, reactor_type, fuel_string, oxi_string, pressures, mixture_ra
                     rtol = 1.e-7
                     atol = 1.e-7
                     reactor_network.rtol, reactor_network.atol = rtol, atol
-                    reactor_network.max_time_step = 1e-5
+                    #reactor_network.max_time_step = 1e-5
 
                     time = 0.0
                     tout.append(time)
@@ -120,9 +120,10 @@ def run_all(models, reactor_type, fuel_string, oxi_string, pressures, mixture_ra
                     # print(dTdt)
                     # print('zzz')
 
+                    ns = 1000
 
-                    for _ in range(1000):
-                        time += 0.4/1000
+                    for _ in range(ns):
+                        time += 0.5/ns
                         reactor_network.advance(time)
 
                         tout.append(time)

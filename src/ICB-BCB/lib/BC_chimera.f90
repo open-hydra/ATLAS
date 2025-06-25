@@ -3,7 +3,7 @@ module chimera
   private
   public:: chimera_wrapper
 
-  real(8), parameter, public :: fs=1000000
+  real(8), parameter, public :: fs=1000
 
 contains
 
@@ -27,69 +27,67 @@ contains
     ! Loop over the receiver block cells
     do br = 1, size(block)
 
-      allocate(block(br)%face(1)%cell(1-gc:0,                        1-gc:block(br)%dim(2)+gc,          1-gc:block(br)%dim(3)+gc))
-      allocate(block(br)%face(2)%cell(block(br)%dim(1)+1:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,          1-gc:block(br)%dim(3)+gc))
-      allocate(block(br)%face(3)%cell(1-gc:block(br)%dim(1)+gc,          1-gc:0,                        1-gc:block(br)%dim(3)+gc))
-      allocate(block(br)%face(4)%cell(1-gc:block(br)%dim(1)+gc,          block(br)%dim(2)+1:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
-      allocate(block(br)%face(5)%cell(1-gc:block(br)%dim(1)+gc,          1-gc:block(br)%dim(2)+gc,          1-gc:0))
-      allocate(block(br)%face(6)%cell(1-gc:block(br)%dim(1)+gc,          1-gc:block(br)%dim(2)+gc,          block(br)%dim(3)+1:block(br)%dim(3)+gc))
+      allocate(block(br)%face(1)%cell(1-gc(1):0,                                 1-gc(2):block(br)%dim(2)+gc(2),            1-gc(3):block(br)%dim(3)+gc(3)))
+      allocate(block(br)%face(2)%cell(block(br)%dim(1)+1:block(br)%dim(1)+gc(1), 1-gc(2):block(br)%dim(2)+gc(2),            1-gc(3):block(br)%dim(3)+gc(3)))
+      allocate(block(br)%face(3)%cell(1-gc(1):block(br)%dim(1)+gc(1),            1-gc(2):0,                                 1-gc(3):block(br)%dim(3)+gc(3)))
+      allocate(block(br)%face(4)%cell(1-gc(1):block(br)%dim(1)+gc(1),            block(br)%dim(2)+1:block(br)%dim(2)+gc(2), 1-gc(3):block(br)%dim(3)+gc(3)))
+      allocate(block(br)%face(5)%cell(1-gc(1):block(br)%dim(1)+gc(1),            1-gc(2):block(br)%dim(2)+gc(2),            1-gc(3):0))
+      allocate(block(br)%face(6)%cell(1-gc(1):block(br)%dim(1)+gc(1),            1-gc(2):block(br)%dim(2)+gc(2),            block(br)%dim(3)+1:block(br)%dim(3)+gc(3)))
 
       ! Face 1
       if (allocated(nodeinside)) deallocate(nodeinside)
-      allocate(nodeinside(8,1-gc:0,1-gc:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
+      allocate(nodeinside(8,1-gc(1):0,1-gc(2):block(br)%dim(2)+gc(2),1-gc(3):block(br)%dim(3)+gc(3)))
       nodeinside = .false.
-      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = 1-gc, 0
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
+      do kr = 1-gc(3), block(br)%dim(3)+gc(3); do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = 1-gc(1), 0
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),1-gc(2),1-gc(3)])
         ni = ni+nint
       enddo; enddo; enddo
 
       ! Face 2
       if (allocated(nodeinside)) deallocate(nodeinside)
-      allocate(nodeinside(8,block(br)%dim(1)+1:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
+      allocate(nodeinside(8,block(br)%dim(1)+1:block(br)%dim(1)+gc(1),1-gc(2):block(br)%dim(2)+gc(2),1-gc(3):block(br)%dim(3)+gc(3)))
       nodeinside = .false.
-      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[block(br)%dim(1)+1,1-gc,1-gc])
+      do kr = 1-gc(3), block(br)%dim(3)+gc(3); do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc(1)
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[block(br)%dim(1)+1,1-gc(2),1-gc(3)])
         ni = ni+nint
       enddo; enddo; enddo
 
       ! Face 3
       if (allocated(nodeinside)) deallocate(nodeinside)
-      allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:0,1-gc:block(br)%dim(3)+gc))
+      allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),1-gc(2):0,1-gc(3):block(br)%dim(3)+gc(3)))
       nodeinside = .false.
-      do kr = 1, block(br)%dim(3); do jr = 1-gc, 0; do ir = 1, block(br)%dim(1)
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
+      do kr = 1-gc(3), block(br)%dim(3)+gc(3); do jr = 1-gc(2), 0; do ir = 1-gc(1), block(br)%dim(1)+gc(1)
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),1-gc(2),1-gc(3)])
         ni = ni+nint
       enddo; enddo; enddo
 
       ! Face 4
       if (allocated(nodeinside)) deallocate(nodeinside)
-      allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,block(br)%dim(2)+1:block(br)%dim(2)+gc,1-gc:block(br)%dim(3)+gc))
+      allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),block(br)%dim(2)+1:block(br)%dim(2)+gc(2),1-gc(3):block(br)%dim(3)+gc(3)))
       nodeinside = .false.
-      do kr = 1, block(br)%dim(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc; do ir = 1, block(br)%dim(1)
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,block(br)%dim(2)+1,1-gc])
+      do kr = 1-gc(3), block(br)%dim(3)+gc(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc(2); do ir = 1-gc(1), block(br)%dim(1)+gc(1)
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),block(br)%dim(2)+1,1-gc(3)])
         ni = ni+nint
       enddo; enddo; enddo
 
-      if (block(br)%dim(3) /= 1) then
-        ! Face 5
-        if (allocated(nodeinside)) deallocate(nodeinside)
-        allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,1-gc:0))
-        nodeinside = .false.
-        do kr = 1-gc, 0; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
-          call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,1-gc])
-          ni = ni+nint
-        enddo; enddo; enddo
+      ! Face 5
+      if (allocated(nodeinside)) deallocate(nodeinside)
+      allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),1-gc(2):block(br)%dim(2)+gc(2),1-gc(3):0))
+      nodeinside = .false.
+      do kr = 1-gc(3), 0; do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = 1-gc(1), block(br)%dim(1)+gc(1)
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),1-gc(2),1-gc(3)])
+        ni = ni+nint
+      enddo; enddo; enddo
 
-        ! Face 6
-        if (allocated(nodeinside)) deallocate(nodeinside)
-        allocate(nodeinside(8,1-gc:block(br)%dim(1)+gc,1-gc:block(br)%dim(2)+gc,block(br)%dim(3)+1:block(br)%dim(3)+gc))
-        nodeinside = .false.
-        do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
-          call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc,1-gc,block(br)%dim(3)+1])
-          ni = ni+nint
-        enddo; enddo; enddo
-      endif
-
+      !Face 6
+      if (allocated(nodeinside)) deallocate(nodeinside)
+      allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),1-gc(2):block(br)%dim(2)+gc(2),block(br)%dim(3)+1:block(br)%dim(3)+gc(3)))
+      nodeinside = .false.
+      do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc(3); do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = 1-gc(1), block(br)%dim(1)+gc(1)
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),1-gc(2),block(br)%dim(3)+1])
+        ni = ni+nint
+      enddo; enddo; enddo
+      
     enddo
 
     close(unitfile1); close(unitfile2)
@@ -100,27 +98,27 @@ contains
     !% Check volume division for receivers
     do br = 1, size(block)
       ! Face 1
-      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = 1-gc, 0
+      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = 1-gc(1), 0
         call VolumeFractions(block,br,1,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
       ! Face 2
-      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc
+      do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc(1)
         call VolumeFractions(block,br,2,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
       ! Face 3
-      do kr = 1, block(br)%dim(3); do jr = 1-gc, 0; do ir = 1, block(br)%dim(1)
+      do kr = 1, block(br)%dim(3); do jr = 1-gc(2), 0; do ir = 1, block(br)%dim(1)
         call VolumeFractions(block,br,3,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
       ! Face 4
-      do kr = 1, block(br)%dim(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc; do ir = 1, block(br)%dim(1)
+      do kr = 1, block(br)%dim(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc(2); do ir = 1, block(br)%dim(1)
         call VolumeFractions(block,br,4,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
       ! Face 5
-      do kr = 1-gc, 0; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
+      do kr = 1-gc(3), 0; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
         call VolumeFractions(block,br,5,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
       ! Face 6
-      do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
+      do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc(3); do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
         call VolumeFractions(block,br,6,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
     enddo
@@ -129,7 +127,6 @@ contains
 
   subroutine LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,startingIndexes)
     use atlas_high_level, only: atlas_block
-    use tom, only: gc
     use intersection_module
     use ir_precision
     implicit none

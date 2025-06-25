@@ -11,7 +11,7 @@ cmake_minimum_required(VERSION 3.13)
 #   set(CMAKE_Fortran_COMPILER "gfortran")
 # endif()
 
-project (ATLAS LANGUAGES Fortran)
+project (ATLAS LANGUAGES Fortran CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE FALSE)
 

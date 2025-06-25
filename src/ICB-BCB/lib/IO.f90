@@ -1,5 +1,7 @@
 module ATLAS_IO
   use Lib_ORION_data
+  use IR_Precision
+
   implicit none
   private
   public:: write_idealgas_bc_file
@@ -9,22 +11,25 @@ module ATLAS_IO
   public:: read_mesh
   public:: read_idealgas_properties, read_cdp_properties
   public:: read_phase
+  public:: coarse_mesh, check_multigrid
 
   integer:: i,j,k,s
   integer:: unitfile
 
   contains
   
-  subroutine write_idealgas_bc_file(name,block)
+  subroutine write_idealgas_bc_file(name,block,level)
     use variables
     use ATLAS_high_level, only: ATLAS_block
-    use TOM, only: fmn2ijk
+    use TOM, only: fmn2ijk, meshtype
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
+    integer, intent(in)           :: level
     character(len=len(name))      :: name_
     integer                       :: p, b, f, m, n, mend(6), nend(6)
     integer                       :: Ai, Aj, Ak, ii, jj, kk
+    integer                       :: print_def
     logical                       :: match
 
     if (trim(name)=='') then
@@ -41,7 +46,11 @@ module ATLAS_IO
     enddo
 
     if (match) then
-      open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+      if (level == 1) then
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+      else
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc'//trim(str(.true.,level))//'.txt',action='write')
+      endif
     else
       return
     endif
@@ -55,14 +64,25 @@ module ATLAS_IO
       mend(1:2) = block(b)%dim(2); nend(1:2) = block(b)%dim(3)
       mend(3:4) = block(b)%dim(1); nend(3:4) = block(b)%dim(3)
       mend(5:6) = block(b)%dim(1); nend(5:6) = block(b)%dim(2)
-      do f = 1, 6
+      do f = 1, block(b)%nfaces
         do n = 1, nend(f)
           do m = 1, mend(f)
+
+            if (block(b)%face(f)%center(m,n)%bc%properties(3)==0.0 .and. &
+                block(b)%face(f)%center(m,n)%bc%definition==4) then
+              print_def = 3
+            else
+              print_def = block(b)%face(f)%center(m,n)%bc%definition
+            endif
             
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
-            write(unitfile,'(6I8)')block(b)%id,Ai,Aj,Ak,f,block(b)%face(f)%center(m,n)%bc%definition
+            if (meshtype==-2) then
+              write(unitfile,'(5I8)')block(b)%id,Ai,Aj,f,print_def
+            else
+              write(unitfile,'(6I8)')block(b)%id,Ai,Aj,Ak,f,print_def
+            endif
 
-            select case (block(b)%face(f)%center(m,n)%bc%definition)
+            select case (print_def)
 
               case(1,1000)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-1-nrans
@@ -89,7 +109,8 @@ module ATLAS_IO
                 write(unitfile,'(A)') ''
               
               case(5,6,9,10,13)
-                write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(1)
+                write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(1)
+                write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(2) ! roughness
               
               case(7)
                 write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(1)
@@ -104,7 +125,7 @@ module ATLAS_IO
                 do i = 1, 5
                   write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
                 enddo
-                write(unitfile,'(A)') ''
+                write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(6) ! roughness
               
               case(666)
                 
@@ -474,22 +495,36 @@ module ATLAS_IO
         orion%tec%node = .false.
         orion%tec%bc = .false.
         orion%tec%format = 'ascii'
-        error = tec_read_structured_multiblock(orion=orion,filename=path)
-      else
+        error = tec_read_structured_multiblock(orion=orion,filename=trim(path))
+      elseif (index(path,'.szplt')>0) then
+        orion%tec%node = .false.
+        orion%tec%bc = .false.
+        orion%tec%format = 'binary'
+        error = tec_read_structured_multiblock(orion=orion,filename=trim(path))
+      elseif (index(path,'.p3d')>0) then
         error = p3d_read_multiblock(orion=orion,filename=path)
+      else
+        write(*,*) 'ERROR: mesh file is not readable'
+        stop
       endif
     else
       orion%tec%node = .false.
       orion%tec%bc = .false.
       orion%tec%format = 'ascii'
       error = tec_read_structured_multiblock(orion=orion,filename='mesh.tec')
-      if (error==0) return
-      error = tec_read_structured_multiblock(orion=orion,filename='mesh.p3d')
+      if (error==0) return   
+      error = p3d_read_multiblock(orion=orion,filename='mesh.p3d')
       if (error/=0) then
+      orion%tec%format = 'binary'
+      error = tec_read_structured_multiblock(orion=orion,filename='mesh.szplt')
+      if (error==0) return   
         write(*,*) 'ERROR: mesh file is not readable'
         stop
       endif
     endif
+
+    if (error/=0) &
+      stop ("ERROR: mesh reading failed")
 
   end subroutine read_mesh
 
@@ -680,14 +715,21 @@ module ATLAS_IO
     type(Orion_Data) :: IOfield
     integer:: error, b
 
-    IOfield%tec%format = 'ascii'
-    error = tec_read_structured_multiblock(orion=IOfield,filename=trim(filename))
+    if (index(filename,'.tec')>0) then
+      IOfield%tec%format = 'ascii'
+      error = tec_read_structured_multiblock(orion=IOfield,filename=trim(filename))
+    elseif (index(filename,'.szplt')>0) then
+      IOfield%tec%format = 'binary'
+      error = tec_read_structured_multiblock(orion=IOfield,filename=trim(filename))
+    endif
+
+    print*, size(IOfield%block(1)%vars,1)
 
     call import_nodes(input=IOfield,output=icblock)
 
     if (phase_type=='IG') then
       do b = 1, size(icblock)
-        call icblock(b)%compute_centers(0)
+        call icblock(b)%compute_centers([0,0,0])
         call icblock(b)%allocate(nrans,n,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
         if (size(IOfield%block(b)%vars)>0) then
           do s = 1, n
@@ -703,7 +745,7 @@ module ATLAS_IO
     
     elseif (phase_type=='SP') then
       do b = 1, size(icblock)
-        call icblock(b)%compute_centers(0)
+        call icblock(b)%compute_centers([0,0,0])
         call icblock(b)%allocate(1,1,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
         if (size(IOfield%block(b)%vars)>0) then
           icblock(b)%temperature(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(1,:,:,:)
@@ -716,10 +758,6 @@ module ATLAS_IO
   end subroutine read_vtk_tec
 
 
-  !> \brief Write the initial conditions to VTK or Tecplot format.
-  !! \param[in] phase Array of phase types.
-  !! \param[in] ICformat String specifying the format ('vtk' or 'tec').
-  !! \param[in] block Array of ATLAS_block containing the simulation data.
   subroutine write_vtk_tec(phase,ICformat,block)
     use IR_Precision
     use Lib_VTK
@@ -728,6 +766,7 @@ module ATLAS_IO
     use ATLAS_high_level
     use phase_module, only: phase_type
     use material_module, only: obj_material
+    use TOM, only: meshtype
     implicit none
     type(phase_type), intent(in)       :: phase(:)
     character(len=*), intent(in)       :: ICformat
@@ -737,7 +776,7 @@ module ATLAS_IO
     character(len=llen)                :: localpath_vtk, localpath
     integer(I4P)                       :: E_IO, b, s, nb, cnt, nsc, p, ap
     integer(I4P)                       :: m, g, nnn
-    character(len=llen)                :: varnames
+    character(len=llen)                :: varnames, filename
     character(len=llen)                :: name_
     logical                            :: thereis
 
@@ -805,10 +844,17 @@ module ATLAS_IO
         orion%block(cnt)%Ni = block(b)%dim(1)
         orion%block(cnt)%Nj = block(b)%dim(2)
         orion%block(cnt)%Nk = block(b)%dim(3)
-        allocate(orion%block(cnt)%mesh(1:3,0:block(b)%dim(1),0:block(b)%dim(2),0:block(b)%dim(3)))
-        do k = 0, block(b)%dim(3); do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
-          orion%block(cnt)%mesh(:,i,j,k) = block(b)%node(i,j,k)%c(1:3)
-        enddo; enddo; enddo
+        if (meshtype==-2) then
+          allocate(orion%block(cnt)%mesh(1:2,0:block(b)%dim(1),0:block(b)%dim(2),0:0))
+          do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
+            orion%block(cnt)%mesh(1:2,i,j,0) = block(b)%node(i,j,k)%c(1:2)
+          enddo; enddo
+        else
+          allocate(orion%block(cnt)%mesh(1:3,0:block(b)%dim(1),0:block(b)%dim(2),0:block(b)%dim(3)))
+          do k = 0, block(b)%dim(3); do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
+            orion%block(cnt)%mesh(:,i,j,k) = block(b)%node(i,j,k)%c(1:3)
+          enddo; enddo; enddo
+        endif
         select case(phase(p)%type)
         case('IG')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-IG'
@@ -860,10 +906,15 @@ module ATLAS_IO
                                                vtmpath=trim(localpath)//'/'//trim(name_)//'ic',varnames=varnames)
       else
         write(*,*)' - Writing tec-fomat file'
-        orion%tec%format = 'ascii'
+        if (index(ICformat,'binary')>0) then
+          orion%tec%format = 'binary'
+          filename = trim(localpath)//'/'//trim(name_)//'ic.szplt'
+        else
+          orion%tec%format = 'ascii'
+          filename = trim(localpath)//'/'//trim(name_)//'ic.tec'
+        endif
         orion%tec%node = .false.
-        E_IO = tec_write_structured_multiblock(orion=orion,varnames=varnames, &
-                                               filename=trim(localpath)//'/'//trim(name_)//'ic.tec')
+        E_IO = tec_write_structured_multiblock(orion=orion,varnames=varnames, filename=trim(filename))
       endif
     
     write(*,*)
@@ -1050,5 +1101,81 @@ module ATLAS_IO
 
       close(u)
   end subroutine get_file_list
+
+
+  subroutine coarse_mesh ( fine, coarse )
+    use Lib_ORION_data
+
+    implicit none
+    type(ORION_data), intent(in)    :: fine
+    type(ORION_data), intent(inout) :: coarse
+    ! Local
+    integer :: b, nb, Ni, Nj, Nk, i, j, k, i2, j2, k2
+
+
+    nb = size( fine % block )
+    if ( allocated ( coarse % block )) deallocate (coarse % block)
+    allocate ( coarse % block( nb ) )
+    
+    do b = 1, nb
+      Ni = fine % block(b)%Ni /2
+      Nj = fine % block(b)%Nj /2
+      Nk = fine % block(b)%Nk /2
+      Nk = Max ( 1, Nk ) ! 2D case
+      coarse % block(b) % Ni = Ni
+      coarse % block(b) % Nj = Nj
+      coarse % block(b) % Nk = Nk
+      if ( allocated ( coarse % block(b) % mesh )) deallocate (coarse % block(b) % mesh)
+      allocate( coarse%block(b)%mesh(1:3,0:Ni,0:Nj,0:Nk) )
+
+      do k = 0, fine % block(b)%Nk, 2-Mod(fine % block(b)%Nk,2)
+      do j = 0, fine % block(b)%Nj, 2
+      do i = 0, fine % block(b)%Ni, 2
+          
+          i2 = i / 2
+          j2 = j / 2
+          k2 = k / 2
+    
+          if ( fine % block(b)%Nk == 1 ) then ! 2D
+            k2 = k
+          end if
+    
+          coarse%block(b)%mesh(1:3,i2,j2,k2) = fine%block(b)%mesh(1:3,i,j,k)
+        
+        enddo; enddo; enddo
+
+    enddo
+
+  end subroutine coarse_mesh
+
+
+  subroutine check_multigrid ( orion, MGL )
+    use Lib_ORION_data
+
+    implicit none
+    type(ORION_data), intent(in)    :: orion
+    integer, intent(in)             :: MGL
+    ! Local
+    integer :: b, rap, check
+
+
+    rap = 2**(MGL-1)
+
+    do b = 1, size( orion % block )
+
+      check = 0
+
+      if ( Mod ( orion % block(b) % Ni, rap ) == 0 ) check = check + 1
+      if ( Mod ( orion % block(b) % Nj, rap ) == 0 ) check = check + 1
+      if ( Mod ( orion % block(b) % Nk, rap ) == 0 .or. orion % block(b) % Nk == 1 ) check = check + 1
+
+      if ( check < 3 ) then
+        write(*,*) ' Error in check_multigrid, block: ', b
+        stop
+      endif
+
+    enddo
+
+  end subroutine check_multigrid
 
 end module ATLAS_IO

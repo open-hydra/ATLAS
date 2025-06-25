@@ -92,7 +92,7 @@ if [[ $1 == CEA ]]; then
   mv CEAfile.plt $2.plt 2>/dev/null
 else
   for program in $@; do
-    if [[ $program == 'GPB' || $program == 'KAnT' || $program == 'YTF' ]]; then
+    if [[ $program == 'GPB' || $program == 'KAnT' || $program == 'YTF' || $program == 'equilibrate' ]]; then
       source $RCFILE > /dev/null 2>&1
       conda activate ct-env
       python3 -B $ATLASDIR/src/$program/$program.py $P

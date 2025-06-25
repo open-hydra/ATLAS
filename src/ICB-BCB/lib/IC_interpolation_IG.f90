@@ -46,7 +46,7 @@ contains
         if (verbose) write(*,*) 
       endif
       do b = 1, size(oldblock)
-        call oldblock(b)%compute_centers(0)
+        call oldblock(b)%compute_centers([0,0,0])
         call oldblock(b)%allocate(nrans,oldspecies%n,oldblock(b)%dim(1),oldblock(b)%dim(2),oldblock(b)%dim(3))
       end do
       if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
@@ -1063,7 +1063,7 @@ subroutine spherical_distance_interpolation
     write(*,*)
   endif
 
-  call block%compute_bounding(0)
+  call block%compute_bounding([0,0,0])
 
   do k = 1, block%dim(3)
     do j = 1, block%dim(2)

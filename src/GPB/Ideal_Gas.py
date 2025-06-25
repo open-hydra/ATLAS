@@ -169,8 +169,7 @@ def build(inifile,section):
     if cantera_equilibrium:
         print(' -- Found Cantera equilibrium')
         # Perform equilibrium calculation
-        local_model = update_thermo_model('FFCM2.yaml',thermo_model)
-        eq_mix, eq_gas = cte_reactants.build_cantera_mixture(model=local_model)
+        eq_mix, eq_gas = cte_reactants.build_cantera_mixture(species="FFCM2.yaml",model=thermo_model)
         eq_mix.equilibrate('HP', solver='gibbs', rtol=1e-6, max_steps=1000)
         # Extract species objects (not just names) with non-zero mole fractions
         eq_species = [eq_gas.species(i) for i in range(eq_gas.n_species) if eq_gas[i].X > 1e-5]
@@ -250,7 +249,7 @@ def build(inifile,section):
         if manual_inert_species != []:
             manual_inert_phase = ct.Solution(thermo='ideal-gas',species=manual_inert_species)
             manual_inert_phase.name = 'Manual-inert-species'
-            # manual_inert_phase.transport_model = 'mixture-averaged'
+            manual_inert_phase.transport_model = 'mixture-averaged'
             species_group.append(manual_inert_phase)
     # ---------------------------------------------------
 

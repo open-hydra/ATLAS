@@ -9,11 +9,12 @@ module ATLAS_IO_INI
 
 contains
 
-  subroutine build_INI(prog,nb,inisource,ICformat,chimeraon,force_connect)
+  subroutine build_INI(prog,nb,inisource,ICformat,MG_levels,chimeraon,force_connect)
     implicit none
     character(len=3), intent(in)              :: prog
     integer, intent(in)                       :: nb
     type(file_ini), intent(out)               :: inisource
+    integer, intent(inout), optional          :: MG_levels
     character(len=*), intent(inout), optional :: ICformat
     logical, intent(inout), optional          :: chimeraon, force_connect
     character(len=30)                         :: inifile
@@ -26,6 +27,11 @@ contains
 
     call fini%get(section_name='ATLAS-General', option_name='BCB-file', val=inifile, error=error)
     if (error/=0) inifile = 'input.ini'
+
+    if (present(MG_levels)) then
+      call fini%get(section_name='ATLAS-General', option_name='MG-levels', val=MG_levels, error=error)
+      if (error/=0) MG_levels = 1
+    endif
 
     if (present(ICformat)) then
       call fini%get(section_name='ATLAS-General', option_name='IC-format', val=ICformat, error=error)
@@ -121,7 +127,6 @@ contains
     if (nrans==1) write(*,*)' One-equation turbulent model properties found'
     if (nrans==2) write(*,*)' Two-equation turbulent model properties found'
     if (nrans==7) write(*,*)' Full Reynolds Stress Model properties found'
-    write(*,*)
 
   end subroutine scan_turbo_input
 

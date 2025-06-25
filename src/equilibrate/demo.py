@@ -16,7 +16,7 @@ def test_without_mixture_ratio():
     store.add_reactant(r1)
     store.add_reactant(r2)
 
-    gas = store.build_cantera_solution(model="FFCM2.yaml")
+    gas = store.build_cantera_solution(species="FFCM2.yaml",model='own')
     gas.equilibrate('HP', solver='vcs', rtol=1e-6, max_steps=1000)
 
     print(f"Mixture composition (mass):")
@@ -44,7 +44,7 @@ def test_with_mixture_ratio():
     store.add_reactant(r1)
     store.add_reactant(r2)
 
-    mix, gas = store.build_cantera_mixture(model="FFCM2.yaml")
+    mix, gas = store.build_cantera_mixture(species="FFCM2.yaml",model='own')
     mix.equilibrate('HP', solver='gibbs', rtol=1e-6, max_steps=1000)
 
     print(f"Mixture composition (mass):")

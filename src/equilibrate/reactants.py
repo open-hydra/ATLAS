@@ -36,6 +36,7 @@ class Reactant:
 
 class ReactantStore:
     def __init__(self, pressure=ct.one_atm, mixture_ratio=None):
+        self.index = None  # Placeholder for the index
         self.pressure = pressure
         self.mixture_ratio = mixture_ratio  # O/F ratio
         self.reactants = []
@@ -45,42 +46,39 @@ class ReactantStore:
         self.reactants.append(reactant)
 
 
-    def build_cantera_solution(self, model='nasa9.yaml'):
+    def build_cantera_solution(self, species, model='NASA9'):
         """
         Returns a Cantera Solution set to the specified state.
         """
+        from phase_tools import update_thermo_model
 
-        species_list = ct.Species.list_from_file(model)
+        newmodel = update_thermo_model(species,model)
+        species_list = newmodel.species()
 
         composition = {}
         for r in self.reactants:
-            if r.name in composition:
-                composition[r.name] += r.wt
-            else:
-                composition[r.name] = r.wt
+            composition[r.name] = r.wt
 
         # Normalize for safety
         total = sum(composition.values())
         for k in composition:
             composition[k] /= total
 
-        avg_temp = sum(r.T * r.wt for r in self.reactants)
+        avg_temp = sum(r.T*r.wt/total for r in self.reactants)
         solution = ct.Solution(thermo="ideal-gas", species=species_list)
         solution.TPY = avg_temp, self.pressure, composition
 
         return solution
     
 
-    def build_cantera_mixture(self, model='nasa9.yaml'):
+    def build_cantera_mixture(self, species, model='NASA9'):
         """
         Build separate fuel and oxidizer streams and mixes them.
         """
-        
-        # Check if the model file is passed. If not, extract the species from the already loaded model
-        try:
-            species_list = ct.Species.list_from_file(model)
-        except:
-            species_list = model.species()
+        from phase_tools import update_thermo_model
+
+        newmodel = update_thermo_model(species,model)
+        species_list = newmodel.species()
 
         fuel_composition = {}
         oxidizer_composition = {}

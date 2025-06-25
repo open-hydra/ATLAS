@@ -1,5 +1,9 @@
 # test
+fromATLAStoSolver
 test/*.txt
+
+# database
+database/Tec-eqn/*.eqn
 
 # lib exes
 *.exe

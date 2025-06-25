@@ -54,9 +54,9 @@ function define_path () {
     RCFILE=$HOME/.bashrc
   fi
   echo 'export -f ATLAS' >> .setvars.sh
+  #echo 'export PATH="$ATLASDIR/database/:$PATH"' >> .setvars.sh
   grep -v "ATLAS" $RCFILE > tmpfile && mv tmpfile $RCFILE
   echo 'source '$DIR'/.setvars.sh' >> $RCFILE
-  #source $RCFILE --force
 }
 
 function create_env () {
