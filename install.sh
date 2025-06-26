@@ -26,6 +26,7 @@ Commands:
     --master=<name>         Set master (None, hydra)
     --use-openmp            Use OpenMP
     --use-tecio             Use TecIO
+    --no-conda              Do not create Conda environment
 
   compile                   Compile the program using the CMakePresets file
 
@@ -39,10 +40,21 @@ EOF
 }
 
 
-function log() {
+log() {
     if [ "$VERBOSE" = true ]; then
-        echo "$1"
+      # Bold and dim gray (ANSI escape: bold + color 90)
+      echo -e "\033[1;90m$1\033[0m"
     fi
+}
+
+error() {
+    # Bold red + [ERROR] tag, output to stderr
+    echo -e "\033[1;31m[ERROR] $1\033[0m" >&2
+}
+
+task() {
+    # Bold yellow + ==> tag, output to stdout
+    echo -e "\033[1;38;5;186m==> $1\033[0m"
 }
 
 
@@ -57,6 +69,7 @@ function define_path () {
     echo 'function ATLAS () { '$DIR'/ATLAS.sh $@; }' >> .setvars.sh
     RCFILE=$HOME/.bashrc
   fi
+  log "RC file: $RCFILE"
   echo 'export -f ATLAS' >> .setvars.sh
   #echo 'export PATH="$ATLASDIR/database/:$PATH"' >> .setvars.sh
   grep -v "ATLAS" $RCFILE > tmpfile && mv tmpfile $RCFILE
@@ -93,7 +106,7 @@ function write_presets() {
   ]
 }
 EOF
-
+  log "CMakePresets.json created with default settings."
 }
 
 
@@ -103,12 +116,14 @@ MASTER_TYPE=""
 COMPILERS=""
 USE_OPENMP="false"
 USE_TECIO="false"
+NO_CONDA="false"
 REMOTE="false"
 BUILD_TYPE="RELEASE"
 
 # Define allowed options for each command using regular arrays
-CMD_OPTIONS_BUILD=("--master" "--compilers" "--use-openmp" "--use-tecio")
-CMD_OPTIONS_UPDATE=("--remote")
+CMD=("build" "compile" "update" "setvars")
+CMD_OPTIONS_build=("--master" "--compilers" "--use-openmp" "--use-tecio" "--no-conda")
+CMD_OPTIONS_update=("--remote")
 
 # Parse options with getopts
 while getopts "hv:-:" opt; do
@@ -117,58 +132,68 @@ while getopts "hv:-:" opt; do
             case "$OPTARG" in
                 verbose) VERBOSE=true ;;
                 help) usage ;;
-                *) echo "Error: Unknown global option '--$OPTARG'"; usage ;;
+                *) error "Unknown global option '--$OPTARG'"; usage ;;
             esac
             ;;
         h) usage ;;
         v) VERBOSE=true ;;
-        *) echo "Error: Unknown global option '-$opt'"; usage ;;
+        *) error "Unknown global option '-$opt'"; usage ;;
     esac
 done
 shift $((OPTIND -1))
 
 # Ensure a command was provided
 if [[ $# -eq 0 ]]; then
-    echo "Error: No command provided!"
-    usage
+  error "No command provided!"
+  usage
 fi
 
 COMMAND="$1"
+# Check if the command is valid
+if [[ ! " ${CMD[@]} " =~ " ${COMMAND} " ]]; then
+  error "Unknown command '$COMMAND'"
+  usage
+fi
 shift
 
 # Parse command-specific options
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --master=*)
-            [[ "$COMMAND" == "build" ]] || { echo "Error: --master is only valid for 'build' command"; exit 1; }
+            [[ "$COMMAND" == "build" ]] || { error " --master is only valid for 'build' command"; exit 1; }
             if [[ ! "$1" =~ ^--master=(None|hydra)$ ]]; then
-                echo "Error: Invalid value for --master. Valid values are 'None' or 'hydra'."
+                error "Invalid value for --master. Valid values are 'None' or 'hydra'."
                 exit 1
             fi
             MASTER_TYPE="${1#*=}"
             ;;
         --compilers=*)
-            [[ "$COMMAND" == "build" ]] || { echo "Error: --compilers is only valid for 'build' command"; exit 1; }
+            [[ "$COMMAND" == "build" ]] || { error " --compilers is only valid for 'build' command"; exit 1; }
             if [[ ! "$1" =~ ^--compilers=(intel|gnu)$ ]]; then
-                echo "Error: Invalid value for --compilers. Valid values are 'intel' or 'gnu'."
+                error "Invalid value for --compilers. Valid values are 'intel' or 'gnu'."
                 exit 1
             fi
             COMPILERS="${1#*=}"
             ;;       
         --use-openmp)
-            [[ "$COMMAND" == "build" ]] || { echo "Error: --use-openmp is only valid for 'build' command"; exit 1; }
+            [[ "$COMMAND" == "build" ]] || { error " --use-openmp is only valid for 'build' command"; exit 1; }
             USE_OPENMP="true"
             ;;
         --use-tecio)
-            [[ "$COMMAND" == "build" ]] || { echo "Error: --use-tecio is only valid for 'build' command"; exit 1; }
+            [[ "$COMMAND" == "build" ]] || { error " --use-tecio is only valid for 'build' command"; exit 1; }
             USE_TECIO="true"
             ;;
+        --no-conda)
+            [[ "$COMMAND" == "build" ]] || { error " --no-conda is only valid for 'build' command"; exit 1; }
+            NO_CONDA="true"
+            ;;
         --remote)
-            [[ "$COMMAND" == "update" ]] || { echo "Error: --remote is only valid for 'update' command"; exit 1; }
+            [[ "$COMMAND" == "update" ]] || { error " --remote is only valid for 'update' command"; exit 1; }
             REMOTE="true"
             ;;
         *)
-            echo "Error: Unknown option '$1' for command '$COMMAND'. Valid options: ${CMD_OPTIONS_$COMMAND[@]}"
+            eval "opts=(\"\${CMD_OPTIONS_${COMMAND}[@]}\")"
+            error "Unknown option '$1' for command '$COMMAND'. Valid options: ${opts[@]}"
             exit 1
             ;;
     esac
@@ -179,14 +204,16 @@ done
 # Execute the selected command
 case "$COMMAND" in
     build)
+        task "Building project"
         if [[ -z "$MASTER_TYPE" ]]; then
-            echo "Error: --master is required for the 'build' command!"
-            exit 1
+          error " --master is required for the 'build' command!"
+          exit 1
         fi
-        log "Building project with master: $MASTER_TYPE"
+        log "Master: $MASTER_TYPE"
         log "Use OpenMP: $USE_OPENMP"
         log "Use TecIO: $USE_TECIO"
-        rm -rf $BUILD_DIR
+        
+        task "Cloning submodules"
         if [[ $MASTER_TYPE == "None" ]]; then
           log "Stand-alone building"
           git submodule update --init --recursive
@@ -195,55 +222,62 @@ case "$COMMAND" in
           git submodule update --init lib/NewCEA
           git submodule update --init lib/PiNeR
         fi
+
+        task "Configuring and building project"
         if [[ $COMPILERS == "intel" ]]; then 
-            log "Using Intel compilers"
-            export FC=ifx
-            export CC=icx
-            export CXX=icpx
+          log "Using Intel compilers"
+          export FC="ifx"
+          export CXX="icpx"
         elif [[ $COMPILERS == "gnu" ]]; then 
-            log "Using GNU compilers"
-            export FC=gfortran
-            export CC=gcc
-            export CXX=g++
+          log "Using GNU compilers"
+          export FC="gfortran"
+          export CXX="g++"
         fi
-        # Compile the project
+        rm -rf $BUILD_DIR
         cmake -B $BUILD_DIR -DMASTER=$MASTER_TYPE -DUSE_TECIO=$USE_TECIO -DUSE_OPENMP=$USE_OPENMP -DCMAKE_BUILD_TYPE=$BUILD_TYPE || exit 1
         cmake --build $BUILD_DIR || exit 1
-        # Write CMakePresets.json
-        echo -e "\033[0;34mWrite CMakePresets.json ...\033[0m"
+
+        task "Write CMakePresets.json"
         write_presets
-        # Define environment variables
-        echo -e "\033[0;34mDefine environment variables ...\033[0m"
+
+        task "Defining environment variables"
         cd lib/NewCEA
         ./install.sh setvars
         cd $DIR
         define_path
-        # Create Conda environment
-        echo -e "\033[0;34mCreate Conda environment...\033[0m"
-        #conda env remove --name ct-env --yes
-        conda env create -f ct-env.yaml
-        echo -e "\033[0;32mInstallation completed successfully.\033[0m"
+
+        if [[ "$NO_CONDA" == "false" ]]; then
+          task "Create Conda environment"
+          if ! command -v conda &> /dev/null; then
+            error "Conda is not installed or not in your PATH. Please install Conda before proceeding."
+            exit 1
+          fi
+          #conda env remove --name ct-env --yes
+          conda env create -f ct-env.yaml
+        fi
+
         ;;
     compile)
-        # Configure and build using the default preset
+        task "Compiling project using CMakePresets"
         cmake --preset default || exit 1
-        cmake --build build || exit 1
+        cmake --build $BUILD_DIR || exit 1
         ;;
     update)
+        task "Updating git submodules"
         if [[ "$REMOTE" == "true" ]]; then
-            log "Updating submodules to latest remote commit"
-            git submodule update --init --remote
+          log "Updating submodules to latest remote commit"
+          git submodule update --init --remote
         else
-            log "Updating submodules to current commit"
-            git submodule update --init
+          log "Updating submodules to current commit"
+          git submodule update --init
         fi
         ;;
     setvars)
-        log "Setting project environment variables"
+        task "Setting project environment variables"
         define_path
         ;;
     *)
-        echo "Error: Unknown command '$COMMAND'"
+        error "Unknown command '$COMMAND'"
         usage
         ;;
 esac
