@@ -1,4 +1,4 @@
-description: |2+
+description: |2-
 
               SIX-CHARACTER REFERENCE-DATE CODES                               
 
@@ -37,8 +37,6 @@ description: |2+
 
          3)  Gaseous/condensed reactants only (starts with "Air")              
 
-
-...
 
 generator: ck2yaml
 input-files: [thermo.inp]
@@ -21323,7 +21321,6 @@ species:
       8.790988614e-7, -3.694354025e-10, -4.303500394e+4, 0.000000000]
     note: Mehta 1995, Magee 2007, Outcalt 2009, Akhmedova 2009, Abdulagatov 2011 [gll/00]
 
-species:
 - name: H2O2(L)-95
   composition: {H: 2.00, O: 1.9096}
   thermo:
