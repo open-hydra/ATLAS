@@ -7,10 +7,10 @@ sections = ['KAnT-Simulation0D', 'KAnT-Simulation1D']
 
 @dataclass
 class Out:
-    eq: bool
-    id: bool
-    te: bool
-    type: str
+    eq: bool  # Do equilibrium
+    id: bool  # Do ignition delay
+    te: bool  # Do time evolution
+    type: str # Type of reactor (HP, LP, etc.)
 
 
 #
@@ -59,7 +59,7 @@ def read_0D(ini_file, section) -> tuple[Out, tuple[list[str], list[str], np.ndar
         fuel_specs = [fuel_entry]
         oxi_specs = [oxi_entry]
         fuel_specs.insert(0, str(T))
-        oxi_specs.insert(0, str(T))  # or whatever is appropriate
+        oxi_specs.insert(0, str(T))
         return Opt, (case, fuel_specs, oxi_specs, pressure, of, T)
 
     # OF
@@ -109,6 +109,20 @@ def read_0D(ini_file, section) -> tuple[Out, tuple[list[str], list[str], np.ndar
     oxi_specs = [str(To), oxi_entry]
 
     return Opt, (case, fuel_specs, oxi_specs, pressure, of, T)
+
+def read_0D_te(ini_file, section):
+  """
+  Read the 0D time evolution parameters from the ini file.
+  """
+  # Number of steps
+  nstep = get(ini_file, section, 'nstep', int)
+  if nstep is None: nstep = 1000
+
+  # Width
+  tend = get(ini_file, section, 'tend', float)
+  if tend is None: tend = 1.0
+
+  return tend, nstep
 
 
 def read_1D(ini_file, section):

@@ -12,7 +12,7 @@ ct.add_directory(datapath+'Chemistry')
 
 #################################################################################
 
-def run_all(models, reactor_type, fuel_string, oxi_string, pressures, mixture_ratio, temperatures):
+def run_all(models, reactor_type, fuel_string, oxi_string, pressures, mixture_ratio, temperatures, tend, nstep):
 
     fuel_composition = re.findall(r'{(.*?):(.*?)}', fuel_string[1])
     fuel_dict = {species: float(value) for species, value in fuel_composition}
@@ -58,90 +58,13 @@ def run_all(models, reactor_type, fuel_string, oxi_string, pressures, mixture_ra
                     Tout[model].append(r.thermo.T)
                     pout[model].append(r.thermo.P)
 
-                    # rho = gas.density                       # [kg/m³]
-                    # cv = gas.cv_mass                       # [J/(kg·K)]
-                    # h_k = gas.partial_molar_enthalpies             # [J/kmol]
-                    # omega_dot = gas.net_production_rates  # [kmol/m³/s]
-                    # W_k = gas.molecular_weights            # [kg/kmol]
-
-                    # # Compute dT/dt
-                    # dTdt = -np.dot(h_k, omega_dot) / (rho * cv)
-
-                    # species_index = 8
-                    # species_name = gas.species_name(species_index)
-
-                    # print(f"Computing production rate for species {species_name} (index {species_index})")
-
-                    # # Get all rates 
-                    # Rf = gas.forward_rates_of_progress        # [kmol/m³/s]
-                    # Rr = gas.reverse_rates_of_progress        # [kmol/m³/s]
-                    # Rnet = gas.net_rates_of_progress          # [kmol/m³/s]
-                    # kf = gas.forward_rate_constants           # [varies]
-                    # Kc = gas.equilibrium_constants            # [varies]
-                    # kb = kf / Kc                              # [same units as kf]
-
-                    # conc = gas.concentrations                # [kmol/m³]
-
-                    # # Loop over all reactions
-                    # omega = 0.0
-                    # for i, rxn in enumerate(gas.reactions()):
-                    #     nu_p = rxn.products.get(species_name, 0.0)
-                    #     nu_r = rxn.reactants.get(species_name, 0.0)
-                    #     nu_ki = nu_p - nu_r
-
-                    #     if nu_ki != 0:
-                    #         print(f"\nReaction {i}: {rxn.equation}")
-                    #         print(f"  ν_ki = {nu_ki:+.1f}")
-                    #         print(f"  Forward rate: Rf = {Rf[i]:.3e} kmol/m³/s")
-                    #         print(f"  Reverse rate: Rr = {Rr[i]:.3e} kmol/m³/s")
-                    #         print(f"  Net rate:     Rnet = {Rnet[i]:.3e} kmol/m³/s")
-                    #         print(f"  kf = {kf[i]:.3e},  kb = {kb[i]:.3e}")
-
-                    #         print(f"  Reactant concentrations:")
-                    #         for sp, coeff in rxn.reactants.items():
-                    #             print(f"    {sp}: {conc[gas.species_index(sp)]:.3e} kmol/m³")
-
-                    #         print(f"  Product concentrations:")
-                    #         for sp, coeff in rxn.products.items():
-                    #             print(f"    {sp}: {conc[gas.species_index(sp)]:.3e} kmol/m³")
-
-                    #         contrib = nu_ki * Rnet[i]
-                    #         print(f"  Contribution to ω̇_{species_index}: {contrib:.3e} kmol/m³/s")
-
-                    # print(f"\nTotal net production rate ω̇_{species_index} = {omega:.3e} kmol/m³/s")
-
-                    # # Optional: compare with Cantera's built-in value
-                    # omega_dot = gas.net_production_rates[species_index]
-                    # print(f"Check: Cantera ω̇_{species_index} = {omega_dot:.3e} kmol/m³/s")
-
-                    # print(reactor.thermo.T,'ccc')
-                    # print(cv)
-                    # print(omega_dot*gas.molecular_weights)
-                    # print(dTdt)
-                    # print('zzz')
-
-                    ns = 1000
-
-                    for _ in range(ns):
-                        time += 0.5/ns
+                    for _ in range(nstep):
+                        time += tend/nstep
                         reactor_network.advance(time)
 
                         tout.append(time)
                         Tout[model].append(r.thermo.T)
                         pout[model].append(r.thermo.P)
-
-                        # rho = gas.density                       # [kg/m³]
-                        # cv = gas.cv_mass                       # [J/(kg·K)]
-                        # h_k = gas.partial_molar_enthalpies             # [J/kmol]
-                        # omega_dot = gas.net_production_rates  # [kmol/m³/s]
-                        # W_k = gas.molecular_weights            # [kg/kmol]
-
-                        # # Compute dT/dt
-                        # dTdt = -np.dot(h_k, omega_dot) / (rho * cv)
-
-                        # print(cv)
-                        # print(omega_dot)
-                        # print(dTdt)
 
     tout = np.array(tout)
 

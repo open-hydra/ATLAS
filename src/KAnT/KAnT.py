@@ -81,7 +81,8 @@ for analysis in analyses:
         if zeroDopt.te:
             print( ' - Time-accurate evolution @',zeroDopt.type )
             print()
-            time, pout, Tout = zeroD_time_evolution.run_all(models,zeroDopt.type,fuel,oxi,pressure,of,T)
+            tend, nstep = read_0D_te(inifile,analysis)
+            time, pout, Tout = zeroD_time_evolution.run_all(models,zeroDopt.type,fuel,oxi,pressure,of,T,tend,nstep)
 
             # Write output
             write_1D(models, time, Tout, 'Time, s', 'Temperature, K')
