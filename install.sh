@@ -22,7 +22,7 @@ Global Options:
 
 Commands:
   build                     Perform a full build
-    --compiler=<name>       Set compilers suit (intel,gnu)
+    --compilers=<name>      Set compilers suit (intel,gnu)
     --master=<name>         Set master (None, hydra)
     --use-openmp            Use OpenMP
     --use-tecio             Use TecIO
