@@ -7,6 +7,7 @@ PROGRAM=$(basename "$0")
 readonly DIR=$(pwd)
 BUILD_DIR="$DIR/build"
 VERBOSE=false
+project=ATLAS
 
 function usage() {
     cat <<EOF
@@ -33,7 +34,7 @@ Commands:
   update                    Download git submodules
     --remote                Use the latest remote commit
 
-  setvars                   Set project paths in environment variables
+  setvars                   Set $project paths in environment variables
 
 EOF
     exit 1
@@ -74,6 +75,7 @@ function define_path () {
   #echo 'export PATH="$ATLASDIR/database/:$PATH"' >> .setvars.sh
   grep -v "ATLAS" $RCFILE > tmpfile && mv tmpfile $RCFILE
   echo 'source '$DIR'/.setvars.sh' >> $RCFILE
+  source $RCFILE --force
 }
 
 
@@ -122,11 +124,11 @@ BUILD_TYPE="RELEASE"
 
 # Define allowed options for each command using regular arrays
 CMD=("build" "compile" "update" "setvars")
-CMD_OPTIONS_build=("--master" "--compilers" "--use-openmp" "--use-tecio" "--no-conda")
+CMD_OPTIONS_build=("--master --compilers --use-openmp --use-tecio --no-conda")
 CMD_OPTIONS_update=("--remote")
 
-# Parse options with getopts
-while getopts "hv:-:" opt; do
+# Parse global options
+while getopts "hv-:" opt; do
     case "$opt" in
         -)
             case "$OPTARG" in
@@ -137,7 +139,7 @@ while getopts "hv:-:" opt; do
             ;;
         h) usage ;;
         v) VERBOSE=true ;;
-        *) error "Unknown global option '-$opt'"; usage ;;
+        ?) error "Unknown global option '-$OPTARG'"; usage ;;
     esac
 done
 shift $((OPTIND -1))
@@ -204,14 +206,11 @@ done
 # Execute the selected command
 case "$COMMAND" in
     build)
-        task "Building project"
+        task "Building $project"
         if [[ -z "$MASTER_TYPE" ]]; then
           error " --master is required for the 'build' command!"
           exit 1
         fi
-        log "Master: $MASTER_TYPE"
-        log "Use OpenMP: $USE_OPENMP"
-        log "Use TecIO: $USE_TECIO"
         
         task "Cloning submodules"
         if [[ $MASTER_TYPE == "None" ]]; then
@@ -223,7 +222,7 @@ case "$COMMAND" in
           git submodule update --init lib/PiNeR
         fi
 
-        task "Configuring and building project"
+        task "Configuring and building $project"
         if [[ $COMPILERS == "intel" ]]; then 
           log "Using Intel compilers"
           export FC="ifx"
@@ -233,18 +232,32 @@ case "$COMMAND" in
           export FC="gfortran"
           export CXX="g++"
         fi
+        log "Master: $MASTER_TYPE"
+        log "Build dir: $BUILD_DIR"
+        log "Build type: $BUILD_TYPE"
+        log "Use TecIO: $USE_TECIO"
+        log "Use OpenMP: $USE_OPENMP"
+        if [[ -z "${FC+x}" || -z "${CXX+x}" ]]; then
+          log "Compilers not set. CMake will decide."
+        else
+          log "Compilers: FC=$FC, CXX=$CXX"
+        fi
         rm -rf $BUILD_DIR
         cmake -B $BUILD_DIR -DMASTER=$MASTER_TYPE -DUSE_TECIO=$USE_TECIO -DUSE_OPENMP=$USE_OPENMP -DCMAKE_BUILD_TYPE=$BUILD_TYPE || exit 1
         cmake --build $BUILD_DIR || exit 1
+        log "[OK] Compilation successful"
 
         task "Write CMakePresets.json"
         write_presets
+        log "[OK] CMakePresets.json created"
 
         task "Defining environment variables"
         cd lib/NewCEA
         ./install.sh setvars
+        log "[OK] NewCEA environment variables defined"
         cd $DIR
         define_path
+        log "[OK] ATLAS environment variables defined"
 
         if [[ "$NO_CONDA" == "false" ]]; then
           task "Create Conda environment"
@@ -254,13 +267,15 @@ case "$COMMAND" in
           fi
           #conda env remove --name ct-env --yes
           conda env create -f ct-env.yaml
+          log "[OK] Conda environment created"
         fi
 
         ;;
     compile)
-        task "Compiling project using CMakePresets"
+        task "Compiling $project using CMakePresets"
         cmake --preset default || exit 1
         cmake --build $BUILD_DIR || exit 1
+        log "[OK] Compilation successful"
         ;;
     update)
         task "Updating git submodules"
@@ -271,10 +286,12 @@ case "$COMMAND" in
           log "Updating submodules to current commit"
           git submodule update --init
         fi
+        log "[OK] Submodules updated"
         ;;
     setvars)
-        task "Setting project environment variables"
+        task "Setting $project environment variables"
         define_path
+        log "[OK] Environment variables defined"
         ;;
     *)
         error "Unknown command '$COMMAND'"
