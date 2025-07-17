@@ -805,7 +805,11 @@ module ATLAS_IO
           do s = 1, nsc
             varnames = trim(varnames)//' "rho'//trim(str(.true.,s))//'"'
           enddo
-          varnames = trim(varnames)//' "u" "v" "w" "p"'
+          if (meshtype == -2) then
+            varnames = trim(varnames)//' "u" "v" "p"'
+          else
+            varnames = trim(varnames)//' "u" "v" "w" "p"'
+          endif
           if (nrans==1) then
             varnames = trim(varnames)//' "mi_t"'
           elseif (nrans==2) then
@@ -858,12 +862,22 @@ module ATLAS_IO
         select case(phase(p)%type)
         case('IG')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-IG'
-          allocate(orion%block(cnt)%vars(1:nsc+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
-          orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%density
-          orion%block(cnt)%vars(nsc+1:nsc+3,:,:,:) = block(b)%velocity
-          orion%block(cnt)%vars(nsc+4,:,:,:) = block(b)%pressure
-          if (nrans>0) then
-            orion%block(cnt)%vars(nsc+5:nsc+4+nrans,:,:,:) = block(b)%turbprop
+          if (meshtype == -2) then
+            allocate(orion%block(cnt)%vars(1:nsc+3+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+            orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%density
+            orion%block(cnt)%vars(nsc+1:nsc+2,:,:,:) = block(b)%velocity(1:2,:,:,:)
+            orion%block(cnt)%vars(nsc+3,:,:,:) = block(b)%pressure
+            if (nrans>0) then
+              orion%block(cnt)%vars(nsc+4:nsc+3+nrans,:,:,:) = block(b)%turbprop
+            endif
+          else
+            allocate(orion%block(cnt)%vars(1:nsc+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+            orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%density
+            orion%block(cnt)%vars(nsc+1:nsc+3,:,:,:) = block(b)%velocity
+            orion%block(cnt)%vars(nsc+4,:,:,:) = block(b)%pressure
+            if (nrans>0) then
+              orion%block(cnt)%vars(nsc+5:nsc+4+nrans,:,:,:) = block(b)%turbprop
+            endif
           endif
         case('CD')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-CD'
