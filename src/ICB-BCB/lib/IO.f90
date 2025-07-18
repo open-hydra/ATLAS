@@ -85,9 +85,15 @@ module ATLAS_IO
             select case (print_def)
 
               case(1,1000)
-                do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-1-nrans
-                  write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
-                enddo
+                if (meshType == -2) then
+                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-1-nrans-1
+                    write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
+                  enddo
+                else
+                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-1-nrans
+                    write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
+                  enddo
+                endif
                 do i = 1, size(block(b)%face(f)%center(m,n)%bc%connection)
                   write(unitfile,'(I8)',advance='no') block(b)%face(f)%center(m,n)%bc%connection(i)
                 enddo

@@ -1,5 +1,5 @@
 module BC_connection
-  use TOM, only: fmn2ijk
+  use TOM, only: fmn2ijk, meshType
   use ATLAS_high_level
   implicit none
   private
@@ -283,7 +283,13 @@ contains
     allocate(x(1:nbound)); allocate(y(1:nbound)); allocate(z(1:nbound))
     allocate(b(1:nbound)); allocate(f(1:nbound)); allocate(m(1:nbound))
     allocate(n(1:nbound)); allocate(def(1:nbound)); allocate(adj(1:nbound))
-    allocate(prop(1:nbound,1:5))
+
+    if (meshType == -2) then
+      allocate(prop(1:nbound,1:4))
+    else
+      allocate(prop(1:nbound,1:5))
+    endif
+
     i = 0
     do b1 = 1, nb
       do f1 = 1, block(b1)%nfaces
@@ -334,19 +340,35 @@ contains
               endif
             enddo
           enddo
-          adj(i) = .true.
-          prop(i,1) = b2
-          prop(i,2) = i2
-          prop(i,3) = j2
-          prop(i,4) = k2
-          prop(i,5) = f2
+
+          if (meshType == -2) then
+            adj(i) = .true.
+            prop(i,1) = b2
+            prop(i,2) = i2
+            prop(i,3) = j2
+            prop(i,4) = f2
+                      
+            adj(j) = .true.
+            prop(j,1) = b1
+            prop(j,2) = i1
+            prop(j,3) = j1
+            prop(j,4) = f1
+
+          else
+            adj(i) = .true.
+            prop(i,1) = b2
+            prop(i,2) = i2
+            prop(i,3) = j2
+            prop(i,4) = k2
+            prop(i,5) = f2
                     
-          adj(j) = .true.
-          prop(j,1) = b1
-          prop(j,2) = i1
-          prop(j,3) = j1
-          prop(j,4) = k1
-          prop(j,5) = f1
+            adj(j) = .true.
+            prop(j,1) = b1
+            prop(j,2) = i1
+            prop(j,3) = j1
+            prop(j,4) = k1
+            prop(j,5) = f1
+          endif
                       
           exit
         endif
@@ -365,12 +387,22 @@ contains
               this%bc%definition = def(i)
               this%bc%adj_assigned = adj(i)
               this%bc%properties = real(prop(i,:))
-              if (product(prop(i,1:5))==0) then
-                write(*,*) " Find connect"
-                write(*,*) " Connection not found"
-                write(*,*) " b,f,m,n"
-                write(*,*) b1, f1, m1, n1
-                stop
+              if (meshType == -2) then
+                if (product(prop(i,1:4))==0) then
+                  write(*,*) " Find connect"
+                  write(*,*) " Connection not found"
+                  write(*,*) " b,f,m,n"
+                  write(*,*) b1, f1, m1, n1
+                  stop
+                endif
+              else
+                if (product(prop(i,1:5))==0) then
+                  write(*,*) " Find connect"
+                  write(*,*) " Connection not found"
+                  write(*,*) " b,f,m,n"
+                  write(*,*) b1, f1, m1, n1
+                  stop
+                endif
               endif
               endassociate
             endif
@@ -458,11 +490,19 @@ contains
 
             ! legge  dati della faccia a cui e' connessa la faccia di contorno
 
-            ib2 = nint(this%bc%properties(1))
-            i2 = nint(this%bc%properties(2))-1
-            j2 = nint(this%bc%properties(3))-1
-            k2 = nint(this%bc%properties(4))-1
-            if2 = nint(this%bc%properties(5))
+            if (meshType == -2) then
+              ib2 = nint(this%bc%properties(1))
+              i2 = nint(this%bc%properties(2))-1
+              j2 = nint(this%bc%properties(3))-1
+              k2 = 0
+              if2 = nint(this%bc%properties(4))
+            else
+              ib2 = nint(this%bc%properties(1))
+              i2 = nint(this%bc%properties(2))-1
+              j2 = nint(this%bc%properties(3))-1
+              k2 = nint(this%bc%properties(4))-1
+              if2 = nint(this%bc%properties(5))
+            endif
 
             x11 = block(ib2)%node(i2+di11(if2),j2+dj11(if2),k2+dk11(if2))%c(1)
             y11 = block(ib2)%node(i2+di11(if2),j2+dj11(if2),k2+dk11(if2))%c(2)
