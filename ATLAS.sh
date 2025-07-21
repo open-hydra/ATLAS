@@ -93,16 +93,11 @@ if [[ $1 == CEA ]]; then
 else
   for program in $@; do
     if [[ $program == 'GPB' || $program == 'KAnT' || $program == 'YTF' || $program == 'equilibrate' ]]; then
-      # Try to find the path to the conda executable
-      CONDA_EXE=$(command -v conda)
-      if [ -z "$CONDA_EXE" ]; then
-          echo "conda not found in PATH"
-          exit 1
+      if [ -n "$ZSH_VERSION" ]; then
+          eval "$(conda shell.zsh hook)"
+      elif [ -n "$BASH_VERSION" ]; then
+          eval "$(conda shell.bash hook)"
       fi
-      # Derive the base path of the conda installation
-      CONDA_BASE=$(dirname "$(dirname "$CONDA_EXE")")
-      # Source the conda.sh script
-      source "$CONDA_BASE/etc/profile.d/conda.sh"
       conda activate ct-env
       python3 -B $ATLASDIR/src/$program/$program.py $P
       conda deactivate
