@@ -355,22 +355,22 @@ reactions:
   rate-constant: {A: 2.510e+13, b: 0.00, Ea: -4540.0}
   efficiencies: {H2: 2.5, H2O: 12.0, CO: 1.9, CO2: 3.8}
 
-- equation: HCl + H <=> H2 + Cl
+- equation: HCL + H <=> H2 + CL
   rate-constant: {A: 2.300e+13, b: 0.00, Ea: 3500.0}
 
-- equation: Cl2 + H <=> HCl + Cl
+- equation: CL2 + H <=> HCL + CL
   rate-constant: {A: 8.590e+13, b: 0.00, Ea: 11700.0}
 
-- equation: HCl + OH <=> H2O + Cl
+- equation: HCL + OH <=> H2O + CL
   rate-constant: {A: 2.450e+12, b: 0.00, Ea: 11000.0}
 
-- equation: HCl + O <=> OH + Cl
+- equation: HCL + O <=> OH + CL
   rate-constant: {A: 5.240e+12, b: 0.00, Ea: 6400.0}
 
-- equation: Cl + Cl + M <=> Cl2 + M
+- equation: CL + CL + M <=> CL2 + M
   type: three-body
   rate-constant: {A: 2.340e+14, b: 0.00, Ea: -1800.0}
 
-- equation: H + Cl + M <=> HCl + M
+- equation: H + CL + M <=> HCL + M
   type: three-body
   rate-constant: {A: 7.200e+21, b: -2.00, Ea: 0.0}

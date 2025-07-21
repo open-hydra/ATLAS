@@ -13,7 +13,7 @@ phases:
   elements: [H, O, C]
   species: [H2, O2, H, H2O, OH, CH4, CH3, CH2O, CO, O, CO2]
   kinetics: gas
-  reactions: all
+  transport: mixture-averaged
   state:
     T: 1.0e-03
     P: 4.124237409798235e-03

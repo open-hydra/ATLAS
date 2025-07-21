@@ -373,78 +373,110 @@ species:
     diameter: 3.59
 
 reactions:
-  - equation: "Cl2 + H <=> HCl + Cl"
+  - equation: "CL2 + H <=> HCL + CL"
     rate-constant: {A: 8.40e+13, b: 0.0, Ea: 1150.46}
+
   - equation: "H2 + OH <=> H2O + H"
     rate-constant: {A: 2.16e+08, b: 1.51, Ea: 3428.70}
+
   - equation: "C2H2 + OH <=> CH3 + CO"
     rate-constant: {A: 4.84e-04, b: 4.0, Ea: -211.46}
-  - equation: "CH4 + Cl <=> CH3 + HCl"
+
+  - equation: "CH4 + CL <=> CH3 + HCL"
     rate-constant: {A: 2.50e+13, b: 0.0, Ea: 3828.70}
+
   - equation: "CH4 + H <=> CH3 + H2"
     rate-constant: {A: 6.60e+08, b: 1.62, Ea: 10836.86}
+
   - equation: "CH4 + OH <=> CH3 + H2O"
     rate-constant: {A: 1.00e+08, b: 1.6, Ea: 3117.18}
+
   - equation: "CH3 + H + M <=> CH4 + M"
     rate-constant: {A: 1.27e+16, b: -0.63, Ea: 382.87}
     efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 6.0}
+
   - equation: "HCO + M <=> CO + H + M"
     rate-constant: {A: 1.87e+17, b: -1.0, Ea: -16994.99}
     efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 0.0}
+
   - equation: "CO + OH <=> CO2 + H"
     rate-constant: {A: 4.76e+07, b: 1.23, Ea: 69.99}
-  - equation: "CO + ClO <=> CO2 + Cl"
+  
+  - equation: "CO + CLO <=> CO2 + CL"
     rate-constant: {A: 3.00e+12, b: 0.0, Ea: 999.91}
+  
   - equation: "C2H2 + O <=> CH2 + CO"
     rate-constant: {A: 1.02e+07, b: 2.0, Ea: 1899.96}
+  
   - equation: "CH2 + H2 <=> CH3 + H"
     rate-constant: {A: 5.00e+05, b: 2.0, Ea: 7225.51}
+  
   - equation: "CH2 + H + M <=> CH3 + M"
     rate-constant: {A: 2.50e+16, b: -0.8, Ea: 0.0}
     efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 6.0}
+  
   - equation: "CH4 + O <=> CH3 + OH"
     rate-constant: {A: 1.02e+09, b: 1.5, Ea: 599.92}
+  
   - equation: "CH3 + O <=> CH2O + H"
     rate-constant: {A: 8.43e+13, b: 0.0, Ea: 0.0}
+  
   - equation: "CH2 + O <=> H + HCO"
     rate-constant: {A: 8.00e+13, b: 0.0, Ea: 0.0}
+  
   - equation: "OH + CH3 <=> CH2 + H2O"
     rate-constant: {A: 5.60e+07, b: 1.6, Ea: 5419.63}
+  
   - equation: "OH + CH2 <=> H + CH2O"
     rate-constant: {A: 2.00e+13, b: 0.0, Ea: 0.0}
-  - equation: "H + Cl + M <=> HCl + M"
+  
+  - equation: "H + CL + M <=> HCL + M"
     rate-constant: {A: 5.30e+21, b: -2.0, Ea: -19986.72}
     efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0}
-  - equation: "Cl + Cl + M <=> Cl2 + M"
+  
+  - equation: "CL + CL + M <=> CL2 + M"
     rate-constant: {A: 3.34e+14, b: 0.0, Ea: -1799.80}
     efficiencies: {"CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0}
-  - equation: "Cl + CH2O <=> HCO + HCl"
+  
+  - equation: "CL + CH2O <=> HCO + HCL"
     rate-constant: {A: 5.00e+13, b: 0.0, Ea: 500.00}
-  - equation: "ClO + CH3 <=> CH2O + H + Cl"
+  
+  - equation: "CLO + CH3 <=> CH2O + H + CL"
     rate-constant: {A: 3.33e+11, b: 0.46, Ea: 30.01}
-  - equation: "ClO + CH3 <=> CH2O + HCl"
+  
+  - equation: "CLO + CH3 <=> CH2O + HCL"
     rate-constant: {A: 3.47e+18, b: -1.8, Ea: 2069.09}
-  - equation: "H + HCl <=> Cl + H2"
+  
+  - equation: "H + HCL <=> CL + H2"
     rate-constant: {A: 7.94e+12, b: 0.0, Ea: 3400.97}
-  - equation: "HCl + O <=> Cl + OH"
+  
+  - equation: "HCL + O <=> CL + OH"
     rate-constant: {A: 2.30e+11, b: 0.64, Ea: 899.62}
+  
   - equation: "2 H + M <=> H2 + M"
     duplicate: true
     rate-constant: {A: 1.00e+18, b: -1.0, Ea: 0.0}
     efficiencies: {"CH4": 2.0}
+  
   - equation: "2 H + H2 <=> 2 H2"
     duplicate: true
     rate-constant: {A: 9.00e+16, b: -0.6, Ea: 0.0}
+  
   - equation: "2 H + H2O <=> H2 + H2O"
     duplicate: true
     rate-constant: {A: 6.00e+19, b: -1.25, Ea: 0.0}
+  
   - equation: "H + HCO <=> H2 + CO"
     rate-constant: {A: 7.34e+13, b: 0.0, Ea: 0.0}
+  
   - equation: "OH + OH <=> H2O + O"
     rate-constant: {A: 6.00e+08, b: 1.3, Ea: 0.0}
+  
   - equation: "CH2 + CH4 <=> 2 CH3"
     rate-constant: {A: 2.46e+16, b: 2.0, Ea: 8270.80}
+  
   - equation: "CH3 + HCO <=> CH4 + CO"
     rate-constant: {A: 2.65e+13, b: 0.0, Ea: 0.0}
+  
   - equation: "CH3 + CH2O <=> HCO + CH4"
     rate-constant: {A: 3.32e+03, b: 2.81, Ea: 5854.19}
