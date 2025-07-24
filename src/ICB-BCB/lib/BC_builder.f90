@@ -105,8 +105,9 @@ module build_BC_mod
                                                               val=block%face(ff)%bc%name, error=error)
 
         if (error/=0) then
-          if (ff<=4) then
-            error stop ( 'Missing face entries' )
+          if (ff<=2) then
+            write(*,*)'[ERROR] Missing face entry for face ', ff, ' in block ', b
+            stop
           else
             if (delthe==0.d0) then
               block%face(ff)%bc%name = 'null'
@@ -134,7 +135,10 @@ module build_BC_mod
           call faceini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
           if (index(option_pairs(1),'patch')>0) multipatch=.true.
         enddo
-        if (error/=0 .and. .not.multipatch) error stop ( 'Missing type entry' )
+        if (error/=0 .and. .not.multipatch) then
+          write(*,*)'[ERROR] Missing type entry for face ', ff, ' in block ', b
+          stop
+        endif
 
         ! BC building depending on specific case
         if (multipatch) then

@@ -518,7 +518,7 @@ contains
     elseif (size(mesh,1)==2) then
       ! 2D
       meshType = -2
-    elseif (size(mesh,3)==2 .and. size(mesh,4)==4) then
+    elseif (size(mesh,3)==2 .and. size(mesh,4)==2) then
       ! 1D
       meshType = 1
     else

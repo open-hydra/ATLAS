@@ -955,7 +955,10 @@ module ATLAS_IO
     type(orion_data) :: orion
 
     open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
-    if (ios/=0) return!error stop ("Error reading phase file")
+    if (ios/=0) then
+      write(*,*) '[WARNING] phase file '//trim(prefix)//'phase.txt'//' not found'
+      return
+    endif
     ios = 0; n = -1
     read(unitfile,*)!skip first line
     do while(ios==0)
@@ -976,7 +979,10 @@ module ATLAS_IO
     close(unitFile)
 
     ios = tec_read_points_multivars(orion,4,trim(prefix)//'thermo.dat')
-    if (ios/=0) return!error stop ("Error reading ideal-gas thermo file")
+    if (ios/=0) then
+      write(*,*) '[WARNING] thermo file, '//trim(prefix)//'thermo.dat'//' not found'
+      return
+    endif
     Ti1 = nint(orion%block(1)%mesh(1,1,1,1))
     Ti2 = Ti1 + orion%block(1)%Ni - 1
     allocate(sp%cp(1:sp%n,Ti1:Ti2))

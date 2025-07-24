@@ -154,7 +154,9 @@ contains
     class(ATLAS_block), intent(inout) :: self
     integer :: m, n
 
-    if (meshType==-2) then
+    if (meshType==1) then
+      self%nfaces = 2
+    elseif (meshType==-2) then
       self%nfaces = 4
     else
       self%nfaces = 6
