@@ -2,6 +2,8 @@ import os
 import cantera as ct
 import matplotlib.pyplot as plt
 import random, sys
+from adjustText import adjust_text
+
 masterpath = os.environ.get("ATLASDIR")
 if masterpath is None:
     print("ATLAS environment variable is not set.")
@@ -12,7 +14,7 @@ ct.add_directory(datapath+'Chemistry')
 folder_path = datapath+'Chemistry'
 
 # Mechanisms to exclude
-exclude_mechs = ['JLR-frassoldati-ct.yaml', 'JLR-nasuti-ct.yaml', 'glorian.yaml']
+exclude_mechs = ['JLR-frassoldati-ct.yaml', 'JLR-nasuti-ct.yaml']
 
 # Initialize lists to store data
 species_counts = []
@@ -48,18 +50,22 @@ for file_name in os.listdir(folder_path):
             print(f"Error loading {file_name}: {e}")
 
 # Plotting
-plt.figure(figsize=(10, 7))
 
 # Generate random symbols and colors for each mechanism
 markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h', 'H', 'x', '+']
 colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 
+plt.figure(figsize=(10, 7))
+texts = []
+
 for i in range(len(mechanism_names)):
     marker = random.choice(markers)
     color = random.choice(colors)
     
-    plt.scatter(species_counts[i], reaction_counts[i], marker=marker, color=color, label=mechanism_names[i])
-    plt.text(species_counts[i] + 0.5, reaction_counts[i], mechanism_names[i], fontsize=10)
+    plt.scatter(species_counts[i], reaction_counts[i], marker=marker, color=color)
+    
+    # Store text objects for later adjustment
+    texts.append(plt.text(species_counts[i], reaction_counts[i], mechanism_names[i], fontsize=10))
 
 # Labels and title
 plt.xlabel('Number of Species')
@@ -69,8 +75,9 @@ plt.grid(True)
 plt.xscale('log')
 plt.yscale('log')
 
-# Save the figure
-plt.savefig('resume.png', dpi=300, bbox_inches='tight')
+# Automatically adjust text to avoid overlaps
+adjust_text(texts, arrowprops=dict(arrowstyle='-', color='gray'))
 
-# Display the plot
+# Save and show
+plt.savefig('resume.png', dpi=300, bbox_inches='tight')
 plt.show()

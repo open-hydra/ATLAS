@@ -17,7 +17,7 @@ date: Mon, 24 Mar 2025 12:24:32 +0100
 units: {length: cm, time: s, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: gas
+- name: Ciottoli20
   thermo: ideal-gas
   elements: [H, C, O, N, Ar]
   species: [OH, C4H6, H, O2, O, H2, HCO, CO, H2O, CO2, HO2, C2H4, CH2, C2H2, C2H3,
