@@ -1,0 +1,13 @@
+  problem   case=M10
+        rocket  equilibrium 
+    sup,Ae/At = 68.07
+    p,bar= 9.58793625
+    o/f = 1.88514042350652
+  react
+    fuel=CH4 wt=100.0 t,K=165.955059509451
+    oxid=O2(L)  wt=100.0
+  only
+    CH4 O2 H2O CO2 CO O H H2 OH
+  output
+       siunits massf short
+  end
