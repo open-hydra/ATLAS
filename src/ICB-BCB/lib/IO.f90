@@ -76,7 +76,9 @@ module ATLAS_IO
             endif
             
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
-            if (meshtype==-2) then
+            if (meshtype==1) then
+              write(unitfile,'(3I8)')block(b)%id,f,print_def
+            elseif (meshtype==-2) then
               write(unitfile,'(5I8)')block(b)%id,Ai,Aj,f,print_def
             else
               write(unitfile,'(6I8)')block(b)%id,Ai,Aj,Ak,f,print_def
@@ -811,7 +813,9 @@ module ATLAS_IO
           do s = 1, nsc
             varnames = trim(varnames)//' "rho'//trim(str(.true.,s))//'"'
           enddo
-          if (meshtype == -2) then
+          if (meshtype == 1) then
+            varnames = trim(varnames)//' "u" "p"'
+          elseif (meshtype == -2) then
             varnames = trim(varnames)//' "u" "v" "p"'
           else
             varnames = trim(varnames)//' "u" "v" "w" "p"'
@@ -868,7 +872,12 @@ module ATLAS_IO
         select case(phase(p)%type)
         case('IG')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-IG'
-          if (meshtype == -2) then
+          if (meshtype == 1) then
+            allocate(orion%block(cnt)%vars(1:nsc+2,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+            orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%density
+            orion%block(cnt)%vars(nsc+1,:,:,:) = block(b)%velocity(1,:,:,:)
+            orion%block(cnt)%vars(nsc+2,:,:,:) = block(b)%pressure
+          elseif (meshtype == -2) then
             allocate(orion%block(cnt)%vars(1:nsc+3+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
             orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%density
             orion%block(cnt)%vars(nsc+1:nsc+2,:,:,:) = block(b)%velocity(1:2,:,:,:)

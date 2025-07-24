@@ -3,7 +3,7 @@ module TOM
   implicit none
 
   integer, dimension(3):: gc         !> number of ghost layers
-  integer              :: meshType   !> 1 -> 1D, 2 -> 2D, 3 -> 3D
+  integer              :: meshType   !> -2 -> pure 2D, 1 -> 1D, 2 -> 2D, 3 -> 3D
   real(kind=8), public :: delthe     !> grid axisymmetric angle
 
   !% 3D tensor object. All static components.

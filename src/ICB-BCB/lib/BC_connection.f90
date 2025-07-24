@@ -30,15 +30,15 @@ contains
     real(8) :: ejx2up,ejy2up,ejz2up
 
     real(8) :: aa(3,3),bb(3,3)
-    real(8) :: dum1, dumii, dumij, dumji, dumjj
+    real(8) :: dumii, dumij, dumji, dumjj
     integer :: nn
 
     nb = size(block)
 
     do b1 = 1, nb
-      nx(b1) = block(b1)%face(3)%Nm
-      ny(b1) = block(b1)%face(1)%Nm
-      nz(b1) = block(b1)%face(1)%Nn
+      nx(b1) = block(b1)%dim(1)
+      ny(b1) = block(b1)%dim(2)
+      nz(b1) = block(b1)%dim(3)
     enddo
 
     do b1 = 1, nb
@@ -267,14 +267,16 @@ contains
     ! se tale distanza e' mininore della tolleranza allora
     ! le due faccie sono connesse
 
+    if (meshType==1) return
+
     nb = size(block)
 
     ! Store data in local variables
     nbound = 0; nboundb = 0; bqui = 1
     do b1 = 1, nb
-      nx(b1) = block(b1)%face(3)%Nm
-      ny(b1) = block(b1)%face(1)%Nm
-      nz(b1) = block(b1)%face(1)%Nn
+      nx(b1) = block(b1)%dim(1)
+      ny(b1) = block(b1)%dim(2)
+      nz(b1) = block(b1)%dim(3)
       do f1 = 1, block(b1)%nfaces
         nboundb(b1) = nboundb(b1)+(block(b1)%face(f1)%Nm*block(b1)%face(f1)%Nn)
         nbound = nbound+(block(b1)%face(f1)%Nm*block(b1)%face(f1)%Nn)

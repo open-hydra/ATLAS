@@ -167,8 +167,10 @@ contains
     !> Compute the face center coords
     self%face(1)%Nm = self%dim(2); self%face(1)%Nn = self%dim(3)
     self%face(2)%Nm = self%dim(2); self%face(2)%Nn = self%dim(3)
-    self%face(3)%Nm = self%dim(1); self%face(3)%Nn = self%dim(3)
-    self%face(4)%Nm = self%dim(1); self%face(4)%Nn = self%dim(3)
+    if (meshType/=1) then
+      self%face(3)%Nm = self%dim(1); self%face(3)%Nn = self%dim(3)
+      self%face(4)%Nm = self%dim(1); self%face(4)%Nn = self%dim(3)
+    endif
     if (meshType>=2) then
       self%face(5)%Nm = self%dim(1); self%face(5)%Nn = self%dim(2)
       self%face(6)%Nm = self%dim(1); self%face(6)%Nn = self%dim(2)
@@ -176,8 +178,10 @@ contains
 
     allocate(self%face(1)%center(1-gc(2):self%dim(2)+gc(2),1-gc(3):self%dim(3)+gc(3)))
     allocate(self%face(2)%center(1-gc(2):self%dim(2)+gc(2),1-gc(3):self%dim(3)+gc(3)))
-    allocate(self%face(3)%center(1-gc(1):self%dim(1)+gc(1),1-gc(3):self%dim(3)+gc(3)))
-    allocate(self%face(4)%center(1-gc(1):self%dim(1)+gc(1),1-gc(3):self%dim(3)+gc(3)))
+    if (meshType/=1) then
+      allocate(self%face(3)%center(1-gc(1):self%dim(1)+gc(1),1-gc(3):self%dim(3)+gc(3)))
+      allocate(self%face(4)%center(1-gc(1):self%dim(1)+gc(1),1-gc(3):self%dim(3)+gc(3)))
+    endif
     if (meshType>=2) then
       allocate(self%face(5)%center(1-gc(1):self%dim(1)+gc(1),1-gc(2):self%dim(2)+gc(2)))
       allocate(self%face(6)%center(1-gc(1):self%dim(1)+gc(1),1-gc(2):self%dim(2)+gc(2)))
@@ -213,6 +217,9 @@ contains
       enddo
     enddo
     endassociate
+
+    if (meshType==1) return
+
     associate( this => self%face(3) )
     do n = 1, this%Nn
       do m = 1, this%Nm
