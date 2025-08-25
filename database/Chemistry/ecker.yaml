@@ -278,19 +278,19 @@ species:
 
 reactions:
 - equation: H2 + O2 <=> HO2 + H
-  rate-constant: {A: 1.000e+14, b: 0.00, Ea: 5600.0}
+  rate-constant: {A: 1.000e+14, b: 0.00, Ea: 5.6000e+4}
 
 - equation: H + O2 <=> OH + O
-  rate-constant: {A: 2.600e+14, b: 0.00, Ea: 16800.0}
+  rate-constant: {A: 2.600e+14, b: 0.00, Ea: 1.6800e+4}
 
 - equation: O + H2 <=> OH + H
-  rate-constant: {A: 1.800e+10, b: 1.00, Ea: 8900.0}
+  rate-constant: {A: 1.800e+10, b: 1.00, Ea: 8.9000e+3}
 
 - equation: OH + H2 <=> H2O + H
-  rate-constant: {A: 2.200e+13, b: 0.00, Ea: 5150.0}
+  rate-constant: {A: 2.200e+13, b: 0.00, Ea: 5.1500e+3}
 
 - equation: 2 OH <=> H2O + O
-  rate-constant: {A: 6.300e+12, b: 0.00, Ea: 10900.0}
+  rate-constant: {A: 6.300e+12, b: 0.00, Ea: 1.0900e+3}
 
 - equation: H + OH + M <=> H2O + M
   type: three-body
@@ -312,13 +312,13 @@ reactions:
   efficiencies: {H2: 2.0, H2O: 16.0}
 
 - equation: HO2 + H <=> 2 OH
-  rate-constant: {A: 1.400e+14, b: 0.00, Ea: 10800.0}
+  rate-constant: {A: 1.400e+14, b: 0.00, Ea: 1.0800e+3}
 
 - equation: HO2 + H2 <=> H2O + OH
-  rate-constant: {A: 1.000e+13, b: 0.00, Ea: 10800.0}
+  rate-constant: {A: 1.000e+13, b: 0.00, Ea: 1.0800e+3}
 
 - equation: HO2 + O <=> O2 + OH
-  rate-constant: {A: 1.500e+13, b: 0.00, Ea: 9500.0}
+  rate-constant: {A: 1.500e+13, b: 0.00, Ea: 9.5000e+2}
 
 - equation: HO2 + OH <=> H2O + O2
   rate-constant: {A: 8.000e+12, b: 0.00, Ea: 0.0}
@@ -333,7 +333,7 @@ reactions:
   rate-constant: {A: 1.400e+13, b: 0.00, Ea: 6400.0}
 
 - equation: OH + H2O2 <=> H2O + HO2
-  rate-constant: {A: 6.000e+12, b: 0.00, Ea: 14300.0}
+  rate-constant: {A: 6.000e+12, b: 0.00, Ea: 1430.0}
 
 - equation: H2O2 + M <=> 2 OH + M
   type: three-body
@@ -345,7 +345,7 @@ reactions:
   rate-constant: {A: 6.000e+13, b: 0.00, Ea: -1800.0}
 
 - equation: CO + OH <=> CO2 + H
-  rate-constant: {A: 1.500e+07, b: 1.30, Ea: -7650.0}
+  rate-constant: {A: 1.500e+07, b: 1.30, Ea: -765.0}
 
 - equation: CO + O2 <=> CO2 + O
   rate-constant: {A: 2.530e+12, b: 0.00, Ea: 47700.0}
@@ -359,10 +359,10 @@ reactions:
   rate-constant: {A: 2.300e+13, b: 0.00, Ea: 3500.0}
 
 - equation: CL2 + H <=> HCL + CL
-  rate-constant: {A: 8.590e+13, b: 0.00, Ea: 11700.0}
+  rate-constant: {A: 8.590e+13, b: 0.00, Ea: 1170.0}
 
 - equation: HCL + OH <=> H2O + CL
-  rate-constant: {A: 2.450e+12, b: 0.00, Ea: 11000.0}
+  rate-constant: {A: 2.450e+12, b: 0.00, Ea: 1100.0}
 
 - equation: HCL + O <=> OH + CL
   rate-constant: {A: 5.240e+12, b: 0.00, Ea: 6400.0}

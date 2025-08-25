@@ -7,7 +7,7 @@ description: |-
   Thermodynamic and transport properties for H,O,C,N species are taken from 
   GRI3.0 high-temperature. For the CL species, the data come from Pelucchi.
 
-units: {length: m, time: s, quantity: mol, activation-energy: J/mol}
+units: {length: cm, time: s, quantity: mol, activation-energy: cal/mol}
 
 phases:
 - name: Troyes
@@ -228,52 +228,52 @@ species:
 
 reactions:
 - equation: H + O2 <=> OH + O
-  rate-constant: {A: 1.99E+08, b: 0.0, Ea: 70300.0}
+  rate-constant: {A: 1.99E+14, b: 0.0, Ea: 16802.103}
 
 - equation: H2 + O <=> OH + H
-  rate-constant: {A: 5.12E-02, b: 2.67, Ea: 26300.0}
+  rate-constant: {A: 5.12E+04, b: 2.67, Ea: 6285.851}
 
 - equation: H2 + OH <=> H2O + H
-  rate-constant: {A: 1.02E+02, b: 1.6, Ea: 13800.0}
+  rate-constant: {A: 1.02E+08, b: 1.6, Ea: 3298.279}
 
 - equation: OH + OH <=> H2O + O
-  rate-constant: {A: 1.51E+03, b: 1.14, Ea: 414.0}
+  rate-constant: {A: 1.51E+09, b: 1.14, Ea: 98.948}
 
 - equation: H + H + M <=> H2 + M
-  rate-constant: {A: 8.99E+05, b: -1.0, Ea: 0.0}
+  rate-constant: {A: 8.99E+17, b: -1.0, Ea: 0.0}
 
 - equation: H + OH + M <=> H2O + M
-  rate-constant: {A: 2.21E+10, b: -2.0, Ea: 0.0}
+  rate-constant: {A: 2.21E+22, b: -2.0, Ea: 0.0}
 
 - equation: H + O + M <=> OH + M
-  rate-constant: {A: 4.71E+06, b: -1.0, Ea: 0.0}
+  rate-constant: {A: 4.71E+18, b: -1.0, Ea: 0.0}
 
 - equation: O + O + M <=> O2 + M
-  rate-constant: {A: 1.45E+05, b: -1.0, Ea: 0.0}
+  rate-constant: {A: 1.45E+17, b: -1.0, Ea: 0.0}
 
 - equation: CO + OH <=> CO2 + H
-  rate-constant: {A: 6.32E+00, b: -1.5, Ea: -2080.0}
+  rate-constant: {A: 6.320e+06, b: 1.50, Ea: -765.0}
 
 - equation: CO + O2 <=> CO2 + O
-  rate-constant: {A: 2.50E+06, b: 0.0, Ea: 200000.0}
+  rate-constant: {A: 2.530e+12, b: 0.00, Ea: 47700.0}
 
 - equation: CO + O + M <=> CO2 + M
-  rate-constant: {A: 5.00E+00, b: 0.0, Ea: -9700.0}
+  rate-constant: {A: 5.00E+12, b: 0.0, Ea: -2318.356}
 
 - equation: HCL + H <=> H2 + CL
-  rate-constant: {A: 1.69E+07, b: 0.0, Ea: 17300.0}
+  rate-constant: {A: 1.69E+13, b: 0.0, Ea: 4134.799}
 
 - equation: CL2 + H <=> HCL + CL
-  rate-constant: {A: 8.55E+07, b: 0.0, Ea: 4890.0}
+  rate-constant: {A: 8.55E+13, b: 0.0, Ea: 1168.738}
 
 - equation: HCL + OH <=> H2O + CL
-  rate-constant: {A: 2.71E+04, b: 1.65, Ea: -920.0}
+  rate-constant: {A: 2.71E+07, b: 1.65, Ea: -219.885}
 
 - equation: HCL + O <=> OH + CL
-  rate-constant: {A: 3.37E-03, b: 2.87, Ea: 14700.0}
+  rate-constant: {A: 3.37E+03, b: 2.87, Ea: 3513.384}
 
 - equation: CL + CL + M <=> CL2 + M
-  rate-constant: {A: 4.68E+02, b: 0.0, Ea: -7530.0}
+  rate-constant: {A: 2.34E+14, b: 0.0, Ea: -1799.713}
 
 - equation: CL + H + M <=> HCL + M
-  rate-constant: {A: 7.18E+09, b: -2.0, Ea: 0.0}
+  rate-constant: {A: 7.18E+21, b: -2.0, Ea: 0.0}

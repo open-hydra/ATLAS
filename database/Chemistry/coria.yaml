@@ -325,9 +325,10 @@ reactions:
   - equation: O + CH2O <=> OH + HCO
     rate-constant: {A: 3.900E+13, b: 0.000, Ea: 3540.0}
 
-  - equation: H + CH3 + M <=> CH4 + M
-    rate-constant: {A: 1.270E+16, b: -0.630, Ea: 383.0}
-    low-pressure-limit: {A: 2.477E+33, b: -4.76, Ea: 2440.0}
+  - equation: H + CH3 (+M) <=> CH4 (+M)
+    type: falloff
+    low-P-rate-constant: {A: 2.477E+33, b: -4.76, Ea: 2440.0}
+    high-P-rate-constant: {A: 1.270E+16, b: -0.630, Ea: 383.0}
     Troe: {A: 0.783, T3: 74, T1: 2941, T2: 6964}
     efficiencies: {"C2H6": 3.0, "CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 6.0}
 
@@ -356,9 +357,10 @@ reactions:
   - equation: H + CH4 <=> CH3 + H2
     rate-constant: {A: 6.600E+08, b: 1.620, Ea: 10840.0}
 
-  - equation: H + CH2O + M <=> CH3O + M
-    rate-constant: {A: 5.400E+11, b: 0.450, Ea: 2600.0}
-    low-pressure-limit: {A: 2.200E+30, b: -4.8, Ea: 5560.0}
+  - equation: H + CH2O (+M) <=> CH3O (+M)
+    type: falloff
+    low-P-rate-constant: {A: 2.200E+30, b: -4.8, Ea: 5560.0}
+    high-P-rate-constant: {A: 5.400E+11, b: 0.450, Ea: 2600.0}
     Troe: {A: 0.758, T3: 94, T1: 1555, T2: 4200}
     efficiencies: {"C2H6": 3.0, "CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 6.0}
 
@@ -368,9 +370,10 @@ reactions:
   - equation: OH + H2 <=> H + H2O
     rate-constant: {A: 2.160E+08, b: 1.510, Ea: 3430.0}
 
-  - equation: 2 OH + M <=> H2O2 + M
-    rate-constant: {A: 7.400E+13, b: -0.370, Ea: 0.0}
-    low-pressure-limit: {A: 2.300E+18, b: -0.9, Ea: -1700.0}
+  - equation: 2 OH (+M) <=> H2O2 (+M)
+    type: falloff
+    low-P-rate-constant: {A: 2.300E+18, b: -0.9, Ea: -1700.0}
+    high-P-rate-constant: {A: 7.400E+13, b: -0.370, Ea: 0.0}
     Troe: {A: 0.7346, T3: 94, T1: 1756, T2: 5182}
     efficiencies: {"C2H6": 3.0, "CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 6.0}
 
@@ -429,9 +432,10 @@ reactions:
   - equation: CH3 + H2O2 <=> HO2 + CH4
     rate-constant: {A: 2.450E+04, b: 2.470, Ea: 5180.0}
 
-  - equation: 2 CH3 + M <=> C2H6 + M
-    rate-constant: {A: 2.120E+16, b: -0.970, Ea: 620.0}
-    low-pressure-limit: {A: 1.770E+50, b: -9.67, Ea: 6220.0}
+  - equation: 2 CH3 (+M) <=> C2H6 (+M)
+    type: falloff
+    low-P-rate-constant: {A: 1.770E+50, b: -9.67, Ea: 6220.0}
+    high-P-rate-constant: {A: 2.120E+16, b: -0.970, Ea: 620.0}
     Troe: {A: 0.5325, T3: 151, T1: 1038, T2: 4970}
     efficiencies: {"C2H6": 3.0, "CH4": 2.0, "CO": 1.5, "CO2": 2.0, "H2": 2.0, "H2O": 6.0}
 
