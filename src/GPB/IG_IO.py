@@ -2,6 +2,7 @@ import cantera as ct
 import numpy as np
 import yaml
 import os
+import math
 outpath = 'fromATLAStoSolver/'
 try:
     os.mkdir(outpath)
@@ -148,28 +149,73 @@ def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
     # Define temperature range
     temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
 
-    # Write the data to a file in Tecplot-readable format
-    filename = outpath + name + "chemistry-rate.dat"
+    # Write Arrhenius data to a file in Tecplot-readable format
+    filename = outpath + name + "chemistry-Arrhenius.dat"
     with open(filename, 'w') as f:
-        f.write("TITLE = \"Chemistry Properties\"\n")
-        f.write("VARIABLES = \"Temperature\", \"Kf\", \"Kb\"\n")
+        f.write("TITLE = \"Arrhenius data\"\n")
+        f.write("VARIABLES = \"Temperature\", \"kf\", \"kb\"\n")
 
         # Print out the reaction rates for each reaction in the specified format
         for i in range(phase.n_reactions):
-            f.write(f"ZONE T=Reaction{i+1}\n")
-            f.write(f"I={len(temperatures)}, F=POINT\n")
-            for T in temperatures:
-                phase.TP = T, ct.one_atm
-                forward_rate = phase.forward_rate_constants[i]
-                reverse_rate = phase.reverse_rate_constants[i]
-                f.write(f'{T:<12}  {forward_rate:.20E}    {reverse_rate:.20E}\n')
+            if 'falloff' not in phase.reaction(i).reaction_type:
+                f.write(f"ZONE T=Reaction{i+1}\n")
+                f.write(f"I={len(temperatures)}, F=POINT\n")
+                for T in temperatures:
+                    phase.TP = T, ct.one_atm
+                    forward_rate = phase.forward_rate_constants[i]
+                    reverse_rate = phase.reverse_rate_constants[i]
+                    f.write(f'{T:<12}  {forward_rate:.20E}    {reverse_rate:.20E}\n')
+
+    # Write fall-off data to a file in Tecplot-readable format
+    filename = outpath + name + "chemistry-Troe.dat"
+    with open(filename, 'w') as f:
+        f.write("TITLE = \"Fall-off data\"\n")
+        f.write("VARIABLES = \"Temperature\", \"k_inf\", \"k_0\", \"k_c\", \"F_cent\"\n")
+
+        # Print out the reaction rates for each reaction in the specified format
+        for i in range(phase.n_reactions):
+            if phase.reaction(i).reaction_type == 'falloff-Troe':
+                f.write(f"ZONE T=Reaction{i+1}\n")
+                f.write(f"I={len(temperatures)}, F=POINT\n")
+                rxn = phase.reaction(i)
+                for T in temperatures:
+                    phase.TP = T, 300*ct.one_atm
+                    alpha, T3, T1, *T2 = rxn.rate.falloff_coeffs
+                    # Compute Fcent using Troe formula
+                    Fcent = ((1 - alpha) * math.exp(-T / T3) +
+                            alpha * math.exp(-T / T1))
+                    if T2:
+                        Fcent += math.exp(-T2[0] / T)
+                    k_inf = rxn.rate.high_rate(T)
+                    k_0 = rxn.rate.low_rate(T)
+                    kc = phase.equilibrium_constants[i]
+                    # Workaround: Replace infinite constants with a large finite value to avoid issues in output
+                    if math.isinf(k_inf): k_inf = 1e300
+                    if math.isinf(k_0): k_0 = 1e300
+                    if math.isinf(kc): kc = 1e300
+                    f.write(f'{T:<12}  {k_inf:.20E}    {k_0:.20E}    {kc:.20E}    {Fcent:.20E}\n')
 
 
-    filename_ = outpath + name + 'chemistry-stoich.txt'
+    filename_ = outpath + name + 'chemistry-info.txt'
     with open(filename_, mode='w') as file:
     
         # Write the header
         file.write(f'{phase.name}\n')
+        file.write(f'N.ro species = {phase.n_species}\n')
+        file.write(f'N.ro reactions = {phase.n_reactions}\n')
+        file.write(f'\n')
+        file.write(f'General loop info. They are not used if the mechanism is exlplicitly defined\n')
+
+        file.write(f'\n')
+        file.write(f'Reaction type\n')
+
+        # Iterate over each reaction
+        for i in range(phase.n_reactions):
+            reaction = phase.reaction(i)
+            file.write(f'{i+1} {reaction.reaction_type}\n')
+
+        file.write(f'\n')
+        file.write(f'Reaction definition\n')
     
         # Iterate over each reaction
         for i in range(phase.n_reactions):
@@ -209,5 +255,6 @@ def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
                 reactant_coeff = 1.0; product_coeff = 1.0
             else:
                 reactant_coeff = 0.0; product_coeff = 0.0
-            efficiency_coeff = 1.0
+
+            efficiency_coeff = 0.0
             file.write(f'{i + 1} {"M"} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
