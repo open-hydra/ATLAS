@@ -436,7 +436,7 @@ reactions:
   - equation: H + O2 + M <=> HO2 + M
     duplicate: true
     rate-constant: {A: 2.800e+18, b: -0.860, Ea: 0.0}
-    efficiencies: {O2: 0.0, H2O: 6.00, CO: 0.75, CO2: 1.50, C2H6: 1.50, N2: 0.0, Ar: 0.0}
+    efficiencies: {O2: 0.0, H2O: 6.00, CO: 0.75, CO2: 1.50, C2H6: 1.50, N2: 0.0, AR: 0.0}
     
   - equation: H + 2 O2 <=> HO2 + O2
     rate-constant: {A: 3.000e+20, b: -1.720, Ea: 0.0}
@@ -453,7 +453,7 @@ reactions:
     low-P-rate-constant: {A: 2.3e+18, b: -0.9, Ea: -1700.0}
     high-P-rate-constant: {A: 7.4e+13, b: -0.37, Ea: 0.0}
     Troe: {A: 0.7346, T3: 94.0, T1: 1756.0, T2: 5182.0}
-    efficiencies: {H2: 2.00, H2O: 6.00, CH4: 2.00, CO: 1.50, CO2: 2.00, C2H6: 3.00, Ar: 0.70}
+    efficiencies: {H2: 2.00, H2O: 6.00, CH4: 2.00, CO: 1.50, CO2: 2.00, C2H6: 3.00, AR: 0.70}
 
   - equation: OH + HO2 <=> O2 + H2O
     rate-constant: {A: 2.900e+13, b: 0.0, Ea: -500.0}
@@ -534,11 +534,11 @@ reactions:
 
   - equation: O + CO + M <=> CO2 + M
     rate-constant: {A: 6.020e+14, b: 0.0, Ea: 3000.0}
-    efficiencies: {H2: 2.00, O2: 6.00, H2O: 6.00, CH4: 2.00, CO: 1.50, CO2: 3.50, C2H6: 3.00, Ar: 0.50}
+    efficiencies: {H2: 2.00, O2: 6.00, H2O: 6.00, CH4: 2.00, CO: 1.50, CO2: 3.50, C2H6: 3.00, AR: 0.50}
 
   - equation: H + OH + M <=> H2O + M
     rate-constant: {A: 2.200e+22, b: -2.000, Ea: 0.0}
-    efficiencies: {H2: 0.73, H2O: 3.65, CH4: 2.00, C2H6: 3.00, Ar: 0.38}
+    efficiencies: {H2: 0.73, H2O: 3.65, CH4: 2.00, C2H6: 3.00, AR: 0.38}
 
   - equation: CH3 + H (+M) <=> CH4 (+M)
     type: falloff
@@ -609,11 +609,11 @@ reactions:
     low-P-rate-constant: {A: 1.77e+50, b: -9.67, Ea: 6220.0}
     high-P-rate-constant: {A: 2.12e+16, b: -0.97, Ea: 620.0}
     Troe: {A: 0.5325, T3: 151.0, T1: 1038.0, T2: 4970.0}
-    efficiencies: {H2: 2.00, H2O: 6.00, CH4: 2.00, CO: 1.50, CO2: 2.00, C2H6: 3.00, Ar: 0.70}
+    efficiencies: {H2: 2.00, H2O: 6.00, CH4: 2.00, CO: 1.50, CO2: 2.00, C2H6: 3.00, AR: 0.70}
 
   - equation: H + O2 + N2 <=> HO2 + N2
     rate-constant: {A: 2.600e+19, b: -1.240, Ea: 0.0}
 
-  - equation: H + O2 + Ar <=> HO2 + Ar
+  - equation: H + O2 + AR <=> HO2 + AR
     rate-constant: {A: 7.000e+17, b: -0.800, Ea: 0.0}
 
