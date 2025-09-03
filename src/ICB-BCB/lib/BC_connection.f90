@@ -59,11 +59,25 @@ contains
               m2 = m1
               n2 = n1
               call fmn2ijk(f2,m2,n2,nx(b2),ny(b2),nz(b2),i2,j2,k2)
-              this%bc%properties(1) = b2
-              this%bc%properties(2) = i2
-              this%bc%properties(3) = j2
-              this%bc%properties(4) = k2
-              this%bc%properties(5) = f2
+              if (meshType == -2) then
+              ! ----- Caso 2D: b, i, j, f -----
+                this%bc%properties(1) = b2
+                this%bc%properties(2) = i2
+                this%bc%properties(3) = j2
+                this%bc%properties(4) = f2
+              else
+                ! ----- Caso 3D: b, i, j, k, f -----
+                this%bc%properties(1) = b2
+                this%bc%properties(2) = i2
+                this%bc%properties(3) = j2
+                this%bc%properties(4) = k2
+                this%bc%properties(5) = f2
+              end if
+              ! this%bc%properties(1) = b2
+              ! this%bc%properties(2) = i2
+              ! this%bc%properties(3) = j2
+              ! this%bc%properties(4) = k2
+              ! this%bc%properties(5) = f2
               !this%bc%connection(1) = 1
               !this%bc%connection(2) = 0
               !this%bc%connection(3) = 0
@@ -154,11 +168,19 @@ contains
 
             ! legge  dati della faccia a cui e' connessa la faccia di contorno
 
-            ib2 = nint(this%bc%properties(1))
-            i2 = nint(this%bc%properties(2))-1
-            j2 = nint(this%bc%properties(3))-1
-            k2 = nint(this%bc%properties(4))-1
-            if2 = nint(this%bc%properties(5))
+            if (meshType == -2) then
+              ib2 = nint(this%bc%properties(1))
+              i2 = nint(this%bc%properties(2))-1
+              j2 = nint(this%bc%properties(3))-1
+              k2 = 0
+              if2 = nint(this%bc%properties(4))
+            else
+              ib2 = nint(this%bc%properties(1))
+              i2 = nint(this%bc%properties(2))-1
+              j2 = nint(this%bc%properties(3))-1
+              k2 = nint(this%bc%properties(4))-1
+              if2 = nint(this%bc%properties(5))
+            endif
 
             x11 = block(ib2)%node(i2+di11(if2),j2+dj11(if2),k2+dk11(if2))%c(1)
             y11 = block(ib2)%node(i2+di11(if2),j2+dj11(if2),k2+dk11(if2))%c(2)
