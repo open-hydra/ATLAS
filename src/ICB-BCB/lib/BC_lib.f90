@@ -179,7 +179,7 @@ module lib_bc
       call sourceini%get(section_name=section, option_name='blocks', val=wb, error=error)
       call sourceini%get(section_name=section, option_name='faces', val=wf, error=error)
       if (error/=0) return
-      self%definition = 1
+      self%definition = 77
       self%connection = 0
       ! Period information are temporarily stored into connection integers
       self%connection(1:2) = wb

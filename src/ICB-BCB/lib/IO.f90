@@ -76,6 +76,8 @@ module ATLAS_IO
             endif
             
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
+
+            if (print_def == 77) print_def = 1 ! Necessaria per evitare ambiguità per periodicità multiblocco
             if (meshtype==1) then
               write(unitfile,'(3I8)')block(b)%id,f,print_def
             elseif (meshtype==-2) then

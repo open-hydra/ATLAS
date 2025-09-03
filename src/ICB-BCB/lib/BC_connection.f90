@@ -46,7 +46,7 @@ contains
         do n1 = 1, block(b1)%face(f1)%Nn
           do m1 = 1, block(b1)%face(f1)%Nm
             associate( this => block(b1)%face(f1)%center(m1,n1) )
-            if (this%bc%definition==1 .and. this%bc%connection(3)>0) then
+            if (this%bc%definition==77 .and. this%bc%connection(3)>0) then
               if (this%bc%connection(1)==0) then
                 b2 = b1
               else
