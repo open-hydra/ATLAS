@@ -400,7 +400,7 @@ contains
     subroutine nozzle1D()
       implicit none
       real(8), allocatable :: radius_ext(:), radius_int(:), area(:)
-      integer :: ib1, ib2, throat_cell, L_threshold_cell
+      integer :: ib1, ib2, ib3, throat_cell, L_threshold_cell
 
       allocate(radius_ext(1:block%dim(1)))
       allocate(radius_int(1:block%dim(1)))
@@ -422,8 +422,7 @@ contains
       throat_area = area(throat_cell)
 
       L_threshold_cell = 0
-      ib1 = 1; ib2 = block%dim(1); ip = 1
-      do i = ib1, ib2
+      do i = 1, block%dim(1)
         if (block%center(i,1,1)%c(1)>L_threshold) then
           L_threshold_cell = i
           exit
@@ -432,12 +431,14 @@ contains
 
       if (nozzle_dir=='dx') then
         ip = 1
-        ib1 = L_threshold_cell+1
-        ib2 = block%dim(1)
+        ib1 = 1
+        ib2 = L_threshold_cell+1
+        ib3 = block%dim(1)
       elseif (nozzle_dir=='sx') then
         ip = -1
         ib1 = block%dim(1)
         ib2 = L_threshold_cell+1
+        ib3 = 1
       endif
 
       do i = ib1, ib2, ip
@@ -446,9 +447,10 @@ contains
         enddo
         block%pressure(i,:,:) = p0(1,1,1)
         block%velocity(:,i,:,:) = 0.0
+        block%temperature(i,:,:) = T0(1,1,1)
       enddo
 
-      do i = ib1, ib2, ip
+      do i = ib2, ib3, ip
         M0 = 0.001
         if (ip*i > ip*throat_cell) M0 = 1.30
         call legge_aree(area(i),M0,Mach,throat_area,gamma)
