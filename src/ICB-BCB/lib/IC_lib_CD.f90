@@ -36,10 +36,17 @@ contains
     allocate(Pp(1:nnn))
     call zoneini%get(section_name='zone', option_name='krho',   val=krho, error=error)
     call zoneini%get(section_name='zone', option_name='kT',   val=kT, error=error)
-    call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
     call zoneini%get(section_name='zone', option_name='Pp', val=Pp, error=error)
     if (error==0) neuler = 1
-    rp = 0.5*rp
+    call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
+    if (error/=0) then
+      call zoneini%get(section_name='zone', option_name='rp', val=rp, error=error)
+      if (error/=0) then
+        stop "[ERROR] you must provide either dp or rp for CD"
+      endif
+    else
+      rp = 0.5*rp
+    endif
 
     if (sum(krho)==0.0) then
       IC_type = 'vacuum'
@@ -54,7 +61,7 @@ contains
     select case (IC_type)
     case ('interpolation')
 
-      error stop "Interopilation procedure not available for CD"
+      stop "[ERROR] interpolation procedure not available for CD"
 
     case ('vacuum')
 
