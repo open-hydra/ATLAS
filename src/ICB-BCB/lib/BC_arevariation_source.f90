@@ -1,18 +1,13 @@
 module area_variation_mod
   ! Stand-alone utilities to read an x–area profile from INI,
-  ! interpolate onto a block centerline, and write INPUT/blockN_area.dat
+  ! interpolate onto block nodes, and write INPUT/blockN_area.dat
   !
-  ! Integration points:
-  !   use area_variation_mod, only: build_areavariation
-  !   ... (after geometry is built, inside build_BC) ...
-  !   call build_areavariation(blocks, sini, 'BCB-Block', 'INPUT', .true.)
-  !
-
   ! ---- external dependencies ----
   use ir_precision 
   use finer,            only: file_ini
   use ATLAS_high_level, only: ATLAS_block
   use variables,        only: outpath
+  ! -------------------------------
   implicit none
   private
   public :: build_areavariation
