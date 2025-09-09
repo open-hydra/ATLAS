@@ -49,9 +49,10 @@ module lib_bc
     self%connection = 0
     self%adj_assigned = .false.
     self%nproperties = nIG+nrans
-    if (.not.allocated(self%properties) )allocate(self%properties(1:self%nproperties))
-    if (.not.allocated(self%IG_time_properties) )allocate(self%IG_time_properties(1:self%nproperties))
-    if (.not.allocated(self%IG_time_BC) )allocate(self%IG_time_BC(1:self%nproperties))
+    if (self%definition==14) self%nproperties = 7
+    if (.not.allocated(self%properties)) allocate(self%properties(1:self%nproperties))
+    if (.not.allocated(self%IG_time_BC)) allocate(self%IG_time_BC(1:self%nproperties))
+    if (.not.allocated(self%IG_time_properties)) allocate(self%IG_time_properties(1:self%nproperties))
 
     select case(phase%type)
     !% Ideal gas
@@ -70,19 +71,20 @@ module lib_bc
     end select
 
     select case(self%definition)
-    case(1);  self%properties = 0.
-    case(2);  call assigne_halfPeriodicInfo
-    case(3);  self%properties = 0.
-    case(4,22);  call assemble_the_monster
-    case(5);  call assigne_q; call assigne_roughness(2)
-    case(6);  call assigne_T; call assigne_roughness(2)
-    case(7);  call assigne_hconv; call assigne_qrad; call assigne_Tref
-    case(8);  call assigne_T; call assigne_qrad
-    case(9);  call assigne_qrad; call assigne_roughness(2)
-    case(10); call assigne_SF; call assigne_roughness(2)
-    case(11); self%properties = 0.
-    case(12); call assigne_ablation; call assigne_roughness(6)
-    case(13);  call assigne_qrad; call assigne_roughness(2)
+    case(1);    self%properties = 0.
+    case(2);    call assigne_halfPeriodicInfo
+    case(3);    self%properties = 0.
+    case(4,22); call assemble_the_monster()
+    case(5);    call assigne_q;        call assigne_roughness(2)
+    case(6);    call assigne_T;        call assigne_roughness(2)
+    case(7);    call assigne_hconv;    call assigne_qrad;         call assigne_Tref
+    case(8);    call assigne_T;        call assigne_qrad
+    case(9);    call assigne_qrad;     call assigne_roughness(2)
+    case(10);   call assigne_SF;       call assigne_roughness(2)
+    case(11);   self%properties = 0.
+    case(12);   call assigne_ablation; call assigne_roughness(6)
+    case(13);   call assigne_qrad;     call assigne_roughness(2)
+    case(14);   call assigne_SF;       call assigne_SRMgrain(2);  call assemble_the_monster(.true.)
     end select
 
     contains
@@ -157,6 +159,23 @@ module lib_bc
 
     end subroutine assigne_SF
 
+    subroutine assigne_SRMgrain(pos)
+      implicit none
+      integer, intent(in) :: pos
+      integer:: error
+
+      call sourceini%get(section_name=section, option_name='a',        val=self%properties(pos),   error=error)
+      call sourceini%get(section_name=section, option_name='n',        val=self%properties(pos+1), error=error)
+      call sourceini%get(section_name=section, option_name='pRef',     val=self%properties(pos+2), error=error)
+      if (error/=0) self%properties(pos+3) = 1.0d5
+      call sourceini%get(section_name=section, option_name='rhoGrain', val=self%properties(pos+3), error=error)
+      call sourceini%get(section_name=section, option_name='Taf',      val=self%properties(pos+4), error=error)
+      if (error/=0) self%properties(pos+4) = 0.
+      call sourceini%get(section_name=section, option_name='SFgeo',    val=self%properties(pos+5), error=error)
+      if (error/=0) self%properties(pos+5) = 1.d0
+
+    end subroutine assigne_SRMgrain
+
     subroutine assigne_ablation
       implicit none
       integer:: error
@@ -187,20 +206,25 @@ module lib_bc
 
     end subroutine assigne_halfPeriodicInfo
 
-    subroutine assemble_the_monster
+    subroutine assemble_the_monster(SRMswitch)
       use species, only: define_composition
+      use CEA_module, only: obj_CEA
       implicit none
+      logical, intent(in), optional  :: SRMswitch
+      type(obj_CEA)                  :: CEA
       logical                        :: found_CEA, force_inflow
-      integer                        :: error, m, npCP
+      integer                        :: error, m, npCP, i
       ! Ideal gas
-      real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt
+      real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt, krho
       ! Condensed-phase
       integer :: cp_scaling, error_gp
-      real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:)
+      real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:), rRes(:), Tsat(:), volRatio(:)
       real(8), allocatable :: gp(:), up(:), vp(:), wp(:), mvp(:), alphap(:), betap(:), Tp(:)
+      real(8), parameter   :: Qal  = 9.53d6      !< Aluminum combustion reaction energy
+      real(8), parameter   :: csAl = 1597.6654d0 !< Alumina thermic capacity (CEA thermo lib)
 
       ! Ideal gas bc
-      if (phase%type=='IG') then
+      if (phase%type=='IG'.or.present(SRMswitch)) then
         self%IG_time_BC = .false.
         self%IG_time_properties = 'None'
         found_cea = .false.
@@ -243,10 +267,10 @@ module lib_bc
         if (error==0) pstatic = rt
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
-        call define_composition(sourceini, self%species, T0, p0)
+        call define_composition(sourceini, self%species, T0, p0, CEA)
 
         if (h0/=0 .and. self%species%n>1) then
-          error stop ("Not possible to assign h0 to a multispecies flow!")
+          error stop ( "Not possible to assign h0 to a multispecies flow!" )
         elseif (h0/=0 .and. self%species%n==1) then
           T0 = h02T0(h0,self%species%h)
         endif
@@ -262,30 +286,46 @@ module lib_bc
         ! Choose between total temperature and static one
         if (nmach<0.0 .and. T>0) nmach = -5.0
 
-        self%properties(1) = nmach
-        self%properties(2) = T0
-        if (T>0) self%properties(2) = T
-        if (nmach>=0) self%properties(3) = p0
-        if (nmach<0) self%properties(3) = massflux
-        self%properties(4) = alpha
-        self%properties(5) = beta
-        if (rt/=0.0) then
-          self%properties(6) = rt
+        if (.not.present(SRMswitch)) then
+          self%properties(1) = nmach
+          self%properties(2) = T0
+          if (T>0) self%properties(2) = T
+          if (nmach>=0) self%properties(3) = p0
+          if (nmach<0) self%properties(3) = massflux
+          self%properties(4) = alpha
+          self%properties(5) = beta
+          if (rt/=0.0) then
+            self%properties(6) = rt
+          else
+            self%properties(6) = pstatic*1e+5
+          endif
+          if (nrans==1) then
+            self%properties(7) = mit
+          elseif (nrans==2) then
+            self%properties(7) = kappa
+            self%properties(8) = omega
+          elseif (nrans==7) then
+            self%properties(7:9) = rhoRij
+            self%properties(10:12) = 1d-8
+            self%properties(13) = omega
+          endif
         else
-          self%properties(6) = pstatic*1e+5
-        endif
-        if (nrans==1) then
-          self%properties(7) = mit
-        elseif (nrans==2) then
-          self%properties(7) = kappa
-          self%properties(8) = omega
-        elseif (nrans==7) then
-          self%properties(7:9) = rhoRij
-          self%properties(10:12) = 1d-8
-          self%properties(13) = omega
+          m = size(self%properties)
+          if (self%properties(m-1)>0.5d0) then
+            T0 = self%properties(m-1)
+            write(*,*) ' Override CEA mixture temperature given adiabatic flame temperature Taf'
+            do i = 1, self%species%n
+              self%properties(m-1) = self%properties(m-1) + self%species%massf(i)*T02h0(T0,self%species%h,i) 
+            enddo
+          else
+          endif
+          self%properties(m-1) = CEA%SE%h0*1.d3
+          self%properties(m-5) = self%properties(1)*self%properties(m)*self%properties(m-2)*self%properties(m-5)
         endif
 
-      else
+      endif
+
+      if (phase%type/='IG') then
 
         ! Condensed-phase bc
         do m = 1, phase%material%n
@@ -310,6 +350,12 @@ module lib_bc
           call sourceini%get(section_name=section, option_name='alphap',val=alphap,error=error)
           allocate(betap(1:npCP)); betap = 0d0
           call sourceini%get(section_name=section, option_name='betap',val=betap,error=error)
+          allocate(rRes(1:npCP)); rRes = rp
+          call sourceini%get(section_name=section, option_name='rRes',val=rRes,error=error)
+          allocate(volRatio(1:npCP)); volRatio = (rRes/rp)**3.d0
+          
+          allocate(Tsat(1:npCP)); Tsat = T0
+          call sourceini%get(section_name=section, option_name='Tsat',val=Tsat,error=error)
 
           if (error_gp/=0) cp_scaling = 0
           if (error_gp==0 .and. all(mvp/=0.d0)) cp_scaling = 1
@@ -334,6 +380,20 @@ module lib_bc
           self%cp_properties(m,1:npCP,7) = rp
         enddo
 
+        if (present(SRMswitch)) then
+          m = size(self%properties)
+          self%properties(m-1) = (csAl*sum(self%cp_properties(m,1:npCP,2)*(volRatio*T0-Tsat))                &
+                                  + sum((1d0-self%cp_properties(m,1:npCP,2)*volRatio))*self%properties(m-1)  &
+                                  - sum(self%cp_properties(m,1:npCP,2)*(1d0-volRatio))*Qal)                 &
+                                  /(1d0-sum(self%cp_properties(m,1:npCP,2)))
+          if (all(self%cp_properties(:,:,1)==0.d0)) then
+            krho = sum( self%cp_properties(:,:,2) )
+          else
+            write(*,*) 'ERROR: you should not fix the condensed-phase mass flux when using the SRM grain BC (14)'
+            stop
+          endif
+          self%properties(m-5) = self%properties(m-5)*(1.d0-krho)
+        endif
       endif
 
     end subroutine assemble_the_monster
@@ -357,5 +417,22 @@ module lib_bc
     enddo
 
   end function h02T0
+
+  function T02h0(T0,h,s) result(h0)
+    implicit none
+    real(8), intent(in) :: T0
+    real(8), intent(in) :: h(:,:)
+    integer, intent(in) :: s
+    real(8) :: h0
+    integer :: i
+
+    do i = lbound(h, dim=2), ubound(h, dim=2)
+      if (T0<=i .and. T0>i-1) then
+        h0 = (T0-dble(i-1))*(h(s,i)-(h(s,i-1))) + (h(s,i-1))
+        exit
+      endif
+    enddo
+
+  end function T02h0
 
 end module lib_bc

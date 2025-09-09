@@ -9,14 +9,14 @@ module species
   
 contains
 
-  subroutine define_composition(sini,species,T0,p0)
+  subroutine define_composition(sini,species,T0,p0,CEA)
     use finer, only: file_ini
     use strings, only: parse
     implicit none
-    type(file_ini), intent(in)       :: sini
+    type(file_ini),    intent(in)    :: sini
     type(obj_species), intent(inout) :: species
-    real(8), intent(inout)           :: T0, p0
-    type(obj_CEA)                    :: CEA
+    real(8),           intent(inout) :: T0, p0
+    type(obj_CEA),     intent(out), optional  :: CEA
     type(obj_species)                :: ct_species
     character(len=500)               :: CEAfile
     character(len=20)                :: name, str(2)

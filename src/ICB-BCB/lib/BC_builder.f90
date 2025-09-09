@@ -332,6 +332,30 @@ module build_BC_mod
     if (error==0) then
       n_files = n_files+1; bc_file(n_files)%var = 'krho'; bc_file(n_files)%name = infile_dummy
     endif
+    call ini_o%get(section_name='cell', option_name='a-file', val=infile_dummy, error=error)
+    if (error==0) then
+      n_files = n_files+1; bc_file(n_files)%var = 'a'; bc_file(n_files)%name = infile_dummy
+    endif
+    call ini_o%get(section_name='cell', option_name='n-file', val=infile_dummy, error=error)
+    if (error==0) then
+      n_files = n_files+1; bc_file(n_files)%var = 'n'; bc_file(n_files)%name = infile_dummy
+    endif
+    call ini_o%get(section_name='cell', option_name='pRef-file', val=infile_dummy, error=error)
+    if (error==0) then
+      n_files = n_files+1; bc_file(n_files)%var = 'pRef'; bc_file(n_files)%name = infile_dummy
+    endif
+    call ini_o%get(section_name='cell', option_name='rhoGrain-file', val=infile_dummy, error=error)
+    if (error==0) then
+      n_files = n_files+1; bc_file(n_files)%var = 'rhoGrain'; bc_file(n_files)%name = infile_dummy
+    endif
+    call ini_o%get(section_name='cell', option_name='Taf-file', val=infile_dummy, error=error)
+    if (error==0) then
+      n_files = n_files+1; bc_file(n_files)%var = 'Taf'; bc_file(n_files)%name = infile_dummy
+    endif
+    call ini_o%get(section_name='cell', option_name='SFgeo-file', val=infile_dummy, error=error)
+    if (error==0) then
+      n_files = n_files+1; bc_file(n_files)%var = 'SFgeo'; bc_file(n_files)%name = infile_dummy
+    endif
 
     ! Check if the file is in free-format or Tecplot-format
     if (n_files>0) then

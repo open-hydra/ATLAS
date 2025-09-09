@@ -136,7 +136,22 @@ module ATLAS_IO
                   write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i),','
                 enddo
                 write(unitfile,'(E14.5,A1)') block(b)%face(f)%center(m,n)%bc%properties(6) ! roughness
-              
+
+              case(14)
+                s = size(block(b)%face(f)%center(m,n)%bc%properties)-5
+                !> mdot   =   ((1-kinj)*SF*SFgeo*rhop*a) * (p/pRef) ** n
+                !> OUTPUT ==> ((1-kinj)*SF*SFgeo*rhop*a) | n | pRef | haf | ...species mass fractions...
+                do i = s, s+2
+                  write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i)
+                enddo
+                write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(s+4)
+                if (block(b)%face(f)%center(m,n)%bc%species%n > 1) then
+                  do i = 1, block(b)%face(f)%center(m,n)%bc%species%n
+                    write(unitfile,'(E14.5,A)',advance='no') block(b)%face(f)%center(m,n)%bc%species%massf(i),','
+                  enddo
+                endif
+                write(unitfile,'(A)') ''
+
               case(666)
                 
                 ! Ghost i-1
