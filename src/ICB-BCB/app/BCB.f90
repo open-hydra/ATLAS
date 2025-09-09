@@ -12,6 +12,7 @@ program BCB
   use build_BC_mod
   use chimera
   use BC_connection
+  use area_variation_mod
   use finer, only: file_ini
   implicit none
   type(phase_type), allocatable  :: phase(:)
@@ -60,6 +61,9 @@ program BCB
 
     ! BC computation
     call build_BC(phase,sourceini,block)
+
+    ! Build Q2D Area variation files, if any
+    call build_areavariation(sourceini,block)
 
     ! Multiblock operations
     call find_periodic(block)
