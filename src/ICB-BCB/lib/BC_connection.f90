@@ -42,7 +42,7 @@ contains
     enddo
 
     do b1 = 1, nb
-      do f1 = 1, 2
+      do f1 = 1, block(b1)%nfaces
         do n1 = 1, block(b1)%face(f1)%Nn
           do m1 = 1, block(b1)%face(f1)%Nm
             associate( this => block(b1)%face(f1)%center(m1,n1) )
