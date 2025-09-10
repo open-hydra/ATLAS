@@ -49,7 +49,7 @@ module lib_bc
     self%connection = 0
     self%adj_assigned = .false.
     self%nproperties = nIG+nrans
-    if (self%definition==14) self%nproperties = 7
+    if (self%definition==14) self%nproperties = 8
     if (.not.allocated(self%properties)) allocate(self%properties(1:self%nproperties))
     if (.not.allocated(self%IG_time_BC)) allocate(self%IG_time_BC(1:self%nproperties))
     if (.not.allocated(self%IG_time_properties)) allocate(self%IG_time_properties(1:self%nproperties))
@@ -164,15 +164,22 @@ module lib_bc
       integer, intent(in) :: pos
       integer:: error
 
+      ! |  pos  | pos+1 | pos+2 | pos+3 | pos+4 | pos+5 | pos+6 |
+      ! |   a   |   n   | pRef  |  Taf  |  haf  | rhoGr | SFgeo |
+      ! |  m-6  |  m-5  |  m-4  |  m-3  |  m-2  |  m-1  |   m   |
+
       call sourceini%get(section_name=section, option_name='a',        val=self%properties(pos),   error=error)
+      if (error/=0) write(*,*) ' ERROR: a coefficient required for SRM grain BC (14)'
       call sourceini%get(section_name=section, option_name='n',        val=self%properties(pos+1), error=error)
+      if (error/=0) write(*,*) ' ERROR: n exponent required for SRM grain BC (14)'
       call sourceini%get(section_name=section, option_name='pRef',     val=self%properties(pos+2), error=error)
-      if (error/=0) self%properties(pos+3) = 1.d0; self%properties(pos+3) = self%properties(pos+3)*1.d5
-      call sourceini%get(section_name=section, option_name='rhoGrain', val=self%properties(pos+3), error=error)
-      call sourceini%get(section_name=section, option_name='Taf',      val=self%properties(pos+4), error=error)
-      if (error/=0) self%properties(pos+4) = 0.
-      call sourceini%get(section_name=section, option_name='SFgeo',    val=self%properties(pos+5), error=error)
-      if (error/=0) self%properties(pos+5) = 1.d0
+      if (error/=0) self%properties(pos+2) = 1.d0; self%properties(pos+3) = self%properties(pos+2)*1.d5
+      call sourceini%get(section_name=section, option_name='Taf',      val=self%properties(pos+3), error=error)
+      if (error/=0) self%properties(pos+3) = 0.
+      call sourceini%get(section_name=section, option_name='rhoGrain', val=self%properties(pos+5), error=error)
+      if (error/=0) write(*,*) ' ERROR: grain density (rhoGrain) required for SRM grain BC (14)'
+      call sourceini%get(section_name=section, option_name='SFgeo',    val=self%properties(pos+6), error=error)
+      if (error/=0) self%properties(pos+6) = 1.d0
 
     end subroutine assigne_SRMgrain
 
@@ -311,16 +318,17 @@ module lib_bc
           endif
         else
           m = size(self%properties)
-          if (self%properties(m-1)>0.5d0) then
-            T0 = self%properties(m-1)
+          if (self%properties(m-3)>0.5d0) then
+            T0 = self%properties(m-3)
             write(*,*) ' Override CEA mixture temperature given adiabatic flame temperature Taf'
             do i = 1, self%species%n
-              self%properties(m-1) = self%properties(m-1) + self%species%massf(i)*T02h0(T0,self%species%h,i) 
+              self%properties(m-2) = self%properties(m-2) + self%species%massf(i)*T02h0(T0,self%species%h,i) 
             enddo
           else
-          endif
-          self%properties(m-1) = CEA%SE%h0*1.d3
-          self%properties(m-5) = self%properties(1)*self%properties(m)*self%properties(m-2)*self%properties(m-5)
+            self%properties(m-3) = T0
+            self%properties(m-2) = CEA%SE%h0*1.d3
+          endif         
+          self%properties(m-6) = self%properties(1)*self%properties(m)*self%properties(m-1)*self%properties(m-6)
         endif
 
       endif
@@ -382,8 +390,8 @@ module lib_bc
 
         if (present(SRMswitch)) then
           m = size(self%properties)
-          self%properties(m-1) = (csAl*sum(self%cp_properties(m,1:npCP,2)*(volRatio*T0-Tsat))                &
-                                  + sum((1d0-self%cp_properties(m,1:npCP,2)*volRatio))*self%properties(m-1)  &
+          self%properties(m-2) = (csAl*sum(self%cp_properties(m,1:npCP,2)*(volRatio*T0-Tsat))                &
+                                  + sum((1d0-self%cp_properties(m,1:npCP,2)*volRatio))*self%properties(m-2)  &
                                   - sum(self%cp_properties(m,1:npCP,2)*(1d0-volRatio))*Qal)                 &
                                   /(1d0-sum(self%cp_properties(m,1:npCP,2)))
           if (all(self%cp_properties(:,:,1)==0.d0)) then
@@ -392,7 +400,7 @@ module lib_bc
             write(*,*) 'ERROR: you should not fix the condensed-phase mass flux when using the SRM grain BC (14)'
             stop
           endif
-          self%properties(m-5) = self%properties(m-5)*(1.d0-krho)
+          self%properties(m-6) = self%properties(m-6)*(1.d0-krho)
         endif
       endif
 
