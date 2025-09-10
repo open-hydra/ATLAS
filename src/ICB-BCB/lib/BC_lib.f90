@@ -167,7 +167,7 @@ module lib_bc
       call sourceini%get(section_name=section, option_name='a',        val=self%properties(pos),   error=error)
       call sourceini%get(section_name=section, option_name='n',        val=self%properties(pos+1), error=error)
       call sourceini%get(section_name=section, option_name='pRef',     val=self%properties(pos+2), error=error)
-      if (error/=0) self%properties(pos+3) = 1.0d5
+      if (error/=0) self%properties(pos+3) = 1.d0; self%properties(pos+3) = self%properties(pos+3)*1.d5
       call sourceini%get(section_name=section, option_name='rhoGrain', val=self%properties(pos+3), error=error)
       call sourceini%get(section_name=section, option_name='Taf',      val=self%properties(pos+4), error=error)
       if (error/=0) self%properties(pos+4) = 0.
