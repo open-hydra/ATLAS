@@ -801,7 +801,7 @@ module ATLAS_IO
     character(len=llen)                :: localpath_vtk, localpath
     integer(I4P)                       :: E_IO, b, s, nb, cnt, nsc, p, ap
     integer(I4P)                       :: m, g, nnn
-    character(len=llen)                :: varnames, filename
+    character(len=10*llen)             :: varnames, filename
     character(len=llen)                :: name_
     logical                            :: thereis
 
