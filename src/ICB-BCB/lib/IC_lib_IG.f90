@@ -11,9 +11,11 @@ contains
     use finer, only: file_ini
     use Interpolator_IG
     use species
+    use CEA_module, only: obj_CEA
     implicit none
     type(ATLAS_block), intent(inout)  :: block
     type(file_ini), intent(in)        :: zoneini
+    type(obj_CEA)                     :: dummy
     character(len=*), intent(inout)   :: IC_type
     real(8), intent(in)               :: range(6)
     integer, intent(in)               :: dirSize
@@ -224,7 +226,7 @@ contains
       case ('homogeneous')
 
         sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0c, p0c)
+        call define_composition(zoneini, sp, T0c, p0c, dummy)
 
         here = 1.0
 
@@ -287,7 +289,7 @@ contains
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
 
             sp%massf = 1d-20
-            call define_composition(zoneini, sp, T0(i,j,k), p0(i,j,k))
+            call define_composition(zoneini, sp, T0(i,j,k), p0(i,j,k), dummy)
 
             ! R
             Rgas = sum(Runi*sp%massf/sp%w)
@@ -343,7 +345,7 @@ contains
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
         sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0c, p0c)
+        call define_composition(zoneini, sp, T0c, p0c, dummy)
 
         here = 1.0
 
@@ -374,7 +376,7 @@ contains
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
         sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0c, p0c)
+        call define_composition(zoneini, sp, T0c, p0c, dummy)
 
         call nozzle1D()
 
