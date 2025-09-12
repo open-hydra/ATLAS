@@ -215,7 +215,6 @@ module lib_bc
 
     subroutine assemble_the_monster(SRMswitch)
       use species, only: define_composition
-      use CEA_module, only: obj_CEA
       implicit none
       logical, intent(in), optional  :: SRMswitch
       logical                        :: found_CEA, force_inflow

@@ -11,11 +11,9 @@ contains
     use finer, only: file_ini
     use Interpolator_IG
     use species
-    use CEA_module, only: obj_CEA
     implicit none
     type(ATLAS_block), intent(inout)  :: block
     type(file_ini), intent(in)        :: zoneini
-    type(obj_CEA)                     :: dummy
     character(len=*), intent(inout)   :: IC_type
     real(8), intent(in)               :: range(6)
     integer, intent(in)               :: dirSize
@@ -35,6 +33,7 @@ contains
     character(len=2)              :: nozzle_dir
     real(8)                       :: L_threshold
     real(8)                       :: val_const
+    real(8)                       :: dummy
     character(len=200)            :: val_file
     character(len=16)             :: val_direction
     integer                       :: errorfile, errordirection
