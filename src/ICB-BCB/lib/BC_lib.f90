@@ -275,9 +275,7 @@ module lib_bc
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
         call define_composition(sourceini, self%species, T0, p0, h0)
 
-        if (h0/=0 .and. self%species%n>1) then
-          error stop ( "Not possible to assign h0 to a multispecies flow!" )
-        elseif (h0/=0 .and. self%species%n==1) then
+        if (h0/=0 .and. self%species%n==1) then
           T0 = h02T0(h0,self%species%h)
         endif
 
