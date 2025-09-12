@@ -33,7 +33,6 @@ contains
     character(len=2)              :: nozzle_dir
     real(8)                       :: L_threshold
     real(8)                       :: val_const
-    real(8)                       :: dummy
     character(len=200)            :: val_file
     character(len=16)             :: val_direction
     integer                       :: errorfile, errordirection
@@ -225,7 +224,7 @@ contains
       case ('homogeneous')
 
         sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0c, p0c, dummy)
+        call define_composition(zoneini, sp, T0c, p0c)
 
         here = 1.0
 
@@ -288,7 +287,7 @@ contains
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
 
             sp%massf = 1d-20
-            call define_composition(zoneini, sp, T0(i,j,k), p0(i,j,k), dummy)
+            call define_composition(zoneini, sp, T0(i,j,k), p0(i,j,k))
 
             ! R
             Rgas = sum(Runi*sp%massf/sp%w)
@@ -344,7 +343,7 @@ contains
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
         sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0c, p0c, dummy)
+        call define_composition(zoneini, sp, T0c, p0c)
 
         here = 1.0
 
@@ -375,7 +374,7 @@ contains
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
         sp%massf = 1d-20
-        call define_composition(zoneini, sp, T0c, p0c, dummy)
+        call define_composition(zoneini, sp, T0c, p0c)
 
         call nozzle1D()
 
