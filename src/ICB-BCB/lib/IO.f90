@@ -144,11 +144,9 @@ module ATLAS_IO
                 do i = s, s+4
                   write(unitfile,'(E14.5,A1)',advance='no') block(b)%face(f)%center(m,n)%bc%properties(i)
                 enddo
-                if (block(b)%face(f)%center(m,n)%bc%species%n > 1) then
-                  do i = 1, block(b)%face(f)%center(m,n)%bc%species%n
-                    write(unitfile,'(E14.5,A)',advance='no') block(b)%face(f)%center(m,n)%bc%species%massf(i),','
-                  enddo
-                endif
+                do i = 1, block(b)%face(f)%center(m,n)%bc%species%n
+                  write(unitfile,'(E14.5,A)',advance='no') block(b)%face(f)%center(m,n)%bc%species%massf(i),','
+                enddo
                 write(unitfile,'(A)') ''
 
               case(666)
