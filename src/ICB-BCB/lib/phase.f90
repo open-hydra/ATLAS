@@ -97,7 +97,7 @@ contains
     enddo
 
     if (species%n==1) species%massf(1) = 1.0
-    if (present(h0)) h0 = CEA%SE%h0
+    if (present(h0)) h0 = CEA%SE%h0*1000
 
   end subroutine define_composition
 
