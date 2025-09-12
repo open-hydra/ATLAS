@@ -9,60 +9,59 @@ if ATLASDIR is None:
     print("ERROR: ATLASDIR environment variable is not set.")
     sys.exit(1)
 
+
 # Import required module
 lib = os.path.join(ATLASDIR, "database/Transport/")
 sys.path.append(lib)
 from Marano import Marano_f
 
-def wilke_mixture_properties(x, mu, k, M):
+
+def wilke_mixture_properties(y, mu, k, trueM, names):
     """
     Calculate the mixture viscosity and thermal conductivity using Wilke's rule.
     
     Parameters:
-    y (list or numpy array): Mole fractions of species.
+    y (list or numpy array): Mass fractions of species.
     mu (list or numpy array): Viscosities of species (Pa.s or equivalent units).
     k (list or numpy array): Thermal conductivities of species (W/m.K).
     M (list or numpy array): Molecular weights of species (kg/mol or g/mol, but consistent units).
+    names (list): Names of the species.
     
     Returns:
     tuple: Mixture viscosity (Pa.s) and mixture thermal conductivity (W/m.K).
     """
     
-    n = len(x)
-    phi_mu = np.zeros((n, n))
-    phi_k = np.zeros((n, n))
-    
-    # Calculate phi_ij for viscosity and conductivity for each pair of species
+    n = len(y)
+    M = trueM.copy()
     for i in range(n):
-        for j in range(n):
-            if i == j:
-                phi_mu[i, j] = 1.0
-                phi_k[i, j] = 1.0
-            else:
-                # For viscosity
-                mu_ratio = abs((mu[i] / mu[j]))**0.5
-                M_ratio = (M[j] / M[i])**0.25
-                term_mu = (1 + mu_ratio * M_ratio)**2
-                phi_mu[i, j] = term_mu / (np.sqrt(8) * (1 + M[i] / M[j])**0.5)
-                
-                # For thermal conductivity
-                k_ratio = abs((k[i] / k[j]))**0.5
-                term_k = (1 + k_ratio * M_ratio)**2
-                phi_k[i, j] = term_k / (np.sqrt(8) * (1 + M[i] / M[j])**0.5)
+        if '-HG' in names[i]: M[i] *= 1e+5
     
     # Calculate the mixture viscosity
     mu_mixture = 0.0
     for i in range(n):
-        sum_phi_mu = np.sum(x * phi_mu[i, :])
-        mu_mixture += x[i] * mu[i] / sum_phi_mu
+        sum_phi = 0.0
+        for j in range(n):
+            M_ratio = (M[j] / M[i])**0.25
+            ratio = abs((mu[i] / mu[j]))**0.5
+            term = (1 + ratio * M_ratio)**2
+            phi = term / (np.sqrt(8) * (1 + M[i] / M[j])**0.5)
+            sum_phi += y[j]/M[j] * phi
+        mu_mixture += y[i]/M[i] * mu[i] / sum_phi
     
     # Calculate the mixture thermal conductivity
     k_mixture = 0.0
     for i in range(n):
-        sum_phi_k = np.sum(x * phi_k[i, :])
-        k_mixture += x[i] * k[i] / sum_phi_k
+        sum_phi = 0.0
+        for j in range(n):
+            M_ratio = (M[j] / M[i])**0.25
+            ratio = abs((mu[i] / mu[j]))**0.5 #abs((k[i] / k[j]))**0.5
+            term = (1 + ratio * M_ratio)**2
+            phi = term / (np.sqrt(8) * (1 + M[i] / M[j])**0.5)
+            sum_phi += y[j]/M[j] * phi
+        k_mixture +=  y[i]/M[i] * k[i] / sum_phi
     
     return mu_mixture, k_mixture
+
 
 # Formule contenute in chempp, strutturalmente simili a quelle contenute in cantera.
 # Per la conducibilita chempp usa cv_rot=0
@@ -81,23 +80,7 @@ def wilke_mixture_properties(x, mu, k, M):
     # double f_trans = 2.5 * (1.0 - c1 * cv_rot/1.5);
     # double cond = (visc/mw[k])*GasConstant*(f_trans * 1.5
     #                                     + f_rot * cv_rot + f_int * cv_int);
-def simplified_law(solution,T,n,wm,cp):
-  identity_matrix = np.eye(solution.n_species)
-  if T < solution.species(n).thermo.min_temp or T > solution.species(n).thermo.max_temp:
-    if T < solution.species(n).thermo.min_temp:
-        Tdum = solution.species(n).thermo.min_temp
-    else:
-        Tdum = solution.species(n).thermo.max_temp
-    solution.TPY = Tdum, ct.one_atm, identity_matrix[n]
-    cp = solution.cp
-    h = solution.h + solution.cp * (T - Tdum)
-    s = solution.s + cp * np.log(T / Tdum)
-  else:
-    solution.TPY = T, ct.one_atm, identity_matrix[n]
-    cp = solution.cp
-    h = solution.h
-    s = solution.s
-
+def simplified_law(T,wm,cp):
   omega = max(np.log(50.0 * wm**4.6 / T**1.4),1.0)
   mu = 26.6957937 * np.sqrt(wm * T) / omega
   cpadim = cp * wm / ct.gas_constant
@@ -133,9 +116,10 @@ def CEA_polynomials(T,database):
     mu = VC[0] * np.log(T) + VC[1] / T + VC[2] / (T * T) + VC[3]
     mu = 1.0e-07 * np.exp(mu)
     k = CC[0] * np.log(T) + CC[1] / T + CC[2] / (T * T) + CC[3]
-    k = 1.0e-04 * np.exp(k) # 1e-4 derives from the conferson \muW/cm*K -> W/m*k
+    k = 1.0e-04 * np.exp(k) # 1e-4 derives from the conversion \muW/cm*K -> W/m*k
 
     return mu, k
+
 
 def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
 
@@ -187,7 +171,15 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                     viscosity_aux[species_name].append(mu)
                     conductivity_aux[species_name].append(k)
                 else:
-                    mu, k = simplified_law(solution,T,n,solution.molecular_weights[n],solution.species(n).thermo.cp(T))
+                    if T < solution.species(n).thermo.min_temp or T > solution.species(n).thermo.max_temp:
+                        if T < solution.species(n).thermo.min_temp:
+                            Tdum = solution.species(n).thermo.min_temp
+                        else:
+                            Tdum = solution.species(n).thermo.max_temp
+                        cp = solution.species(n).thermo.cp(Tdum)
+                    else:
+                        cp = solution.species(n).thermo.cp(T)
+                    mu, k = simplified_law(T,solution.molecular_weights[n],cp/solution.molecular_weights[n])
                     viscosity_aux[species_name].append(mu)
                     conductivity_aux[species_name].append(k)
 
@@ -217,8 +209,8 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                     for species in species_names_aux:
                         viscosities_at_temp.append(viscosity_aux[species][i])
                         conductivities_at_temp.append(conductivity_aux[species][i])
-                    mu, k  = wilke_mixture_properties(solution.X, viscosities_at_temp, conductivities_at_temp,
-                                                       solution.molecular_weights)
+                    mu, k  = wilke_mixture_properties(solution.Y, viscosities_at_temp, conductivities_at_temp, 
+                                                      solution.molecular_weights, solution.species_names)
                 viscosity.setdefault(mix_name, []).append(mu)
                 conductivity.setdefault(mix_name, []).append(k)
 
