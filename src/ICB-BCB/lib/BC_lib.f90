@@ -218,7 +218,6 @@ module lib_bc
       use CEA_module, only: obj_CEA
       implicit none
       logical, intent(in), optional  :: SRMswitch
-      type(obj_CEA)                  :: CEA
       logical                        :: found_CEA, force_inflow
       integer                        :: error, m, npCP, i
       ! Ideal gas
@@ -274,11 +273,9 @@ module lib_bc
         if (error==0) pstatic = rt
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
-        call define_composition(sourceini, self%species, T0, p0, CEA)
+        call define_composition(sourceini, self%species, T0, p0, h0)
 
-        if (h0/=0 .and. self%species%n>1) then
-          error stop ( "Not possible to assign h0 to a multispecies flow!" )
-        elseif (h0/=0 .and. self%species%n==1) then
+        if (h0/=0 .and. self%species%n==1) then
           T0 = h02T0(h0,self%species%h)
         endif
 
@@ -326,7 +323,7 @@ module lib_bc
             enddo
           else
             self%properties(m-3) = T0
-            self%properties(m-2) = CEA%SE%h0*1.d3
+            self%properties(m-2) = h0*1.d3
           endif         
           self%properties(m-6) = self%properties(1)*self%properties(m)*self%properties(m-1)*self%properties(m-6)
         endif
