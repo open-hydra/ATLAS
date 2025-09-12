@@ -275,7 +275,7 @@ module lib_bc
         call define_composition(sourceini, self%species, T0, p0, h0)
 
         if (h0/=0 .and. self%species%n==1) then
-          T0 = h02T0(h0,self%species%h)
+          T0 = h02T0(h0,self%species%h,lbound(self%species%h,dim=2))
         endif
 
         ! Time bc
@@ -406,10 +406,11 @@ module lib_bc
 
 
   !> compute T starting from h using tabellams
-  function h02T0(h0,h) result(T0)
+  function h02T0(h0,h,start) result(T0)
     implicit none
     real(8), intent(in) :: h0
-    real(8), intent(in) :: h(:,:)
+    integer, intent(in) :: start
+    real(8), intent(in) :: h(:,start:)
     real(8) :: T0
     integer :: i
 
