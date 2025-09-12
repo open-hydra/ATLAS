@@ -747,8 +747,6 @@ module ATLAS_IO
       error = tec_read_structured_multiblock(orion=IOfield,filename=trim(filename))
     endif
 
-    print*, size(IOfield%block(1)%vars,1)
-
     call import_nodes(input=IOfield,output=icblock)
 
     if (phase_type=='IG') then
@@ -975,9 +973,10 @@ module ATLAS_IO
     implicit none
     character(len=*), intent(in):: prefix
     type(obj_species), intent(inout) :: sp
-    integer :: n, ios, Ti1, Ti2, unitfile
-    character(len=30) :: wholestring, args(2)
-    type(orion_data) :: orion
+    integer           :: ios, i, n, unitfile, start, Ti1, Ti2, dummy_i, dummy1, dummy23
+    character(256)    :: wholestring, args(2)
+    character(512)    :: wmfile, thermofile(2)
+    type(ORION_data)  :: orion
 
     open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
     if (ios/=0) then
@@ -1003,22 +1002,28 @@ module ATLAS_IO
     end do
     close(unitFile)
 
+  ! File 2: thermo
     ios = tec_read_points_multivars(orion,4,trim(prefix)//'thermo.dat')
     if (ios/=0) then
       write(*,*) '[WARNING] thermo file, '//trim(prefix)//'thermo.dat'//' not found'
       return
     endif
-    Ti1 = nint(orion%block(1)%mesh(1,1,1,1))
-    Ti2 = Ti1 + orion%block(1)%Ni - 1
+    dummy1  = lbound(orion%block(1)%mesh, dim=2)
+    dummy23 = lbound(orion%block(1)%mesh, dim=3)
+    Ti1 = nint(orion%block(1)%mesh(1,dummy1,dummy23,dummy23))
+    Ti2 = Ti1 + ubound(orion%block(1)%mesh, dim=2) - dummy1
+    start = Ti1
+    if (Ti1==1) Ti1 = 0
     allocate(sp%cp(1:sp%n,Ti1:Ti2))
     allocate(sp%dcp(1:sp%n,Ti1:Ti2))
     allocate(sp%h(1:sp%n,Ti1:Ti2))
     allocate(sp%s(1:sp%n,Ti1:Ti2))
+    dummy23 = lbound(orion%block(1)%vars, dim=3)
     do i = 1, sp%n
-      sp%cp(i,Ti1:Ti2) = orion%block(i)%vars(1,1:orion%block(1)%Ni,1,1)
-      sp%h(i,Ti1:Ti2) = orion%block(i)%vars(2,:,1,1)
-      sp%s(i,Ti1:Ti2) = orion%block(i)%vars(3,:,1,1)
-      sp%dcp(i,Ti1:Ti2) = orion%block(i)%vars(4,:,1,1)
+      sp%cp(i,Ti1:Ti2) = orion%block(i)%vars(1,:,dummy23,dummy23)
+      sp%h(i,Ti1:Ti2) = orion%block(i)%vars(2,:,dummy23,dummy23)
+      sp%s(i,Ti1:Ti2) = orion%block(i)%vars(3,:,dummy23,dummy23)
+      sp%dcp(i,Ti1:Ti2) = orion%block(i)%vars(4,:,dummy23,dummy23)
     enddo
 
   end subroutine read_idealgas_properties
