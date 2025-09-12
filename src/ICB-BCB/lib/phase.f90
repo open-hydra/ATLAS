@@ -26,7 +26,7 @@ contains
     real(8) :: ytot
 
     ! Initialize h0, if CEA is used, its value will be overwritten
-    if present(h0) h0 = 0.d0
+    if (present(h0)) h0 = 0.d0
 
     CEA%OG = .false.
     call sini%get_sections_list(section_name)
