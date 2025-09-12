@@ -268,13 +268,17 @@ module build_BC_mod
       enddo
     endif
 
-    ! Check range for mulipatch
+    ! Check range for multipatch
     call ini_i%get(section_name='face',option_name='range',val=range, error=error)
     if (error==0) then
       do i = dirSize*2+1, 4 ; range(i) = (-1.0)**i*huge(range(i)) ; enddo
     else
       do i = 1, 4 ; range(i) = (-1.0)**i*huge(range(i)) ; enddo
     endif
+
+    ! Convert theta range (if present) from degrees to rad
+    if (dir(1)==5) range(1:2) = range(1:2)*pi/180
+    if (dirSize>1 .and. dir(2)==5) range(3:4) = range(3:4)*pi/180
     
     call ini_i%get(section_name='face', option_name='type', val=type_, error=error)
     do while (ini_i%loop(section_name='face', option_pairs=option_pairs))
@@ -477,8 +481,6 @@ module build_BC_mod
               enddo
             endif
             ! Multipatch
-            if (dir(1)==5) range(1:2) = range(1:2)*pi/180
-            if (dir(2)==5) range(3:4) = range(3:4)*pi/180
             if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
                 here(2)>=range(3) .and. here(2)<=range(4)) then
               cnt_bc = cnt_bc+1
