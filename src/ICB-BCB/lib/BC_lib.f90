@@ -173,7 +173,7 @@ module lib_bc
       call sourceini%get(section_name=section, option_name='n',        val=self%properties(pos+1), error=error)
       if (error/=0) write(*,*) ' ERROR: n exponent required for SRM grain BC (14)'
       call sourceini%get(section_name=section, option_name='pRef',     val=self%properties(pos+2), error=error)
-      if (error/=0) self%properties(pos+2) = 1.d0; self%properties(pos+3) = self%properties(pos+2)*1.d5
+      if (error/=0) self%properties(pos+2) = 1.d0; self%properties(pos+2) = self%properties(pos+2)*1.d+5
       call sourceini%get(section_name=section, option_name='Taf',      val=self%properties(pos+3), error=error)
       if (error/=0) self%properties(pos+3) = 0.
       call sourceini%get(section_name=section, option_name='rhoGrain', val=self%properties(pos+5), error=error)
@@ -220,7 +220,7 @@ module lib_bc
       logical                        :: found_CEA, force_inflow
       integer                        :: error, m, npCP, i
       ! Ideal gas
-      real(8) :: mach, massflux, p0, T0, h0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt, krho
+      real(8) :: mach, massflux, p0, T0, h0, CEAh0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt, krho
       ! Condensed-phase
       integer :: cp_scaling, error_gp
       real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:), rRes(:), Tsat(:), volRatio(:)
@@ -272,10 +272,12 @@ module lib_bc
         if (error==0) pstatic = rt
 
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
-        call define_composition(sourceini, self%species, T0, p0, h0)
+        call define_composition(sourceini, self%species, T0, p0, CEAh0)
 
         if (h0/=0 .and. self%species%n==1) then
           T0 = h02T0(h0,self%species%h,lbound(self%species%h,dim=2))
+        else
+          h0 = CEAh0
         endif
 
         ! Time bc
