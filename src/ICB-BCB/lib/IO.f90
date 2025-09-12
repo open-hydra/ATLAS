@@ -1018,14 +1018,19 @@ module ATLAS_IO
     allocate(sp%s(1:sp%n,Ti1:Ti2))
     dummy23 = lbound(orion%block(1)%vars, dim=3)
     do i = 1, sp%n
-      sp%cp(i,Ti1:Ti2) = orion%block(i)%vars(1,:,dummy23,dummy23)
-      sp%h(i,Ti1:Ti2) = orion%block(i)%vars(2,:,dummy23,dummy23)
-      sp%s(i,Ti1:Ti2) = orion%block(i)%vars(3,:,dummy23,dummy23)
-      sp%dcp(i,Ti1:Ti2) = orion%block(i)%vars(4,:,dummy23,dummy23)
+      sp%cp(i,start:Ti2) = orion%block(i)%vars(1,:,dummy23,dummy23)
+      sp%h(i,start:Ti2) = orion%block(i)%vars(2,:,dummy23,dummy23)
+      sp%s(i,start:Ti2) = orion%block(i)%vars(3,:,dummy23,dummy23)
+      sp%dcp(i,start:Ti2) = orion%block(i)%vars(4,:,dummy23,dummy23)
     enddo
+    if (Ti1 == 0) then
+      sp%cp(:,0) = sp%cp(:,1)
+      sp%h(:,0) = 0.d0
+      sp%s(:,0) = sp%s(:,1)
+      sp%dcp(:,0) = sp%dcp(:,1)
+    endif
 
   end subroutine read_idealgas_properties
-
 
 
   subroutine read_cdp_properties(prefix, mat)
@@ -1074,7 +1079,6 @@ module ATLAS_IO
     enddo
 
   end subroutine read_cdp_properties
-
 
 
   subroutine read_phase(phase)
