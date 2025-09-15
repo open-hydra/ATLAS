@@ -1,6 +1,6 @@
 import numpy as np
 import cantera as ct
-import IG_IO as IG_IO, IO_Legacy
+import IG_IO as IG_IO
 
 HG_factor = 1.0e+5
 HG_substring = '-HG'
@@ -128,4 +128,3 @@ def compute_properties(name,T_low, T_max, all_solutions):
             molecular_weights.append(M_mix)
 
     IG_IO.write_thermo_properties(name,T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)
-    #IO_Legacy.write_thermo_properties(T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)
