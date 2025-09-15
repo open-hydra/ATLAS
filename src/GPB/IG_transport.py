@@ -1,6 +1,6 @@
 import numpy as np
 import cantera as ct
-import IG_IO as IG_IO, IO_Legacy
+import IG_IO as IG_IO
 import os, sys
 
 # Ensure the environment variable is set
@@ -16,9 +16,11 @@ sys.path.append(lib)
 from Marano import Marano_f
 
 
-def wilke_mixture_properties(y, mu, k, trueM, names):
+def chempp_wilke(y, mu, k, trueM, names):
     """
-    Calculate the mixture viscosity and thermal conductivity using Wilke's rule.
+    As chempp':
+    viscosity    -> Wilke
+    conductivity -> Wilke with Phi computed via viscosity
     
     Parameters:
     y (list or numpy array): Mass fractions of species.
@@ -59,6 +61,53 @@ def wilke_mixture_properties(y, mu, k, trueM, names):
             phi = term / (np.sqrt(8) * (1 + M[i] / M[j])**0.5)
             sum_phi += y[j]/M[j] * phi
         k_mixture +=  y[i]/M[i] * k[i] / sum_phi
+    
+    return mu_mixture, k_mixture
+
+
+def cantera_wilke_mathur(y, mu, k, trueM, names):
+    """
+    As Cantera 'mixture-averaged':
+    viscosity    -> Wilke
+    conductivity -> Mathur
+    
+    Parameters:
+    y (list or numpy array): Mass fractions of species.
+    mu (list or numpy array): Viscosities of species (Pa.s or equivalent units).
+    k (list or numpy array): Thermal conductivities of species (W/m.K).
+    M (list or numpy array): Molecular weights of species (kg/mol or g/mol, but consistent units).
+    names (list): Names of the species.
+    
+    Returns:
+    tuple: Mixture viscosity (Pa.s) and mixture thermal conductivity (W/m.K).
+    """
+    
+    n = len(y)
+    M = trueM.copy()
+    for i in range(n):
+        if '-HG' in names[i]: M[i] *= 1e+5
+    
+    # Calculate the mixture viscosity
+    mu_mixture = 0.0
+    for i in range(n):
+        sum_phi = 0.0
+        for j in range(n):
+            M_ratio = (M[j] / M[i])**0.25
+            ratio = abs((mu[i] / mu[j]))**0.5
+            term = (1 + ratio * M_ratio)**2
+            phi = term / (np.sqrt(8) * (1 + M[i] / M[j])**0.5)
+            sum_phi += y[j]/M[j] * phi
+        mu_mixture += y[i]/M[i] * mu[i] / sum_phi
+    
+    # Calculate the mixture thermal conductivity
+    term1 = 0.0
+    term2 = 0.0
+    S = np.sum(y/M)
+    for i in range(n):
+        x = y[i] / M[i] / S
+        term1 += x * k[i]
+        term2 += x / k [i]
+    k_mixture =  0.5*( term1 + 1 / term2 )
     
     return mu_mixture, k_mixture
 
@@ -209,11 +258,9 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                     for species in species_names_aux:
                         viscosities_at_temp.append(viscosity_aux[species][i])
                         conductivities_at_temp.append(conductivity_aux[species][i])
-                    mu, k  = wilke_mixture_properties(solution.Y, viscosities_at_temp, conductivities_at_temp, 
-                                                      solution.molecular_weights, solution.species_names)
+                    mu, k  = chempp_wilke(solution.Y, viscosities_at_temp, conductivities_at_temp, solution.molecular_weights, solution.species_names)
                 viscosity.setdefault(mix_name, []).append(mu)
                 conductivity.setdefault(mix_name, []).append(k)
 
 
     IG_IO.write_transport_properties(name, T_low, T_max, species_names, viscosity, conductivity)
-    #IO_Legacy.write_transport_properties(T_low, T_max, species_names, viscosity, conductivity)
