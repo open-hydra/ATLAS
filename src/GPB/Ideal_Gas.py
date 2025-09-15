@@ -1,8 +1,7 @@
 import cantera as ct
-import IG_IO, IO_Legacy
+import IG_chemistry
 import IG_transport
 import IG_thermo
-from phase_tools import update_thermo_model
 from Read_INI import *
 from NewCEA import CEA
 import os, sys, re
@@ -353,6 +352,4 @@ def build(inifile,section):
                 for sp_ in p.species_names: sp.append(sp_)
             elif "mix" in p.name:
                 sp.append('inertMix')
-        print(' -- Build chemistry properties')
-        IG_IO.write_chemistry_properties (name, T1, T2, mechanism, sp)
-        #IO_Legacy.write_chemistry_properties (T1, T2, mechanism, sp)
+        IG_chemistry.compute_properties (name, T1, T2, mechanism, sp)

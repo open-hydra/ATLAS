@@ -9,87 +9,11 @@ try:
 except FileExistsError:
     print(f"Directory '{outpath}' already exists.")
 
-# def fittatutto (reaction, temperatures,kb_values):
-#     from scipy.optimize import curve_fit
-
-#     A = reaction.rate.pre_exponential_factor
-#     b = reaction.rate.temperature_exponent
-#     Ea = reaction.rate.activation_energy  # This is in J/mol (SI units)
-
-#     # Print the parameters
-#     print(f"Pre-exponential factor (A): {A:.3e} m^3/mol/s")
-#     print(f"Temperature exponent (b): {b}")
-#     print(f"Activation energy (Ea): {Ea / 1000:.2f} kJ/mol")  # Convert J/mol to kJ/mol
-
-#     # Gas constant in J/(mol*K)
-#     R = ct.gas_constant
-
-#     # Use logarithmic form to improve fitting stability
-#     log_kb_values = np.log(kb_values)
-
-#     # Define the Arrhenius equation in logarithmic form
-#     def log_arrhenius(T, log_A_b, n_b, E_a_b):
-#         return log_A_b + n_b * np.log(T) - E_a_b / (R * T)
-
-#     # Initial guess for the Arrhenius parameters (log_A_b, n_b, E_a_b)
-#     initial_guess = [np.log(1e12), -1.0, 50000]  # Rough initial guesses
-
-#     # Increase the maximum function evaluations to help convergence
-#     maxfev = 7000
-
-#     # Add tolerances (ftol, xtol, gtol) for better control of the fit
-#     tolerances = {
-#         'ftol': 1e-15,  # Adjust this for the absolute error tolerance in the residual sum of squares
-#         'xtol': 1e-15,  # Adjust this for the relative error tolerance in the solution
-#         'gtol': 1e-15,  # Adjust this for the orthogonality tolerance
-#     }
-
-#     # Fit the curve to the data using the logarithmic form of the Arrhenius equation with adjusted tolerances
-#     params, covariance = curve_fit(
-#         log_arrhenius, temperatures, log_kb_values, 
-#         p0=initial_guess, maxfev=maxfev, method='trf',
-#         ftol=tolerances['ftol'], xtol=tolerances['xtol'], gtol=tolerances['gtol']
-#     )
-
-#     # Extract fitted parameters and convert log_A_b back to A_b
-#     log_A_b_fitted, n_b_fitted, E_a_b_fitted = params
-#     A_b_fitted = np.exp(log_A_b_fitted)  # Convert back to A_b from log(A_b)
-
-#     # Print the fitted Arrhenius parameters
-#     print(f"Fitted backward pre-exponential factor (A_b): {A_b_fitted:.3e} m^3/mol/s")
-#     print(f"Fitted backward temperature exponent (n_b): {n_b_fitted:.3f}")
-#     print(f"Fitted backward activation energy (E_a_b): {E_a_b_fitted / 1000:.3f} kJ/mol")
-#     # Convert A_b from m^3/mol/s to cm^3/mol/s
-#     A_b_fitted_cm = A_b_fitted * 1e6
-#     # Convert E_a_b from kJ/mol to cal/mol
-#     E_a_b_fitted_cal = (E_a_b_fitted / 1000) * 239.005736
-#     # Print the converted values
-#     print(f"Fitted backward pre-exponential factor (A_b): {A_b_fitted_cm:.3e} cm^3/mol/s")
-#     print(f"Fitted backward temperature exponent (n_b): {n_b_fitted:.3f}")
-#     print(f"Fitted backward activation energy (E_a_b): {E_a_b_fitted_cal:.3f} cal/mol")
-#     # Convert activation energy to Kelvin (divide by R)
-#     activation_energy_K = E_a_b_fitted / R
-#     print(f"Fitted backward activation energy (E_a_b) in Kelvin: {activation_energy_K:.3f} K")
-#     # Predicted backward rate constants using the fitted parameters
-#     kb_fitted_values = np.exp(log_arrhenius(temperatures, log_A_b_fitted, n_b_fitted, E_a_b_fitted))
-#     import matplotlib.pyplot as plt
-#     # Plot the original vs fitted backward rate constants
-#     #plt.plot(temperatures, kb_values, 'o', label='Original kb values')
-#     #plt.plot(temperatures, kb_fitted_values, '-', label='Fitted kb values')
-#     plt.plot(temperatures, (kb_fitted_values-kb_values)/kb_values*100, '-', label='Fitted kb values')
-#     plt.xlabel('Temperature (K)')
-#     plt.ylabel('kb (m^3/mol/s)')
-#     plt.legend()
-#     plt.title('Original vs Fitted Backward Rate Constants')
-#     plt.show()
-
-
 
 def read_yaml_file(file_path):
     with open(file_path, 'r') as file:
         data = yaml.safe_load(file)
         return data
-
 
 
 def write_thermo_properties(name, T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values):
@@ -143,58 +67,7 @@ def write_transport_properties(name, T_low, T_max, species_names, viscosity, con
                 f.write(f"{T} {viscosity[species_name][i]:.12f} {conductivity[species_name][i]:.12f} \n")
 
 
-
-def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
-
-    # Define temperature range
-    temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
-
-    # Write Arrhenius data to a file in Tecplot-readable format
-    filename = outpath + name + "chemistry-Arrhenius.dat"
-    with open(filename, 'w') as f:
-        f.write("TITLE = \"Arrhenius data\"\n")
-        f.write("VARIABLES = \"Temperature\", \"kf\", \"kb\"\n")
-
-        # Print out the reaction rates for each reaction in the specified format
-        for i in range(phase.n_reactions):
-            if 'falloff' not in phase.reaction(i).reaction_type:
-                f.write(f"ZONE T=Reaction{i+1}\n")
-                f.write(f"I={len(temperatures)}, F=POINT\n")
-                for T in temperatures:
-                    phase.TP = T, ct.one_atm
-                    forward_rate = phase.forward_rate_constants[i]
-                    reverse_rate = phase.reverse_rate_constants[i]
-                    f.write(f'{T:<12}  {forward_rate:.20E}    {reverse_rate:.20E}\n')
-
-    # Write fall-off data to a file in Tecplot-readable format
-    filename = outpath + name + "chemistry-Troe.dat"
-    with open(filename, 'w') as f:
-        f.write("TITLE = \"Fall-off data\"\n")
-        f.write("VARIABLES = \"Temperature\", \"k_inf\", \"k_0\", \"k_c\", \"F_cent\"\n")
-
-        # Print out the reaction rates for each reaction in the specified format
-        for i in range(phase.n_reactions):
-            if phase.reaction(i).reaction_type == 'falloff-Troe':
-                f.write(f"ZONE T=Reaction{i+1}\n")
-                f.write(f"I={len(temperatures)}, F=POINT\n")
-                rxn = phase.reaction(i)
-                for T in temperatures:
-                    phase.TP = T, 300*ct.one_atm
-                    alpha, T3, T1, *T2 = rxn.rate.falloff_coeffs
-                    # Compute Fcent using Troe formula
-                    Fcent = ((1 - alpha) * math.exp(-T / T3) +
-                            alpha * math.exp(-T / T1))
-                    if T2:
-                        Fcent += math.exp(-T2[0] / T)
-                    k_inf = rxn.rate.high_rate(T)
-                    k_0 = rxn.rate.low_rate(T)
-                    kc = phase.equilibrium_constants[i]
-                    # Workaround: Replace infinite constants with a large finite value to avoid issues in output
-                    if math.isinf(k_inf): k_inf = 1e300
-                    if math.isinf(k_0): k_0 = 1e300
-                    if math.isinf(kc): kc = 1e300
-                    f.write(f'{T:<12}  {k_inf:.20E}    {k_0:.20E}    {kc:.20E}    {Fcent:.20E}\n')
-
+def write_chemistry_info (name, phase, further_sp):
 
     filename_ = outpath + name + 'chemistry-info.txt'
     with open(filename_, mode='w') as file:
@@ -258,3 +131,89 @@ def write_chemistry_properties (name, T_low, T_max, phase, further_sp):
 
             efficiency_coeff = 0.0
             file.write(f'{i + 1} {"M"} {reactant_coeff} {product_coeff} {efficiency_coeff}\n')
+
+
+def write_chemistry_Arrhenius(name, temperatures, kf, kb):
+    """
+    Write Arrhenius reaction rate data to a Tecplot-readable file.
+    Each Arrhenius reaction is written in its own ZONE.
+    """
+    os.makedirs(outpath, exist_ok=True)  # ensure output directory exists
+    filename = os.path.join(outpath, f"{name}chemistry-Arrhenius.dat")
+
+    with open(filename, 'w') as f:
+        f.write("TITLE = \"Arrhenius data\"\n")
+        f.write("VARIABLES = \"Temperature\", \"kf\", \"kb\"\n")
+
+        n_reactions, n_temps = kf.shape
+
+        for i in range(n_reactions):
+            f.write(f"ZONE T=\"Reaction {i+1}\"\n")
+            f.write(f"I={n_temps}, F=POINT\n")
+            for t, T in enumerate(temperatures):
+                kf_val = kf[i, t]
+                kb_val = kb[i, t]
+                # Replace infinities with very large numbers
+                if math.isinf(kf_val): kf_val = 1e300
+                if math.isinf(kb_val): kb_val = 1e300
+                f.write(f"{T:12.3f} {kf_val:20.12E} {kb_val:20.12E}\n")
+
+
+def write_chemistry_Troe(name, temperatures, k_0_t, k_inf_t, kc_t, Fcent):
+    """
+    Write fall-off Troe reaction rate data to a Tecplot-readable file.
+    Each Troe falloff reaction is written in its own ZONE.
+    """
+    os.makedirs(outpath, exist_ok=True)  # make sure output directory exists
+    filename = os.path.join(outpath, f"{name}chemistry-Troe.dat")
+
+    with open(filename, 'w') as f:
+        f.write("TITLE = \"Fall-off Troe data\"\n")
+        f.write("VARIABLES = \"Temperature\", \"k_inf\", \"k_0\", \"k_c\", \"F_cent\"\n")
+
+        n_reactions, n_temps = k_0_t.shape
+
+        for i in range(n_reactions):
+            f.write(f"ZONE T=\"Reaction {i+1}\"\n")
+            f.write(f"I={n_temps}, F=POINT\n")
+            for t, T in enumerate(temperatures):
+                k_inf = k_inf_t[i, t]
+                k_0   = k_0_t[i, t]
+                kc    = kc_t[i, t]
+                fcent = Fcent[i, t]
+                # Replace infinities with a very large number for Tecplot
+                if math.isinf(k_inf): k_inf = 1e300
+                if math.isinf(k_0):   k_0   = 1e300
+                if math.isinf(kc):    kc    = 1e300
+                if math.isinf(fcent): fcent = 1e300
+                f.write(f"{T:12.3f} {k_inf:20.12E} {k_0:20.12E} {kc:20.12E} {fcent:20.12E}\n")
+
+
+def write_chemistry_Lindemann(name, temperatures, k_0_l, k_inf_l, kc_l):
+    """
+    Write fall-off Lindemann data to a file in Tecplot-readable format.
+    Each reaction gets its own ZONE.
+    """
+    os.makedirs(outpath, exist_ok=True)
+    filename = os.path.join(outpath, f"{name}chemistry-Lindemann.dat")
+
+    with open(filename, 'w') as f:
+        f.write("TITLE = \"Fall-off Lindemann data\"\n")
+        f.write("VARIABLES = \"Temperature\", \"k_inf\", \"k_0\", \"k_c\"\n")
+
+        n_reactions = k_0_l.shape[0]
+        n_temps = len(temperatures)
+
+        for i in range(n_reactions):
+            f.write(f"ZONE T=\"Reaction {i+1}\"\n")
+            f.write(f"I={n_temps}, F=POINT\n")
+            for t, T in enumerate(temperatures):
+                k_0 = k_0_l[i, t]
+                k_inf = k_inf_l[i, t]
+                kc = kc_l[i, t]
+                # Replace infinities with large number
+                if math.isinf(k_inf): k_inf = 1e300
+                if math.isinf(k_0): k_0 = 1e300
+                if math.isinf(kc): kc = 1e300
+                f.write(f"{T:12.3f} {k_inf:20.12E} {k_0:20.12E} {kc:20.12E}\n")
+
