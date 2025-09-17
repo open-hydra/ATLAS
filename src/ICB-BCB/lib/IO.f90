@@ -745,6 +745,8 @@ module ATLAS_IO
       error = tec_read_structured_multiblock(orion=IOfield,filename=trim(filename))
     endif
 
+    if (error/=0) stop "[ERROR] reading "//trim(filename)
+
     call import_nodes(input=IOfield,output=icblock)
 
     if (phase_type=='IG') then
