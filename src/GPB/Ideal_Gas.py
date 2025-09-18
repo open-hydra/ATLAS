@@ -2,6 +2,7 @@ import cantera as ct
 import IG_chemistry
 import IG_transport
 import IG_thermo
+import IG_IO
 from Read_INI import *
 from NewCEA import CEA
 import os, sys, re
