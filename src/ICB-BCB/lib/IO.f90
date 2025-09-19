@@ -354,7 +354,7 @@ module ATLAS_IO
 
               case(2,3,5,6,8,9,11)
 
-              case(4,22)
+              case(4,14,22)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%cp_nproperties
                   write(u,'(E14.5)',advance='no') block(b)%face(f)%center(m,n)%bc%cp_properties(mm,p,i)
                 enddo
