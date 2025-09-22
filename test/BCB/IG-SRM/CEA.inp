@@ -1,0 +1,24 @@
+problem   case=Shuttle
+      rocket  equilibrium  frozen
+  p,bar=48.29
+  sup,ae/at=3.4466
+react
+  fuel=AL(cr) wt=16  t,k=298.15
+  oxid=NH4CLO4(I) wt=69.6  t,k=298.15
+  name=Fe2O3(cr) wt=0.4
+  fuel=PBAN  wt=12.04  t,k=298.15
+    h,j/mol=-50207.9445704292  C 6.884 H 10.089 O 0.278 N 0.264
+  name=DCPD  wt=1.96  t,k=298.15
+    h,j/mol=-118407.0693  C 6.15 H 6.97 O 1.17 N 0.03
+only
+AL                ALCL               ALCL2              ALCL3
+ ALO                ALOCL             ALOH                ALOHCL              ALOHCL2
+ AL(OH)2            AL(OH)2CL          AL(OH)3
+ AL2O                CO                 CO2                CL                 CLO
+ CL2                FeCL3               H                 HCL                 H2
+ H2O                 NO                N2
+ O                 OH                 O2              AL2O3(L)
+output
+     siunits massf short
+end
+
