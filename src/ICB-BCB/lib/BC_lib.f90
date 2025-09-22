@@ -155,7 +155,7 @@ module lib_bc
 
       call sourceini%get(section_name=section, option_name='SF', val=self%properties(1), error=error)
       !if (error==0) print *, ' SF: ', self%properties(1)
-      if (nCP>0) self%cp_properties(:,:,1) = self%properties(1)
+      if (self%cp_nproperties==nCP) self%cp_properties(:,:,1) = self%properties(1)
 
     end subroutine assigne_SF
 
