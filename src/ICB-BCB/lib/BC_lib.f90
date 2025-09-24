@@ -324,7 +324,7 @@ module lib_bc
             enddo
           else
             self%properties(m-3) = T0
-            self%properties(m-2) = h0*1.d3
+            self%properties(m-2) = h0
           endif         
           self%properties(m-6) = self%properties(1)*self%properties(m)*self%properties(m-1)*self%properties(m-6)
         endif
