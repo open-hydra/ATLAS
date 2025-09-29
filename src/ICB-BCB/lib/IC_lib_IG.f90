@@ -212,6 +212,18 @@ contains
 
       case ('interpolation')
 
+        block%density = 0.d0
+        ! Check if an equilibrium composition has to be defined. If so, partial densities are set accordingly to species mass fractions
+        call define_composition(zoneini, sp, T0c, p0c)
+        if (any(sp%massf>0.d0)) then
+          if (verbose) then
+            write(*,*) "[LOG] Species mass fractions decomposition in interpolation"
+          endif
+          do s = 1, sp%n
+            block%density(s,:,:,:) = max(sp%massf(s),1d-20)
+          enddo
+        endif
+        ! Interpolation
         call intersol(block,OMF,OFF,OSF,oldid)
         ! Temperature evaluation (not performed during interpolation but needed for multi-phase coupling)
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)

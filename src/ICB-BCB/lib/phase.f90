@@ -25,6 +25,8 @@ contains
     integer :: i, j, error
     real(8) :: ytot
 
+    species%massf = 0.0d0
+
     ! Initialize h0, if CEA is used, its value will be overwritten
     if (present(h0)) h0 = 0.d0
 

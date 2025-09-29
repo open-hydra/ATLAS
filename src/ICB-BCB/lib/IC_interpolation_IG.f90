@@ -36,12 +36,12 @@ contains
 
     ! Old files reading and data allocation
     if (oldmeshfile_/='Darwin') then
-      if (verbose) write(*,*)' Reading mesh file: ', trim(oldmeshfile_)
+      if (verbose) write(*,*)"[LOG] Reading mesh file: ", trim(oldmeshfile_)
       call read_mesh(oldorion,oldmeshfile_)
       call import_nodes(input=oldorion,output=oldblock)
       deallocate(oldorion%block)
       if (law=='extrude') then
-        if (verbose) write(*,*)" Old mesh extrusion"
+        if (verbose) write(*,*)"[LOG] Old mesh extrusion"
         call extrude360(1)
         if (verbose) write(*,*) 
       endif
@@ -49,25 +49,25 @@ contains
         call oldblock(b)%compute_centers([0,0,0])
         call oldblock(b)%allocate(nrans,oldspecies%n,oldblock(b)%dim(1),oldblock(b)%dim(2),oldblock(b)%dim(3))
       end do
-      if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
+      if (verbose) write(*,*)"[LOG] Reading solution file: ", trim(oldsolutionfile)
       call read_solfile('IG',oldsolutionfile,oldblock,oldspecies%n)
       if (law=='extrude') then
-        if (verbose) write(*,*)" Old solution extrusion"
+        if (verbose) write(*,*)"[LOG] Old solution extrusion"
         call extrude360(2)
         if (verbose) write(*,*)
       endif
 
     else
 
-      if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
+      if (verbose) write(*,*)"[LOG] Reading solution file: ", trim(oldsolutionfile)
       call read_vtk_tec('IG',oldsolutionfile,oldblock,oldspecies%n)
       if (law=='extrude') then
-        if (verbose) write(*,*)" Old mesh extrusion"
+        if (verbose) write(*,*)"[LOG] Old mesh extrusion"
         call extrude360(1)
         if (verbose) write(*,*) 
       endif
       if (law=='extrude') then
-        if (verbose) write(*,*)" Old solution extrusion"
+        if (verbose) write(*,*)"[LOG] Old solution extrusion"
         call extrude360(2)
         if (verbose) write(*,*)
       endif
@@ -88,8 +88,8 @@ contains
       integer :: i, j, k
       
       if (verbose) then
-        write(*,*)" Extrusion angle    = ", thetamax_extrude
-        write(*,*)" Extrusion elements = ", nz_extrude
+        write(*,*)"[LOG] Extrusion angle    = ", thetamax_extrude
+        write(*,*)"[LOG] Extrusion elements = ", nz_extrude
       endif
   
       if (fase==1) then
@@ -167,9 +167,9 @@ contains
     endif
 
     if (verbose) then
-      write(*,*) " Building new solution"
-      write(*,*) " Old species number: ", oldspecies%n
-      write(*,*) " New species number: ", newspecies%n
+      write(*,*) "[LOG] Building new solution"
+      write(*,*) "[LOG] Old species number: ", oldspecies%n
+      write(*,*) "[LOG] New species number: ", newspecies%n
     endif
 
     b = block%id
@@ -197,7 +197,7 @@ contains
       end select
 
     if (verbose) then
-      write(*,*) " Interpolation Completed Successfully"
+      write(*,*) "[LOG] Interpolation Completed Successfully"
       write(*,*)
     endif
 
@@ -234,9 +234,8 @@ subroutine index_interpolation()
       sym_type = "2D"
     else
       write(*,*) 
-      write(*,*) " ERROR : 3D Meshes with different Nz"
+      write(*,*) "[ERROR] 3D Meshes with different Nz"
       write(*,*) " Can't use law = 'index' in this case"
-      write(*,*)
       stop
     endif
   endif
@@ -245,7 +244,7 @@ subroutine index_interpolation()
   if (all(same_dimension).and.sym_type=="2D") then
     if (verbose) then
       write(*,*) 
-      write(*,*) " 2D-3D Index based interpolation algorithm"
+      write(*,*) "[LOG] 2D-3D Index based interpolation algorithm"
       write(*,*)
     endif
     
@@ -254,15 +253,22 @@ subroutine index_interpolation()
         do i = 1, block%dim(1)
           
           ! Density
-          do s = 1, newspecies%n
-            block%density(s,i,j,k) = 1e-20
-            do sold = 1, oldspecies%n
-              if (newspecies%name(s)==oldspecies%name(sold)) then
-                block%density(s,i,j,k) = oldblock(b)%density(sold,i,j,1)
-                exit
-              endif
+          if (any(block%density(:,i,j,k)/=0.d0)) then
+            if (oldspecies%n==1) then
+              block%density(:,i,j,k) = block%density(:,i,j,k)*oldblock(b)%density(1,i,j,1)
+            else
+              stop "[ERROR] Species mass fractions decomposition available only if old species number = 1"
+            endif
+          else
+            do s = 1, newspecies%n
+              do sold = 1, oldspecies%n
+                if (newspecies%name(s)==oldspecies%name(sold)) then
+                  block%density(s,i,j,k) = oldblock(b)%density(sold,i,j,1)
+                  exit
+                endif
+              enddo
             enddo
-          enddo
+          endif
           
           ! Velocity
           block%velocity(1,i,j,k) = oldblock(b)%velocity(1,i,j,1)
@@ -285,7 +291,7 @@ subroutine index_interpolation()
   elseif (all(same_dimension).and.sym_type=="3D") then
     if (verbose) then
       write(*,*) 
-      write(*,*) " 3D-3D Index based interpolation algorithm"
+      write(*,*) "[LOG] 3D-3D Index based interpolation algorithm"
       write(*,*)
     endif
 
@@ -294,16 +300,23 @@ subroutine index_interpolation()
         do i = 1, block%dim(1)
 
           ! Density
-          do s = 1, newspecies%n
-            block%density(s,i,j,k) = 1e-20
-            do sold = 1, oldspecies%n
-              if (newspecies%name(s)==oldspecies%name(sold)) then
-                block%density(s,i,j,k) = oldblock(b)%density(sold,i,j,k)
-                exit
-              endif
+          if (any(block%density(:,i,j,k)/=0.d0)) then
+            if (oldspecies%n==1) then
+              block%density(:,i,j,k) = block%density(:,i,j,k)*oldblock(b)%density(1,i,j,1)
+            else
+              stop "[ERROR] Species mass fractions decomposition available only if old species number = 1"
+            endif
+          else
+            do s = 1, newspecies%n
+              do sold = 1, oldspecies%n
+                if (newspecies%name(s)==oldspecies%name(sold)) then
+                  block%density(s,i,j,k) = oldblock(b)%density(sold,i,j,1)
+                  exit
+                endif
+              enddo
             enddo
-          enddo
-          
+          endif
+
           ! Velocity
           block%velocity(1,i,j,k) = oldblock(b)%velocity(1,i,j,k)
           block%velocity(2,i,j,k) = oldblock(b)%velocity(2,i,j,k)                
@@ -321,9 +334,7 @@ subroutine index_interpolation()
 
   else
     write(*,*) 
-    write(*,*) " ERROR : 2D and 3D Mesh do not have the same Nx and Ny elements"
-    write(*,*) " Interpolation FAILED"
-    write(*,*)
+    write(*,*) "[ERROR] 2D and 3D Mesh do not have the same Nx and Ny elements"
     stop
   endif
 
@@ -364,13 +375,13 @@ subroutine multiple_interpolation()
   if (xint_dimension) then
     if (verbose) then
       write(*,*) 
-      write(*,*) " New mesh / Old mesh Ratio = ", rapNx
+      write(*,*) "[LOG] New mesh / Old mesh Ratio = ", rapNx
     endif
 
     ! Reconstruction algorithm fo MESH RATIO = 0.5
     if (rapNx==0.5) then
       if (verbose) then
-        write(*,*) " Mesh ratio = 0.5 - Specific algorithm"
+        write(*,*) "[LOG] Mesh ratio = 0.5 - Specific algorithm"
         write(*,*)
       endif
 
@@ -460,7 +471,7 @@ subroutine multiple_interpolation()
     ! Spcific algorithm for MESH RATIO = 2 (both 2D and 3D)
     elseif (rapNx==2.0) then
       if (verbose) then
-        write(*,*) " Mesh ratio = 2 - Specific algorithm"
+        write(*,*) "[LOG] Mesh ratio = 2 - Specific algorithm"
         write(*,*)
       endif
 
@@ -598,8 +609,8 @@ subroutine multiple_interpolation()
     ! Spcific algorithm for MESH RATIO = 3 (both 2D and 3D)
     elseif (rapNx==3.0) then
       if (verbose) then
-        write(*,*) " Mesh ratio = 3 - Specific Algorithm"
-        write(*,*) " 2D works! - GOTTA FIND OUT IF 3D WORKS as well"
+        write(*,*) "[LOG] Mesh ratio = 3 - Specific Algorithm"
+        write(*,*) "[LOG] 2D works! - GOTTA FIND OUT IF 3D WORKS as well"
         write(*,*)
       endif
 
@@ -901,7 +912,7 @@ subroutine multiple_interpolation()
     ! General algorithm for MESH RATIO = integer (both 2D and 3D)
     else
       if (verbose) then
-        write(*,*) " Mesh ratio = ", rap, " - Generic algorithm"
+        write(*,*) "[LOG] Mesh ratio = ", rap, " - Generic algorithm"
         write(*,*)
       endif
 
@@ -971,7 +982,7 @@ subroutine distance_interpolation
 
   if (verbose) then
     write(*,*)
-    write(*,*) " Cell Centers Minimum Distance interpolation algorithm"
+    write(*,*) "[LOG] Cell Centers Minimum Distance interpolation algorithm"
     write(*,*)
   endif
 
@@ -1059,7 +1070,7 @@ subroutine spherical_distance_interpolation
 
   if (verbose) then
     write(*,*)
-    write(*,*) " Cell Centers Spherical Minimum Distance interpolation algorithm"
+    write(*,*) "[LOG] Cell Centers Spherical Minimum Distance interpolation algorithm"
     write(*,*)
   endif
 
