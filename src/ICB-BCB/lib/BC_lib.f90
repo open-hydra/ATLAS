@@ -85,9 +85,21 @@ module lib_bc
     case(12);   call assigne_ablation; call assigne_roughness(6)
     case(13);   call assigne_qrad;     call assigne_roughness(2)
     case(14);   call assigne_SF;       call assigne_SRMgrain(2);  call assemble_the_monster(.true.)
+    case(1001); call assigne_manifold;
     end select
 
     contains
+
+    subroutine assigne_manifold
+      implicit none
+      integer:: error
+
+      call sourceini%get(section_name=section, option_name='bs', val=self%properties(1), error=error)
+      call sourceini%get(section_name=section, option_name='fs', val=self%properties(2), error=error)
+      call sourceini%get(section_name=section, option_name='ds', val=self%properties(3), error=error)
+
+    end subroutine assigne_manifold
+
 
     subroutine assigne_roughness(pos)
       implicit none
