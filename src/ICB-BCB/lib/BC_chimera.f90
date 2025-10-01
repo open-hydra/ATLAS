@@ -1,9 +1,9 @@
 module chimera
   implicit none
   private
-  public:: chimera_wrapper
+  public:: chimera_wrapper, IntersectionVolumes
 
-  real(8), parameter, public :: fs=1000
+  real(8), parameter, public :: fs=10000000
 
 contains
 
@@ -141,7 +141,7 @@ contains
     logical                :: next
     real(8)                :: receiver(3,8), donor(3,8), toll
     real(8), allocatable   :: hull_points(:)
-    character(len=18)       :: fmt
+    character(len=18)      :: fmt
        
     
 

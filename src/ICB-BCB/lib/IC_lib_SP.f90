@@ -3,11 +3,13 @@ module IC_lib_SP
 
 contains
 
-  subroutine build_SP_field(block,zoneini,IC_type,mat,range,dirSize,dir,index_based)
+  subroutine build_SP_field(block,zoneini,IC_type,mat,range,dirSize,dir,index_based,powerblock)
     use ATLAS_high_level
     use finer, only: file_ini
     use Interpolator_SP
     use material_module
+    use IC_lib_POWER
+
     implicit none
     type(ATLAS_block), intent(inout)  :: block
     type(file_ini), intent(in)        :: zoneini
@@ -16,6 +18,7 @@ contains
     logical, intent(in)               :: index_based
     real(8), intent(in)               :: range(6)
     integer, intent(in)               :: dirSize
+    type(var_block), intent(inout), optional :: powerblock
     ! Local
     integer                       :: dir(:), i, j, k, h
     integer                       :: error, errorfile, errordirection
@@ -55,8 +58,6 @@ contains
         call zoneini%get(section_name='zone', option_name='T-direction', val=val_direction, error=errordirection)
         if (errordirection==0) then
           call read_file_direction (T, block, val_file, val_direction)
-        else
-          call read_file_tec (T, block, val_file)
         endif
       endif
     else
@@ -72,7 +73,7 @@ contains
         if (errordirection==0) then
           call read_file_direction (qvol, block, val_file, val_direction)
         else
-          call read_file_tec (qvol, block, val_file)
+          call assign_power (qvol, block, powerblock)
         endif
       endif
     else
@@ -218,107 +219,6 @@ contains
     enddo; enddo; enddo
 
   end subroutine read_file_direction
-
-
-
-  subroutine read_file_tec ( var, block, varfile )
-    use ATLAS_high_level
-    use chimera, only: fs
-    use intersection_module
-    use Lib_ORION_data
-    use Lib_Tecplot
-    use TOM
-    implicit none
-    type(ATLAS_block), intent(inout)  :: block
-    character(len=200), intent(in)    :: varfile
-    real(8), dimension(1:block%dim(1),1:block%dim(2),1:block%dim(3)), intent(inout) :: var
-    !Local
-    type(Orion_Data) :: IOfield
-    integer          :: error, i, j, k, d, ii, jj, kk
-    type(var_block)  :: var_tec
-    real(8)                                  :: mindist
-    real(8), dimension(:,:,:), allocatable   :: dx, dy, dz, dist
-    integer, dimension(3)                    :: ind
-    real*8, dimension(3,8)                   :: cell
-    logical                                  :: inside_loc, inside
-
-    
-    IOfield%tec%format = 'ascii'
-    error = tec_read_structured_multiblock( orion=IOfield, filename=trim(varfile) )
-
-    allocate(var_tec%node   (0:IOfield%block(1)%Ni,0:IOfield%block(1)%Nj,0:IOfield%block(1)%Nk))
-    allocate(var_tec%center (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
-    allocate(var_tec%var   (1:IOfield%block(1)%Ni,1:IOfield%block(1)%Nj,1:IOfield%block(1)%Nk))
-
-    var_tec%dim(1) = IOfield%block(1)%Ni
-    var_tec%dim(2) = IOfield%block(1)%Nj
-    var_tec%dim(3) = IOfield%block(1)%Nk
-
-    do i = 0, var_tec%dim(1); do j = 0, var_tec%dim(2); do k = 0, var_tec%dim(3)
-      var_tec%node(i,j,k)%c(1:3) = IOfield%block(1)%mesh(:,i,j,k)
-    enddo; enddo; enddo
-   
-    !> Compute the cells center coords
-    do k = 1, var_tec%dim(3); do j = 1, var_tec%dim(2); do i = 1, var_tec%dim(1)
-      do d = 1, 3
-        var_tec%center(i,j,k)%c(d)=0.125d0*(var_tec%node(i-1,j-1,k-1)%c(d)+var_tec%node(i,j-1,k-1)%c(d)+ &
-                                             var_tec%node(i-1,j,k-1)%c(d)+var_tec%node(i-1,j-1,k)%c(d)+ &
-                                             var_tec%node(i,j,k)%c(d)+var_tec%node(i,j,k-1)%c(d)+ &
-                                             var_tec%node(i,j-1,k)%c(d)+var_tec%node(i-1,j,k)%c(d))
-      enddo
-    enddo; enddo; enddo
-
-    do i = 1, var_tec%dim(1); do j = 1, var_tec%dim(2); do k = 1, var_tec%dim(3)
-      var_tec%var(i,j,k) = IOfield%block(1)%vars(1,i,j,k)
-    enddo; enddo; enddo
-
-    ! Cell centers minimum distance algorithm
-    do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
-      
-      inside = .false.
-      do ii = 1, var_tec%dim(1); do jj = 1, var_tec%dim(2); do kk = 1, var_tec%dim(3)
-        
-        cell(:,1) = var_tec%node(ii-1,jj-1,kk-1)%c(1:3)*fs
-        cell(:,2) = var_tec%node(ii-1,jj  ,kk-1)%c(1:3)*fs
-        cell(:,3) = var_tec%node(ii-1,jj-1,kk  )%c(1:3)*fs
-        cell(:,4) = var_tec%node(ii-1,jj  ,kk  )%c(1:3)*fs
-        cell(:,5) = var_tec%node(ii  ,jj-1,kk-1)%c(1:3)*fs
-        cell(:,6) = var_tec%node(ii  ,jj  ,kk-1)%c(1:3)*fs
-        cell(:,7) = var_tec%node(ii  ,jj-1,kk  )%c(1:3)*fs
-        cell(:,8) = var_tec%node(ii  ,jj  ,kk  )%c(1:3)*fs
-       
-        inside_loc = .false.
-        call pointInsideHexahedron(block%center(i,j,k)%c(1:3)*fs, cell, inside_loc)
-
-        if (inside_loc .eqv. .true.) inside = .true.
-      
-      enddo; enddo; enddo
-
-      if (inside .eqv. .true.) then
-  
-        allocate(dx(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
-        allocate(dy(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
-        allocate(dz(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
-        allocate(dist(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
-              
-        dx(:,:,:) = (block%center(i,j,k)%c(1)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(1))**2
-        dy(:,:,:) = (block%center(i,j,k)%c(2)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(2))**2
-        dz(:,:,:) = (block%center(i,j,k)%c(3)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(3))**2
-        dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
-
-        ind = minloc(dist(:,:,:), MASK=.true.)
-        mindist = dist(ind(1),ind(2),ind(3))
-
-        deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
-
-        var(i,j,k) = var_tec%var(ind(1),ind(2),ind(3))
-
-      endif
-          
-    enddo; enddo; enddo
-
-  end subroutine read_file_tec
-
 
 
 end module IC_lib_SP

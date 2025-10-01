@@ -9,7 +9,7 @@ module build_IC_mod
 
   contains
 
-  subroutine build_IC(phase,sini,blocks)
+  subroutine build_IC(phase,sini,blocks,powerblock)
     use phase_module, only: phase_type
     use ATLAS_IO, only: read_idealgas_properties, read_cdp_properties
     use strings, only: parse
@@ -17,7 +17,8 @@ module build_IC_mod
     type(phase_type), intent(in)     :: phase(:)
     type(ATLAS_block), intent(inout) :: blocks(:)
     type(file_ini), intent(in)       :: sini
-
+    type(var_block), intent(inout), optional :: powerblock
+    ! Local
     character(len=30)             :: zonename, section_name
     character(len=:), allocatable :: option_pairs(:)
     type(file_ini)                :: zoneini
@@ -94,7 +95,7 @@ module build_IC_mod
           enddo
           call zoneini%add(section_name='zone', option_name='range', val=zonerange)
           call zoneini%add(section_name='zone', option_name='direction', val=zonedirection)
-          call build_field(block,zoneini)
+          call build_field(self=block,zoneini=zoneini,powerblock=powerblock)
         enddo
       else
         call zoneini%free
@@ -102,7 +103,7 @@ module build_IC_mod
         do while (sini%loop(section_name=section_name, option_pairs=option_pairs))
           call zoneini%add(section_name='zone', option_name=option_pairs(1), val=option_pairs(2))
         enddo
-        call build_field(block,zoneini)
+        call build_field(self=block,zoneini=zoneini,powerblock=powerblock)
       endif
 
       write(*,*)
@@ -113,13 +114,15 @@ module build_IC_mod
   end subroutine build_IC
 
 
-  subroutine build_field(self,zoneini)
+  subroutine build_field(self,zoneini,powerblock)
     use IC_lib_IG
     use IC_lib_SP
     use IC_lib_CD
     implicit none
     type(ATLAS_block), intent(inout) :: self
     type(file_ini), intent(in)       :: zoneini
+    type(var_block), intent(inout), optional :: powerblock
+    ! Local
     character(len=2)              :: phase_type
     logical                       :: found(8), index_based
     integer                       :: pi, i, error
@@ -183,8 +186,9 @@ module build_IC_mod
         call build_CD_field(self,zoneini,self%associated_phase(pi)%material)
 
       case ('SP')
-        
-        call build_SP_field(self,zoneini,IC_type,self%associated_phase(pi)%material,range,dirSize,dir,index_based)
+
+        call build_SP_field(block=self,zoneini=zoneini,IC_type=IC_type,mat=self%associated_phase(pi)%material, &
+                            range=range,dirSize=dirSize,dir=dir,index_based=index_based,powerblock=powerblock)
 
       end select
 

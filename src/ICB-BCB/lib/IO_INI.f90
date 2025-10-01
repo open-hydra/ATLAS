@@ -9,16 +9,17 @@ module ATLAS_IO_INI
 
 contains
 
-  subroutine build_INI(prog,nb,inisource,ICformat,MG_levels,chimeraon,force_connect)
+  subroutine build_INI(prog,nb,inisource,ICformat,MG_levels,chimeraon,poweron,powerfile,force_connect)
     implicit none
-    character(len=3), intent(in)              :: prog
-    integer, intent(in)                       :: nb
-    type(file_ini), intent(out)               :: inisource
-    integer, intent(inout), optional          :: MG_levels
-    character(len=*), intent(inout), optional :: ICformat
-    logical, intent(inout), optional          :: chimeraon, force_connect
-    character(len=30)                         :: inifile
-    type(file_ini)                            :: fini
+    character(len=3), intent(in)                :: prog
+    integer, intent(in)                         :: nb
+    type(file_ini), intent(out)                 :: inisource
+    integer, intent(inout), optional            :: MG_levels
+    character(len=*), intent(inout), optional   :: ICformat
+    logical, intent(inout), optional            :: chimeraon, poweron, force_connect
+    character(len=200), intent(inout), optional :: powerfile
+    character(len=30)                           :: inifile
+    type(file_ini)                              :: fini
 
     call fini%load(filename='input.ini')
 
@@ -46,6 +47,15 @@ contains
     if (present(chimeraon)) then
       call fini%get(section_name='ATLAS-General', option_name='BC-chimera', val=chimeraon, error=error)
       if (error/=0) chimeraon = .false.
+    endif
+
+    if (present(poweron)) then
+      call fini%get(section_name='ATLAS-General', option_name='IC-power', val=poweron, error=error)
+      if (error/=0) poweron = .false.
+      if (poweron) then
+        call fini%get(section_name='ATLAS-General', option_name='IC-powerfile', val=powerfile, error=error)
+        if (error/=0) powerfile = 'power.tec'
+      endif
     endif
 
     ! Read specific INI file
@@ -127,6 +137,7 @@ contains
     if (nrans==1) write(*,*)' One-equation turbulent model properties found'
     if (nrans==2) write(*,*)' Two-equation turbulent model properties found'
     if (nrans==7) write(*,*)' Full Reynolds Stress Model properties found'
+    write(*,*)
 
   end subroutine scan_turbo_input
 
