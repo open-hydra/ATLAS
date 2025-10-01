@@ -104,7 +104,7 @@ module ATLAS_IO
                 write(unitfile,'(A)') ''
 
               case(1001)
-                do i = 1, 3
+                do i = 1, 2
                   write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
                 enddo
                 write(unitfile,'(A)') ''

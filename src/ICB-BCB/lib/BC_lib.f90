@@ -96,7 +96,6 @@ module lib_bc
 
       call sourceini%get(section_name=section, option_name='bs', val=self%properties(1), error=error)
       call sourceini%get(section_name=section, option_name='fs', val=self%properties(2), error=error)
-      call sourceini%get(section_name=section, option_name='ds', val=self%properties(3), error=error)
 
     end subroutine assigne_manifold
 
