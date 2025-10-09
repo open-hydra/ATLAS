@@ -11,7 +11,8 @@ contains
     implicit none
     type(ATLAS_block), intent(inout) :: block(:)
     integer :: f1,m1,n1,b1,b2,f2,m2,n2,i2,j2,k2
-    integer :: nb, nx(30), ny(30), nz(30)
+    integer :: nb
+    integer, allocatable :: nx(:), ny(:), nz(:)
     integer :: ib1,i1,j1,k1,if1
     integer :: ib2,if2
     integer :: di11(6),dj11(6),dk11(6)
@@ -34,6 +35,7 @@ contains
     integer :: nn
 
     nb = size(block)
+    allocate(nx(nb)); allocate(ny(nb)); allocate(nz(nb))
 
     do b1 = 1, nb
       nx(b1) = block(b1)%dim(1)
@@ -261,7 +263,9 @@ contains
     real(8), allocatable  :: x(:), y(:), z(:)
     integer, allocatable :: b(:), f(:), n(:), m(:), def(:), prop(:,:)
     logical, allocatable :: adj(:)
-    integer :: nb, nbound, nboundb(30), nx(30), ny(30), nz(30)
+    integer :: nb, nbound
+    integer, allocatable :: nboundb(:)
+    integer, allocatable :: nx(:), ny(:), nz(:)
     integer :: f1,m1,n1,b1,b2,f2,m2,n2,i,j,bqui
     integer :: ib1,i1,j1,k1,if1,p1
     integer :: ib2,i2,j2,k2,if2,p2
@@ -292,6 +296,8 @@ contains
     if (meshType==1) return
 
     nb = size(block)
+    allocate(nboundb(nb))
+    allocate(nx(nb)); allocate(ny(nb)); allocate(nz(nb))
 
     ! Store data in local variables
     nbound = 0; nboundb = 0; bqui = 1
