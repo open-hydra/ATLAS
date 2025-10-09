@@ -12,6 +12,7 @@ program ICB
   use build_IC_mod
   use finer, only: file_ini
   use IC_lib_POWER
+  use TOM, only: meshType
 
   implicit none
   type(phase_type), allocatable  :: phase(:)
@@ -35,10 +36,15 @@ program ICB
   call read_mesh(orion)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
-    call block(b)%extrapolate_nodes([1,1,1])
-    call block(b)%compute_centers([1,1,1])
-    call block(b)%compute_volume([0,0,0])
-    call block(b)%compute_bounding([0,0,0])
+    if (meshType == -2) then
+      call block(b)%extrapolate_nodes([0,0,0])
+      call block(b)%compute_centers([1,0,0])
+    else
+      call block(b)%extrapolate_nodes([1,1,1])
+      call block(b)%compute_centers([1,1,1])
+      call block(b)%compute_volume([0,0,0])
+      call block(b)%compute_bounding([0,0,0])
+    endif
   enddo
 
   ! INI handling
