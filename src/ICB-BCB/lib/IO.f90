@@ -103,12 +103,6 @@ module ATLAS_IO
                 enddo
                 write(unitfile,'(A)') ''
 
-              case(1001)
-                do i = 1, 2
-                  write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
-                enddo
-                write(unitfile,'(A)') ''
-
               case(2,3,11)
 
               case(4,22)
@@ -532,7 +526,7 @@ module ATLAS_IO
       elseif (index(path,'.p3d')>0) then
         error = p3d_read_multiblock(orion=orion,filename=path)
       else
-        write(*,*) 'ERROR: mesh file is not readable'
+        write(*,*) '[ERROR] mesh file is not readable'
         stop
       endif
     else
@@ -546,13 +540,13 @@ module ATLAS_IO
       orion%tec%format = 'binary'
       error = tec_read_structured_multiblock(orion=orion,filename='mesh.szplt')
       if (error==0) return   
-        write(*,*) 'ERROR: mesh file is not readable'
+        write(*,*) '[ERROR] mesh file is not readable'
         stop
       endif
     endif
 
     if (error/=0) &
-      stop ("ERROR: mesh reading failed")
+      stop ("[ERROR] mesh reading failed")
 
   end subroutine read_mesh
 
@@ -734,8 +728,6 @@ module ATLAS_IO
     use Lib_ORION_data
     use variables, only: nrans, llen
     use ATLAS_high_level
-    use TOM, only: meshtype
-
     implicit none
     character(len=2), intent(in)     :: phase_type
     integer, intent(in), optional    :: n
@@ -765,20 +757,11 @@ module ATLAS_IO
           do s = 1, n
             icblock(b)%density(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(s,:,:,:)
           enddo
-          if (MeshType == -2) then
-            icblock(b)%velocity(1:2,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+1:n+2,:,:,:)
-            icblock(b)%velocity(3,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = 0.0
-            icblock(b)%pressure(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+3,:,:,:)
-            do s = 1, nrans
-              icblock(b)%turbprop(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+3+s,:,:,:)
-            enddo 
-          else
-            icblock(b)%velocity(1:3,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+1:n+3,:,:,:)
-            icblock(b)%pressure(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4,:,:,:)
-            do s = 1, nrans
-              icblock(b)%turbprop(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4+s,:,:,:)
-            enddo
-          endif 
+          icblock(b)%velocity(1:3,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+1:n+3,:,:,:)
+          icblock(b)%pressure(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4,:,:,:)
+          do s = 1, nrans
+            icblock(b)%turbprop(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4+s,:,:,:)
+          enddo 
         endif
       end do
     

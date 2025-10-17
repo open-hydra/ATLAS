@@ -267,6 +267,7 @@ contains
                 here(3)>=range(5) .and. here(3)<=range(6)) then
                 do s = 1, sp%n
                 block%density(s,i,j,k) = rhoc*sp%massf(s)
+                if (isnan(block%density(s,i,j,k))) stop '[ERROR] NaN in density assignment'
                 enddo
                 a = sqrt(gamma*Rgas*Tc)
                 vel = Mc*a
@@ -276,17 +277,21 @@ contains
                 else
                   block%velocity(1,i,j,k) = ux
                 endif
+                if (isnan(block%velocity(1,i,j,k))) stop '[ERROR] NaN in velocity assignment'
                 if (uy==0) then
                   block%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
                 else
                   block%velocity(2,i,j,k) = uy
                 endif
+                if (isnan(block%velocity(2,i,j,k))) stop '[ERROR] NaN in velocity assignment'
                 if (uz==0) then
                   block%velocity(3,i,j,k) = vel*sin(beta)
                 else
                   block%velocity(3,i,j,k) = uz
                 endif
+                if (isnan(block%velocity(3,i,j,k))) stop '[ERROR] NaN in velocity assignment'
                 block%pressure(i,j,k) = pc
+                if (isnan(block%pressure(i,j,k))) stop '[ERROR] NaN in pressure assignment'
             endif
 
         enddo; enddo; enddo
