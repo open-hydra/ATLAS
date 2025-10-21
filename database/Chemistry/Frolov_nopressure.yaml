@@ -92,6 +92,6 @@ species:
   note: G8/02
 
 reactions:
-- equation: H2 + 0.5 O2 <=> H2O 
+- equation: 2 H2 + O2 <=> 2 H2O 
   rate-constant: {A: 8e+11, b: 0, Ea: 8.314e+7}
 
