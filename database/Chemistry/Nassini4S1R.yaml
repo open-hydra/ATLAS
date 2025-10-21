@@ -77,9 +77,9 @@ species:
     temperature-ranges: [200.0, 1000.0, 6000.0]
     data:
     - [4.1986352, -2.0364017e-03, 6.5203416e-06, -5.4879269e-09, 1.771968e-12,
-      -3.0293726e+04, -0.84900901]
+       -2.89502838e+04, -0.84900901]   # a6 shifted (+1343.442205852)
     - [2.6770389, 2.9731816e-03, -7.7376889e-07, 9.4433514e-11, -4.2689991e-15,
-      -2.9885894e+04, 6.88255]
+       -2.85424518e+04, 6.88255]       # a6 shifted (+1343.442205852)
   transport:
     model: gas
     geometry: nonlinear
@@ -87,7 +87,7 @@ species:
     well-depth: 572.4
     dipole: 1.844
     rotational-relaxation: 4.0
-  note: L5/89
+  note: Hf = -230.66 kJ/mol @298 K; enthalpy continuous at 1000 K
 - name: N2
   composition: {N: 2}
   thermo:
@@ -108,8 +108,13 @@ species:
   note: G8/02
 
 reactions:
-- equation: H2 + 0.5 O2 <=> H2ONassini
+- equation: H2 + 0.5 O2 => H2ONassini
   rate-constant: {A: 3.1e+10, b: 0, Ea: 11562.4}
+  orders: {H2: 1, O2: 1}
+- equation: H2ONassini => H2 + 0.5 O2
+  rate-constant: {A: 1.20925e+12, b: 0, Ea: 39163.3}
+  orders: {H2ONassini: 1}
+
 
 
 
