@@ -1,0 +1,148 @@
+description: |-
+  -------------------------------------------------------------------------------
+   Global mechanism for H2-air detonation
+   4 species single step
+   matches vN and CJ state and CJ speed over phi 0-5 (PRESHOCK atmospheric)
+   matches half reaction thickness in  stoich CJ, preshock atm
+   - Ea and n from the explosion theory from constant P explosions at initial P,T = 0.9 CJ state (preshock always atmospheric) varying the phi in wide range, see Bane et al 2011
+   - nf and nox = 1 following Wang, but no impact on detonation profile is observed
+   - A determined to match the half H2 concentration thickness in a STOICHIOMETRIC CJ, preshock atm (differences arise varying wave speed and equivalence ratio)
+   - h2o formation enthalpy modified to match CJ speed over phi 0-5 in a fresh atm gas
+
+  ================================================================
+  0- Fresh gas state:
+     T = 298.00 K
+     p = 1.0132 bar
+     rho = 0.855 kg/m3
+     Molar weight = 0.0209114 kg/mol
+     Gamma (frozen) = 1.400
+     Sound speed in fresh gas = 407.35 m/s
+  CJ wave speed = 1975.45 m/s
+  Wave Mach number in fresh gas = 4.85
+  1- Post-shock frozen state (von Neumann):
+     T = 1537.52 K
+     p = 28.1982 bar
+     rho = 4.6127 kg/m3
+     Molar weight = 0.0209114 kg/mol
+     Gamma (frozen) = 1.318
+     Sound speed = 897.59 m/s
+     Speed (wave frame) = 366.24 m/s
+     Speed (lab frame) = 1609.21 m/s
+     Mach (wave frame) = 0.41
+  2- Post-shock eq. state (CJ):
+     T = 2976.57 K
+     p = 15.6490 bar
+     rho = 1.5232 kg/m3
+     Molar weight = 0.0240888 kg/mol
+     Gamma (frozen) = 1.239
+     Sound speed = 1128.37 m/s
+     Speed (wave frame) = 1109.09 m/s
+     Speed (lab frame) = 866.36 m/s
+     Mach (wave frame) = 0.98
+  ***************************************************************************
+
+generator: cti2yaml
+cantera-version: 2.6.0
+date: Tue, 11 Jun 2024 14:46:37 +0200
+input-files: [Global_4S1R_rev.cti]
+
+units: {length: cm, quantity: mol, activation-energy: cal/mol}
+
+phases:
+- name: Nassini
+  thermo: ideal-gas
+  elements: [H, O, N]
+  species: [H2, O2, H2O, N2]
+  kinetics: gas
+  reactions: all
+  transport: mixture-averaged
+  state:
+    T: 300.0
+    P: 1.01325e+05
+
+species:
+- name: H2
+  composition: {H: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [4.07832321e+04, -800.918604, 8.21470201, -0.0126971446, 1.75360508e-05,
+      -1.20286027e-08, 3.36809349e-12, 2682.48466, -30.4378884]
+    - [5.60812801e+05, -837.150474, 2.97536453, 1.25224912e-03, -3.74071619e-07,
+      5.9366252e-11, -3.6069941e-15, 5339.82441, -2.20277477]
+    - [4.96688412e+08, -3.14754715e+05, 79.8412188, -8.41478921e-03, 4.75324835e-07,
+      -1.37187349e-11, 1.60546176e-16, 2.48843352e+06, -669.572811]
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 2.92
+    well-depth: 38.0
+    polarizability: 0.79
+    rotational-relaxation: 280.0
+  note: Ref-Elm. Gurvich,1978 pt1 p103 pt2 p31. [tpis78]
+- name: O2
+  composition: {O: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [-3.42556342e+04, 484.700097, 1.11901096, 4.29388924e-03, -6.83630052e-07,
+      -2.0233727e-09, 1.03904002e-12, -3391.45487, 18.4969947]
+    - [-1.03793902e+06, 2344.83028, 1.81973204, 1.26784758e-03, -2.18806799e-07,
+      2.05371957e-11, -8.19346705e-16, -1.68901093e+04, 17.3871651]
+    - [4.9752943e+08, -2.86610687e+05, 66.9035225, -6.16995902e-03, 3.01639603e-07,
+      -7.4214166e-12, 7.27817577e-17, 2.29355403e+06, -553.062161]
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 3.458
+    well-depth: 107.4
+    polarizability: 1.6
+    rotational-relaxation: 3.8
+  note: Ref-Elm. Gurvich,1989 pt1 p94 pt2 p9. [tpis89]
+- name: H2O
+  composition: {H: 2, O: 1}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [-3.94796083e+04, 575.573102, 0.931782653, 7.22271286e-03, -7.34255737e-06,
+      4.95504349e-09, -1.33693325e-12, -3.16968781e+04, 17.2420578]
+    - [1.0349721e+06, -2412.69856, 4.64611078, 2.29199831e-03, -6.83683048e-07,
+      9.42646893e-11, -4.82238053e-15, -1.25e+04, -7.97814851]
+  transport:
+    model: gas
+    geometry: nonlinear
+    diameter: 2.605
+    well-depth: 572.4
+    dipole: 1.844
+    rotational-relaxation: 4.0
+  note: Hf:Cox,1989. Woolley,1987. TRC(10/88) tuv25. [g 8/89]
+- name: N2
+  composition: {N: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [2.2103715e+04, -381.846182, 6.08273836, -8.53091441e-03, 1.38464619e-05,
+      -9.62579362e-09, 2.51970581e-12, 710.846086, -10.7600374]
+    - [5.87712406e+05, -2239.24907, 6.06694922, -6.1396855e-04, 1.49180668e-07,
+      -1.92310549e-11, 1.06195439e-15, 1.28321041e+04, -15.8664003]
+    - [8.31013916e+08, -6.42073354e+05, 202.026464, -0.0306509205, 2.48690333e-06,
+      -9.70595411e-11, 1.43753888e-15, 4.93870704e+06, -1672.09974]
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 3.621
+    well-depth: 97.53
+    polarizability: 1.76
+    rotational-relaxation: 4.0
+  note: Ref-Elm. Gurvich,1978 pt1 p280 pt2 p207. [tpis78]
+
+reactions:
+- equation: H2 + 0.5 O2 => H2O  # Reaction 1
+  rate-constant: {A: 3.1e+13, b: 0, Ea: 23000}
+  orders: {H2: 1, O2: 1}
+- equation: 'H2O => H2 + 0.5 O2 '  # Reaction 2
+  rate-constant: {A: 1.877302e+11, b: 0, Ea: 9.426715563e+04}
