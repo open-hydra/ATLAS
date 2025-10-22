@@ -9,7 +9,7 @@ phases:
 - name: Nassini4S1R
   thermo: ideal-gas
   elements: [O, H, N]
-  species: [O2, H2ONassini, H2, N2,O]
+  species: [O2, H2ONassini, H2, N2]
   kinetics: gas
   reactions: all
   transport: mixture-averaged
@@ -18,22 +18,6 @@ phases:
     P: 1.01325e+05
 
 species:
-- name: O
-  composition: {O: 1}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 6000.0]
-    data:
-    - [3.1682671, -3.27931884e-03, 6.64306396e-06, -6.12806624e-09, 2.11265971e-12,
-      2.91222592e+04, 2.05193346]
-    - [2.54363697, -2.73162486e-05, -4.1902952e-09, 4.95481845e-12, -4.79553694e-16,
-      2.9226012e+04, 4.92229457]
-  transport:
-    model: gas
-    geometry: atom
-    diameter: 2.75
-    well-depth: 80.0
-  note: L1/90
 - name: H2
   composition: {H: 2}
   thermo:
@@ -112,7 +96,7 @@ reactions:
   rate-constant: {A: 3.1e+10, b: 0, Ea: 11562.4}
   orders: {H2: 1, O2: 1}
 - equation: H2ONassini => H2 + 0.5 O2
-  rate-constant: {A: 1.20925e+12, b: 0, Ea: 39163.3}
+  rate-constant: {A: 5.78089e+10, b: 0, Ea: 38821.1}
   orders: {H2ONassini: 1}
 
 
