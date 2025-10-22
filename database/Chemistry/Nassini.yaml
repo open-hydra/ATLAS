@@ -6,7 +6,7 @@ date: Tue, 18 Feb 2025
 units: {length: dm, time: s, quantity: mol, activation-energy: K}
 
 phases:
-- name: Nassini4S1R
+- name: Nassini
   thermo: ideal-gas
   elements: [O, H, N]
   species: [O2, H2ONassini, H2, N2]
