@@ -86,9 +86,19 @@ module lib_bc
     case(13);   call assigne_qrad;     call assigne_roughness(2)
     case(14);   call assigne_SF;       call assigne_SRMgrain(2);  call assemble_the_monster(.true.)
     case(1001); call assigne_manifold;
+    case(999);  call MOSKA_connection
     end select
 
     contains
+
+    subroutine MOSKA_connection
+      implicit none
+      integer :: error
+
+      ! Assegno come prima info di stampa l'iniettore a cui sono connesso, se la condizione al contorno è girata dal 2D o dal 3D
+      call sourceini%get(section_name=section, option_name='id_inj', val=self%properties(1), error=error)
+
+    end subroutine MOSKA_connection
 
     subroutine assigne_manifold
       implicit none

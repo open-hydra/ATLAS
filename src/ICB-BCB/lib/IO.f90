@@ -105,6 +105,12 @@ module ATLAS_IO
 
               case(2,3,11)
 
+              case(999)
+                if (meshType /= 1) then
+                  write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(1))
+                  write(unitfile,'(A)') ''
+                endif
+
               case(4,22)
                 do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties
                   if (block(b)%face(f)%center(m,n)%bc%IG_time_BC(i)) then

@@ -16,6 +16,23 @@ module build_BC_mod
     real(8), allocatable :: dirArray1(:), dirArray2(:), array(:,:)
   end type bc_file_type
 
+  type, abstract :: plate_file_type
+    character(len=256)   :: name
+    integer              :: length
+    integer, allocatable :: id(:) 
+  end type plate_file_type
+
+  type, extends(plate_file_type) :: real_plate_type
+    real(8), allocatable :: center(:,:)
+    real(8), allocatable :: radius(:)
+  end type real_plate_type
+
+  type, extends(plate_file_type) :: KAFFS_plate_type
+    integer, allocatable :: row(:)       
+    integer, allocatable :: inj_row(:) 
+    real(8), allocatable :: phase_row(:)
+  end type 
+
   contains
 
   subroutine build_BC(phase,sini,blocks)
@@ -34,7 +51,7 @@ module build_BC_mod
     integer                        :: error, error_patch=0
     character(len=:), allocatable  :: option_pairs(:)
     character(len=4)               :: ind, dirID
-    character(len=2)               :: patchdirection
+    character(len=7)               :: patchdirection
     character(len=50)              :: patchname, section_name
     integer                        :: ff, n, m, p, b
     real(8)                        :: patchrange(4)
@@ -225,19 +242,23 @@ module build_BC_mod
     type(phase_type), intent(in)   :: phase
     integer, intent(in)            :: nrans
     type(bc_file_type)             :: bc_file(12)
+    logical                        :: full_plate ! if true, KAFFS-like plate
+    class(plate_file_type), allocatable :: plate_file
     real(8), parameter             :: pi=4.0*atan(1.0)
-    integer                        :: error, ios, iosold, cnt_bc=0, n_files
-    integer                        :: i, j, m, n, f_, mi, me, ni, ne
+    integer                        :: error, ios, iosold, cnt_bc=0, n_files, n_files_plate
+    integer                        :: i, j, m, n, f_, mi, me, ni, ne, ninj
     character(len=256)             :: line
-    character(len=3)               :: dirID
-    integer                        :: dirSize=0, type_, unit
+    character(len=7)               :: dirID
+    integer                        :: dirSize=0, type_, unit, default_type
     integer, allocatable           :: dir(:)
     real(8), allocatable           :: here(:), try(:)
     real(8)                        :: var=0.0, a1, a2, b1, b2, c11, c12, c21, c22, range(4)
+    real(8)                        :: radial_distance, z_input
+    real(8), allocatable           :: A_inj(:)
     logical                        :: found(8)
     character(len=:), allocatable  :: option_pairs(:)
     character(len=256)             :: infile_dummy
-    logical                        :: file_present=.false., tecfile_present=.false., index_based=.false.
+    logical                        :: file_present=.false., tecfile_present=.false., index_based=.false., injection_plate=.false.
 
     call ini_o%free
     call ini_o%add(section_name='cell')
@@ -246,6 +267,10 @@ module build_BC_mod
     if (error==0) then
       found = .false.
       dirSize = len_trim(dirID)
+      ! Se leggo xplate o yplate (dirSize == 6), dirSize lo metto uguale a 1
+      ! Se leggo xyplate (dirSize == 7), dirSize lo metto uguale a 2
+      if (dirSize == 6) dirSize = 1
+      if (dirSize == 7) dirSize = 2
       allocate(dir(1:dirSize)); allocate(here(1:dirSize))
       do i = 1, dirSize
         if (index(dirID,'x')/=0 .and. .not.found(1)) then
@@ -268,6 +293,11 @@ module build_BC_mod
       enddo
     endif
 
+    ! Controllo plate
+    if (index(dirID,'plate')/=0) then
+      injection_plate=.true.
+    endif
+
     ! Check range for multipatch
     call ini_i%get(section_name='face',option_name='range',val=range, error=error)
     if (error==0) then
@@ -278,8 +308,10 @@ module build_BC_mod
 
     ! Convert theta range (if present) from degrees to rad
     if (dir(1)==5) range(1:2) = range(1:2)*pi/180
-    if (dirSize>1 .and. dir(2)==5) range(3:4) = range(3:4)*pi/180
-    
+    if (dirSize>1) then
+      if (dir(2)==5) range(3:4) = range(3:4)*pi/180
+    endif
+
     call ini_i%get(section_name='face', option_name='type', val=type_, error=error)
     do while (ini_i%loop(section_name='face', option_pairs=option_pairs))
       call ini_o%add(section_name='cell', option_name=option_pairs(1), val=option_pairs(2))
@@ -372,6 +404,41 @@ module build_BC_mod
       endif
     endif
 
+    ! File for injection plate
+    n_files_plate = 0
+    call ini_o%get(section_name='cell', option_name='plate-file', val=infile_dummy, error=error)
+    if (error==0) then
+      n_files_plate = n_files_plate + 1
+    endif
+    if (n_files_plate > 0) then
+      call ini_o%get(section_name='cell', option_name='full-plate', val=full_plate, error=error)
+      if (error/=0) then
+        write(*,*) 'Default plate topology is center/radius'
+        full_plate = .false.
+      endif
+      if (full_plate) then
+        allocate(KAFFS_plate_type :: plate_file)
+      else
+        allocate(real_plate_type :: plate_file)
+      endif
+      plate_file%name = infile_dummy
+      call ini_o%get(section_name='cell', option_name='plate-type', val=default_type, error=error)
+      if (error/=0) then
+        write(*,*) 'No plate type specified, default plate type is simmetry'
+        default_type = 3
+      endif
+      call ini_o%get(section_name='cell', option_name='z-hydra', val=z_input, error=error)
+      if (error/=0) then
+        write(*,*) 'No z_input given, you cannot do Q2D/MOSKA connection'
+      endif
+    endif
+
+    ! Check if the file is in free-format or Tecplot-format
+    if (n_files_plate==0 .and. injection_plate) then
+      write(*,*) '[ERROR], injection plate patch without plate file'
+      stop
+    endif
+
     if (.not.tecfile_present .and. .not.index_based) then
 
       ! Importing data from files and/or apply multipatch
@@ -399,6 +466,42 @@ module build_BC_mod
             endassociate
           enddo
         endif
+        ! Injection plate file
+        if (injection_plate) then
+          associate( length=> plate_file%length )
+          length=0; ios = 0
+          open(newunit=unit,file=plate_file%name,status='old',action='read')
+          select type (plate_file)
+          type is (real_plate_type)
+            do while (ios==0)
+              read(unit,*,iostat=ios)
+              length = length+1
+            enddo
+            length = length-1
+            rewind(unit)
+            allocate(plate_file%id(1:length))
+            allocate(A_inj(1:length)); A_inj = 0.d0
+            allocate(plate_file%center(1:length, 1:2))
+            allocate(plate_file%radius(1:length))
+            do i = 1, length
+              read(unit,*) plate_file%id(i), plate_file%center(i,1), plate_file%center(i,2), plate_file%radius(i)
+            enddo
+          type is (KAFFS_plate_type)
+            do while (ios==0)
+              read(unit,*,iostat=ios)
+              length = length+1 ! number of rows
+            enddo
+            length = length - 1
+            allocate(plate_file%row(1:length))
+            allocate(plate_file%inj_row(1:length))
+            allocate(plate_file%phase_row(1:length))
+            do i = 1, length
+              read(unit,*) plate_file%row(i), plate_file%inj_row(i), plate_file%phase_row(i)
+            enddo
+          end select
+          close(unit)
+          endassociate
+        endif
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
             if (file_present) then
@@ -416,12 +519,35 @@ module build_BC_mod
               enddo
             endif
             ! Multipatch
-            if (here(1)>range(1) .and. here(1)<=range(2)) then
+            if (here(1)>range(1) .and. here(1)<=range(2) .and. .not.injection_plate) then
               cnt_bc = cnt_bc+1
               face%center(m,n)%bc%definition = type_
               call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
             endif
+            if (injection_plate) then
+              select type (plate_file)
+              type is (real_plate_type)                
+                face%center(m,n)%bc%definition = default_type
+                ! Loop sul numero di iniettori che legge, prima iterazione dando numero di iniettori e loro raggio
+                do ninj = 1, plate_file%length
+                  radial_distance = sqrt((here(1)-plate_file%center(ninj,dir(1)))**2)
+                  if (radial_distance <= plate_file%radius(ninj)) then
+                    cnt_bc = cnt_bc + 1
+                    face%center(m,n)%bc%definition = type_
+                    ! Qua metti un if type_ == connessione MOSKA/Q2D
+                    call ini_o%add(section_name='cell', option_name='id_inj', val=plate_file%id(ninj))
+                    ! Costruisci la lunghezza dell'interfaccia nella direzione della connessione con Q2D
+                    ! A_inj(ninj) = A_inj(nìnj) + Areacalcolata
+                    A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area * z_input
+                  endif
+                call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
+                enddo
+              type is (KAFFS_plate_type)
+              ! PER ALEX, algoritmo per casi tipo TIC
+              end select
+            endif
         enddo; enddo
+
       ! Two dimensional variaton
       case(2)
         if (file_present) then
@@ -482,10 +608,31 @@ module build_BC_mod
             endif
             ! Multipatch
             if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
-                here(2)>=range(3) .and. here(2)<=range(4)) then
+                here(2)>=range(3) .and. here(2)<=range(4) .and. .not.injection_plate) then
               cnt_bc = cnt_bc+1
               face%center(m,n)%bc%definition = type_
               call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
+            endif
+            if (injection_plate) then
+              select type (plate_file)
+              type is (real_plate_type)                
+                face%center(m,n)%bc%definition = default_type
+                ! Loop sul numero di iniettori che legge, prima iterazione dando numero di iniettori e loro raggio
+                do ninj = 1, plate_file%length
+                  radial_distance = sqrt((here(1)-plate_file%center(ninj,dir(1)))**2+(here(2)-plate_file%center(ninj,dir(2)))**2)
+                  if (radial_distance <= plate_file%radius(ninj)) then
+                    cnt_bc = cnt_bc + 1
+                    face%center(m,n)%bc%definition = type_
+                    call ini_o%add(section_name='cell', option_name='id_inj', val=plate_file%id(ninj))   
+                    ! Costruisci l'area dell'interfaccia e sommala per ogni ninj
+                    ! A_inj(ninj) = A_inj(nìnj) + Areacalcolata           
+                    A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area    
+                  endif
+                call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
+                enddo
+                type is (KAFFS_plate_type)          
+                ! PER ALEX, METTI implementazione per casi full 3D
+              end select 
             endif
         enddo; enddo
       end select

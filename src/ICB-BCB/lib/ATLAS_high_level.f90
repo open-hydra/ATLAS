@@ -10,6 +10,7 @@
     type, extends(vector_nD_type) :: obj_boundary_cellface
       type(obj_bc_cellface_properties) :: bc
       real(8), dimension(3)            :: normal
+      real(8)                          :: area
     end type obj_boundary_cellface
 
     type, public :: obj_face
@@ -203,6 +204,14 @@ contains
                                                   self%node( 0 , m ,n-1)%c, &
                                                   self%node( 0 ,m-1, n )%c, &
                                                   self%node( 0 , m , n )%c)
+        if (meshType == -2) then
+          this%center(m,n)%area = sqrt((self%node(0,m,n-1)%c(1)-self%node(0,m-1,n-1)%c(1))**2+(self%node(0,m,n-1)%c(2)-self%node(0,m-1,n-1)%c(2))**2)
+        else
+          this%center(m,n)%area = CalculateArea(self%node( 0 ,m-1,n-1)%c,     &
+                                                    self%node( 0 , m ,n-1)%c, &
+                                                    self%node( 0 ,m-1, n )%c, &
+                                                    self%node( 0 , m , n )%c)
+        endif
         this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
       enddo
     enddo
@@ -218,6 +227,14 @@ contains
                                                   self%node(self%dim(1), m ,n-1)%c, &
                                                   self%node(self%dim(1),m-1, n )%c, &
                                                   self%node(self%dim(1), m , n )%c)
+        if (meshType == -2) then
+          this%center(m,n)%area = sqrt((self%node(self%dim(1),m,n-1)%c(1)-self%node(self%dim(1),m-1,n-1)%c(1))**2+(self%node(self%dim(1),m,n-1)%c(2)-self%node(self%dim(1),m-1,n-1)%c(2))**2)
+        else
+          this%center(m,n)%area = CalculateArea(self%node(self%dim(1),m-1,n-1)%c,     &
+                                                    self%node(self%dim(1), m ,n-1)%c, &
+                                                    self%node(self%dim(1),m-1, n )%c, &
+                                                    self%node(self%dim(1), m , n )%c)
+        endif
         this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
       enddo
     enddo
@@ -236,6 +253,14 @@ contains
                                                   self%node( m , 0 ,n-1)%c, &
                                                   self%node(m-1, 0 , n )%c, &
                                                   self%node( m , 0 , n )%c)
+        if (meshType == -2) then
+          this%center(m,n)%area = sqrt((self%node(m,0,n-1)%c(1)-self%node(m-1,0,n-1)%c(1))**2+(self%node(m,0,n-1)%c(2)-self%node(m-1,0,n-1)%c(2)))
+        else
+          this%center(m,n)%area = CalculateArea(self%node(m-1, 0 ,n-1)%c,     &
+                                                    self%node( m , 0 ,n-1)%c, &
+                                                    self%node(m-1, 0 , n )%c, &
+                                                    self%node( m , 0 , n )%c)
+        endif
         this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
       enddo
     enddo
@@ -251,6 +276,14 @@ contains
                                                   self%node( m ,self%dim(2),n-1)%c, &
                                                   self%node(m-1,self%dim(2), n )%c, &
                                                   self%node( m ,self%dim(2), n )%c)
+        if (meshType == -2) then
+          this%center(m,n)%area = sqrt((self%node(m,self%dim(2),n-1)%c(1)-self%node(m-1,self%dim(2),n-1)%c(1))**2+(self%node(m,self%dim(2),n-1)%c(2)-self%node(m-1,self%dim(2),n-1)%c(2))**2)
+        else
+          this%center(m,n)%area = CalculateArea(self%node(m-1,self%dim(2),n-1)%c,     &
+                                                    self%node( m ,self%dim(2),n-1)%c, &
+                                                    self%node(m-1,self%dim(2), n )%c, &
+                                                    self%node( m ,self%dim(2), n )%c)
+        endif
         this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
       enddo
     enddo
@@ -269,6 +302,10 @@ contains
                                                   self%node( m ,n-1, 0 )%c, &
                                                   self%node(m-1, n , 0 )%c, &
                                                   self%node( m , n , 0 )%c)
+        this%center(m,n)%area = CalculateArea(self%node(m-1,n-1, 0 )%c,     &
+                                                  self%node( m ,n-1, 0 )%c, &
+                                                  self%node(m-1, n , 0 )%c, &
+                                                  self%node( m , n , 0 )%c)
         this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
       enddo
     enddo
@@ -284,6 +321,10 @@ contains
                                                   self%node( m ,n-1,self%dim(3))%c, &
                                                   self%node(m-1, n ,self%dim(3))%c, &
                                                   self%node( m , n ,self%dim(3))%c)
+        this%center(m,n)%area = CalculateArea(self%node(m-1,n-1,self%dim(3))%c,     &
+                                                  self%node( m ,n-1,self%dim(3))%c, &
+                                                  self%node(m-1, n ,self%dim(3))%c, &
+                                                  self%node( m , n ,self%dim(3))%c)
         this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
       enddo
     enddo
@@ -291,37 +332,65 @@ contains
 
   end subroutine compute_face_centers
 
-  pure function CalculateNormal(A,B,C,D) result(n)
+  pure function CalculateArea(A,B,C,D) result(Area)
     implicit none
 
     ! Declare variables
     real*8, dimension(3), intent(in) :: A, B, C, D
-    real*8, dimension(3)             :: n
-    real*8                           :: nx, ny, nz
-    real*8                           :: ABx, ABy, ABz, BCx, BCy, BCz
+    real*8                           :: Area
+    real*8                           :: dumx, dumy, dumz
+    real*8                           :: DAx, DAy, DAz, BCx, BCy, BCz
     real*8                           :: Magnitude
 
-    ! Calculate vectors AB and BC
-    ABx = B(1) - A(1)
-    ABy = B(2) - A(2)
-    ABz = B(3) - A(3)
+    ! Calculate vectors AD and BC
+    DAx = D(1) - A(1)
+    DAy = D(2) - A(2)
+    DAz = D(3) - A(3)
     BCx = C(1) - B(1)
     BCy = C(2) - B(2)
     BCz = C(3) - B(3)
 
-    ! Calculate the cross product (dim(1), dim(2), dim(3))
-    nx = ABy * BCz - ABz * BCy
-    ny = ABz * BCx - ABx * BCz
-    nz = ABx * BCy - ABy * BCx
+    ! Calculate the half cross product 
+    dumx = (DAy * BCz - DAz * BCy) * 0.5d0
+    dumy = (DAz * BCx - DAx * BCz) * 0.5d0
+    dumz = (DAx * BCy - DAy * BCx) * 0.5d0
 
-    ! Normalize the normal vector
-    Magnitude = sqrt(nx**2 + ny**2 + nz**2)
-    nx = nx / Magnitude
-    ny = ny / Magnitude
-    nz = nz / Magnitude
+    ! Compute the area
+    Area = sqrt(dumx**2 + dumy**2 + dumz**2)
 
-    n = [nx, ny, nz]
+  end function CalculateArea
 
-  end function CalculateNormal
+pure function CalculateNormal(A,B,C,D) result(n)
+  implicit none
+
+  ! Declare variables
+  real*8, dimension(3), intent(in) :: A, B, C, D
+  real*8, dimension(3)             :: n
+  real*8                           :: nx, ny, nz
+  real*8                           :: ABx, ABy, ABz, BCx, BCy, BCz
+  real*8                           :: Magnitude
+
+  ! Calculate vectors AB and BC
+  ABx = B(1) - A(1)
+  ABy = B(2) - A(2)
+  ABz = B(3) - A(3)
+  BCx = C(1) - B(1)
+  BCy = C(2) - B(2)
+  BCz = C(3) - B(3)
+
+  ! Calculate the cross product (dim(1), dim(2), dim(3))
+  nx = ABy * BCz - ABz * BCy
+  ny = ABz * BCx - ABx * BCz
+  nz = ABx * BCy - ABy * BCx
+
+  ! Normalize the normal vector
+  Magnitude = sqrt(nx**2 + ny**2 + nz**2)
+  nx = nx / Magnitude
+  ny = ny / Magnitude
+  nz = nz / Magnitude
+
+  n = [nx, ny, nz]
+
+end function CalculateNormal
 
 end module ATLAS_high_level
