@@ -5,6 +5,7 @@ module build_BC_mod
   use phase_module, only: phase_type
   use ATLAS_high_level
   use lib_bc
+  use BC_build_plate
   implicit none
   private
   public:: build_BC
@@ -15,23 +16,6 @@ module build_BC_mod
     integer              :: length, width
     real(8), allocatable :: dirArray1(:), dirArray2(:), array(:,:)
   end type bc_file_type
-
-  type, abstract :: plate_file_type
-    character(len=256)   :: name
-    integer              :: length
-    integer, allocatable :: id(:) 
-  end type plate_file_type
-
-  type, extends(plate_file_type) :: real_plate_type
-    real(8), allocatable :: center(:,:)
-    real(8), allocatable :: radius(:)
-  end type real_plate_type
-
-  type, extends(plate_file_type) :: KAFFS_plate_type  
-    character(len=256)   :: Plateshape
-    integer, allocatable :: inj_row(:) 
-    real(8), allocatable :: phase_row(:)
-  end type 
 
   contains
 
@@ -54,12 +38,13 @@ module build_BC_mod
     character(len=7)               :: patchdirection
     character(len=50)              :: patchname, section_name
     integer                        :: ff, n, m, p, b
-    real(8)                        :: patchrange(4), Atot(6)
+    real(8)                        :: patchrange(4)
     character(len=30)              :: wholestring, args(3), phase_name, nametemp
+    real(8), allocatable           :: Atot(:)
 
     n_blocks_phase = 0
-    b = size(blocks)
     !Calcolo l'area intera di ogni faccia (considerando tutti i blocchi)
+    allocate(Atot(blocks(1)%nfaces))
     do  b = 1, size(blocks)
       do ff = 1, size(blocks(b)%face(:))
         do n = 1, blocks(b)%face(ff)%Nn
@@ -271,11 +256,9 @@ module build_BC_mod
     character(len=:), allocatable  :: option_pairs(:)
     character(len=256)             :: infile_dummy
     logical                        :: file_present=.false., tecfile_present=.false., index_based=.false., injection_plate=.false.
-    real(8), intent(in)            :: Atot(6)
-    real(8)                        :: Aplate, A_per_inj, Ak, phamin, phamax, pha, Asquare, rinj,anginj, angmin, angmax
-    REAL(8), allocatable           :: Rmin(:),Rmax(:),Dpha(:),Inj_phi_R(:,:)
-    integer                        :: injid, mj, spare,ncheck,ncount, mm, nn
-    character(3)                   :: Side
+    real(8), intent(in)            :: Atot(:)
+    real(8), allocatable           :: Inj_phi_R(:,:)
+    integer                        :: injid, mj, spare, ncheck, ncount, mm, nn
 
     call ini_o%free
     call ini_o%add(section_name='cell')
@@ -437,6 +420,7 @@ module build_BC_mod
       endif
       if (full_plate) then
         allocate(KAFFS_plate_type :: plate_file)
+
         plate_file%name = infile_dummy
       else
         allocate(real_plate_type :: plate_file)
@@ -491,6 +475,7 @@ module build_BC_mod
           do i = 1, length
             read(unit,*) plate_file%inj_row(i), plate_file%phase_row(i)
           enddo
+          allocate(A_inj(1:sum(plate_file%inj_row(:)))); A_inj = 0.d0
         end select
         close(unit)
         endassociate
@@ -564,102 +549,9 @@ module build_BC_mod
                 call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
                 enddo
               type is (KAFFS_plate_type)
-              ! PER ALEX, algoritmo per casi tipo TIC
-               ninj = sum(plate_file%inj_row(:))
-               allocate(A_inj(1:ninj)); A_inj = 0.d0
-               allocate(Inj_phi_R(4,ninj))
-                if (abs(face%center(1,face%Nn)%c(dir(1))-face%center(1,1)%c(dir(1)))>abs(face%center(face%Nm,1)%c(dir(1))-face%center(1,1)%c(dir(1)))) then
-                    spare = (real(face%Nn)/real(ninj) - floor(real(face%Nn)/real(ninj)))*ninj
-                    ncount = 1
-                    ncheck = 0
-                    Side = 'n'
-                    do nn = 1,face%Nn
-                        do mm = 1,face%Nm
-                          Asquare = Asquare + face%center(mm,nn)%area
-                          
-                        enddo
-                        if (nn<(floor(real(face%Nn)/real(ninj))*(injid)+ncheck)) then
-                          if (nn==1) then
-                          Inj_phi_R(1,injid) = 1 
-                          endif
-                          Inj_phi_R(2,injid) = nn
-                        else
-                          
-                          if (ncount==2.and.ncheck<spare) then
-                            Inj_phi_R(2,injid) = nn
-                            ncount = 0
-                            ncheck = ncheck + 1
-                          else
-                            Inj_phi_R(2,injid) = nn
-                            Asquare = 0.0
-                            ncount = ncount + 1
-                            injid = injid + 1
-                            Inj_phi_R(1,injid) = nn+1
-                          endif
-                        endif
-                    enddo
-                
-                else
-                    Side = 'm'
-                    spare = (real(face%Nm)/real(ninj) - floor(real(face%Nm)/real(ninj)))*ninj
-                    ncount = 0
-                    ncheck = 0
-                    do mm = 1,face%Nm
-                        do nn = 1,face%Nn
-                          
-                        Asquare = Asquare + face%center(mm,nn)%area
-    
-                        enddo
-                        if (mm<(floor(real(face%Nm)/real(ninj))*(injid)+ncheck)) then
-                          if (mm==1) then
-                          Inj_phi_R(1,injid) = 1 
-                          endif
-                          Inj_phi_R(2,injid) = mm
-                    
-                        else
-
-                          
-                          if (ncount==2.and.ncheck<spare) then
-                            Inj_phi_R(2,injid) = mm
-                            ncount = 0
-                            ncheck = ncheck + 1
-                          else
-                            Inj_phi_R(2,injid) = mm
-                            Asquare = 0.0
-                            ncount = ncount + 1
-                            injid = injid + 1
-                            Inj_phi_R(1,injid) = mm+1
-                          endif
-                        endif
-                    enddo
-                
-                endif
-                  do ninj = 1,size(Inj_phi_R(1,:))
-                    if (Side=='n') then
-
-                        if (Inj_phi_R(1,ninj)<=n .and. Inj_phi_R(2,ninj)>=n) then
-                              cnt_bc = cnt_bc + 1
-                              face%center(m,n)%bc%definition = type_
-                              A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area * z_input  
-                              call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-                        endif
-
-                    elseif (Side=='m') then
-                      
-                        if (Inj_phi_R(1,ninj)<=m .and. Inj_phi_R(2,ninj)>=m)  then
-                          cnt_bc = cnt_bc + 1
-                          
-                          face%center(m,n)%bc%definition = type_
-                          A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area * z_input
-                          call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-                        endif
-                    
-                    endif
-
-                  enddo
-                    call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
-
-
+               ! PER ALEX, algoritmo per casi tipo TIC
+                 call Full_plate_2D(plate_file, face, n, m ,dir, Inj_phi_R,type_,A_inj,z_input,ini_o)
+                 call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
               end select
             endif
         enddo; enddo
@@ -703,150 +595,7 @@ module build_BC_mod
         if (injection_plate) then
           select type (plate_file)
             type is (KAFFS_plate_type) 
-              if (plate_file%Plateshape=='Round'.or.plate_file%Plateshape=='round') then
-                !Motore Cilindrico 3D
-                injid = 0
-                Aplate = Atot(f)
-                ninj = sum(plate_file%inj_row(:))
-                A_per_inj = Aplate/ninj
-                allocate(Rmin(plate_file%length),Rmax(plate_file%length),Dpha(plate_file%length))
-                allocate(Inj_phi_R(4,ninj))
-                allocate(A_inj(1:ninj)); A_inj = 0.d0
-                do m = 1,plate_file%length
-                  Ak = plate_file%inj_row(m) * A_per_inj
-
-                  if (m==1) then
-                    Rmin(m) = 0
-                    Rmax(m) = sqrt(Ak/pi)
-                  elseif (m==plate_file%length) then
-                    Rmax(m) = sqrt(Aplate/pi)
-                    Rmin(m) = sqrt(Rmax(m)**2 - Ak/pi)
-                  else
-                    Rmin(m) = Rmax(m-1)
-                    Rmax(m) = sqrt(Rmin(m)**2 + Ak/pi)
-                  endif
-                
-                  Dpha(m) = 2*pi/(plate_file%inj_row(m))
-
-                  do mj = 1,plate_file%inj_row(m)
-                    injid = injid + 1 
-                    if (plate_file%inj_row(m)==1) then 
-                      phamin = 0.0
-                      phamax = 2*pi
-                    else
-                      pha = plate_file%phase_row(m) + (mj-1)*Dpha(m)
-                      phamin = pha - Dpha(m)*0.5
-                      phamax = pha + Dpha(m)*0.5
-                        if (phamin<0) then
-                            phamin = phamin + 2*pi
-                        endif
-                        if (phamin>2*pi) then
-                            phamin = phamin - 2*pi
-                        endif
-                        if (phamax<0) then
-                            phamin = phamin + 2*pi
-                        endif
-                        if (phamax>2*pi) then
-                            phamin = phamin - 2*pi
-                        endif
-                    endif
-                      !Rmax
-                      Inj_phi_R(1, injid) = Rmax(m)
-                      !Rmin
-                      Inj_phi_R(2, injid) = Rmin(m)
-                      !Phimax
-                      Inj_phi_R(3, injid) = phamax
-                      !Phimin
-                      Inj_phi_R(4, injid) = phamin
-                      
-                  enddo
-                enddo
-              elseif (plate_file%Plateshape=='Square'.or.plate_file%Plateshape=='square') then
-                !Motore Rettangolare 3D
-                Aplate = 0.0
-                injid = 0
-                !Calcolo l'area di tutta la plate
-                do n = 1, face%Nn; do m = 1, face%Nm
-                  Aplate = Aplate + face%center(m,n)%area
-                enddo;enddo
-                ninj = sum(plate_file%inj_row(:))
-                allocate(A_inj(1:ninj)); A_inj = 0.d0
-                allocate(Inj_phi_R(4,ninj))
-                A_per_inj = Aplate/ninj
-                injid = 1
-                
-                !Cerco il lato più grande della camera
-                if (abs(face%center(1,face%Nn)%c(dir(2))-face%center(1,1)%c(dir(2)))>abs(face%center(face%Nm,1)%c(dir(1))-face%center(1,1)%c(dir(1)))) then
-                 !Nn È il lato più lungo
-                 Side = 'n'
-                  spare = (real(face%Nn)/real(ninj) - floor(real(face%Nn)/real(ninj)))*ninj
-                  ncount = 1
-                  ncheck = 0
-                  do n = 1,face%Nn
-                      do m = 1,face%Nm
-                        Asquare = Asquare + face%center(m,n)%area
-                        
-                      enddo
-                      if (n<(floor(real(face%Nn)/real(ninj))*(injid)+ncheck)) then
-                        if (n==1) then
-                        Inj_phi_R(1,injid) = 1 
-                        endif
-                        Inj_phi_R(2,injid) = n
-                      else
-                         
-                        if (ncount==2.and.ncheck<spare) then
-                          Inj_phi_R(2,injid) = n
-                          ncount = 0
-                          ncheck = ncheck + 1
-                        else
-                          Inj_phi_R(2,injid) = n
-                          Asquare = 0.0
-                          ncount = ncount + 1
-                          injid = injid + 1
-                          Inj_phi_R(1,injid) = n+1
-                        endif
-                      endif
-                  enddo
-                      Inj_phi_R(1,ninj) = face%Nn
-                else
-                  !Nm È il lato più lungo
-                  Side = 'm'
-                  spare = (real(face%Nm)/real(ninj) - floor(real(face%Nm)/real(ninj)))*ninj
-                  ncount = 0
-                  ncheck = 0
-                  do m = 1,face%Nm
-                      do n = 1,face%Nn
-                        Asquare = Asquare + face%center(m,n)%area
-  
-                      enddo
-                      if (m<(floor(real(face%Nm)/real(ninj))*(injid)+ncheck)) then
-                        if (m==1) then
-                        Inj_phi_R(1,injid) = 1 
-                        endif
-                        Inj_phi_R(2,injid) = m
-                   
-                      else
-
-                        
-                        if (ncount==2.and.ncheck<spare) then
-                          Inj_phi_R(2,injid) = m
-                          ncount = 0
-                          ncheck = ncheck + 1
-                        else
-                          Inj_phi_R(2,injid) = m
-                          Asquare = 0.0
-                          ncount = ncount + 1
-                          injid = injid + 1
-                          Inj_phi_R(1,injid) = m+1
-                        endif
-                      endif
-                  enddo
-                  Inj_phi_R(2,ninj) = face%Nm
-                 
-                endif
-                
-              endif
-
+            call Build_Sectors(plate_file,face,Atot(f),Inj_phi_R,dir)
           end select
         endif
 
@@ -903,72 +652,8 @@ module build_BC_mod
                 type is (KAFFS_plate_type)          
                   ! PER ALEX, METTI implementazione per casi full 3D
                   ! Eccolo!
-                  !Round plate
-                  if (plate_file%Plateshape=='Round'.or.plate_file%Plateshape=='round') then
-                    do ninj = 1,size(Inj_phi_R(1,:))
-                      !Distance from the center of the plate
-                      rinj = sqrt(here(1)**2 + here(2)**2)
-                      ! Associated angle
-                      anginj = atan2(here(2),here(1))
-
-                      if (anginj<0) anginj = anginj + 2*pi
-                    
-                      angmin = Inj_phi_R(4,ninj);
-                      angmax = Inj_phi_R(3,ninj);
-                      if (angmin>angmax) then
-                        angmin = angmin-2*pi
-                        if (anginj>pi) then
-                          anginj = anginj - 2*pi
-                        endif
-                      endif
-                      !Check if    Rmin(inj)  <r-cell< Rmax(inj)  .and. Anglemin(inj)  < angle-cell < Anglemax(inj) 
-                      if ((Inj_phi_R(2,ninj) <= rinj) .and. (Inj_phi_R(1,ninj) >= rinj) .and. (angmin <= anginj) .and. (angmax >= anginj)) then
-                            cnt_bc = cnt_bc + 1
-                            face%center(m,n)%bc%definition = type_
-                            A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area  
-                            call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-                            exit
-                      else
-                        if (ninj==size(Inj_phi_R(1,:))) then
-                          stop 'Plate is not fully covered, cell is missing an injector'
-                        endif
-                      endif
-                      
-
-                    enddo
-                    call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
-                    
-                  elseif (plate_file%Plateshape=='Square'.or.plate_file%Plateshape=='square') then
-                    !Squared plate
-                    ! Injectors are supposed lined-up on the longest side/direction of the rectangular engine
-                    ! Each injector has two index along such direction. We just have to check if n-min(inj) <n< n-max(inj) or m-min(inj) <m< m-max(inj)
-                    do ninj = 1,size(Inj_phi_R(1,:))
-                      if (Side=='n') then
-
-                        if (Inj_phi_R(1,ninj)<=n .and. Inj_phi_R(2,ninj)>=n) then
-                              cnt_bc = cnt_bc + 1
-                              face%center(m,n)%bc%definition = type_
-                              A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area  
-                              call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-                        endif
-
-                    elseif (Side=='m') then
-                      
-                        if (Inj_phi_R(1,ninj)<=m .and. Inj_phi_R(2,ninj)>=m)  then
-                          cnt_bc = cnt_bc + 1
-                          
-                          face%center(m,n)%bc%definition = type_
-                          A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area  
-                          call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-                        endif
-                    
-                    endif
-
-                    
-                    enddo
-                    call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
-
-                  endif
+                  call Injector_mapping(plate_file,here,Inj_phi_R,n,m,face,A_inj,type_,dir,ini_o)
+                  call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
 
               end select 
             endif
