@@ -22,6 +22,7 @@ module BC_build_plate
   end type 
 
    real(8), parameter             :: pi=4.0*atan(1.0)
+   real(8), allocatable           :: Atot(:)
 
 contains
 

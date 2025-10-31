@@ -40,7 +40,6 @@ module build_BC_mod
     integer                        :: ff, n, m, p, b
     real(8)                        :: patchrange(4)
     character(len=30)              :: wholestring, args(3), phase_name, nametemp
-    real(8), allocatable           :: Atot(:)
 
     n_blocks_phase = 0
     !Calcolo l'area intera di ogni faccia (considerando tutti i blocchi)
@@ -179,7 +178,7 @@ module build_BC_mod
               call patchini%add(section_name='face', option_name='range', val=patchrange)
               call patchini%add(section_name='face', option_name='direction', val=patchdirection)
               do m = 1, size(block%associated_phase)
-                call build_cell(b,ff,block%face(ff),nrans,patchini,block%associated_phase(m),Atot)
+                call build_cell(b,ff,block%face(ff),nrans,patchini,block%associated_phase(m))
               enddo
             enddo
           endif
@@ -192,7 +191,7 @@ module build_BC_mod
           if (cell_dependent) then
             write(*,*)' Face n. = ', ff, ' -> ', trim(block%face(ff)%bc%name), ' = single patch with varying properties'
             do m = 1, size(block%associated_phase)
-              call build_cell(b,ff,block%face(ff),nrans,faceini,block%associated_phase(m),Atot)
+              call build_cell(b,ff,block%face(ff),nrans,faceini,block%associated_phase(m))
             enddo
           else
             write(*,*)' Face n. = ', ff, ' -> ', trim(block%face(ff)%bc%name), ' = single patch'
@@ -230,7 +229,7 @@ module build_BC_mod
   end subroutine build_BC
 
 
-  subroutine build_cell(b,f,face,nrans,ini_i,phase,Atot)
+  subroutine build_cell(b,f,face,nrans,ini_i,phase)
     implicit none
     integer, intent(in)            :: b, f
     type(obj_face)                 :: face
@@ -256,7 +255,6 @@ module build_BC_mod
     character(len=:), allocatable  :: option_pairs(:)
     character(len=256)             :: infile_dummy
     logical                        :: file_present=.false., tecfile_present=.false., index_based=.false., injection_plate=.false.
-    real(8), intent(in)            :: Atot(:)
     real(8), allocatable           :: Inj_phi_R(:,:)
     integer                        :: injid, mj, spare, ncheck, ncount, mm, nn
 
