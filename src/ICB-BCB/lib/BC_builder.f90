@@ -20,7 +20,7 @@ module build_BC_mod
   contains
 
   subroutine build_BC(phase,sini,blocks)
-    use TOM, only: delthe
+    use TOM, only: delthe, meshType
     use variables, only: nrans
     use strings, only: parse
     use ATLAS_IO, only: read_idealgas_properties, read_cdp_properties
@@ -116,13 +116,19 @@ module build_BC_mod
 
         call sini%get(section_name=section_name, option_name='face'//trim(str(.true.,ff)), &
                                                               val=block%face(ff)%bc%name, error=error)
+        if (meshtype==1.and.error/=0) then
+        ! Multiple 1D domains default to the the first one unless specified otherwise.
+        call sini%get(section_name='BCB-Block1', option_name='face'//trim(str(.true.,ff)), &
+                                                              val=block%face(ff)%bc%name, error=error)
+        write(*,*) 'Missing entry for 1D domain, defaulting to BCB-Block1'
+        endif
 
         if (error/=0) then
-          if (ff<=2) then
+          if (ff<=2 .and. meshtype/=1) then
             write(*,*)'[ERROR] Missing face entry for face ', ff, ' in block ', b
             stop
           else
-            if (delthe==0.d0) then
+            if (delthe==0.d0 .or. meshType == 1) then
               block%face(ff)%bc%name = 'null'
               block%face(ff)%bc%definition = 0
             else
