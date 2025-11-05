@@ -51,7 +51,7 @@ contains
     integer :: ierr
 
     real(8), allocatable :: xin(:), ain(:)
-    real(8), allocatable :: aout(:)
+    real(8), allocatable :: aout(:,:)
 
     call sini%get(section_name=section_name, option_name='x-area-variation', &
                  val=area_file, error=ierr)
@@ -63,14 +63,14 @@ contains
     call sort_pair_by_x(xin, ain)
 
     ! 3) interpolate with clamped extrapolation at ends
-    allocate(aout(0:block%dim(1))) ! Per ora, area variation unicamente lungo x
-    call interp1_linear(xin, ain, block%node(0:block%dim(1),1,1)%c(1), aout)
+    allocate(aout(0:block%dim(1),0:block%dim(2))) ! Per ora, area variation unicamente lungo x
+    call interp1_linear(xin, ain, block%node(0:block%dim(1),0:block%dim(2),1)%c(1), aout)
 
     ! 4) write output
     folder = outpath
     if (present(out_dir)) folder = trim(out_dir)
     write(outfile, '(A,"/block",I0,"_area.dat")') trim(folder), block_id
-    call write_xy(outfile, block%node(0:block%dim(1),1,1)%c(1), aout)
+    call write_xy(outfile, block%node(0:block%dim(1),0:block%dim(2),1)%c(1), aout)
 
     if (present(verbose)) then
       if (verbose) write(*,'(A,I0,2A)') '   [x-area] Block ', block_id, ' -> ', trim(outfile)
@@ -154,9 +154,9 @@ contains
 
   subroutine interp1_linear(xin, yin, xout, yout)
     ! Linear interpolation; clamped at ends; guards identical knots.
-    real(8), intent(in)  :: xin(:), yin(:), xout(:)
-    real(8), intent(out) :: yout(:)
-    integer :: i, j, n
+    real(8), intent(in)  :: xin(:), yin(:), xout(:,:)
+    real(8), intent(out) :: yout(:,:)
+    integer :: i, j, k, n
     real(8) :: t, denom
 
     n = size(xin)
@@ -169,38 +169,42 @@ contains
       return
     end if
 
-    j = 1
-    do i = 1, size(xout)
-      if (xout(i) <= xin(1)) then
-        yout(i) = yin(1)
-      else if (xout(i) >= xin(n)) then
-        yout(i) = yin(n)
-      else
-        do while (xout(i) > xin(j+1) .and. j < n-1)
-          j = j + 1
-        end do
-        denom = xin(j+1) - xin(j)
-        if (denom == 0d0) then
-          yout(i) = yin(j)
+    do k = 1, size(xout, dim=2) ! y
+      j = 1
+      do i = 1, size(xout, dim=1) ! x
+        if (xout(i,k) <= xin(1)) then
+          yout(i,k) = yin(1)
+        else if (xout(i,k) >= xin(n)) then
+          yout(i,k) = yin(n)
         else
-          t = (xout(i) - xin(j)) / denom
-          yout(i) = (1d0 - t)*yin(j) + t*yin(j+1)
+          do while (xout(i,k) > xin(j+1) .and. j < n-1)
+            j = j + 1
+          end do
+          denom = xin(j+1) - xin(j)
+          if (denom == 0d0) then
+            yout(i,k) = yin(j)
+          else
+            t = (xout(i,k) - xin(j)) / denom
+            yout(i,k) = (1d0 - t)*yin(j) + t*yin(j+1)
+          end if
         end if
-      end if
+      end do
     end do
   end subroutine interp1_linear
 
   subroutine write_xy(outfile, x, y)
     character(len=*), intent(in) :: outfile
-    real(8), intent(in) :: x(:), y(:)
-    integer :: u, ios, i
+    real(8), intent(in) :: x(:,:), y(:,:)
+    integer :: u, ios, i, j
     open(newunit=u, file=trim(outfile), status='replace', action='write', iostat=ios)
     if (ios /= 0) then
       write(*,*) '[ERROR] Cannot write: ', trim(outfile)
       stop
     end if
-    do i = 1, size(x)
-      write(u,'(*(1X,E23.15E3))') x(i), y(i) !FR_P format
+    do j = 1, size(x,dim=2)
+      do i = 1, size(x,dim=1)
+        write(u,'(*(1X,E23.15E3))') y(i,j) !FR_P format
+      enddo
     end do
     close(u)
   end subroutine write_xy
