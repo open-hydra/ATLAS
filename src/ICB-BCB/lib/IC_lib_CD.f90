@@ -38,6 +38,7 @@ contains
     call zoneini%get(section_name='zone', option_name='kT',   val=kT, error=error)
     call zoneini%get(section_name='zone', option_name='Pp', val=Pp, error=error)
     if (error==0) neuler = 1
+    call zoneini%get(section_name='zone', option_name='neuler', val=neuler, error=error) 
     call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
     if (error/=0) then
       call zoneini%get(section_name='zone', option_name='rp', val=rp, error=error)
@@ -69,7 +70,7 @@ contains
       block%velocityP(:,1:3,:,:,:) = 1d-20
       block%temperatureP(:,:,:,:) = 1d-20
       block%np(:,:,:,:) = 1d-20
-      if (neuler==1) then
+      if (neuler==1 .or. neuler==6) then
         block%PP(:,:,:,:) = 1D-20
       endif
 
@@ -90,7 +91,7 @@ contains
               block%np(g,i,j,k) = block%densityP(g,i,j,k)/(4.0/3.0*3.14*rho*rp(g)**3)
         enddo; enddo; enddo
       endif
-      if (neuler==1) then
+      if (neuler==1 .or. neuler==6) then
         block%PP(g,:,:,:) = Pp(g)
       endif
     enddo

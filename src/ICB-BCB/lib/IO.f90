@@ -852,15 +852,23 @@ module ATLAS_IO
           do m = 1, mat%n
             do g = 1, mat%npCP(m)
               nnn = nnn + 1
-              varnames = trim(varnames)//' "rp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
-              varnames = trim(varnames)//' "up'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
-              varnames = trim(varnames)//' "vp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
-              varnames = trim(varnames)//' "wp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "rp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "up_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "vp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "wp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
               if (neuler==1) then
-                varnames = trim(varnames)//' "Pp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+                varnames = trim(varnames)//' "Pp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
               endif
-              varnames = trim(varnames)//' "Tp'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
-              varnames = trim(varnames)//' "np'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              if (neuler==6) then
+                varnames = trim(varnames)//' "Pp11_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+                varnames = trim(varnames)//' "Pp12_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+                varnames = trim(varnames)//' "Pp13_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+                varnames = trim(varnames)//' "Pp22_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+                varnames = trim(varnames)//' "Pp23_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+                varnames = trim(varnames)//' "Pp33_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              endif
+              varnames = trim(varnames)//' "Tp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
+              varnames = trim(varnames)//' "np_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
             enddo
           enddo
         case('SP')
@@ -925,6 +933,14 @@ module ATLAS_IO
             orion%block(cnt)%vars(s+3,:,:,:) = block(b)%velocityp(m,3,:,:,:)
             if (neuler==1) then
               orion%block(cnt)%vars(s+4,:,:,:) = block(b)%PP(m,:,:,:)
+            endif
+            if (neuler==6) then
+              orion%block(cnt)%vars(s+4,:,:,:) = block(b)%PP(m,:,:,:)
+              orion%block(cnt)%vars(s+5,:,:,:) = 0d0
+              orion%block(cnt)%vars(s+6,:,:,:) = 0d0
+              orion%block(cnt)%vars(s+7,:,:,:) = block(b)%PP(m,:,:,:)
+              orion%block(cnt)%vars(s+8,:,:,:) = 0d0
+              orion%block(cnt)%vars(s+9,:,:,:) = block(b)%PP(m,:,:,:)
             endif
             orion%block(cnt)%vars(s+4+neuler,:,:,:) = block(b)%temperatureP(m,:,:,:)
             orion%block(cnt)%vars(s+5+neuler,:,:,:) = block(b)%np(m,:,:,:)
