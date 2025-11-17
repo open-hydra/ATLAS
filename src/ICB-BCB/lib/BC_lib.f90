@@ -5,7 +5,7 @@ module lib_bc
   implicit none
   private
 
-  integer, parameter :: nIG=6
+  integer, parameter :: nIG=7
   integer, public, parameter :: nCP=7
 
   type, public:: obj_bc_cellface_properties
@@ -231,7 +231,7 @@ module lib_bc
       logical                        :: found_CEA, force_inflow
       integer                        :: error, m, npCP, i
       ! Ideal gas
-      real(8) :: mach, massflux, p0, T0, h0, CEAh0, T, pstatic, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt, krho
+      real(8) :: mach, massflux, p0, T0, h0, CEAh0, T, pstatic, rel_fac, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt, krho
       ! Condensed-phase
       integer :: cp_scaling, error_gp
       real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:), rRes(:), Tsat(:), volRatio(:)
@@ -264,6 +264,8 @@ module lib_bc
         if (error/=0) beta = 0.0
         call sourceini%get(section_name=section, option_name='p',    val=pstatic, error=error)
         if (error/=0) pstatic = 0.0
+        call sourceini%get(section_name=section, option_name='rf',   val=rel_fac, error=error)
+        if (error/=0) rel_fac = 1.0
         call sourceini%get(section_name=section, option_name='mit',  val=mit,     error=error)
         if (error/=0) mit = 0.0
         call sourceini%get(section_name=section, option_name='kappa',val=kappa,   error=error)
@@ -315,15 +317,16 @@ module lib_bc
           else
             self%properties(6) = pstatic*1e+5
           endif
+          self%properties(7) = rel_fac
           if (nrans==1) then
-            self%properties(7) = mit
+            self%properties(nIG+1) = mit
           elseif (nrans==2) then
-            self%properties(7) = kappa
-            self%properties(8) = omega
+            self%properties(nIG+1) = kappa
+            self%properties(nIG+2) = omega
           elseif (nrans==7) then
-            self%properties(7:9) = rhoRij
-            self%properties(10:12) = 1d-8
-            self%properties(13) = omega
+            self%properties(nIG+1:nIG+3) = rhoRij
+            self%properties(nIG+4:nIG+6) = 1d-8
+            self%properties(nIG+7) = omega
           endif
         else
           m = size(self%properties)
