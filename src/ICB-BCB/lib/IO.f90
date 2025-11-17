@@ -90,11 +90,11 @@ module ATLAS_IO
 
               case(1,1000)
                 if (meshType == -2) then
-                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-1-nrans-1
+                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-2-nrans-1
                     write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
                   enddo
                 else
-                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-1-nrans
+                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-2-nrans
                     write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
                   enddo
                 endif
