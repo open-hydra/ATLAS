@@ -47,6 +47,25 @@ def write_thermo_properties(name, T_low, T_max, species_names, molecular_weights
                 f.write(f"{T} {cp_mass:.6f} {h_mass:.6f} {s_mass:.6f} {dcp_mass:.6f}\n")
 
 
+def write_equilibrium(name, element_list, species):
+
+    filename = outpath + name + "composition.txt"
+    with open(filename, "w") as f:
+
+        # --- Elements ---
+        f.write(f"{len(element_list)}\n")
+        for el in element_list:
+            f.write(f"{el}\n")
+        f.write("\n")
+
+        # --- Composition matrix ---
+        f.write("composition\n")
+        for name, sp in species.items():
+            comp = sp.composition
+            # write counts in the global element order
+            row = [str(int(comp.get(el, 0))) for el in element_list]
+            f.write(" ".join(row) + "\n")
+
 
 def write_transport_properties(name, T_low, T_max, species_names, viscosity, conductivity):
 

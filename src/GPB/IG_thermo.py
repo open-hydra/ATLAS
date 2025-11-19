@@ -128,3 +128,18 @@ def compute_properties(name,T_low, T_max, all_solutions):
             molecular_weights.append(M_mix)
 
     IG_IO.write_thermo_properties(name,T_low, T_max, species_names, molecular_weights, mass_cp_values, enthalpy_values, entropy_values, mass_dcp_values)
+
+
+    # --- Composition data ---
+    global_elements = set()
+    for gas in all_solutions:
+        for el in gas.element_names:
+            global_elements.add(el)
+    global_elements = sorted(global_elements)
+
+    species_objects = {}
+    for gas in all_solutions:
+        for sp in gas.species():
+            species_objects[sp.name] = sp
+
+    IG_IO.write_equilibrium(name, global_elements, species_objects)
