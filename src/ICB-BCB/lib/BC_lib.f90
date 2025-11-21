@@ -6,7 +6,7 @@ module lib_bc
   private
 
   integer, parameter :: nIG=7
-  integer, public, parameter :: nCP=7
+  integer, public, parameter :: nCP=8
 
   type, public:: obj_bc_cellface_properties
     ! General
@@ -244,7 +244,7 @@ module lib_bc
       real(8) :: mach, massflux, p0, T0, h0, CEAh0, T, pstatic, rel_fac, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt, krho
       ! Condensed-phase
       integer :: cp_scaling, error_gp
-      real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:), rRes(:), Tsat(:), volRatio(:)
+      real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:), sigmap(:), rRes(:), Tsat(:), volRatio(:)
       real(8), allocatable :: gp(:), up(:), vp(:), wp(:), mvp(:), alphap(:), betap(:), Tp(:)
       real(8), parameter   :: Qal  = 9.53d6      !< Aluminum combustion reaction energy
       real(8), parameter   :: csAl = 1597.6654d0 !< Alumina thermic capacity (CEA thermo lib)
@@ -360,21 +360,23 @@ module lib_bc
         ! Condensed-phase bc
         do m = 1, phase%material%n
           npCP = phase%material%npCP(m)
-          allocate(kr(1:npCP)); kr = 0d0; call sourceini%get(section_name=section, option_name='krho',val=kr,error=error)
-          allocate(ku(1:npCP)); ku = 1d0; call sourceini%get(section_name=section, option_name='kV',val=ku,error=error)
-          allocate(kt(1:npCP)); kt = 1d0; call sourceini%get(section_name=section, option_name='kT',val=kt,error=error)
+          allocate(kr(1:npCP));  kr  = 0d0; call sourceini%get(section_name=section, option_name='krho',val=kr,  error=error)
+          allocate(ku(1:npCP));  ku  = 1d0; call sourceini%get(section_name=section, option_name='kV',  val=ku,  error=error)
+          allocate(kt(1:npCP));  kt  = 1d0; call sourceini%get(section_name=section, option_name='kT',  val=kt,  error=error)
 
-          allocate(gp(1:npCP)); gp = 0d0; call sourceini%get(section_name=section, option_name='gp',val=gp,error=error_gp)
-          allocate(up(1:npCP)); up = 0d0; call sourceini%get(section_name=section, option_name='up',val=up,error=error)
-          allocate(vp(1:npCP)); vp = 0d0; call sourceini%get(section_name=section, option_name='vp',val=vp,error=error)
-          allocate(wp(1:npCP)); wp = 0d0; call sourceini%get(section_name=section, option_name='wp',val=wp,error=error)
-          allocate(mvp(1:npCP)); mvp = 0d0; call sourceini%get(section_name=section, option_name='|up|',val=mvp,error=error)
+          allocate(gp(1:npCP));  gp  = 0d0; call sourceini%get(section_name=section, option_name='gp',  val=gp,  error=error_gp)
+          allocate(up(1:npCP));  up  = 0d0; call sourceini%get(section_name=section, option_name='up',  val=up,  error=error)
+          allocate(vp(1:npCP));  vp  = 0d0; call sourceini%get(section_name=section, option_name='vp',  val=vp,  error=error)
+          allocate(wp(1:npCP));  wp  = 0d0; call sourceini%get(section_name=section, option_name='wp',  val=wp,  error=error)
+          allocate(mvp(1:npCP)); mvp = 0d0; call sourceini%get(section_name=section, option_name='|up|',val=mvp, error=error)
           if (error/=0) mvp = sqrt(up**2+vp**2+wp**2)
-          allocate(Tp(1:npCP)); Tp = 0d0; call sourceini%get(section_name=section, option_name='Tp',val=Tp,error=error)
+          allocate(Tp(1:npCP));  Tp = 0d0; call sourceini%get(section_name=section, option_name='Tp',val=Tp,error=error)
 
           allocate(rp(1:npCP)); call sourceini%get(section_name=section, option_name='rp',val=rp,error=error)
           allocate(dp(1:npCP)); call sourceini%get(section_name=section, option_name='dp',val=dp,error=error)
           if (error==0) rp = 0.5*dp
+          allocate(sigmap(1:npCP)); sigmap = 0d0
+          call sourceini%get(section_name=section, option_name='sigmap',val=sigmap,error=error) 
 
           allocate(alphap(1:npCP)); alphap = 0d0
           call sourceini%get(section_name=section, option_name='alphap',val=alphap,error=error)
@@ -408,6 +410,7 @@ module lib_bc
           self%cp_properties(m,1:npCP,4) = alphap
           self%cp_properties(m,1:npCP,5) = betap
           self%cp_properties(m,1:npCP,7) = rp
+          self%cp_properties(m,1:npCP,8) = sigmap
         enddo
 
         if (present(SRMswitch)) then

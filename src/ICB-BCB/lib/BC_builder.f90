@@ -520,7 +520,9 @@ module build_BC_mod
                 if (here(1)>bc_file(f_)%dirArray1(1) .and. here(1)<=bc_file(f_)%dirArray1(bc_file(f_)%length)) then
                   do i = 2, bc_file(f_)%length
                     if (here(1)>bc_file(f_)%dirArray1(i-1) .and. here(1)<=bc_file(f_)%dirArray1(i)) then
-                      var = (bc_file(f_)%array(i,1)-bc_file(f_)%array(i-1,1))/(bc_file(f_)%dirArray1(i)-bc_file(f_)%dirArray1(i-1))*(here(1)-bc_file(f_)%dirArray1(i-1))+bc_file(f_)%array(i-1,1)
+                      var = (bc_file(f_)%array(i,1)-bc_file(f_)%array(i-1,1))/                  &
+                            (bc_file(f_)%dirArray1(i)-bc_file(f_)%dirArray1(i-1))               &
+                            *(here(1)-bc_file(f_)%dirArray1(i-1)) + bc_file(f_)%array(i-1,1)
                       call ini_o%add(section_name='cell', option_name=trim(bc_file(f_)%var), val=var)
                       exit
                     endif
@@ -749,6 +751,8 @@ module build_BC_mod
         end select
       enddo
 
+      ni = max(ni,1); ne = min(ne,face%Nn)
+      mi = max(mi,1); me = min(me,face%Nm)
       do n = ni, ne
         do m = mi, me
           face%center(m,n)%bc%definition = type_
