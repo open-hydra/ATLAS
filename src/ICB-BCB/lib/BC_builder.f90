@@ -44,6 +44,7 @@ module build_BC_mod
     n_blocks_phase = 0
     !Calcolo l'area intera di ogni faccia (considerando tutti i blocchi)
     allocate(Atot(blocks(1)%nfaces))
+    Atot = 0.0
     do  b = 1, size(blocks)
       do ff = 1, size(blocks(b)%face(:))
         do n = 1, blocks(b)%face(ff)%Nn
@@ -53,6 +54,7 @@ module build_BC_mod
         enddo
       enddo
     enddo
+
 
 
     do b = 1, size(blocks)
@@ -463,8 +465,9 @@ module build_BC_mod
           allocate(A_inj(1:length)); A_inj = 0.d0
           allocate(plate_file%center(1:length, 1:2))
           allocate(plate_file%radius(1:length))
+          allocate(plate_file%face_inj(1:length))
           do i = 1, length
-            read(unit,*) plate_file%id(i), plate_file%center(i,1), plate_file%center(i,2), plate_file%radius(i)
+            read(unit,*) plate_file%id(i), plate_file%center(i,1), plate_file%center(i,2), plate_file%radius(i), plate_file%face_inj(i)
           enddo
         type is (KAFFS_plate_type)
           do while (ios==0)
@@ -475,9 +478,10 @@ module build_BC_mod
           rewind(unit)
           allocate(plate_file%inj_row(1:length))
           allocate(plate_file%phase_row(1:length))
+          allocate(plate_file%face_inj(1:length))
           read(unit,*) plate_file%Plateshape !Either "Round" or "Square"
           do i = 1, length
-            read(unit,*) plate_file%inj_row(i), plate_file%phase_row(i)
+            read(unit,*) plate_file%inj_row(i), plate_file%phase_row(i), plate_file%face_inj(i)
           enddo
           allocate(A_inj(1:sum(plate_file%inj_row(:)))); A_inj = 0.d0
         end select
@@ -548,6 +552,7 @@ module build_BC_mod
                     face%center(m,n)%bc%definition = type_
                     ! Qua metti un if type_ == connessione MOSKA/Q2D
                     call ini_o%add(section_name='cell', option_name='id_inj', val=plate_file%id(ninj))
+                    call ini_o%add(section_name='cell', option_name='face_inj', val=plate_file%face_inj(ninj))
                     ! Costruisci la lunghezza dell'interfaccia nella direzione della connessione con Q2D
                     ! A_inj(ninj) = A_inj(nìnj) + Areacalcolata
                     A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area * z_input
@@ -649,6 +654,7 @@ module build_BC_mod
                       cnt_bc = cnt_bc + 1
                       face%center(m,n)%bc%definition = type_
                       call ini_o%add(section_name='cell', option_name='id_inj', val=plate_file%id(ninj))   
+                      call ini_o%add(section_name='cell', option_name='face_inj', val=plate_file%face_inj(ninj))
                       ! Costruisci l'area dell'interfaccia e sommala per ogni ninj
                       ! A_inj(ninj) = A_inj(nìnj) + Areacalcolata           
                       A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area    

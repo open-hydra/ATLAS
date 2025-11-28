@@ -12,17 +12,19 @@ module BC_build_plate
   type, extends(plate_file_type) :: real_plate_type
     real(8), allocatable :: center(:,:)
     real(8), allocatable :: radius(:)
+    integer, allocatable :: face_inj(:) 
   end type real_plate_type
 
   type, extends(plate_file_type) :: KAFFS_plate_type  
     character(len=256)   :: Plateshape
     integer, allocatable :: inj_row(:) 
     real(8), allocatable :: phase_row(:)
+    integer, allocatable :: face_inj(:) 
     character(3)         :: Side
   end type 
 
    real(8), parameter             :: pi=4.0*atan(1.0)
-   real(8), allocatable           :: Atot(:)
+   real(8), allocatable           :: Atot(:) 
 
 contains
 
@@ -45,7 +47,7 @@ contains
         ninj = sum(plate_file%inj_row(:))
         A_per_inj = A_face/ninj
         allocate(Rmin(plate_file%length),Rmax(plate_file%length),Dpha(plate_file%length))
-        allocate(Inj_phi_R(4,ninj))
+        allocate(Inj_phi_R(5,ninj))
         do m = 1,plate_file%length
           Ak = plate_file%inj_row(m) * A_per_inj
           !Creating radial sectors (Rmax,Rmin)
@@ -92,6 +94,8 @@ contains
               Inj_phi_R(3, injid) = phamax
               !Phimin
               Inj_phi_R(4, injid) = phamin
+              !Face_inj
+              Inj_phi_R(5, injid) = plate_file%face_inj(m)
               
           enddo
         enddo
@@ -100,7 +104,7 @@ contains
           ! Injectors are supposed lined-up on the longest side/direction of the rectangular engine
           ! Each injector has two index along such direction. We just have to check if n-min(inj) <n< n-max(inj) or m-min(inj) <m< m-max(inj)
         ninj = sum(plate_file%inj_row(:))
-        allocate(Inj_phi_R(4,ninj))
+        allocate(Inj_phi_R(5,ninj))
         A_per_inj = A_face/ninj
         injid = 1
         !Looking for the longest side of the chamber plate
@@ -126,6 +130,7 @@ contains
                   ncheck = ncheck + 1
                 else
                   Inj_phi_R(2,injid) = n
+                  Inj_phi_R(5,injid) = plate_file%face_inj(1)
                   ncount = ncount + 1
                   injid = injid + 1
                   Inj_phi_R(1,injid) = n+1
@@ -156,6 +161,7 @@ contains
                 ncheck = ncheck + 1
             else
                 Inj_phi_R(2,injid) = m
+                Inj_phi_R(5,injid) = plate_file%face_inj(1)
                 ncount = ncount + 1
                 injid = injid + 1
                 Inj_phi_R(1,injid) = m+1
@@ -165,6 +171,7 @@ contains
           Inj_phi_R(2,ninj) = face%Nm
         endif
       endif
+
     end subroutine Build_Sectors
 
     subroutine Injector_mapping(plate_file,here,Inj_phi_R,n,m,face,A_inj,type_,dir,ini_o)
@@ -203,6 +210,7 @@ contains
                 face%center(m,n)%bc%definition = type_
                 A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area  
                 call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
+                call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
                 exit
             else
             if (ninj==size(Inj_phi_R(1,:))) then
@@ -223,6 +231,7 @@ contains
                 face%center(m,n)%bc%definition = type_
                 A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area  
                 call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
+                call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
               endif
             elseif (plate_file%Side=='m') then
 
@@ -231,6 +240,7 @@ contains
                 face%center(m,n)%bc%definition = type_
                 A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area  
                 call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
+                call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
               endif
             endif
           enddo
@@ -252,7 +262,7 @@ contains
     
        
         ninj = sum(plate_file%inj_row(:))
-        allocate(Inj_phi_R(4,ninj))
+        allocate(Inj_phi_R(5,ninj))
         ! Injectors are supposed lined-up on the longest side/direction of the rectangular engine
         ! Each injector has two index along such direction. We just have to check if n-min(inj) <n< n-max(inj) or m-min(inj) <m< m-max(inj)
          if (abs(face%center(1,face%Nn)%c(dir(1))-face%center(1,1)%c(dir(1)))>abs(face%center(face%Nm,1)%c(dir(1))-face%center(1,1)%c(dir(1)))) then
@@ -277,6 +287,7 @@ contains
                 ncheck = ncheck + 1
               else
                 Inj_phi_R(2,injid) = nn
+                Inj_phi_R(5,injid) = plate_file%face_inj(1)
                 ncount = ncount + 1
                 injid = injid + 1
                 Inj_phi_R(1,injid) = nn+1
@@ -304,6 +315,7 @@ contains
                ncheck = ncheck + 1
              else
                Inj_phi_R(2,injid) = mm
+               Inj_phi_R(5,injid) = plate_file%face_inj(1)
                ncount = ncount + 1
                injid = injid + 1
                Inj_phi_R(1,injid) = mm+1
@@ -319,6 +331,7 @@ contains
               face%center(m,n)%bc%definition = type_
               A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area * z_input  
               call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
+              call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
             endif
         elseif (plate_file%Side=='m') then
             if (Inj_phi_R(1,ninj)<=m .and. Inj_phi_R(2,ninj)>=m)  then
@@ -326,6 +339,7 @@ contains
               face%center(m,n)%bc%definition = type_
               A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area * z_input
               call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
+              call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
             endif
         endif
         enddo
