@@ -810,6 +810,7 @@ module ATLAS_IO
     logical                            :: thereis
 
     localpath = outpath
+    orion%solutiontime = -10.0
 
     do p = 1, size(phase)
       write(*,*)' - Phase : ',trim(phase(p)%name)
