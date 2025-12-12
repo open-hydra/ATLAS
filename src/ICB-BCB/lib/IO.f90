@@ -891,7 +891,7 @@ module ATLAS_IO
         if (meshtype==-2) then
           allocate(orion%block(cnt)%mesh(1:2,0:block(b)%dim(1),0:block(b)%dim(2),0:0))
           do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
-            orion%block(cnt)%mesh(1:2,i,j,0) = block(b)%node(i,j,k)%c(1:2)
+            orion%block(cnt)%mesh(1:2,i,j,0) = block(b)%node(i,j,0)%c(1:2)
           enddo; enddo
         else
           allocate(orion%block(cnt)%mesh(1:3,0:block(b)%dim(1),0:block(b)%dim(2),0:block(b)%dim(3)))
