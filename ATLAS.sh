@@ -28,7 +28,6 @@ function print_usage {
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
   echo "   ATLAS ICB"
-  echo "   ATLAS YTF"
   echo
   echo "General tools:"
   echo "   ATLAS CEA"
@@ -92,7 +91,7 @@ if [[ $1 == CEA ]]; then
   mv CEAfile.plt $2.plt 2>/dev/null
 else
   for program in $@; do
-    if [[ $program == 'GPB' || $program == 'KAnT' || $program == 'YTF' || $program == 'equilibrate' ]]; then
+    if [[ $program == 'GPB' || $program == 'KAnT' ]]; then
       if [ -n "$ZSH_VERSION" ]; then
           eval "$(conda shell.zsh hook)"
       elif [ -n "$BASH_VERSION" ]; then
