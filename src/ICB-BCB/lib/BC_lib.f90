@@ -97,6 +97,7 @@ module lib_bc
 
       ! Assegno come prima info di stampa l'iniettore a cui sono connesso, se la condizione al contorno è girata dal 2D o dal 3D
       call sourceini%get(section_name=section, option_name='id_inj', val=self%properties(1), error=error)
+      call sourceini%get(section_name=section, option_name='face_inj', val=self%properties(2), error=error)
 
     end subroutine MOSKA_connection
 

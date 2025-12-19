@@ -108,6 +108,7 @@ module ATLAS_IO
               case(999)
                 if (meshType /= 1) then
                   write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(1))
+                  write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(2))
                   write(unitfile,'(A)') ''
                 endif
 
@@ -809,6 +810,7 @@ module ATLAS_IO
     logical                            :: thereis
 
     localpath = outpath
+    orion%solutiontime = -10.0
 
     do p = 1, size(phase)
       write(*,*)' - Phase : ',trim(phase(p)%name)
@@ -889,7 +891,7 @@ module ATLAS_IO
         if (meshtype==-2) then
           allocate(orion%block(cnt)%mesh(1:2,0:block(b)%dim(1),0:block(b)%dim(2),0:0))
           do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
-            orion%block(cnt)%mesh(1:2,i,j,0) = block(b)%node(i,j,k)%c(1:2)
+            orion%block(cnt)%mesh(1:2,i,j,0) = block(b)%node(i,j,0)%c(1:2)
           enddo; enddo
         else
           allocate(orion%block(cnt)%mesh(1:3,0:block(b)%dim(1),0:block(b)%dim(2),0:block(b)%dim(3)))
