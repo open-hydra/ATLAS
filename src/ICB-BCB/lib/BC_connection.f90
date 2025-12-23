@@ -416,23 +416,13 @@ contains
               associate( this => block(b1)%face(f1)%center(m1,n1) )
               this%bc%definition = def(i)
               this%bc%adj_assigned = adj(i)
-              this%bc%properties = real(prop(i,:))
-              if (meshType == -2) then
-                if (product(prop(i,1:4))==0) then
-                  write(*,*) " Find connect"
-                  write(*,*) " Connection not found"
-                  write(*,*) " b,f,m,n"
-                  write(*,*) b1, f1, m1, n1
-                  stop
-                endif
-              else
-                if (product(prop(i,1:5))==0) then
-                  write(*,*) " Find connect"
-                  write(*,*) " Connection not found"
-                  write(*,*) " b,f,m,n"
-                  write(*,*) b1, f1, m1, n1
-                  stop
-                endif
+              this%bc%properties(1:size(prop,2)) = real(prop(i,:))
+              if (product(prop(i,:))==0) then
+                write(*,*) " Find connect"
+                write(*,*) " Connection not found"
+                write(*,*) " b,f,m,n"
+                write(*,*) b1, f1, m1, n1
+                stop
               endif
               endassociate
             endif
