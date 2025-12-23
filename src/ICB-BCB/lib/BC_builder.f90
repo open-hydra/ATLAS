@@ -55,8 +55,7 @@ module build_BC_mod
       enddo
     enddo
 
-
-
+    ! Loop over each block
     do b = 1, size(blocks)
       section_name = 'BCB-Block'//trim(str(.true.,b))   
       associate(block => blocks(b))
@@ -83,7 +82,7 @@ module build_BC_mod
         enddo
       endif
 
-      ! Loop through each phase and check if the associated phase name of the current block matches the phase name.
+      ! Loop over each phase and check if the associated phase name of the current block matches the phase name.
       ! If a match is found, increment the count of blocks for that phase and assign the block ID accordingly.
       do p = 1, size(phase)
         do m = 1, size(block%associated_phase)

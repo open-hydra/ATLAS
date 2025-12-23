@@ -131,7 +131,7 @@ contains
     character(len=llen), intent(inout)   :: oldmeshfile_
     integer, intent(in)                  :: oldid
     character(2)                         :: sym_type
-    integer                              :: cnt, s, sold, i, j, k, b, bb, trueb
+    integer                              :: i, j, k, b, bb, trueb
     integer                              :: ii, jj, kk, counter
     integer, dimension(3)                :: mask
     integer                              :: i2, j2, k2, i2d, j2d, k2d

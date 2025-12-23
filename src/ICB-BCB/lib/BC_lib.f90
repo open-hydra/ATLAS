@@ -275,8 +275,12 @@ module lib_bc
         if (error/=0) beta = 0.0
         call sourceini%get(section_name=section, option_name='p',    val=pstatic, error=error)
         if (error/=0) pstatic = 0.0
+
+        ! Relaxation factor
         call sourceini%get(section_name=section, option_name='rf',   val=rel_fac, error=error)
         if (error/=0) rel_fac = 1.0
+
+        ! Turbulence properties
         call sourceini%get(section_name=section, option_name='mit',  val=mit,     error=error)
         if (error/=0) mit = 0.0
         call sourceini%get(section_name=section, option_name='kappa',val=kappa,   error=error)

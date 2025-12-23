@@ -32,7 +32,7 @@ program ICB
   call command_line_argument()
 
   ! Geometry import
-  write(*,*)' Reading mesh file'
+  write(*,*)' Reading mesh file ...'
   call read_mesh(orion)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
@@ -46,6 +46,7 @@ program ICB
       call block(b)%compute_bounding([0,0,0])
     endif
   enddo
+  write(*,*)' Done!'
 
   ! INI handling
   call build_INI(prog='ICB',nb=size(block),inisource=sourceini,ICformat=ICformat,poweron=poweron,powerfile=powerfile)

@@ -30,8 +30,9 @@ program BCB
   call execute_command_line('mkdir -p '//trim(outpath))
 
   ! Geometry import
-  write(*,*)' Reading mesh file'
+  write(*,*)' Reading mesh file ...'
   call read_mesh(fine_orion)
+  write(*,*)' Done!'
   
   ! INI handling
   call build_INI(prog='BCB',nb=size(fine_orion%block),inisource=sourceini,MG_levels=MG_levels,force_connect=force_connect,chimeraon=chimeraon)
