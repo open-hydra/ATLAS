@@ -263,6 +263,8 @@ module build_BC_mod
     character(len=256)             :: infile_dummy
     logical                        :: file_present=.false., tecfile_present=.false., index_based=.false., injection_plate=.false.
     real(8), allocatable           :: Inj_phi_R(:,:)
+    integer                        :: inj_unit
+    character(len=256)             :: inj_output_file
 
     call ini_o%free
     call ini_o%add(section_name='cell')
@@ -672,18 +674,18 @@ module build_BC_mod
 
       ! Write injection plate output file with injector info
       if (injection_plate .and. allocated(A_inj)) then
-        write(inj_output_file, '(A,I0,A,I0,A)') 'injector_data_block', b, '_face', f, '.dat'
-        open(newunit=inj_unit, file=trim(inj_output_file), status='replace', action='write')
-        write(inj_unit, '(A)') '# Injector_ID    X_center    Y_center    Radius'
         select type (plate_file)
         type is (real_plate_type)
+          write(inj_output_file, '(A,I0,A,I0,A)') 'injector_data_block', b, '_face', f, '.dat'
+          open(newunit=inj_unit, file=trim(inj_output_file), status='replace', action='write')
+          write(inj_unit, '(A)') '# Injector_ID    X_center    Y_center    Radius'
           do ninj = 1, plate_file%length
             write(inj_unit, '(I8, 3E16.8)') plate_file%id(ninj), &
                   plate_file%center(ninj,1), plate_file%center(ninj,2), A_inj(ninj)/2
           enddo
+          close(inj_unit)
+          write(*,*) 'Injector data written to: ', trim(inj_output_file)
         end select
-        close(inj_unit)
-        write(*,*) 'Injector data written to: ', trim(inj_output_file)
       endif
 
     elseif (tecfile_present .and. .not.index_based) then
