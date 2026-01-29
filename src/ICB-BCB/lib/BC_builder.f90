@@ -251,9 +251,9 @@ module build_BC_mod
     integer                        :: error, ios, iosold, cnt_bc=0, n_files, n_files_plate
     integer                        :: i, j, m, n, f_, mi, me, ni, ne, ninj
     character(len=256)             :: line
-    character(len=7)               :: dirID
-    integer                        :: dirSize=0, type_, unit, default_type
-    integer, allocatable           :: dir(:)
+    character(len=7)               :: dirID, fileDirID
+    integer                        :: dirSize=0, fileDirSize=0, type_, unit, default_type
+    integer, allocatable           :: dir(:), fileDir(:)
     real(8), allocatable           :: here(:), try(:)
     real(8)                        :: var=0.0, a1, a2, b1, b2, c11, c12, c21, c22, range(4)
     real(8)                        :: radial_distance, z_input
@@ -316,6 +316,35 @@ module build_BC_mod
     if (dir(1)==5) range(1:2) = range(1:2)*pi/180
     if (dirSize>1) then
       if (dir(2)==5) range(3:4) = range(3:4)*pi/180
+    endif
+
+    if (index_based) then
+      call ini_i%get(section_name='face',option_name='file-direction',val=fileDirID, error=error)
+      if (error==0) then
+        found = .false.
+        if (allocated(here)) deallocate(here)
+        fileDirSize = len_trim(fileDirID)
+        allocate(fileDir(1:fileDirSize)); allocate(here(1:fileDirSize))
+        do i = 1, fileDirSize
+          if (index(fileDirID,'x')/=0 .and. .not.found(1)) then
+            fileDir(i) = 1; found(1)=.true.
+          elseif (index(fileDirID,'y')/=0 .and. .not.found(2)) then
+            fileDir(i) = 2; found(2)=.true.
+          elseif (index(fileDirID,'z')/=0 .and. .not.found(3)) then
+            fileDir(i) = 3; found(3)=.true.
+          elseif (index(fileDirID,'r')/=0 .and. .not.found(4)) then
+            fileDir(i) = 4; found(4)=.true.
+          elseif (index(fileDirID,'t')/=0 .and. .not.found(5)) then
+            fileDir(i) = 5; found(5)=.true.
+          elseif (index(fileDirID,'i')/=0 .and. .not.found(6)) then
+            fileDir(i) = 6; found(6)=.true.; index_based=.true.
+          elseif (index(fileDirID,'j')/=0 .and. .not.found(7)) then
+            fileDir(i) = 7; found(7)=.true.; index_based=.true.
+          elseif (index(fileDirID,'k')/=0 .and. .not.found(8)) then
+            fileDir(i) = 8; found(8)=.true.; index_based=.true.
+          endif
+        enddo
+      endif
     endif
 
     call ini_i%get(section_name='face', option_name='type', val=type_, error=error)
@@ -403,7 +432,7 @@ module build_BC_mod
     if (n_files>0) then
       if (index(bc_file(1)%name,'.tec')>0) then
         tecfile_present = .true.
-        if(allocated(here)) deallocate(here)
+        if (allocated(here)) deallocate(here)
         allocate(here(2))
       else
         file_present = .true.
@@ -775,12 +804,125 @@ module build_BC_mod
 
       ni = max(ni,1); ne = min(ne,face%Nn)
       mi = max(mi,1); me = min(me,face%Nm)
-      do n = ni, ne
-        do m = mi, me
+
+      select case (fileDirSize)
+      case(0)
+        do n = ni, ne
+          do m = mi, me
+            face%center(m,n)%bc%definition = type_
+            call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
+          enddo
+        enddo
+      
+      ! One dimensional variation
+      case(1)
+
+        if (file_present) then
+          do f_ = 1, n_files
+            associate( length=> bc_file(f_)%length )
+            length=0; ios=0
+            open(newunit=unit,file=bc_file(f_)%name,status='old',action='read')
+            do while (ios==0)
+              read(unit,*,iostat=ios)
+              length = length+1
+            enddo
+            length = length-1
+            rewind(unit)
+            allocate(bc_file(f_)%dirArray1(1:length))
+            allocate(bc_file(f_)%array(1:length,1))
+            do i = 1, length
+              read(unit,*) bc_file(f_)%dirArray1(i), bc_file(f_)%array(i,1)
+            enddo
+            close(unit)
+            if (fileDir(1)==5) bc_file(f_)%dirArray1 = bc_file(f_)%dirArray1*pi/180
+            endassociate
+          enddo
+        endif
+        do n = ni, ne; do m = mi, me
+          here(1) = face%center(m,n)%c(fileDir(1))
+          if (file_present) then
+            ! Interpolazione lineare
+            do f_ = 1, n_files
+              if (here(1)>bc_file(f_)%dirArray1(1) .and. here(1)<=bc_file(f_)%dirArray1(bc_file(f_)%length)) then
+                do i = 2, bc_file(f_)%length
+                  if (here(1)>bc_file(f_)%dirArray1(i-1) .and. here(1)<=bc_file(f_)%dirArray1(i)) then
+                    var = (bc_file(f_)%array(i,1)-bc_file(f_)%array(i-1,1))/                  &
+                          (bc_file(f_)%dirArray1(i)-bc_file(f_)%dirArray1(i-1))               &
+                          *(here(1)-bc_file(f_)%dirArray1(i-1)) + bc_file(f_)%array(i-1,1)
+                    call ini_o%add(section_name='cell', option_name=trim(bc_file(f_)%var), val=var)
+                    exit
+                  endif
+                enddo
+              endif
+            enddo
+          endif
           face%center(m,n)%bc%definition = type_
           call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
-        enddo
-      enddo
+        enddo; enddo
+
+      ! Two dimensional variaton
+      case(2)
+        if (file_present) then
+          do f_ = 1, n_files
+            associate( length=> bc_file(f_)%length, width=> bc_file(f_)%width )
+            length=0; width=10000; ios=0
+            open(newunit=unit,file=bc_file(f_)%name,status='old',action='read')
+            do while (ios==0)
+              read(unit,*,iostat=ios)
+              length = length+1
+            enddo
+            length = length-2
+            do while(ios/=0)
+              rewind(unit)
+              allocate(try(1:width))
+              read(unit,*,iostat=ios) try(1:width)
+              if (allocated(try)) deallocate(try)
+              width = width-1
+            enddo
+            width = (width+2)/(length+1)-1
+            rewind(unit)
+            allocate(bc_file(f_)%dirArray1(1:length))
+            allocate(bc_file(f_)%dirArray2(1:width))
+            allocate(bc_file(f_)%array(1:length,1:width))
+            read(unit,*) (bc_file(f_)%dirArray2(j),j=1,width)
+            do i = 1, length
+              read(unit,*) bc_file(f_)%dirArray1(i), (bc_file(f_)%array(i,j),j=1,width)
+            enddo
+            close(unit)
+            if (fileDir(1)==5) bc_file(f_)%dirArray1(:) = bc_file(f_)%dirArray1(:)*pi/180
+            if (fileDir(2)==5) bc_file(f_)%dirArray2(:) = bc_file(f_)%dirArray2(:)*pi/180
+            endassociate
+          enddo
+        endif
+
+        do n = ni, ne; do m = mi, me
+            here(1) = face%center(m,n)%c(fileDir(1))
+            here(2) = face%center(m,n)%c(fileDir(2))
+            if (file_present) then
+              ! Doppia interpolazione lineare
+              do f_ = 1, n_files
+                do i = 2, bc_file(f_)%length
+                  if (here(1)>=bc_file(f_)%dirArray1(i-1) .and. here(1)<=bc_file(f_)%dirArray1(i)) then
+                    do j = 2, bc_file(f_)%width
+                      if (here(2)>bc_file(f_)%dirArray2(j-1) .and. here(2)<=bc_file(f_)%dirArray2(j)) then
+                        a1 = bc_file(f_)%dirArray1(i-1); a2 = bc_file(f_)%dirArray1(i)
+                        b1 = bc_file(f_)%dirArray2(j-1); b2 = bc_file(f_)%dirArray2(j)
+                        c11 = bc_file(f_)%array(i-1,j-1); c12 = bc_file(f_)%array(i,j-1)
+                        c21 = bc_file(f_)%array( i ,j-1); c22 = bc_file(f_)%array(i, j )
+                        var = ((b2-here(2))/(b2-b1)*c11+(here(2)-b1)/(b2-b1)*c12)*(a2-here(1))/(a2-a1)
+                        var = var+((b2-here(2))/(b2-b1)*c21+(here(2)-b1)/(b2-b1)*c22)*(here(1)-a1)/(a2-a1)
+                        call ini_o%add(section_name='cell', option_name=trim(bc_file(f_)%var), val=var)
+                        exit
+                      endif
+                    enddo
+                  endif
+                enddo
+              enddo
+            endif
+            face%center(m,n)%bc%definition = type_
+            call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
+        enddo; enddo
+      end select
 
     endif
 
