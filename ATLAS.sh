@@ -15,7 +15,7 @@
 #       ARGUMENTS:
 #         CEA             Run the CEA program with the specified input file
 #         GPB, KAnT       Run the specified Python-based ATLAS program
-#         ICB, BCB        Run the specified Fortran-based ATLAS program
+#         ICB, BCB, BCB-Q2D  Run the specified Fortran-based ATLAS program
 #         YTF             Run the specified Python-based ATLAS program
 #       EXAMPLES:
 #         ./ATLAS.sh --verbose GPB
@@ -27,6 +27,7 @@ function print_usage {
   echo "CFD pre-processing tools:"
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
+  echo "   ATLAS BCB-Q2D"
   echo "   ATLAS ICB"
   echo
   echo "General tools:"

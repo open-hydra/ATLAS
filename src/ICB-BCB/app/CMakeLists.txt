@@ -1,4 +1,4 @@
-set( EXES ICB BCB )
+set( EXES ICB BCB BCB-Q2D )
 foreach(EXE ${EXES})
   add_executable(${EXE} "${CMAKE_CURRENT_SOURCE_DIR}/${EXE}.f90")
   target_link_libraries(${EXE} PRIVATE ATLAS)
