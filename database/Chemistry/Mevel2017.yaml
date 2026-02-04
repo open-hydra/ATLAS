@@ -6,7 +6,7 @@ input-files: [mevel2017.cti]
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: gas
+- name: Mevel
   thermo: ideal-gas
   elements: [H, O, N, Ar, He]
   species: [H, O, H2, O2, OH, H2O, N2, N, NO, HO2, H2O2, AR, OH*, HE]
