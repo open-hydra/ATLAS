@@ -237,7 +237,7 @@ module lib_bc
 
     subroutine assemble_the_monster(SRMswitch)
       use species, only: define_composition
-      use IC_lib_IG, only: legge_aree, Runi
+      use area_law, only: legge_aree, Runi
       implicit none
       logical, intent(in), optional  :: SRMswitch
       logical                        :: found_CEA, force_inflow

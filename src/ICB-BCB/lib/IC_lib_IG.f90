@@ -1,7 +1,6 @@
 module IC_lib_IG
+  use area_law, only: Runi, legge_aree
   implicit none
-
-  real(8), parameter :: runi=8314.51d0
 
 contains
 
@@ -539,41 +538,6 @@ contains
     end subroutine cubic_compression
 
   end subroutine build_IG_field
-
-  !> Newton-Raphson procedure for areas law
-  pure subroutine legge_aree(a,x0,m2,at,gamma)
-    implicit none
-    real(8), intent(in)  :: a
-    real(8), intent(in)  :: x0
-    real(8), intent(out) :: m2
-    real(8), intent(in)  :: at, gamma
-    real(8)              :: m_new, m_old, m_aux
-    real(8)              :: f, fprime
-    real(8)              :: k, d
-    integer              :: iter
-
-    k = 0.5*(gamma+1.)
-    d = 0.5*(gamma-1.)
-    m_old = x0
-    m_aux = x0
-    m_new = 1.
-    iter = 0
-
-    do while (abs(m_new-m_aux)>=1e-10)
-      m_aux = m_old
-      f = (((1.+d*(m_old**2.))/k)**(0.5*k/d))/m_old-(a/at)
-      fprime = -(((1.+d*(m_old**2.))/k)**(0.5*k/d))/(m_old**2.)+((1+d*(m_old**2.))/k)**(0.5*k/d-1.)
-      m_new=m_old-(f/fprime)
-
-      m_old=m_new
-      iter = iter+1
-      if (iter>1e+5) error stop ('--- Max iterations number reached ---')
-    end do
-
-    m2 = m_new
-
-  end subroutine legge_aree
-
 
   !> Newton-Raphson procedure for T0
   pure function T02T(T0,ci,cp,dcp,h,M,Rgas) result(T)
