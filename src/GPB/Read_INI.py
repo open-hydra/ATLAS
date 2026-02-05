@@ -5,7 +5,7 @@ masterpath = os.environ.get("ATLASDIR")
 if masterpath is None:
     print("ATLAS environment variable is not set.")
     sys.exit(1)
-src = os.path.join(masterpath, "src/equilibrate")
+src = os.path.join(masterpath, "plugin/equilibrate")
 sys.path.append(src)
 
 #
