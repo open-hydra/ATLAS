@@ -237,12 +237,14 @@ module lib_bc
 
     subroutine assemble_the_monster(SRMswitch)
       use species, only: define_composition
+      use IC_lib_IG, only: legge_aree, Runi
       implicit none
       logical, intent(in), optional  :: SRMswitch
       logical                        :: found_CEA, force_inflow
       integer                        :: error, m, npCP, i
       ! Ideal gas
       real(8) :: mach, massflux, p0, T0, h0, CEAh0, T, pstatic, rel_fac, alpha, beta, nmach, mit, kappa, omega, rhoRij, psub, psup, rt, krho
+      real(8) :: Ae_At, Rgas, cp_, gam, M_sub, M_sup, Gamma_v
       ! Condensed-phase
       integer :: cp_scaling, error_gp
       real(8), allocatable :: kr(:), ku(:), kt(:), rp(:), dp(:), sigmap(:), rRes(:), Tsat(:), volRatio(:)
@@ -290,22 +292,67 @@ module lib_bc
         call sourceini%get(section_name=section, option_name='rhoRij',val=rhoRij, error=error)
         if (error/=0) rhoRij = 0.0
 
-        ! Injector
-        call sourceini%get(section_name=section, option_name='psub',val=psub,   error=error)
-        if (error==0) alpha = psub
-        call sourceini%get(section_name=section, option_name='psup',val=psup,    error=error)
-        if (error==0) beta = psup
-        rt = 0.0
-        call sourceini%get(section_name=section, option_name='rt',  val=rt, error=error)
-        if (error==0) pstatic = rt
-
         ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
+        ! Moved before Injector to have species%massf available for gamma calculation
         call define_composition(sourceini, self%species, T0, p0, CEAh0)
 
         if (h0/=0 .and. self%species%n==1) then
           T0 = h02T0(h0,self%species%h,lbound(self%species%h,dim=2))
         else
           h0 = CEAh0
+        endif
+
+        ! Injector - Area ratio mode or legacy mode
+        Ae_At = 0.0d0
+        rt = 0.0d0
+        call sourceini%get(section_name=section, option_name='Ae_At', val=Ae_At, error=error)
+
+        if (error==0) then
+          ! Ae_At provided: new mode
+          if (Ae_At < 1.0d0) error stop 'Ae_At must be >= 1.0'
+
+          ! Precondition checks
+          if (T0 <= 0.0d0) error stop 'Ae_At mode requires T0 > 0'
+          if (sum(self%species%massf) < 1.0d-10) error stop 'Ae_At mode requires species composition'
+
+          ! Compute gas properties from species composition
+          Rgas = sum(Runi * self%species%massf / self%species%w)
+          cp_ = sum(self%species%massf * self%species%cp(:, nint(T0)))
+          gam = cp_ / (cp_ - Rgas)
+
+          if (Ae_At > 1.0d0) then
+            ! Solve area-Mach relation for subsonic branch (initial guess < 1)
+            call legge_aree(Ae_At, 0.5d0, M_sub, 1.0d0, gam)
+            ! Solve area-Mach relation for supersonic branch (initial guess > 1)
+            call legge_aree(Ae_At, 2.0d0, M_sup, 1.0d0, gam)
+          else
+            ! Ae_At = 1: sonic throat, M = 1
+            M_sub = 1.0d0
+            M_sup = 1.0d0
+          endif
+
+          ! Compute static pressures in Pa, then convert to bar
+          ! p = p0 * (1 + (gamma-1)/2 * M^2)^(-gamma/(gamma-1))
+          psub = p0 * (1.0d0 + 0.5d0*(gam-1.0d0)*M_sub**2)**(-gam/(gam-1.0d0)) / 1.0d5
+          psup = p0 * (1.0d0 + 0.5d0*(gam-1.0d0)*M_sup**2)**(-gam/(gam-1.0d0)) / 1.0d5
+
+          ! Compute mass flux using Vandenkerkhove function
+          ! Gamma_v = sqrt(gamma) * (2/(gamma+1))^((gamma+1)/(2*(gamma-1)))
+          Gamma_v = sqrt(gam) * (2.0d0/(gam+1.0d0))**((gam+1.0d0)/(2.0d0*(gam-1.0d0)))
+          rt = p0 * Gamma_v / sqrt(Rgas * T0)
+
+          alpha = psub
+          beta = psup
+          pstatic = rt
+
+        else
+          ! Legacy mode: read directly
+          call sourceini%get(section_name=section, option_name='psub', val=psub, error=error)
+          if (error==0) alpha = psub
+          call sourceini%get(section_name=section, option_name='psup', val=psup, error=error)
+          if (error==0) beta = psup
+          call sourceini%get(section_name=section, option_name='rt', val=rt, error=error)
+          if (error==0) pstatic = rt
         endif
 
         ! Time bc
