@@ -282,8 +282,15 @@ module ATLAS_IO
                 do i = 1, size(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo,1)
                   write(unitfile,'(4I8)',advance='no') (nint(block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
                   write(unitfile,'(E20.10)') block(b)%face(f)%cell(ii,jj,kk)%chimerainfo(i,5)
-                enddo     
-              
+                enddo
+
+              case(667)
+                if (block(b)%face(f)%center(m,n)%bc%IG_time_BC(1)) then
+                  write(unitfile,'(A,A)') trim(block(b)%face(f)%center(m,n)%bc%IG_time_properties(1)), ' periodic'
+                else
+                  write(unitfile,'(A)') trim(block(b)%face(f)%center(m,n)%bc%IG_time_properties(1))
+                endif
+
             end select
           enddo
         enddo

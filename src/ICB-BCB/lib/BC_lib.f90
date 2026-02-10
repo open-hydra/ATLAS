@@ -85,6 +85,7 @@ module lib_bc
     case(12);   call assigne_ablation; call assigne_roughness(6)
     case(13);   call assigne_qrad;     call assigne_roughness(2)
     case(14);   call assigne_SF;       call assigne_SRMgrain(2);  call assemble_the_monster(.true.)
+    case(667);  call assigne_TimeVarying
     case(1001); call assigne_manifold;
     case(999);  call MOSKA_connection
     end select
@@ -235,6 +236,15 @@ module lib_bc
 
     end subroutine assigne_halfPeriodicInfo
 
+    subroutine assigne_TimeVarying
+      implicit none
+      integer :: error
+
+      call sourceini%get(section_name=section, option_name='time-file', val=self%IG_time_properties(1), error=error)
+      call sourceini%get(section_name=section, option_name='periodic', val=self%IG_time_BC(1), error=error)
+
+    end subroutine assigne_TimeVarying
+
     subroutine assemble_the_monster(SRMswitch)
       use species, only: define_composition
       use area_law, only: legge_aree, Runi
@@ -312,7 +322,7 @@ module lib_bc
           if (Ae_At < 1.0d0) error stop 'Ae_At must be >= 1.0'
 
           ! Precondition checks
-          if (T0 <= 0.0d0) error stop 'Ae_At mode requires T0 > 0'
+          if (T0 <= 0.0d0 .or. p0 <= 0.0d0) error stop 'Ae_At mode requires T0 > 0'
           if (sum(self%species%massf) < 1.0d-10) error stop 'Ae_At mode requires species composition'
 
           ! Compute gas properties from species composition
