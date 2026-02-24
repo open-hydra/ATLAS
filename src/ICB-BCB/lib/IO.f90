@@ -68,12 +68,7 @@ module ATLAS_IO
         do n = 1, nend(f)
           do m = 1, mend(f)
 
-            if (block(b)%face(f)%center(m,n)%bc%properties(3)==0.0 .and. &
-                block(b)%face(f)%center(m,n)%bc%definition==4) then
-              print_def = 3
-            else
-              print_def = block(b)%face(f)%center(m,n)%bc%definition
-            endif
+            print_def = block(b)%face(f)%center(m,n)%bc%definition
             
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
 
