@@ -185,6 +185,8 @@ contains
     if (trim(vardirection) == 'x') dir = 1
     if (trim(vardirection) == 'y') dir = 2
     if (trim(vardirection) == 'z') dir = 3
+    if (trim(vardirection) == 'r') dir = 4
+    if (trim(vardirection) == 't') dir = 5
 
     file_length=0; ios=0
     open(unit=1,file=trim(varfile),status='old',action='read')
@@ -200,6 +202,7 @@ contains
       read(1,*) file_dir(i), file_var(i)
     enddo
     close(1)
+    if (dir == 5) file_dir(:) = file_dir(:) * acos(-1d0) / 180d0
 
     do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
       coord = block%center(i,j,k)%c(dir)

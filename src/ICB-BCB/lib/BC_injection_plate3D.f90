@@ -1,348 +1,331 @@
+! Injection plate mapping: build injector sectors and assign cells to injectors.
+! Supports round (radial/angular sectors) and square (index-based strips) plates.
 module BC_build_plate
-  use ATLAS_high_level
-  use finer, only: file_ini
+  use, intrinsic :: iso_fortran_env, only: R8 => real64
+  use ATLAS_high_level, only: obj_face
+  use finer,            only: file_ini
+  use variables,        only: llen
   implicit none
+  private
 
-  type, abstract :: plate_file_type
-    character(len=256)   :: name
+  real(R8), parameter :: PI    = 4.0_R8 * atan(1.0_R8)
+  real(R8), parameter :: TWOPI = 2.0_R8 * PI
+
+  type, abstract, public :: plate_file_type
+    character(len=llen)  :: name
     integer              :: length
-    integer, allocatable :: id(:) 
+    integer, allocatable :: id(:)
   end type plate_file_type
 
-  type, extends(plate_file_type) :: real_plate_type
-    real(8), allocatable :: center(:,:)
-    real(8), allocatable :: radius(:)
-    integer, allocatable :: face_inj(:) 
+  type, extends(plate_file_type), public :: real_plate_type
+    real(R8), allocatable :: center(:,:)
+    real(R8), allocatable :: radius(:)
+    integer,  allocatable :: face_inj(:)
   end type real_plate_type
 
-  type, extends(plate_file_type) :: KAFFS_plate_type  
-    character(len=256)   :: Plateshape
-    integer, allocatable :: inj_row(:) 
-    real(8), allocatable :: phase_row(:)
-    integer, allocatable :: face_inj(:) 
+  type, extends(plate_file_type), public :: KAFFS_plate_type
+    character(len=llen)  :: Plateshape
+    integer, allocatable :: inj_row(:)
+    real(R8), allocatable :: phase_row(:)
+    integer, allocatable :: face_inj(:)
     character(3)         :: Side
-  end type 
+  end type KAFFS_plate_type
 
-   real(8), parameter             :: pi=4.0*atan(1.0)
-   real(8), allocatable           :: Atot(:) 
+  public :: Build_Sectors, Injector_mapping, Full_plate_2D
 
 contains
 
-    subroutine Build_Sectors(plate_file,face,A_face,Inj_phi_R,dir)
-      implicit none
-      class(KAFFS_plate_type), intent(inout) :: plate_file
-      type(obj_face), intent(in)         :: face
-      integer, intent(in)                :: dir(:)
-      real(8), intent(in)                :: A_face
-      real(8), allocatable               :: Inj_phi_R(:,:)
-      real(8)                            :: Aplate, A_per_inj, Ak, phamin, phamax, pha
-      real(8), allocatable               :: Rmin(:),Rmax(:),Dpha(:)
-      integer                            :: injid, mj,spare,ncheck,ncount, ninj, m, n
+  ! Build injector sectors for round or square plates.
+  ! Round: radial rings split into angular sectors.
+  ! Square: index-based strips along the longest face side.
+  subroutine Build_Sectors(plate_file, face, A_face, Inj_phi_R, dir)
+    class(KAFFS_plate_type), intent(inout) :: plate_file
+    type(obj_face),          intent(in)    :: face
+    integer,                 intent(in)    :: dir(:)
+    real(R8),                intent(in)    :: A_face
+    real(R8), allocatable,   intent(out)   :: Inj_phi_R(:,:)
 
+    real(R8) :: A_per_inj, Ak, phamin, phamax, pha
+    real(R8), allocatable :: Rmin(:), Rmax(:), Dpha(:)
+    integer  :: injid, mj, spare, ncheck, ncount, ninj, m, n
 
+    if (plate_file%Plateshape == 'Round' .or. plate_file%Plateshape == 'round') then
+      ! Round chamber 3D
+      injid = 0
+      ninj = sum(plate_file%inj_row(:))
+      A_per_inj = A_face / ninj
+      allocate(Rmin(plate_file%length), Rmax(plate_file%length), Dpha(plate_file%length))
+      allocate(Inj_phi_R(5, ninj))
 
-      if (plate_file%Plateshape=='Round'.or.plate_file%Plateshape=='round') then
-        !Round chamber 3D
-        injid = 0
-        ninj = sum(plate_file%inj_row(:))
-        A_per_inj = A_face/ninj
-        allocate(Rmin(plate_file%length),Rmax(plate_file%length),Dpha(plate_file%length))
-        allocate(Inj_phi_R(5,ninj))
-        do m = 1,plate_file%length
-          Ak = plate_file%inj_row(m) * A_per_inj
-          !Creating radial sectors (Rmax,Rmin)
-          if (m==1) then
-            Rmin(m) = 0
-            Rmax(m) = sqrt(Ak/pi)
-          elseif (m==plate_file%length) then
-            Rmax(m) = sqrt(A_face/pi)
-            Rmin(m) = sqrt(Rmax(m)**2 - Ak/pi)
-          else
-            Rmin(m) = Rmax(m-1)
-            Rmax(m) = sqrt(Rmin(m)**2 + Ak/pi)
-          endif
-            !Creating angular sectors (Phimax,Phimin)
-          Dpha(m) = 2*pi/(plate_file%inj_row(m))
+      do m = 1, plate_file%length
+        Ak = plate_file%inj_row(m) * A_per_inj
 
-          do mj = 1,plate_file%inj_row(m)
-            injid = injid + 1 
-            if (plate_file%inj_row(m)==1) then 
-              phamin = 0.0
-              phamax = 2*pi
-            else
-              pha = plate_file%phase_row(m) + (mj-1)*Dpha(m)
-              phamin = pha - Dpha(m)*0.5
-              phamax = pha + Dpha(m)*0.5
-                if (phamin<0) then
-                    phamin = phamin + 2*pi
-                endif
-                if (phamin>2*pi) then
-                    phamin = phamin - 2*pi
-                endif
-                if (phamax<0) then
-                    phamin = phamin + 2*pi
-                endif
-                if (phamax>2*pi) then
-                    phamin = phamin - 2*pi
-                endif
-            endif
-              !Rmax
-              Inj_phi_R(1, injid) = Rmax(m)
-              !Rmin
-              Inj_phi_R(2, injid) = Rmin(m)
-              !Phimax
-              Inj_phi_R(3, injid) = phamax
-              !Phimin
-              Inj_phi_R(4, injid) = phamin
-              !Face_inj
-              Inj_phi_R(5, injid) = plate_file%face_inj(m)
-              
-          enddo
-        enddo
-      elseif (plate_file%Plateshape=='Square'.or.plate_file%Plateshape=='square') then
-         !Squared plate
-          ! Injectors are supposed lined-up on the longest side/direction of the rectangular engine
-          ! Each injector has two index along such direction. We just have to check if n-min(inj) <n< n-max(inj) or m-min(inj) <m< m-max(inj)
-        ninj = sum(plate_file%inj_row(:))
-        allocate(Inj_phi_R(5,ninj))
-        A_per_inj = A_face/ninj
-        injid = 1
-        !Looking for the longest side of the chamber plate
-        if (abs(face%center(1,face%Nn)%c(dir(2))-face%center(1,1)%c(dir(2)))>abs(face%center(face%Nm,1)%c(dir(1))-face%center(1,1)%c(dir(1)))) then
-          !Nn is the longest
-          plate_file%Side = 'n'
-          spare = (real(face%Nn)/real(ninj) - floor(real(face%Nn)/real(ninj)))*ninj
-          ncount = 1
-          ncheck = 0
-          do n = 1,face%Nn
-              do m = 1,face%Nm
-                  !Skip
-              enddo
-              if (n<(floor(real(face%Nn)/real(ninj))*(injid)+ncheck)) then
-                if (n==1) then
-                Inj_phi_R(1,injid) = 1 
-                endif
-                Inj_phi_R(2,injid) = n
-              else
-                if (ncount==2.and.ncheck<spare) then
-                  Inj_phi_R(2,injid) = n
-                  ncount = 0
-                  ncheck = ncheck + 1
-                else
-                  Inj_phi_R(2,injid) = n
-                  Inj_phi_R(5,injid) = plate_file%face_inj(1)
-                  ncount = ncount + 1
-                  injid = injid + 1
-                  Inj_phi_R(1,injid) = n+1
-                endif
-              endif
-          enddo
-              Inj_phi_R(1,ninj) = face%Nn
+        ! Radial sectors (Rmax, Rmin)
+        if (m == 1) then
+          Rmin(m) = 0.0_R8
+          Rmax(m) = sqrt(Ak / PI)
+        else if (m == plate_file%length) then
+          Rmax(m) = sqrt(A_face / PI)
+          Rmin(m) = sqrt(Rmax(m)**2 - Ak / PI)
         else
-          !Nm is the longest
-          plate_file%Side = 'm'
-          spare = (real(face%Nm)/real(ninj) - floor(real(face%Nm)/real(ninj)))*ninj
-          ncount = 0
-          ncheck = 0
-          do m = 1,face%Nm
-              do n = 1,face%Nn
-                !Skip
-              enddo
-            if (m<(floor(real(face%Nm)/real(ninj))*(injid)+ncheck)) then
-            
-            if (m==1) then
-            Inj_phi_R(1,injid) = 1 
-            endif
-            Inj_phi_R(2,injid) = m
+          Rmin(m) = Rmax(m - 1)
+          Rmax(m) = sqrt(Rmin(m)**2 + Ak / PI)
+        end if
+
+        ! Angular sectors (phamin, phamax)
+        Dpha(m) = TWOPI / plate_file%inj_row(m)
+
+        do mj = 1, plate_file%inj_row(m)
+          injid = injid + 1
+          if (plate_file%inj_row(m) == 1) then
+            phamin = 0.0_R8
+            phamax = TWOPI
+          else
+            pha = plate_file%phase_row(m) + (mj - 1) * Dpha(m)
+            phamin = pha - Dpha(m) * 0.5_R8
+            phamax = pha + Dpha(m) * 0.5_R8
+            ! Wrap phamin into [0, 2pi)
+            if (phamin < 0.0_R8) phamin = phamin + TWOPI
+            if (phamin > TWOPI)  phamin = phamin - TWOPI
+            ! Wrap phamax into [0, 2pi)
+            if (phamax < 0.0_R8) phamax = phamax + TWOPI
+            if (phamax > TWOPI)  phamax = phamax - TWOPI
+          end if
+
+          Inj_phi_R(1, injid) = Rmax(m)
+          Inj_phi_R(2, injid) = Rmin(m)
+          Inj_phi_R(3, injid) = phamax
+          Inj_phi_R(4, injid) = phamin
+          Inj_phi_R(5, injid) = plate_file%face_inj(m)
+        end do
+      end do
+
+    else if (plate_file%Plateshape == 'Square' .or. plate_file%Plateshape == 'square') then
+      ! Square plate: strips along the longest face side
+      ninj = sum(plate_file%inj_row(:))
+      allocate(Inj_phi_R(5, ninj))
+      A_per_inj = A_face / ninj
+      injid = 1
+
+      ! Determine longest side
+      if (abs(face%center(1, face%Nn)%c(dir(2)) - face%center(1, 1)%c(dir(2))) > &
+          abs(face%center(face%Nm, 1)%c(dir(1)) - face%center(1, 1)%c(dir(1)))) then
+        ! Nn is the longest
+        plate_file%Side = 'n'
+        spare  = mod(face%Nn, ninj)
+        ncount = 1
+        ncheck = 0
+        Inj_phi_R(1, 1) = 1
+        do n = 1, face%Nn
+          if (n < floor(real(face%Nn, R8) / real(ninj, R8)) * injid + ncheck) then
+            Inj_phi_R(2, injid) = n
+          else
+            if (ncount == 2 .and. ncheck < spare) then
+              Inj_phi_R(2, injid) = n
+              ncount = 0
+              ncheck = ncheck + 1
             else
-            if (ncount==2.and.ncheck<spare) then
-                Inj_phi_R(2,injid) = m
-                ncount = 0
-                ncheck = ncheck + 1
+              Inj_phi_R(2, injid) = n
+              Inj_phi_R(5, injid) = plate_file%face_inj(1)
+              ncount = ncount + 1
+              injid = injid + 1
+              if (injid > ninj) exit
+              Inj_phi_R(1, injid) = n + 1
+            end if
+          end if
+        end do
+        Inj_phi_R(2, ninj) = face%Nn
+      else
+        ! Nm is the longest
+        plate_file%Side = 'm'
+        spare  = mod(face%Nm, ninj)
+        ncount = 1
+        ncheck = 0
+        Inj_phi_R(1, 1) = 1
+        do m = 1, face%Nm
+          if (m < floor(real(face%Nm, R8) / real(ninj, R8)) * injid + ncheck) then
+            Inj_phi_R(2, injid) = m
+          else
+            if (ncount == 2 .and. ncheck < spare) then
+              Inj_phi_R(2, injid) = m
+              ncount = 0
+              ncheck = ncheck + 1
             else
-                Inj_phi_R(2,injid) = m
-                Inj_phi_R(5,injid) = plate_file%face_inj(1)
-                ncount = ncount + 1
-                injid = injid + 1
-                Inj_phi_R(1,injid) = m+1
-            endif
-            endif
-          enddo
-          Inj_phi_R(2,ninj) = face%Nm
-        endif
-      endif
+              Inj_phi_R(2, injid) = m
+              Inj_phi_R(5, injid) = plate_file%face_inj(1)
+              ncount = ncount + 1
+              injid = injid + 1
+              if (injid > ninj) exit
+              Inj_phi_R(1, injid) = m + 1
+            end if
+          end if
+        end do
+        Inj_phi_R(2, ninj) = face%Nm
+      end if
+    end if
 
-    end subroutine Build_Sectors
-
-    subroutine Injector_mapping(plate_file,here,Inj_phi_R,n,m,face,A_inj,type_,dir,ini_o)
-        implicit none
-        class(KAFFS_plate_type), intent(inout) :: plate_file
-        type(file_ini), intent(inout)      :: ini_o
-        type(obj_face), intent(inout)      :: face
-        integer, intent(in)                :: n, m, type_, dir(:)
-        real(8), intent(in)                :: here(2)
-        real(8), intent(inout)             :: A_inj(:)
-        REAL(8), intent(in)                :: Inj_phi_R(:,:)
-        real(8)                            :: rinj, anginj, angmin, angmax
-        integer                            :: ninj, cnt_bc
+  end subroutine Build_Sectors
 
 
-        if (plate_file%Plateshape=='Round'.or.plate_file%Plateshape=='round') then
-          do ninj = 1,size(Inj_phi_R(1,:))
-            !Distance from the center of the plate
-            rinj = sqrt(here(1)**2 + here(2)**2)
-            ! Associated angle
-            anginj = atan2(here(2),here(1))
+  ! Map a single cell (m, n) to its injector for round or square plates.
+  subroutine Injector_mapping(plate_file, here, Inj_phi_R, n, m, face, A_inj, type_, ini_o)
+    class(KAFFS_plate_type), intent(inout) :: plate_file
+    type(file_ini),          intent(inout) :: ini_o
+    type(obj_face),          intent(inout) :: face
+    integer,                 intent(in)    :: n, m, type_
+    real(R8),                intent(in)    :: here(2)
+    real(R8),                intent(inout) :: A_inj(:)
+    real(R8),                intent(in)    :: Inj_phi_R(:,:)
 
-            if (anginj<0) anginj = anginj + 2*pi
-            angmin = Inj_phi_R(4,ninj);
-            angmax = Inj_phi_R(3,ninj);
-            if (angmin>angmax) then
-            angmin = angmin-2*pi
-            if (anginj>pi) then
-                anginj = anginj - 2*pi
-            endif
-            endif
+    real(R8) :: rinj, anginj, angmin, angmax
+    integer  :: ninj
 
-            !Check if : Rmin(inj)  <r-cell< Rmax(inj)  .and. Anglemin(inj)  < angle-cell < Anglemax(inj) 
-            if ((Inj_phi_R(2,ninj) <= rinj) .and. (Inj_phi_R(1,ninj) >= rinj) .and. (angmin <= anginj) .and. (angmax >= anginj)) then
-                cnt_bc = cnt_bc + 1
-                face%center(m,n)%bc%definition = type_
-                A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area  
-                call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-                call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
-                exit
-            else
-            if (ninj==size(Inj_phi_R(1,:))) then
-                stop 'Plate is not fully covered, cell is missing an injector'
-            endif
-            endif
-          enddo
-          
-        elseif (plate_file%Plateshape=='Square'.or.plate_file%Plateshape=='square') then
-          !Squared plate
-          ! Injectors are supposed lined-up on the longest side/direction of the rectangular engine
-          ! Each injector has two index along such direction. We just have to check if n-min(inj) <n< n-max(inj) or m-min(inj) <m< m-max(inj)
-          do ninj = 1,size(Inj_phi_R(1,:))
-            if (plate_file%Side=='n') then
+    if (plate_file%Plateshape == 'Round' .or. plate_file%Plateshape == 'round') then
+      do ninj = 1, size(Inj_phi_R, 2)
+        ! Distance from the center of the plate
+        rinj = sqrt(here(1)**2 + here(2)**2)
+        ! Associated angle
+        anginj = atan2(here(2), here(1))
+        if (anginj < 0.0_R8) anginj = anginj + TWOPI
 
-              if (Inj_phi_R(1,ninj)<=n .and. Inj_phi_R(2,ninj)>=n) then
-                cnt_bc = cnt_bc + 1
-                face%center(m,n)%bc%definition = type_
-                A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area  
-                call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-                call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
-              endif
-            elseif (plate_file%Side=='m') then
+        angmin = Inj_phi_R(4, ninj)
+        angmax = Inj_phi_R(3, ninj)
+        ! Handle sector crossing the 0/2pi boundary
+        if (angmin > angmax) then
+          angmin = angmin - TWOPI
+          if (anginj > PI) anginj = anginj - TWOPI
+        end if
 
-              if (Inj_phi_R(1,ninj)<=m .and. Inj_phi_R(2,ninj)>=m)  then
-                cnt_bc = cnt_bc + 1
-                face%center(m,n)%bc%definition = type_
-                A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area  
-                call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-                call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
-              endif
-            endif
-          enddo
-        endif
+        ! Check: Rmin <= r <= Rmax  .and.  angmin <= angle <= angmax
+        if (Inj_phi_R(2, ninj) <= rinj .and. Inj_phi_R(1, ninj) >= rinj .and. &
+            angmin <= anginj .and. angmax >= anginj) then
+          face%center(m, n)%bc%definition = type_
+          A_inj(ninj) = A_inj(ninj) + face%center(m, n)%area
+          call ini_o%add(section_name='cell', option_name='id_inj', val=ninj)
+          call ini_o%add(section_name='cell', option_name='face_inj', val=Inj_phi_R(5, ninj))
+          exit
+        else
+          if (ninj == size(Inj_phi_R, 2)) &
+            stop "[ERROR] Plate is not fully covered, cell is missing an injector"
+        end if
+      end do
 
-    end subroutine Injector_mapping
+    else if (plate_file%Plateshape == 'Square' .or. plate_file%Plateshape == 'square') then
+      ! Square plate: check index range along the longest side
+      do ninj = 1, size(Inj_phi_R, 2)
+        if (plate_file%Side == 'n') then
+          if (Inj_phi_R(1, ninj) <= n .and. Inj_phi_R(2, ninj) >= n) then
+            face%center(m, n)%bc%definition = type_
+            A_inj(ninj) = A_inj(ninj) + face%center(m, n)%area
+            call ini_o%add(section_name='cell', option_name='id_inj', val=ninj)
+            call ini_o%add(section_name='cell', option_name='face_inj', val=Inj_phi_R(5, ninj))
+          end if
+        else if (plate_file%Side == 'm') then
+          if (Inj_phi_R(1, ninj) <= m .and. Inj_phi_R(2, ninj) >= m) then
+            face%center(m, n)%bc%definition = type_
+            A_inj(ninj) = A_inj(ninj) + face%center(m, n)%area
+            call ini_o%add(section_name='cell', option_name='id_inj', val=ninj)
+            call ini_o%add(section_name='cell', option_name='face_inj', val=Inj_phi_R(5, ninj))
+          end if
+        end if
+      end do
+    end if
 
-    subroutine Full_plate_2D(plate_file, face, n, m ,dir, Inj_phi_R,type_,A_inj,z_input,ini_o)
-        class(KAFFS_plate_type), intent(inout) :: plate_file
-        type(file_ini), intent(inout)          :: ini_o
-        type(obj_face), intent(inout)          :: face
-        integer, intent(in)                    :: dir(:)
-        integer, intent(in)                    :: type_, n ,m
-        real(8), intent(in)                    :: z_input
-        real(8), intent(inout)                 :: A_inj(:)
-        REAL(8), allocatable                   :: Inj_phi_R(:,:)
-        integer                                :: ninj, cnt_bc
-        integer                                :: injid, mj, spare, ncheck, ncount, mm, nn
-    
-       
-        ninj = sum(plate_file%inj_row(:))
-        allocate(Inj_phi_R(5,ninj))
-        ! Injectors are supposed lined-up on the longest side/direction of the rectangular engine
-        ! Each injector has two index along such direction. We just have to check if n-min(inj) <n< n-max(inj) or m-min(inj) <m< m-max(inj)
-         if (abs(face%center(1,face%Nn)%c(dir(1))-face%center(1,1)%c(dir(1)))>abs(face%center(face%Nm,1)%c(dir(1))-face%center(1,1)%c(dir(1)))) then
-         spare = (real(face%Nn)/real(ninj) - floor(real(face%Nn)/real(ninj)))*ninj
-         injid  = 1
-         ncount = 1
-         ncheck = 0
-         plate_file%Side = 'n'
-         do nn = 1,face%Nn
-           do mm = 1,face%Nm
-             !skip
-           enddo
-            if (nn<(floor(real(face%Nn)/real(ninj))*(injid)+ncheck)) then
-              if (nn==1) then
-              Inj_phi_R(1,injid) = 1 
-              endif
-              Inj_phi_R(2,injid) = nn
-            else
-              if (ncount==2.and.ncheck<spare) then
-                Inj_phi_R(2,injid) = nn
-                ncount = 0
-                ncheck = ncheck + 1
-              else
-                Inj_phi_R(2,injid) = nn
-                Inj_phi_R(5,injid) = plate_file%face_inj(1)
-                ncount = ncount + 1
-                injid = injid + 1
-                Inj_phi_R(1,injid) = nn+1
-              endif
-            endif
-          enddo
-         else
-         plate_file%Side = 'm'
-         spare = (real(face%Nm)/real(ninj) - floor(real(face%Nm)/real(ninj)))*ninj
-         ncount = 0
-         ncheck = 0
-         do mm = 1,face%Nm
-           do nn = 1,face%Nn
-             !skip
-           enddo
-           if (mm<(floor(real(face%Nm)/real(ninj))*(injid)+ncheck)) then
-             if (mm==1) then
-             Inj_phi_R(1,injid) = 1 
-             endif
-             Inj_phi_R(2,injid) = mm
-           else
-             if (ncount==2.and.ncheck<spare) then
-               Inj_phi_R(2,injid) = mm
-               ncount = 0
-               ncheck = ncheck + 1
-             else
-               Inj_phi_R(2,injid) = mm
-               Inj_phi_R(5,injid) = plate_file%face_inj(1)
-               ncount = ncount + 1
-               injid = injid + 1
-               Inj_phi_R(1,injid) = mm+1
-             endif
-             endif
-           enddo
-         endif
-       
-        do ninj = 1,size(Inj_phi_R(1,:))
-        if (plate_file%Side=='n') then
-            if (Inj_phi_R(1,ninj)<=n .and. Inj_phi_R(2,ninj)>=n) then
-              cnt_bc = cnt_bc + 1
-              face%center(m,n)%bc%definition = type_
-              A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area * z_input  
-              call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-              call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
-            endif
-        elseif (plate_file%Side=='m') then
-            if (Inj_phi_R(1,ninj)<=m .and. Inj_phi_R(2,ninj)>=m)  then
-              cnt_bc = cnt_bc + 1
-              face%center(m,n)%bc%definition = type_
-              A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area * z_input
-              call ini_o%add(section_name='cell', option_name='id_inj', val= ninj) 
-              call ini_o%add(section_name='cell', option_name='face_inj', val= Inj_phi_R(5,ninj)) 
-            endif
-        endif
-        enddo
-    end subroutine Full_plate_2D
+  end subroutine Injector_mapping
+
+
+  ! 2D full-plate mapping (square only): builds sectors and maps cell in one call.
+  ! NOTE: shares logic with Build_Sectors + Injector_mapping (square case),
+  ! but adds z_input area scaling and allocates Inj_phi_R internally.
+  subroutine Full_plate_2D(plate_file, face, n, m, dir, Inj_phi_R, type_, A_inj, z_input, ini_o)
+    class(KAFFS_plate_type), intent(inout) :: plate_file
+    type(file_ini),          intent(inout) :: ini_o
+    type(obj_face),          intent(inout) :: face
+    integer,                 intent(in)    :: dir(:)
+    integer,                 intent(in)    :: type_, n, m
+    real(R8),                intent(in)    :: z_input
+    real(R8),                intent(inout) :: A_inj(:)
+    real(R8), allocatable,   intent(out)   :: Inj_phi_R(:,:)
+
+    integer :: ninj, injid, spare, ncheck, ncount, mm, nn
+
+    ninj = sum(plate_file%inj_row(:))
+    allocate(Inj_phi_R(5, ninj))
+    injid = 1
+
+    ! Determine longest side and build index strips
+    if (abs(face%center(1, face%Nn)%c(dir(1)) - face%center(1, 1)%c(dir(1))) > &
+        abs(face%center(face%Nm, 1)%c(dir(1)) - face%center(1, 1)%c(dir(1)))) then
+      plate_file%Side = 'n'
+      spare  = mod(face%Nn, ninj)
+      ncount = 1
+      ncheck = 0
+      Inj_phi_R(1, 1) = 1
+      do nn = 1, face%Nn
+        if (nn < floor(real(face%Nn, R8) / real(ninj, R8)) * injid + ncheck) then
+          Inj_phi_R(2, injid) = nn
+        else
+          if (ncount == 2 .and. ncheck < spare) then
+            Inj_phi_R(2, injid) = nn
+            ncount = 0
+            ncheck = ncheck + 1
+          else
+            Inj_phi_R(2, injid) = nn
+            Inj_phi_R(5, injid) = plate_file%face_inj(1)
+            ncount = ncount + 1
+            injid = injid + 1
+            if (injid > ninj) exit
+            Inj_phi_R(1, injid) = nn + 1
+          end if
+        end if
+      end do
+      Inj_phi_R(2, ninj) = face%Nn
+    else
+      plate_file%Side = 'm'
+      spare  = mod(face%Nm, ninj)
+      ncount = 1
+      ncheck = 0
+      Inj_phi_R(1, 1) = 1
+      do mm = 1, face%Nm
+        if (mm < floor(real(face%Nm, R8) / real(ninj, R8)) * injid + ncheck) then
+          Inj_phi_R(2, injid) = mm
+        else
+          if (ncount == 2 .and. ncheck < spare) then
+            Inj_phi_R(2, injid) = mm
+            ncount = 0
+            ncheck = ncheck + 1
+          else
+            Inj_phi_R(2, injid) = mm
+            Inj_phi_R(5, injid) = plate_file%face_inj(1)
+            ncount = ncount + 1
+            injid = injid + 1
+            if (injid > ninj) exit
+            Inj_phi_R(1, injid) = mm + 1
+          end if
+        end if
+      end do
+      Inj_phi_R(2, ninj) = face%Nm
+    end if
+
+    ! Map cell (m, n) to injector with z_input area scaling
+    do ninj = 1, size(Inj_phi_R, 2)
+      if (plate_file%Side == 'n') then
+        if (Inj_phi_R(1, ninj) <= n .and. Inj_phi_R(2, ninj) >= n) then
+          face%center(m, n)%bc%definition = type_
+          A_inj(ninj) = A_inj(ninj) + face%center(m, n)%area * z_input
+          call ini_o%add(section_name='cell', option_name='id_inj', val=ninj)
+          call ini_o%add(section_name='cell', option_name='face_inj', val=Inj_phi_R(5, ninj))
+        end if
+      else if (plate_file%Side == 'm') then
+        if (Inj_phi_R(1, ninj) <= m .and. Inj_phi_R(2, ninj) >= m) then
+          face%center(m, n)%bc%definition = type_
+          A_inj(ninj) = A_inj(ninj) + face%center(m, n)%area * z_input
+          call ini_o%add(section_name='cell', option_name='id_inj', val=ninj)
+          call ini_o%add(section_name='cell', option_name='face_inj', val=Inj_phi_R(5, ninj))
+        end if
+      end if
+    end do
+
+  end subroutine Full_plate_2D
 
 end module BC_build_plate
