@@ -1,27 +1,21 @@
-!>@file BCB-Q2D.f90
-!>@brief Q2D Line-Strip to 3D Boundary File Mapper
-!>
-!> Maps Q2D line probe output (1D periodic circumferential data) onto a 3D cylindrical face.
-!> The circumferential coordinate is auto-detected from the Q2D strip geometry.
-!> Interpolation is periodic in theta-space.
-!>
-!> @section config Configuration (input.ini, section [BCB-Q2D])
-!>   meshfile     - 3D mesh file (default: mesh.tec)
-!>   q2dfile      - Q2D line probe output file (required)
-!>   outfile      - Output file (default: q2d_bc.tec)
-!>   center       - Cylinder center coordinates x y z (required)
-!>   face         - ATLAS face (1-6): 1,2=i-faces(axis x), 3,4=j-faces(axis y), 5,6=k-faces(axis z)
-!>   strip-j-face - Q2D strip J face to use: 0 or 1 (default: 1)
-!>
-!> @note Circumferential coordinate is auto-detected from strip geometry.
-!>
-!> @author Alessandro Montanari
-
+! Q2D Line-Strip to 3D Boundary File Mapper
+!
+! Maps Q2D line probe output (1D periodic circumferential data) onto a 3D cylindrical face.
+! The circumferential coordinate is auto-detected from the Q2D strip geometry.
+! Interpolation is periodic in theta-space.
+!
+! Configuration (input.ini, section [BCB-Q2D]):
+!   meshfile     - 3D mesh file (default: mesh.tec)
+!   q2dfile      - Q2D line probe output file (required)
+!   outfile      - Output file (default: q2d_bc.tec)
+!   center       - Cylinder center coordinates x y z (required)
+!   face         - ATLAS face 1-6 (default: 5): 1,2=i(x), 3,4=j(y), 5,6=k(z)
+!   strip-j-face - Q2D strip J face to use: 0 or 1 (default: 1)
 program BCB_Q2D
   use, intrinsic :: iso_fortran_env, only: R8 => real64
   use variables
   use finer, only: file_ini
-  use BCB_Q2D_Map
+  use BC_q2d_map
   implicit none
 
   type(file_ini)     :: fini
@@ -31,11 +25,9 @@ program BCB_Q2D
 
   call parse_args()
 
-  write(*,*)
   write(*,*) '=============================================='
   write(*,*) ' ATLAS - Q2D to 3D Boundary Mapper'
   write(*,*) '=============================================='
-  write(*,*)
 
   call fini%load(filename='input.ini')
 
@@ -72,9 +64,7 @@ program BCB_Q2D
 
   call run_q2d_bc_map(meshfile, q2dfile, outfile, face, strip_j_face, cyl_center)
 
-  write(*,*)
   write(*,*) '[DONE] BCB-Q2D mapping completed successfully'
-  write(*,*)
 
 contains
 

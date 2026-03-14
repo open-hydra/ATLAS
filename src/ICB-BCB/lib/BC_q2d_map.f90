@@ -1,20 +1,15 @@
-!>@file BCB_Q2D_Map.f90
-!>@brief Mapping di soluzioni Q2D (line probes) su facce 3D cilindriche.
-!>
-!> Mappa dati da una line probe Q2D (nastro 1D periodico) su una faccia di griglia 3D cilindrica.
-!> La coordinata "piatta" del Q2D viene arrotolata sulla circonferenza del cilindro.
-!>
-!> @author Alessandro Montanari
-
-module BCB_Q2D_Map
-  use, intrinsic :: iso_fortran_env, only: R8 => real64
-  use variables, only: verbose
+! Map Q2D line-probe solutions onto 3D cylindrical block faces.
+! The flat Q2D coordinate is wrapped onto the cylinder circumference.
+! Periodic interpolation in theta-space with velocity transformation.
+module BC_q2d_map
+  use, intrinsic :: iso_fortran_env, only: R8 => real64, iostat_end
+  use variables, only: verbose, llen
   use ATLAS_high_level
   use ATLAS_IO_fields, only: read_mesh
   use Lib_ORION_data
   use Lib_Tecplot
   use strings, only: lowercase, parse
-  use IR_Precision, only: str, FR_P
+  use IR_Precision, only: FR_P
   implicit none
   private
 
@@ -33,9 +28,8 @@ module BCB_Q2D_Map
 
 contains
 
-  !---------------------------------------------------------------------------
-  !> Entry point principale per il mapping Q2D -> 3D.
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Read 3D mesh and Q2D file, interpolate strip onto each block, write Tecplot output
   subroutine run_q2d_bc_map(meshfile, q2dfile, outfile, face, strip_j_face, cyl_center)
     character(len=*), intent(in) :: meshfile, q2dfile, outfile
     integer, intent(in)          :: face, strip_j_face
@@ -52,7 +46,7 @@ contains
 
     ax_idx = face_to_axis(face)
 
-    ! Lettura mesh 3D
+    ! Read 3D mesh
     if (verbose) write(*,'(A,A)') " [LOG] Reading 3D mesh: ", trim(meshfile)
     call read_mesh(mesh_orion, trim(meshfile))
     call import_nodes(input=mesh_orion, output=blocks)
@@ -60,7 +54,7 @@ contains
 
     if (verbose) write(*,'(A,3F10.4)') " [LOG] Cylinder center: ", cyl_center
 
-    ! Lettura Q2D
+    ! Read Q2D
     if (verbose) write(*,'(A,A)') " [LOG] Reading Q2D file: ", trim(q2dfile)
     q2d_orion%tec%format = 'ascii'
     if (tec_read_structured_multiblock(orion=q2d_orion, filename=trim(q2dfile)) /= 0) &
@@ -68,22 +62,26 @@ contains
     if (.not. allocated(q2d_orion%block)) stop "[ERROR] Q2D file has no zones"
     nzones = size(q2d_orion%block)
 
-    call read_solutiontimes(q2dfile, times, nzones)
-    call get_varnames(q2d_orion%varnames, varnames)
+    call read_solution_times(q2dfile, times, nzones)
+    call filter_varnames(q2d_orion%varnames, varnames)
 
     if (verbose) then
       write(*,'(A,I0,A,I0)') " [LOG] Zones: ", nzones, ", Variables: ", size(varnames)
       write(*,'(A,I0,A,I0)') " [LOG] Face: ", face, ", Axis: ", ax_idx
     endif
 
-    ! Apri file output una volta sola
+    ! Open output file once
     file_opened = .false.
     do zone = 1, nzones
       call extract_strip(q2d_orion, zone, varnames, strip_j_face, strip)
-      if (zone == 1) call validate_strip(strip)
+      if (zone == 1) then
+        if (strip%npts < 2) stop "[ERROR] Q2D strip < 2 points"
+        if (strip%nvar < 1) stop "[ERROR] Q2D strip has no variables"
+        if (strip%circ_idx < 1 .or. strip%circ_idx > 2) stop "[ERROR] circ_idx auto-detect failed"
+      endif
 
       do b = 1, size(blocks)
-        call process_block(blocks(b), strip, ax_idx, cyl_center, face, &
+        call map_strip_to_block(blocks(b), strip, ax_idx, cyl_center, face, &
                            outfile, file_unit, file_opened, times(zone), b, zone)
       enddo
     enddo
@@ -93,7 +91,8 @@ contains
   end subroutine
 
 
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Extract Q2D strip from a zone: auto-detect circ coord, convert to theta, copy variables
   subroutine extract_strip(orion, zone, varnames, j_face, strip)
     type(orion_data), intent(in) :: orion
     integer, intent(in) :: zone
@@ -113,20 +112,20 @@ contains
     strip%varnames = varnames
     strip%vars = 0.0_R8
 
-    ! Auto-detect circ_idx: coordinata con range maggiore
+    ! Auto-detect circ_idx: coordinate with largest range
     range_x = maxval(orion%block(zone)%mesh(1, 0:npts, j_face, 0)) - &
               minval(orion%block(zone)%mesh(1, 0:npts, j_face, 0))
     range_y = maxval(orion%block(zone)%mesh(2, 0:npts, j_face, 0)) - &
               minval(orion%block(zone)%mesh(2, 0:npts, j_face, 0))
     strip%circ_idx = merge(1, 2, range_x > range_y)
 
-    ! Centri-cella nella coordinata circonferenziale
+    ! Cell centers along circumferential coordinate
     do i = 1, npts
       centers(i) = 0.5_R8 * (orion%block(zone)%mesh(strip%circ_idx, i-1, j_face, 0) + &
                               orion%block(zone)%mesh(strip%circ_idx, i, j_face, 0))
     enddo
 
-    ! Converti in theta: [0, 2pi)
+    ! Convert to theta: [0, 2pi)
     s_min = minval(centers)
     s_max = maxval(centers)
     if (s_max - s_min < 1.0e-12_R8) stop "[ERROR] Q2D circ range <= 0"
@@ -134,32 +133,22 @@ contains
       strip%theta(i) = (centers(i) - s_min) / (s_max - s_min) * TWOPI
     enddo
 
-    ! Variabili
+    ! Variables
     do v = 1, min(strip%nvar, nvar_input)
       strip%vars(v,:) = orion%block(zone)%vars(v, 1:npts, 1, 1)
     enddo
 
-    ! Garantisci theta crescente (se la strip ha coordinata decrescente, inverti)
+    ! Ensure ascending theta (flip if strip has decreasing coordinate)
     if (strip%theta(1) > strip%theta(npts)) then
       strip%theta = strip%theta(npts:1:-1)
       strip%vars  = strip%vars(:, npts:1:-1)
     endif
 
-    deallocate(centers)
   end subroutine
 
-
-  !---------------------------------------------------------------------------
-  subroutine validate_strip(strip)
-    type(Q2D_strip_type), intent(in) :: strip
-    if (strip%npts < 2) stop "[ERROR] Q2D strip < 2 points"
-    if (strip%nvar < 1) stop "[ERROR] Q2D strip has no variables"
-    if (strip%circ_idx < 1 .or. strip%circ_idx > 2) stop "[ERROR] circ_idx auto-detect failed"
-  end subroutine
-
-
-  !---------------------------------------------------------------------------
-  subroutine process_block(block, strip, ax_idx, center, face, &
+  !----------------------------------------
+  ! Interpolate Q2D strip onto a block face and write Tecplot zone
+  subroutine map_strip_to_block(block, strip, ax_idx, center, face, &
                            filename, file_unit, file_opened, time, b_num, z_num)
     type(ATLAS_block), intent(in) :: block
     type(Q2D_strip_type), intent(in) :: strip
@@ -178,7 +167,7 @@ contains
     allocate(vars(strip%nvar, n1, n2))
     call interpolate_vars(centers, vars, strip, ax_idx, center, n1, n2)
 
-    ! Scrittura Tecplot (apri file solo alla prima chiamata)
+    ! Tecplot output (open file on first call only)
     if (.not. file_opened) then
       open(newunit=file_unit, file=trim(filename), status='REPLACE', form='formatted')
       file_opened = .true.
@@ -208,10 +197,8 @@ contains
   end subroutine
 
 
-  !---------------------------------------------------------------------------
-  !> Interpola variabili Q2D sulla faccia 3D con trasformazione velocita'.
-  !> Interpolazione periodica in theta-space.
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Interpolate Q2D variables onto 3D face (periodic in theta, with velocity transformation)
   subroutine interpolate_vars(centers, vars, strip, ax_idx, center, n1, n2)
     real(R8), intent(in) :: centers(:,:,:), center(3)
     real(R8), intent(out) :: vars(:,:,:)
@@ -226,7 +213,7 @@ contains
     v_idx = find_var(strip%varnames, 'v')
     w_idx = find_var(strip%varnames, 'w')
 
-    ! Mappa Q2D vel -> tangenziale/assiale
+    ! Map Q2D vel -> tangential/axial
     if (strip%circ_idx == 1) then
       tang_idx = u_idx; ax_vel_idx = v_idx
     else
@@ -234,7 +221,7 @@ contains
     endif
     has_vel = (tang_idx > 0 .or. ax_vel_idx > 0)
 
-    ! Piano perpendicolare all'asse (terna destra)
+    ! Plane perpendicular to axis (right-handed)
     select case(ax_idx)
       case(1); p1 = 2; p2 = 3
       case(2); p1 = 3; p2 = 1
@@ -259,23 +246,20 @@ contains
         endif
 
         do v = 1, strip%nvar
-          if (v == u_idx) then
-            vars(v,i1,i2) = comp(1)
-          elseif (v == v_idx) then
-            vars(v,i1,i2) = comp(2)
-          elseif (v == w_idx) then
-            vars(v,i1,i2) = comp(3)
-          else
+          if (v /= u_idx .and. v /= v_idx .and. v /= w_idx) &
             vars(v,i1,i2) = (1.0_R8 - wt) * strip%vars(v,i0_) + wt * strip%vars(v,i1_)
-          endif
         enddo
+        if (u_idx > 0) vars(u_idx,i1,i2) = comp(1)
+        if (v_idx > 0) vars(v_idx,i1,i2) = comp(2)
+        if (w_idx > 0) vars(w_idx,i1,i2) = comp(3)
       enddo
     enddo
     !$OMP END PARALLEL DO
   end subroutine
 
 
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Extract nodal coordinates and cell centers of a block face
   subroutine extract_geometry(block, face, n1, n2, nodes, centers)
     type(ATLAS_block), intent(in) :: block
     integer, intent(in) :: face, n1, n2
@@ -298,7 +282,8 @@ contains
   end subroutine
 
 
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Coordinates of node (i1,i2) on the block face
   pure function get_face_node(block, face, i1, i2) result(c)
     type(ATLAS_block), intent(in) :: block
     integer, intent(in) :: face, i1, i2
@@ -315,7 +300,8 @@ contains
   end function
 
 
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Return the two dimensions (n1,n2) of a face given face index and dim(3)
   pure subroutine face_dims(dim, face, n1, n2)
     integer, intent(in) :: dim(3), face
     integer, intent(out) :: n1, n2
@@ -327,7 +313,8 @@ contains
   end subroutine
 
 
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Normal axis index for a face (1,2->x, 3,4->y, 5,6->z)
   pure integer function face_to_axis(face) result(ax)
     integer, intent(in) :: face
     select case(face)
@@ -338,7 +325,8 @@ contains
   end function
 
 
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Find variable by name (case-insensitive), return index or -1
   integer function find_var(varnames, name) result(idx)
     character(len=*), intent(in) :: varnames(:), name
     integer :: i
@@ -351,13 +339,14 @@ contains
   end function
 
 
-  !---------------------------------------------------------------------------
-  !> Estrae nomi variabili da Q2D e aggiunge 'w' se mancante (per output 3D).
-  subroutine get_varnames(input, output)
+  !----------------------------------------
+  ! Filter Q2D varnames (skip x,y,z), add 'w' if missing and u or v present
+  subroutine filter_varnames(input, output)
     character(len=*), intent(in) :: input(:)
     character(len=32), allocatable, intent(out) :: output(:)
     integer :: offset, n, nout, i
-    logical :: has_w
+    logical :: has_w, has_vel
+    character(len=32) :: lname
 
     n = size(input); offset = 0
     if (n >= 2 .and. lowercase(trim(input(1))) == 'x' .and. lowercase(trim(input(2))) == 'y') then
@@ -367,29 +356,31 @@ contains
 
     if (n - offset <= 0) stop "[ERROR] Q2D has no variables"
 
-    ! Verifica se 'w' esiste già
-    has_w = .false.
+    ! Check if 'w' already exists and if velocity components are present
+    has_w = .false.; has_vel = .false.
     do i = offset+1, n
-      if (lowercase(trim(input(i))) == 'w') has_w = .true.
+      lname = lowercase(trim(input(i)))
+      if (lname == 'w') has_w = .true.
+      if (lname == 'u' .or. lname == 'v') has_vel = .true.
     enddo
 
-    ! Alloca con spazio per 'w' se mancante
+    ! Allocate with room for 'w' if missing and velocities present
     nout = n - offset
-    if (.not. has_w) nout = nout + 1
+    if (.not. has_w .and. has_vel) nout = nout + 1
     allocate(output(nout))
     output(1:n-offset) = input(offset+1:n)
-    if (.not. has_w) output(nout) = 'w'
+    if (.not. has_w .and. has_vel) output(nout) = 'w'
   end subroutine
 
 
-  !---------------------------------------------------------------------------
-  subroutine read_solutiontimes(filename, times, nzones)
-    use, intrinsic :: iso_fortran_env, only: iostat_end
+  !----------------------------------------
+  ! Read SOLUTIONTIME from Tecplot zone headers
+  subroutine read_solution_times(filename, times, nzones)
     character(len=*), intent(in) :: filename
     integer, intent(in) :: nzones
     real(R8), allocatable, intent(out) :: times(:)
     integer :: u, ios, z, ia
-    character(len=500) :: line
+    character(len=llen) :: line
     character(len=100) :: args(40), subargs(2)
 
     allocate(times(nzones)); times = -1.0_R8
@@ -418,10 +409,8 @@ contains
     close(u)
   end subroutine
 
-  !---------------------------------------------------------------------------
-  !> Angolo theta da coordinate cartesiane per cilindro con asse ax_idx.
-  !> Terna destra per tutti gli assi.
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Theta angle of a point w.r.t. cylinder center (right-handed, any axis)
   pure real(R8) function compute_theta(xyz, center, ax_idx) result(theta)
     real(R8), intent(in) :: xyz(3), center(3)
     integer, intent(in)  :: ax_idx
@@ -429,18 +418,16 @@ contains
 
     d = xyz - center
     select case(ax_idx)
-      case(1); c1 = d(2); c2 = d(3)  ! asse x: piano y-z
-      case(2); c1 = d(3); c2 = d(1)  ! asse y: piano z-x
-      case default; c1 = d(1); c2 = d(2)  ! asse z: piano x-y
+      case(1); c1 = d(2); c2 = d(3)  ! x-axis: y-z plane
+      case(2); c1 = d(3); c2 = d(1)  ! y-axis: z-x plane
+      case default; c1 = d(1); c2 = d(2)  ! z-axis: x-y plane
     end select
     theta = modulo(atan2(c2, c1), TWOPI)
   end function
 
 
-  !---------------------------------------------------------------------------
-  !> Ricerca lineare periodica su array ordinato crescente in [0, 2pi).
-  !> Trova la coppia (i0, i1) che racchiude theta_tgt, con gap periodico.
-  !---------------------------------------------------------------------------
+  !----------------------------------------
+  ! Periodic linear search and interpolation on sorted array in [0, 2pi)
   pure subroutine periodic_search(theta_arr, n, theta_tgt, i0, i1, w)
     real(R8), intent(in)  :: theta_arr(:)
     integer, intent(in)   :: n
@@ -467,7 +454,7 @@ contains
       endif
     enddo
 
-    ! Gap periodico: tra ultimo e primo elemento
+    ! Periodic gap: between last and first element
     i0 = n; i1 = 1
     gap = (theta_arr(1) + TWOPI) - theta_arr(n)
     if (gap > EPS) then
@@ -482,4 +469,4 @@ contains
     w = max(0.0_R8, min(1.0_R8, w))
   end subroutine
 
-end module BCB_Q2D_Map
+end module BC_q2d_map

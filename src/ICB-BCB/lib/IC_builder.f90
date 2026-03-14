@@ -172,6 +172,17 @@ module build_IC_mod
       do i = dirSize*2+1, 6 ; range(i) = (-1.0)**i*huge(range(i)) ; enddo
     endif
 
+    ! Convert theta range (if present) from degrees to rad
+    if (dirSize>0) then
+      if (dir(1)==5) range(1:2) = range(1:2)*acos(-1d0)/180d0
+      if (dirSize>1) then
+        if (dir(2)==5) range(3:4) = range(3:4)*acos(-1d0)/180d0
+      endif
+      if (dirSize>2) then
+        if (dir(3)==5) range(5:6) = range(5:6)*acos(-1d0)/180d0
+      endif
+    endif
+
     do pi = 1, size(self%associated_phase)
       phase_type = self%associated_phase(pi)%type
 

@@ -192,7 +192,11 @@ contains
                                                     self%node( 0 ,m-1, n )%c, &
                                                     self%node( 0 , m , n )%c)
         endif
-        this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
+        if (meshType == -2) then
+          this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(1:2))
+        else
+          this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
+        endif
       enddo
     enddo
     endassociate
@@ -215,7 +219,11 @@ contains
                                                     self%node(self%dim(1),m-1, n )%c, &
                                                     self%node(self%dim(1), m , n )%c)
         endif
-        this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
+        if (meshType == -2) then
+          this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(1:2))
+        else
+          this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
+        endif
       enddo
     enddo
     endassociate
@@ -234,14 +242,18 @@ contains
                                                   self%node(m-1, 0 , n )%c, &
                                                   self%node( m , 0 , n )%c)
         if (meshType == -2) then
-          this%center(m,n)%area = sqrt((self%node(m,0,n-1)%c(1)-self%node(m-1,0,n-1)%c(1))**2+(self%node(m,0,n-1)%c(2)-self%node(m-1,0,n-1)%c(2)))
+          this%center(m,n)%area = sqrt((self%node(m,0,n-1)%c(1)-self%node(m-1,0,n-1)%c(1))**2+(self%node(m,0,n-1)%c(2)-self%node(m-1,0,n-1)%c(2))**2)
         else
           this%center(m,n)%area = CalculateArea(self%node(m-1, 0 ,n-1)%c,     &
                                                     self%node( m , 0 ,n-1)%c, &
                                                     self%node(m-1, 0 , n )%c, &
                                                     self%node( m , 0 , n )%c)
         endif
-        this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
+        if (meshType == -2) then
+          this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(1:2))
+        else
+          this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
+        endif
       enddo
     enddo
     endassociate
@@ -264,7 +276,11 @@ contains
                                                     self%node(m-1,self%dim(2), n )%c, &
                                                     self%node( m ,self%dim(2), n )%c)
         endif
-        this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
+        if (meshType == -2) then
+          this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(1:2))
+        else
+          this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
+        endif
       enddo
     enddo
     endassociate

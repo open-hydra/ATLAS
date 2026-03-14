@@ -10,6 +10,8 @@ module build_BC_mod
   private
   public:: build_BC
 
+  real(8), allocatable :: Atot(:)
+
   type :: bc_file_type
     character(len=256)   :: name
     character(len=5)     :: var
@@ -231,6 +233,7 @@ module build_BC_mod
 
 
   subroutine build_cell(b,f,face,nrans,ini_i,phase)
+    use TOM, only: meshType
     implicit none
     integer, intent(in)            :: b, f
     type(obj_face)                 :: face
@@ -241,7 +244,7 @@ module build_BC_mod
     type(bc_file_type)             :: bc_file(12)
     logical                        :: full_plate ! if true, KAFFS-like plate
     class(plate_file_type), allocatable :: plate_file
-    real(8), parameter             :: pi=4.0*atan(1.0)
+    real(8), parameter             :: pi=4.0d0*atan(1.0d0)
     integer                        :: error, ios, iosold, cnt_bc=0, n_files, n_files_plate
     integer                        :: i, j, m, n, f_, mi, me, ni, ne, ninj
     character(len=256)             :: line
@@ -251,17 +254,19 @@ module build_BC_mod
     real(8), allocatable           :: here(:), try(:)
     real(8)                        :: var=0.0, a1, a2, b1, b2, c11, c12, c21, c22, range(4)
     real(8)                        :: radial_distance, z_input
-    real(8), allocatable           :: A_inj(:)
+    real(8), allocatable           :: A_inj(:), x_inj(:), y_inj(:)
+    real(8)                        :: radius
     logical                        :: found(8)
     character(len=:), allocatable  :: option_pairs(:)
     character(len=256)             :: infile_dummy
-    logical                        :: file_present=.false., tecfile_present=.false., index_based=.false., injection_plate=.false.
+    logical                        :: file_present, tecfile_present, index_based, injection_plate
     real(8), allocatable           :: Inj_phi_R(:,:)
     integer                        :: inj_unit
     character(len=256)             :: inj_output_file
 
     call ini_o%free
     call ini_o%add(section_name='cell')
+    file_present=.false.; tecfile_present=.false.; index_based=.false.; injection_plate=.false.
 
     call ini_i%get(section_name='face', option_name='direction', val=dirID, error=error)
     if (error==0) then
@@ -348,7 +353,6 @@ module build_BC_mod
 
     ! Check file presence
     n_files=0
-    file_present=.false.; tecfile_present=.false.
     call ini_o%get(section_name='cell', option_name='ks-file', val=infile_dummy, error=error)
     if (error==0) then
       n_files = n_files+1; bc_file(n_files)%var = 'ks'; bc_file(n_files)%name = infile_dummy
@@ -486,6 +490,8 @@ module build_BC_mod
           rewind(unit)
           allocate(plate_file%id(1:length))
           allocate(A_inj(1:length)); A_inj = 0.d0
+          allocate(x_inj(1:length)); x_inj = 0.0d0
+          allocate(y_inj(1:length)); y_inj = 0.0d0
           allocate(plate_file%center(1:length, 1:2))
           allocate(plate_file%radius(1:length))
           allocate(plate_file%face_inj(1:length))
@@ -565,23 +571,22 @@ module build_BC_mod
             endif
             if (injection_plate) then
               select type (plate_file)
-              type is (real_plate_type)                
+              type is (real_plate_type)
                 face%center(m,n)%bc%definition = default_type
-                ! Loop sul numero di iniettori che legge, prima iterazione dando numero di iniettori e loro raggio
                 do ninj = 1, plate_file%length
                   radial_distance = sqrt((here(1)-plate_file%center(ninj,dir(1)))**2)
                   if (radial_distance <= plate_file%radius(ninj)) then
                     cnt_bc = cnt_bc + 1
                     face%center(m,n)%bc%definition = type_
-                    ! Qua metti un if type_ == connessione MOSKA/Q2D
                     call ini_o%add(section_name='cell', option_name='id_inj', val=plate_file%id(ninj))
                     call ini_o%add(section_name='cell', option_name='face_inj', val=plate_file%face_inj(ninj))
-                    ! Costruisci la lunghezza dell'interfaccia nella direzione della connessione con Q2D
-                    ! A_inj(ninj) = A_inj(nìnj) + Areacalcolata
                     A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area * z_input
+                    x_inj(ninj) = x_inj(ninj) + face%center(m,n)%c(1) * face%center(m,n)%area * z_input
+                    y_inj(ninj) = y_inj(ninj) + face%center(m,n)%c(2) * face%center(m,n)%area * z_input
+                    exit
                   endif
-                call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
                 enddo
+                call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
               type is (KAFFS_plate_type)
                ! PER ALEX, algoritmo per casi tipo TIC
                  call Full_plate_2D(plate_file, face, n, m ,dir, Inj_phi_R,type_,A_inj,z_input,ini_o)
@@ -645,7 +650,7 @@ module build_BC_mod
                       if (here(2)>bc_file(f_)%dirArray2(j-1) .and. here(2)<=bc_file(f_)%dirArray2(j)) then
                         a1 = bc_file(f_)%dirArray1(i-1); a2 = bc_file(f_)%dirArray1(i)
                         b1 = bc_file(f_)%dirArray2(j-1); b2 = bc_file(f_)%dirArray2(j)
-                        c11 = bc_file(f_)%array(i-1,j-1); c12 = bc_file(f_)%array(i,j-1)
+                        c11 = bc_file(f_)%array(i-1,j-1); c12 = bc_file(f_)%array(i-1, j )
                         c21 = bc_file(f_)%array( i ,j-1); c22 = bc_file(f_)%array(i, j )
                         var = ((b2-here(2))/(b2-b1)*c11+(here(2)-b1)/(b2-b1)*c12)*(a2-here(1))/(a2-a1)
                         var = var+((b2-here(2))/(b2-b1)*c21+(here(2)-b1)/(b2-b1)*c22)*(here(1)-a1)/(a2-a1)
@@ -666,28 +671,26 @@ module build_BC_mod
             endif
             if (injection_plate) then
               select type (plate_file)
-                type is (real_plate_type)                
+                type is (real_plate_type)
                   face%center(m,n)%bc%definition = default_type
-                  ! Loop sul numero di iniettori che legge, prima iterazione dando numero di iniettori e loro raggio
                   do ninj = 1, plate_file%length
-                   
                     radial_distance = sqrt((here(1)-plate_file%center(ninj,1))**2+(here(2)-plate_file%center(ninj,2))**2)
-
                     if (radial_distance <= plate_file%radius(ninj)) then
                       cnt_bc = cnt_bc + 1
                       face%center(m,n)%bc%definition = type_
-                      call ini_o%add(section_name='cell', option_name='id_inj', val=plate_file%id(ninj))   
+                      call ini_o%add(section_name='cell', option_name='id_inj', val=plate_file%id(ninj))
                       call ini_o%add(section_name='cell', option_name='face_inj', val=plate_file%face_inj(ninj))
-                      ! Costruisci l'area dell'interfaccia e sommala per ogni ninj
-                      ! A_inj(ninj) = A_inj(nìnj) + Areacalcolata           
-                      A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area    
+                      A_inj(ninj) = A_inj(ninj) + face%center(m,n)%area
+                      x_inj(ninj) = x_inj(ninj) + face%center(m,n)%c(1) * face%center(m,n)%area
+                      y_inj(ninj) = y_inj(ninj) + face%center(m,n)%c(2) * face%center(m,n)%area
+                      exit
                     endif
-                  call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
                   enddo
+                  call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
                 type is (KAFFS_plate_type)          
                   ! PER ALEX, METTI implementazione per casi full 3D
                   ! Eccolo!
-                  call Injector_mapping(plate_file,here,Inj_phi_R,n,m,face,A_inj,type_,dir,ini_o)
+                  call Injector_mapping(plate_file,here,Inj_phi_R,n,m,face,A_inj,type_,ini_o)
                   call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
 
               end select 
@@ -701,10 +704,20 @@ module build_BC_mod
         type is (real_plate_type)
           write(inj_output_file, '(A,I0,A,I0,A)') 'injector_data_block', b, '_face', f, '.dat'
           open(newunit=inj_unit, file=trim(inj_output_file), status='replace', action='write')
-          write(inj_unit, '(A)') '# Injector_ID    X_center    Y_center    Radius'
+          write(inj_unit, '(A)') '# Injector_ID    X_center    Y_center    Equiv_Radius'
           do ninj = 1, plate_file%length
-            write(inj_unit, '(I8, 3E16.8)') plate_file%id(ninj), &
-                  plate_file%center(ninj,1), plate_file%center(ninj,2), A_inj(ninj)/2
+            if (A_inj(ninj) > 0.0d0) then
+              if (meshType == -2) then
+                radius = A_inj(ninj) / (2.0d0 * z_input)
+              else
+                radius = sqrt(A_inj(ninj) / pi)
+              endif
+              write(inj_unit, '(I8,3E16.8)') plate_file%id(ninj), &
+                    x_inj(ninj)/A_inj(ninj), y_inj(ninj)/A_inj(ninj), radius
+            else
+              write(inj_unit, '(I8,3E16.8)') plate_file%id(ninj), &
+                    plate_file%center(ninj,1), plate_file%center(ninj,2), 0.0d0
+            endif
           enddo
           close(inj_unit)
           write(*,*) 'Injector data written to: ', trim(inj_output_file)
@@ -901,7 +914,7 @@ module build_BC_mod
                       if (here(2)>bc_file(f_)%dirArray2(j-1) .and. here(2)<=bc_file(f_)%dirArray2(j)) then
                         a1 = bc_file(f_)%dirArray1(i-1); a2 = bc_file(f_)%dirArray1(i)
                         b1 = bc_file(f_)%dirArray2(j-1); b2 = bc_file(f_)%dirArray2(j)
-                        c11 = bc_file(f_)%array(i-1,j-1); c12 = bc_file(f_)%array(i,j-1)
+                        c11 = bc_file(f_)%array(i-1,j-1); c12 = bc_file(f_)%array(i-1, j )
                         c21 = bc_file(f_)%array( i ,j-1); c22 = bc_file(f_)%array(i, j )
                         var = ((b2-here(2))/(b2-b1)*c11+(here(2)-b1)/(b2-b1)*c12)*(a2-here(1))/(a2-a1)
                         var = var+((b2-here(2))/(b2-b1)*c21+(here(2)-b1)/(b2-b1)*c22)*(here(1)-a1)/(a2-a1)

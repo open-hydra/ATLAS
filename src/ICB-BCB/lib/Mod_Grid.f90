@@ -621,7 +621,11 @@ contains
                                              self%node(i,j,k)%c(d)+self%node(i,j,k-1)%c(d)+ &
                                              self%node(i,j-1,k)%c(d)+self%node(i-1,j,k)%c(d))
           enddo
-          self%center(i,j,k)%c(4:5) = cartesian2cyl(self%center(i,j,k)%c(2:3))
+          if (meshType == -2) then
+            self%center(i,j,k)%c(4:5) = cartesian2cyl(self%center(i,j,k)%c(1:2))
+          else
+            self%center(i,j,k)%c(4:5) = cartesian2cyl(self%center(i,j,k)%c(2:3))
+          endif
         enddo
       enddo
     enddo
