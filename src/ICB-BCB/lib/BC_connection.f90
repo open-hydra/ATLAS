@@ -1,5 +1,5 @@
 module BC_connection
-  use TOM, only: fmn2ijk, meshType
+  use ATLAS_Mod_Grid, only: fmn2ijk, meshType
   use ATLAS_high_level
   implicit none
   private

@@ -1,5 +1,5 @@
   module ATLAS_high_level
-    use TOM
+    use ATLAS_Mod_Grid
     use phase_module
     use lib_bc
     implicit none
@@ -50,14 +50,9 @@
       integer :: id
     contains
       private
-      procedure, pass(self), public :: free
       procedure, pass(self), public :: allocate
       procedure, pass(self), public :: compute_face_centers
     end type ATLAS_block
-
-    type :: vector_3D_type
-      real(kind=8)   :: c(3)
-    end type vector_3D_type
 
     type, public :: var_block
       integer                                :: dim(3)
@@ -122,21 +117,6 @@ contains
     enddo
 
   end subroutine build_geometry
-
-  subroutine free(self)
-    implicit none
-    class(ATLAS_block), intent(inout) :: self
-
-    if (allocated(self%vol)) deallocate(self%vol)
-    if (allocated(self%node)) deallocate(self%node)
-    if (allocated(self%center)) deallocate(self%center)
-    if (allocated(self%m)) deallocate(self%m)
-    if (allocated(self%dl)) deallocate(self%dl)
-    if (allocated(self%bbmin)) deallocate(self%bbmin)
-    if (allocated(self%bbmax)) deallocate(self%bbmax)
-    if (allocated(self%yn)) deallocate(self%yn)
-
-  end subroutine free
 
   subroutine allocate(self,rr,ss,ii,jj,kk)
     implicit none

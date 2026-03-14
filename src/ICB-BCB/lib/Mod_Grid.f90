@@ -1,27 +1,19 @@
 !>@brief: Module for geometrical derived data types. 
-module TOM
+module ATLAS_Mod_Grid
   implicit none
 
   integer, dimension(3):: gc         !> number of ghost layers
   integer              :: meshType   !> -2 -> pure 2D, 1 -> 1D, 2 -> 2D, 3 -> 3D
   real(kind=8), public :: delthe     !> grid axisymmetric angle
 
-  !% 3D tensor object. All static components.
-  type :: tensor_3D_type
-    real(kind=8)                 :: c(3,3)           !> Metric tensor components.
-  end type tensor_3D_type
-  ! - 
+  type :: vector_3D_type
+    real(kind=8)   :: c(3)
+  end type vector_3D_type
 
-  !% 3D vector object. All static components.
+  !% nD vector object. All static components.
   type :: vector_nD_type
     real(kind=8)   :: c(5)              !> Average cell length components.
   end type vector_nD_type
-  ! - 
-
-  !% Rank 3, 3D tensor object. All static components.
-  type :: tensor_3D_R3_type
-    real(kind=8)                 :: c(3,3,3)         !> Metric tensor components.
-  end type tensor_3D_R3_type
   ! - 
 
   !% Object for the storage of metric quantities in a face. All static components.
@@ -44,27 +36,37 @@ module TOM
     real(kind=8),         allocatable  :: vol(:,:,:)                  !> Cell volume.
     type(vector_nD_type), allocatable  :: node(:,:,:)                 !> Mesh grid points (including ghost).
     type(vector_nD_type), allocatable  :: center(:,:,:)               !> Cell center coordinates
-    type(tensor_3D_type), allocatable  :: m(:,:,:)                    !> Metric transformation tensor.
-    type(vector_nD_type), allocatable  :: dl(:,:,:)                   !> Average cell length (in i/j/k direction). eg: dl%c(1) is sqrt(dx**2+dy**2+dz**2) of the cell in the i direction.
     type(d_metrics_type)               :: dir(3)                      !> Direction object. Contains: i-faces, j-faces, k-faces; eg: dir(1)%face(i,j,k)%n.
     ! Chimera
     real(8)                            :: block_bounding_min(3)
     real(8)                            :: block_bounding_max(3)
     type(vector_nD_type), allocatable  :: bbmin(:,:,:)
     type(vector_nD_type), allocatable  :: bbmax(:,:,:)
-    ! Turbulence
-    real(kind=8),         allocatable  :: yn(:,:,:)                   !> Nearest wall distance.
   contains
     private
+    procedure, pass(self), public :: destroy
     procedure, pass(self), public :: extrapolate_nodes
     procedure, pass(self), public :: compute_centers
     procedure, pass(b), public :: compute_norm_area
     procedure, pass(b), public :: compute_volume
     procedure, pass(self), public :: compute_bounding
+
   end type block_type
   ! -
 
 contains
+
+  pure subroutine destroy(self)
+    implicit none
+    class(block_type), intent(inout) :: self
+
+    if (allocated(self%vol)) deallocate(self%vol)
+    if (allocated(self%node)) deallocate(self%node)
+    if (allocated(self%center)) deallocate(self%center)
+    if (allocated(self%bbmin)) deallocate(self%bbmin)
+    if (allocated(self%bbmax)) deallocate(self%bbmax)
+
+  end subroutine destroy
 
   !>@brief: legacy subroutine from AFFS gridfile to compute interface areas and normal vectors for a block
   pure subroutine compute_norm_area( b )
@@ -676,4 +678,4 @@ contains
 
   end subroutine fmn2ijk
 
-end module TOM
+end module ATLAS_Mod_Grid

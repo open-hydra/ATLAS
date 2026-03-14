@@ -2,7 +2,7 @@ module Interpolator_SP
   use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
   use variables
   use ATLAS_high_level
-  use ATLAS_IO, only: read_solfile, read_mesh, read_vtk_tec
+  use ATLAS_IO_fields, only: read_solfile, read_mesh, read_vtk_tec
   use Lib_ORION_data
   implicit none
 

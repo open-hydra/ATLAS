@@ -6,13 +6,14 @@ program ICB
   use variables
   use ATLAS_high_level
   use phase_module
-  use ATLAS_IO
+  use ATLAS_IO_fields
+  use ATLAS_read_phase
   use Lib_ORION_data
   use ATLAS_IO_INI
   use build_IC_mod
   use finer, only: file_ini
   use IC_lib_POWER
-  use TOM, only: meshType
+  use ATLAS_Mod_Grid, only: meshType
 
   implicit none
   type(phase_type), allocatable  :: phase(:)

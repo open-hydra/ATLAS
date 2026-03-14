@@ -21,7 +21,7 @@ module ATLAS_IO
   subroutine write_idealgas_bc_file(name,block,level)
     use variables
     use ATLAS_high_level, only: ATLAS_block
-    use TOM, only: fmn2ijk, meshtype
+    use ATLAS_Mod_Grid, only: fmn2ijk, meshtype
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
@@ -300,7 +300,7 @@ module ATLAS_IO
   subroutine write_cdp_bc_file(name,block)
     use variables
     use ATLAS_high_level, only: ATLAS_block
-    use TOM, only: fmn2ijk
+    use ATLAS_Mod_Grid, only: fmn2ijk
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
@@ -797,7 +797,7 @@ module ATLAS_IO
     use ATLAS_high_level
     use phase_module, only: phase_type
     use material_module, only: obj_material
-    use TOM, only: meshtype
+    use ATLAS_Mod_Grid, only: meshtype
     implicit none
     type(phase_type), intent(in)       :: phase(:)
     character(len=*), intent(in)       :: ICformat

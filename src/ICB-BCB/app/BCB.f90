@@ -6,7 +6,10 @@ program BCB
   use variables
   use ATLAS_high_level
   use phase_module
-  use ATLAS_IO
+  use ATLAS_IO_fields
+  use ATLAS_read_phase
+  use ATLAS_write_bc
+  use ATLAS_IO_multigrid
   use Lib_ORION_data
   use ATLAS_IO_INI
   use build_BC_mod
@@ -51,7 +54,7 @@ program BCB
       call check_multigrid ( fine_orion, MG_levels )
     else
       do b = 1, size(block)
-        call block(b)%free
+        call block(b)%destroy
       enddo
       call coarse_mesh ( fine_orion, coarse_orion)
       call import_nodes ( input=coarse_orion, output=block )

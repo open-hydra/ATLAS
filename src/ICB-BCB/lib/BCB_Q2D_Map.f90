@@ -10,7 +10,7 @@ module BCB_Q2D_Map
   use, intrinsic :: iso_fortran_env, only: R8 => real64
   use variables, only: verbose
   use ATLAS_high_level
-  use ATLAS_IO, only: read_mesh
+  use ATLAS_IO_fields, only: read_mesh
   use Lib_ORION_data
   use Lib_Tecplot
   use strings, only: lowercase, parse

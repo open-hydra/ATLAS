@@ -637,7 +637,7 @@ contains
     use intersection_module
     use Lib_ORION_data
     use Lib_Tecplot
-    use TOM
+    use ATLAS_Mod_Grid
     implicit none
     type(ATLAS_block), intent(inout)  :: block
     character(len=200), intent(in)    :: varfile

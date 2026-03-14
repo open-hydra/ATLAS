@@ -11,7 +11,7 @@ module build_IC_mod
 
   subroutine build_IC(phase,sini,blocks,powerblock)
     use phase_module, only: phase_type
-    use ATLAS_IO, only: read_idealgas_properties, read_cdp_properties
+    use ATLAS_read_phase, only: read_idealgas_properties, read_cdp_properties
     use strings, only: parse
     implicit none
     type(phase_type), intent(in)     :: phase(:)

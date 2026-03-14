@@ -10,7 +10,7 @@ contains
   subroutine chimera_wrapper(block)
     use intersection_module
     use ATLAS_high_level
-    use TOM, only: gc
+    use ATLAS_Mod_Grid, only: gc
     implicit none
     type(ATLAS_block), intent(inout) :: block(:)
     character(len=200) :: master_path
@@ -353,7 +353,7 @@ contains
   subroutine VolumeFractions(block,br,fr,ir,jr,kr,ni,intersection)
     use atlas_high_level, only: atlas_block
     use intersection_module
-    use tom, only: ijk2mn
+    use ATLAS_Mod_Grid, only: ijk2mn
     implicit none
     type(atlas_block), intent(inout)       :: block(:)
     integer, intent(in)                    :: ir,jr,kr,fr,br,ni
