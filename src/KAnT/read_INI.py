@@ -26,7 +26,7 @@ def check_analyses(ini_file):
 #
 def read_reactions(ini_file, section):
 
-  import phase_tools
+  import equilibrium
 
   raw = get(ini_file, section, 'reactions', str)
   if raw is not None:
@@ -36,7 +36,7 @@ def read_reactions(ini_file, section):
   else:
     mechanisms = ['FFCM2']
 
-  phase_tools.thermo_model = get(ini_file, section, 'thermo', str)
+  equilibrium.thermo_model = get(ini_file, section, 'thermo', str)
 
   return mechanisms
 
@@ -66,25 +66,25 @@ def read_0D(ini_file, section) -> tuple[Out, tuple[list[str], list[str], np.ndar
     of = get(ini_file, section, 'of', np.ndarray)
     if of is None:
         of_law = get(ini_file, section, 'of-linear', np.ndarray)
-        if of_law is None:
-            of = np.array([0.0])
-        else:
-            of = np.linspace(of_law[0], of_law[1], int(of_law[2]))
+        if of_law is not None: of = np.linspace(of_law[0], of_law[1], int(of_law[2]))
+        of_law = get(ini_file, section, 'of-exp', np.ndarray)
+        if of_law is not None: of = np.logspace(np.log10(of_law[0]), np.log10(of_law[1]), int(of_law[2]))
 
     # Pressure
     pressure = get(ini_file, section, 'pressure', np.ndarray)
     if pressure is None:
         p_law = get(ini_file, section, 'pressure-linear', np.ndarray)
-        if p_law is None:
-            raise ValueError("Missing pressure or pressure-linear entry")
-        pressure = np.linspace(p_law[0], p_law[1], int(p_law[2]))
+        if p_law is not None: pressure = np.linspace(p_law[0], p_law[1], int(p_law[2]))
+        p_law = get(ini_file, section, 'pressure-exp', np.ndarray)
+        if p_law is not None: pressure = np.logspace(np.log10(p_law[0]), np.log10(p_law[1]), int(p_law[2]))
 
     # Temperature
     T = get(ini_file, section, 'temperature', np.ndarray)
     if T is None:
         T_law = get(ini_file, section, 'temperature-linear', np.ndarray)
-        if T_law is not None:
-          T = np.linspace(T_law[0], T_law[1], int(T_law[2]))
+        if T_law is not None: T = np.linspace(T_law[0], T_law[1], int(T_law[2]))
+        T_law = get(ini_file, section, 'temperature-exp', np.ndarray)
+        if T_law is not None: T = np.logspace(np.log10(T_law[0]), np.log10(T_law[1]), int(T_law[2]))
 
     # Fuel
     fuel_entry = get(ini_file, section, 'fuel', str)
@@ -109,6 +109,7 @@ def read_0D(ini_file, section) -> tuple[Out, tuple[list[str], list[str], np.ndar
     oxi_specs = [str(To), oxi_entry]
 
     return Opt, (case, fuel_specs, oxi_specs, pressure, of, T)
+
 
 def read_0D_te(ini_file, section):
   """

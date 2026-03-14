@@ -19,7 +19,7 @@ def single_case(model, reactor_type, fuel_string, oxi_string, pressure, of):
     temperature_o = convert2si(float(oxi_string[0]), 'K')
     pressure_chamber = convert2si(pressure, 'bar')
 
-    # Define the fuel phase considering lthe possible presence of iquid reactants
+    # Define the fuel phase considering the possible presence of liquid reactants
     liquid_fuel_names = ['H2(L)', 'CH4(L)']
     liquid_fuel_found = False
     for name in liquid_fuel_names:
@@ -61,7 +61,7 @@ def single_case(model, reactor_type, fuel_string, oxi_string, pressure, of):
     # with the number of moles for fuel and oxidizer based on the O/F ratio
     mix = ct.Mixture([(fuel, moles_fuel), (oxi, moles_oxi), (products, 0)])
 
-    # Solve for the equilibrium state, at constant enthalpy and pressure
+    # Solve for the equilibrium state
     mix.equilibrate(reactor_type, solver='vcs')
 
     return products

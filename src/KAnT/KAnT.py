@@ -44,6 +44,11 @@ for analysis in analyses:
                 write_1D(models, of, Ta, 'Mixture Ratio', 'Adiabatic Flame Temperature, K')
             elif len(pressure)>1 and len(of)==1:
                 write_1D(models, pressure, Ta, 'Chamber Pressure, bar', 'Adiabatic Flame Temperature, K')
+            elif len(pressure)==1 and len(of)==1:
+                print()
+                print(' - Ouput: Adiabatic Flame Temperature')
+                for i, model in enumerate(models):
+                    print(' --', model, ' -> ', Ta[model], 'K')
 
             # Plot output (if requested)
             if '--plot' in sys.argv:
