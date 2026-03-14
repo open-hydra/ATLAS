@@ -233,7 +233,7 @@ module build_BC_mod
 
 
   subroutine build_cell(b,f,face,nrans,ini_i,phase)
-    use TOM, only: meshType
+    use ATLAS_Mod_Grid, only: meshType
     implicit none
     integer, intent(in)            :: b, f
     type(obj_face)                 :: face
