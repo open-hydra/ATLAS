@@ -1,14 +1,27 @@
-from PiNeR import get, check_section
 import numpy as np
-import os, sys
-masterpath = os.environ.get("ATLASDIR")
-if masterpath is None:
-    print("ATLAS environment variable is not set.")
-    sys.exit(1)
-src = os.path.join(masterpath, "plugin/equilibrate")
-sys.path.append(src)
+from PiNeR import get, check_section
+from pint import UnitRegistry
+from IG_reactants import Reactant, ReactantStore
 
-#
+# -----------------------------------------------------------------------
+# Units routines
+# -----------------------------------------------------------------------
+
+# Converts a Pint Quantity to magnitude at base SI units.
+def to_si(quant):
+    return quant.to_base_units().magnitude
+
+def convert2si(value, unit):
+    ureg = UnitRegistry()
+    Q_ = ureg.Quantity
+    quantity = Q_(value, unit)
+    return to_si(quantity)
+
+# -----------------------------------------------------------------------
+# General tasks routines
+# -----------------------------------------------------------------------
+
+# Scan INI file for "GPB-Phase*". Assign types to the found phase.
 def check_phases(ini_file):
   i = 0
   types = []
@@ -66,8 +79,6 @@ def CP_read_material(ini_file,section):
     groups = np.ones(len(mat))
 
   return mat, groups, cp, k, rho
-
-# -----------------------------------------------------------------------
 
 # -----------------------------------------------------------------------
 # Ideal-gas phase routines
@@ -227,7 +238,6 @@ def read_eq_CEA(ini_file,section,cea):
 
 #
 def read_eq_cantera(ini_file, section):
-  from units import convert2si
   from ast import literal_eval
 
   def quote_keys(dstr):
@@ -265,9 +275,6 @@ def read_eq_cantera(ini_file, section):
 
   To = get(ini_file, section, 'eq-oxidizer-T', float)
   if To is None: To = 90.170
-
-  # Initialize Reactants
-  from reactants import Reactant, ReactantStore
 
   store = ReactantStore()
   store.pressure = si_pressure

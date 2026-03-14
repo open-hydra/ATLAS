@@ -20,8 +20,8 @@ Execution:
     - Iterates through the list of phase types and builds the corresponding phases using the appropriate module functions.
 """
 ##################################################
-import Ideal_Gas
-import Condensed_Phase
+import IG
+import CP
 from Read_INI import check_phases
 
 print()
@@ -34,6 +34,6 @@ inifile = 'input.ini'
 types = check_phases(inifile)
 
 for i in range(len(types)):
-    if ('ideal' in types[i] or 'heavy' in types[i]): Ideal_Gas.build(inifile, 'GPB-Phase'+str(i+1))
-    if ('condensed' in types[i]): Condensed_Phase.build(types[i], inifile, 'GPB-Phase'+str(i+1))
-    if ('solid' in types[i]): Condensed_Phase.build(types[i], inifile, 'GPB-Phase'+str(i+1))
+    if ('ideal' in types[i] or 'heavy' in types[i]): IG.build(inifile, 'GPB-Phase'+str(i+1))
+    if ('condensed' in types[i]): CP.build(types[i], inifile, 'GPB-Phase'+str(i+1))
+    if ('solid' in types[i]): CP.build(types[i], inifile, 'GPB-Phase'+str(i+1))
