@@ -45,6 +45,8 @@ contains
 
     do b1 = 1, nb
       do f1 = 1, block(b1)%nfaces
+        !$omp parallel private(m1,n1,b2,f2,m2,n2,i2,j2,k2)
+        !$omp do collapse(2)
         do n1 = 1, block(b1)%face(f1)%Nn
           do m1 = 1, block(b1)%face(f1)%Nm
             associate( this => block(b1)%face(f1)%center(m1,n1) )
@@ -88,6 +90,7 @@ contains
             endassociate
           enddo
         enddo
+        !$omp end parallel
       enddo
     enddo
 
@@ -132,11 +135,18 @@ contains
 
     do b1 = 1, nb
     do f1 = 1, block(b1)%nfaces
+      !$omp parallel private(m1,n1,ib1,ib2,if1,if2,i1,j1,k1,i2,j2,k2, &
+      !$omp   x00,x10,x01,x11,y00,y10,y01,y11,z00,z10,z01,z11, &
+      !$omp   eix1do,eiy1do,eiz1do,ejx1do,ejy1do,ejz1do, &
+      !$omp   eix2do,eiy2do,eiz2do,ejx2do,ejy2do,ejz2do, &
+      !$omp   eix2up,eiy2up,eiz2up,ejx2up,ejy2up,ejz2up, &
+      !$omp   aa,bb,nn,dumii,dumij,dumji,dumjj)
+      !$omp do collapse(2)
       do n1 = 1, block(b1)%face(f1)%Nn
         do m1 = 1, block(b1)%face(f1)%Nm
 
           if (block(b1)%face(f1)%center(m1,n1)%bc%adj_assigned) then
-            
+
             associate( this => block(b1)%face(f1)%center(m1,n1) )
 
             ! legge dati della faccia di contorno
@@ -247,9 +257,10 @@ contains
           endif
         enddo
       enddo
+      !$omp end parallel
     enddo
     enddo
-    
+
   end subroutine find_periodic
 
 
@@ -261,7 +272,7 @@ contains
     type(ATLAS_block), intent(inout) :: block(:)
     logical, intent(in) :: force_connect
     real(8), allocatable  :: x(:), y(:), z(:)
-    integer, allocatable :: b(:), f(:), n(:), m(:), def(:), prop(:,:)
+    integer, allocatable :: b(:), f(:), n(:), m(:), def(:), prop(:,:), match(:)
     logical, allocatable :: adj(:)
     integer :: nb, nbound
     integer, allocatable :: nboundb(:)
@@ -342,92 +353,98 @@ contains
       enddo
     enddo
 
-    ! Loop over boundary cells to find connections
+    ! Phase 1: parallel distance search — find match candidate for each i
+    allocate(match(1:nbound))
+    match = 0
+    !$omp parallel do schedule(dynamic) private(i,j,bqui,dum1)
     do i = 1, nbound
       if (def(i)/=1 .and. .not.force_connect) cycle
       if (adj(i)) cycle
-      if (i>sum(nboundb(1:bqui))) bqui = bqui+1
+      bqui = 1
+      do while (i>sum(nboundb(1:bqui)))
+        bqui = bqui+1
+      enddo
       do j = sum(nboundb(1:bqui))+1, nbound
         if (def(j)/=1 .and. .not.force_connect) cycle
-        dum1 = (x(i)-x(j))**2+ &
-              (y(i)-y(j))**2+ &
-              (z(i)-z(j))**2
-        dum1 = sqrt(dum1)
-        if (dum1<1d-7) then
-          b1 = b(i); f1 = f(i)
-          m1 = m(i); n1 = n(i)
-          b2 = b(j); f2 = f(j)
-          m2 = m(j); n2 = n(j)
-          call fmn2ijk(f1,m1,n1,nx(b1),ny(b1),nz(b1),i1,j1,k1)
-          call fmn2ijk(f2,m2,n2,nx(b2),ny(b2),nz(b2),i2,j2,k2)
-          def(i) = 1000
-          def(j) = 1000
-          do p1 = 1, size(block(b1)%associated_phase)
-            do p2 = 1, size(block(b2)%associated_phase)
-              if (block(b1)%associated_phase(p1)%name==block(b2)%associated_phase(p2)%name) then
-                def(i) = 1
-                def(j) = 1
-              endif
-            enddo
-          enddo
-
-          if (meshType == -2) then
-            adj(i) = .true.
-            prop(i,1) = b2
-            prop(i,2) = i2
-            prop(i,3) = j2
-            prop(i,4) = f2
-                      
-            adj(j) = .true.
-            prop(j,1) = b1
-            prop(j,2) = i1
-            prop(j,3) = j1
-            prop(j,4) = f1
-
-          else
-            adj(i) = .true.
-            prop(i,1) = b2
-            prop(i,2) = i2
-            prop(i,3) = j2
-            prop(i,4) = k2
-            prop(i,5) = f2
-                    
-            adj(j) = .true.
-            prop(j,1) = b1
-            prop(j,2) = i1
-            prop(j,3) = j1
-            prop(j,4) = k1
-            prop(j,5) = f1
-          endif
-                      
+        if (adj(j)) cycle
+        dum1 = (x(i)-x(j))**2 + (y(i)-y(j))**2 + (z(i)-z(j))**2
+        if (sqrt(dum1)<1d-7) then
+          match(i) = j
           exit
         endif
       enddo
     enddo
+    !$omp end parallel do
+
+    ! Phase 2: serial apply — no race conditions
+    do i = 1, nbound
+      j = match(i)
+      if (j==0) cycle
+      if (adj(i)) cycle
+      if (adj(j)) cycle
+      b1 = b(i); f1 = f(i); m1 = m(i); n1 = n(i)
+      b2 = b(j); f2 = f(j); m2 = m(j); n2 = n(j)
+      call fmn2ijk(f1,m1,n1,nx(b1),ny(b1),nz(b1),i1,j1,k1)
+      call fmn2ijk(f2,m2,n2,nx(b2),ny(b2),nz(b2),i2,j2,k2)
+      def(i) = 1000; def(j) = 1000
+      do p1 = 1, size(block(b1)%associated_phase)
+        do p2 = 1, size(block(b2)%associated_phase)
+          if (block(b1)%associated_phase(p1)%name==block(b2)%associated_phase(p2)%name) then
+            def(i) = 1; def(j) = 1
+          endif
+        enddo
+      enddo
+      if (meshType == -2) then
+        adj(i) = .true.
+        prop(i,1) = b2; prop(i,2) = i2; prop(i,3) = j2; prop(i,4) = f2
+        adj(j) = .true.
+        prop(j,1) = b1; prop(j,2) = i1; prop(j,3) = j1; prop(j,4) = f1
+      else
+        adj(i) = .true.
+        prop(i,1) = b2; prop(i,2) = i2; prop(i,3) = j2; prop(i,4) = k2; prop(i,5) = f2
+        adj(j) = .true.
+        prop(j,1) = b1; prop(j,2) = i1; prop(j,3) = j1; prop(j,4) = k1; prop(j,5) = f1
+      endif
+    enddo
+    deallocate(match)
 
 
-    i = 0
     do b1 = 1, nb
       do f1 = 1, block(b1)%nfaces
+        ! Recalculate linear offset for this (b1,f1) pair
+        i = 0
+        do b2 = 1, b1-1
+          do f2 = 1, block(b2)%nfaces
+            i = i + block(b2)%face(f2)%Nm * block(b2)%face(f2)%Nn
+          enddo
+        enddo
+        do f2 = 1, f1-1
+          i = i + block(b1)%face(f2)%Nm * block(b1)%face(f2)%Nn
+        enddo
+        !$omp parallel private(m1,n1,j)
+        !$omp do collapse(2)
         do n1 = 1, block(b1)%face(f1)%Nn
           do m1 = 1, block(b1)%face(f1)%Nm
-            i = i +1
-            if (def(i)==1 .or. def(i)==1000) then
+            j = i + (n1-1)*block(b1)%face(f1)%Nm + m1
+            if ((def(j)==1 .or. def(j)==1000) .and. adj(j)) then
               associate( this => block(b1)%face(f1)%center(m1,n1) )
-              this%bc%definition = def(i)
-              this%bc%adj_assigned = adj(i)
-              this%bc%properties(1:size(prop,2)) = real(prop(i,:))
-              if (product(prop(i,:))==0) then
+              this%bc%definition = def(j)
+              this%bc%adj_assigned = adj(j)
+              this%bc%properties(1:size(prop,2)) = real(prop(j,:))
+              if (any(prop(j,:)==0)) then
+                !$omp critical(conn_print)
                 write(*,*) " Find connect"
                 write(*,*) " Connection not found"
                 write(*,*) " b,f,m,n"
                 write(*,*) b1, f1, m1, n1
-                stop
+                !$omp end critical(conn_print)
+                error stop
               endif
               endassociate
             endif
           enddo
         enddo
+        !$omp end parallel
       enddo
     enddo
 
@@ -472,11 +489,18 @@ contains
 
     do b1 = 1, nb
     do f1 = 1, block(b1)%nfaces
+      !$omp parallel private(m1,n1,ib1,ib2,if1,if2,i1,j1,k1,i2,j2,k2, &
+      !$omp   x00,x10,x01,x11,y00,y10,y01,y11,z00,z10,z01,z11, &
+      !$omp   eix1do,eiy1do,eiz1do,ejx1do,ejy1do,ejz1do, &
+      !$omp   eix2do,eiy2do,eiz2do,ejx2do,ejy2do,ejz2do, &
+      !$omp   eix2up,eiy2up,eiz2up,ejx2up,ejy2up,ejz2up, &
+      !$omp   aa,bb,nn,dumii,dumij,dumji,dumjj)
+      !$omp do collapse(2)
       do n1 = 1, block(b1)%face(f1)%Nn
         do m1 = 1, block(b1)%face(f1)%Nm
 
           if (block(b1)%face(f1)%center(m1,n1)%bc%adj_assigned) then
-            
+
             associate( this => block(b1)%face(f1)%center(m1,n1) )
 
             ! legge dati della faccia di contorno
@@ -587,22 +611,35 @@ contains
           endif
         enddo
       enddo
+      !$omp end parallel
     enddo
     enddo
 
-    i = 0
     do b1 = 1, nb
       do f1 = 1, block(b1)%nfaces
+        ! Recalculate linear offset for this (b1,f1) pair
+        i = 0
+        do b2 = 1, b1-1
+          do f2 = 1, block(b2)%nfaces
+            i = i + block(b2)%face(f2)%Nm * block(b2)%face(f2)%Nn
+          enddo
+        enddo
+        do f2 = 1, f1-1
+          i = i + block(b1)%face(f2)%Nm * block(b1)%face(f2)%Nn
+        enddo
+        !$omp parallel private(m1,n1,j)
+        !$omp do collapse(2)
         do n1 = 1, block(b1)%face(f1)%Nn
           do m1 = 1, block(b1)%face(f1)%Nm
-            i = i +1
-            if (def(i)==1 .or. def(i)==1000) then
+            j = i + (n1-1)*block(b1)%face(f1)%Nm + m1
+            if ((def(j)==1 .or. def(j)==1000) .and. adj(j)) then
               associate( this => block(b1)%face(f1)%center(m1,n1) )
-              this%bc%properties(1) = block(prop(i,1))%id
+              this%bc%properties(1) = block(prop(j,1))%id
               endassociate
             endif
           enddo
         enddo
+        !$omp end parallel
       enddo
     enddo
 
@@ -635,9 +672,8 @@ subroutine invmat(a,b,r)
         do 21 i=1,r
           if(a(j,i).ne.0.) goto 211
 21      continue
-        goto 10
-211     write(*,*)'matrice singolare'
-        return
+        error stop 'invmat: singular matrix'
+211     error stop 'invmat: singular matrix'
 210     do 30 k=1,r
          s=a(j,k)
          a(j,k)=a(i,k)

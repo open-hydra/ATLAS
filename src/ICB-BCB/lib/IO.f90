@@ -13,7 +13,6 @@ module ATLAS_IO
   public:: read_phase
   public:: coarse_mesh, check_multigrid
 
-  integer:: i,j,k,s
   integer:: unitfile
 
   contains
@@ -28,6 +27,7 @@ module ATLAS_IO
     integer, intent(in)           :: level
     character(len=len(name))      :: name_
     integer                       :: p, b, f, m, n, mend(6), nend(6)
+    integer                       :: i, j, s
     integer                       :: Ai, Aj, Ak, ii, jj, kk
     integer                       :: print_def
     logical                       :: match
@@ -306,6 +306,7 @@ module ATLAS_IO
     type(ATLAS_block), intent(in) :: block(:)
     character(len=len(name))      :: name_
     integer                       :: b, mm, p, f, m, n, mend(6), nend(6), pCD
+    integer                       :: i, j
     integer                       :: Ai, Aj, Ak, ii, jj, kk, u
     logical                       :: match
 
@@ -568,6 +569,7 @@ module ATLAS_IO
     type(phase_type), intent(in)   :: phase
     type(ATLAS_block), intent(in)  :: inblock(:)
     type(ATLAS_block), allocatable :: block(:)
+    integer :: i, j, k
     integer :: b, nb, s, ap, nsc, cnt
 
     nb = 0
@@ -648,6 +650,7 @@ module ATLAS_IO
     character(len=llen), intent(in)  :: filename
     type(ATLAS_block), intent(inout) :: icblock(:)
     ! Local
+    integer                          :: i, j, k, s
     integer                          :: b, nb, Nmax(3), cnt, io
     integer, allocatable             :: Nx(:), Ny(:), Nz(:)
     real(kind=R8), dimension(:,:,:,:), allocatable      :: var
@@ -744,6 +747,7 @@ module ATLAS_IO
     type(ATLAS_block), allocatable, intent(inout) :: icblock(:)
     ! Local
     type(Orion_Data) :: IOfield
+    integer:: i, j, k, s
     integer:: error, b
 
     if (index(filename,'.tec')>0) then
@@ -805,6 +809,7 @@ module ATLAS_IO
     type(orion_data)                   :: orion
     type(obj_material)                 :: mat
     character(len=llen)                :: localpath_vtk, localpath
+    integer(I4P)                       :: i, j, k
     integer(I4P)                       :: E_IO, b, s, nb, cnt, nsc, p, ap
     integer(I4P)                       :: m, g, nnn
     character(len=10*llen)             :: varnames, filename
@@ -1068,6 +1073,7 @@ module ATLAS_IO
     implicit none
     character(len=*), intent(in):: prefix
     type(obj_material), intent(inout) :: mat
+    integer :: i
     integer :: n, ios, Ti1, Ti2, unitfile
     character(len=30) :: wholestring, args(2)
     type(orion_data) :: orion

@@ -108,6 +108,8 @@ contains
 
         if (.not.index_based) then
           here = 1.0
+          !$omp parallel private(i,j,k,here)
+          !$omp do collapse(3)
           do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
               if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
               if (dirSize>=2) here(2) = block%center(i,j,k)%c(dir(2))
@@ -122,6 +124,7 @@ contains
 
               endif
           enddo; enddo; enddo
+          !$omp end parallel
       
         
         elseif (index_based) then
@@ -149,6 +152,8 @@ contains
 
           enddo
 
+          !$omp parallel private(i,j,k)
+          !$omp do collapse(3)
           do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
             if (i>=imin .and. i<=imax .and. &
                 j>=jmin .and. j<=jmax .and. &
@@ -159,7 +164,8 @@ contains
               block%qvol(i,j,k) = qvol(i,j,k)
 
             endif
-          enddo; enddo; enddo            
+          enddo; enddo; enddo
+          !$omp end parallel            
         
         endif
 
@@ -204,6 +210,8 @@ contains
     close(1)
     if (dir == 5) file_dir(:) = file_dir(:) * acos(-1d0) / 180d0
 
+    !$omp parallel private(i,j,k,f,coord,coordm,coordp,varm,varp)
+    !$omp do collapse(3)
     do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
       coord = block%center(i,j,k)%c(dir)
       do f = 1, file_length
@@ -218,8 +226,9 @@ contains
           exit
         endif
       enddo
-        
+
     enddo; enddo; enddo
+    !$omp end parallel
 
   end subroutine read_file_direction
 

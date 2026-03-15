@@ -218,7 +218,7 @@ subroutine index_interpolation()
       write(*,*) " ERROR : 3D Meshes with different Nz"
       write(*,*) " Can't use law = 'index' in this case"
       write(*,*)
-      stop
+      error stop
     endif
   endif
 
@@ -230,18 +230,21 @@ subroutine index_interpolation()
       write(*,*)
     endif
     
+    !$omp parallel private(i,j,k)
+    !$omp do collapse(3)
     do k = 1, block%dim(3)
       do j = 1, block%dim(2)
         do i = 1, block%dim(1)
-          
+
           ! Temperature / matID / qvol
           block%temperature(i,j,k) = oldblock(b)%temperature(i,j,1)
           block%mID(i,j,k) = oldblock(b)%mID(i,j,1)
           block%qvol(i,j,k) = oldblock(b)%qvol(i,j,1)
-          
+
         enddo
       enddo
     enddo
+    !$omp end parallel
 
   ! Case 3D-3D interpolation
   elseif (all(same_dimension).and.sym_type=="3D") then
@@ -251,6 +254,8 @@ subroutine index_interpolation()
       write(*,*)
     endif
 
+    !$omp parallel private(i,j,k)
+    !$omp do collapse(3)
     do k = 1, block%dim(3)
       do j = 1, block%dim(2)
         do i = 1, block%dim(1)
@@ -259,17 +264,18 @@ subroutine index_interpolation()
           block%temperature(i,j,k) = oldblock(b)%temperature(i,j,k)
           block%mID(i,j,k) = oldblock(b)%mID(i,j,k)
           block%qvol(i,j,k) = oldblock(b)%qvol(i,j,k)
-          
+
         enddo
       enddo
     enddo
+    !$omp end parallel
 
   else
     write(*,*) 
     write(*,*) " ERROR : 2D and 3D Mesh do not have the same Nx and Ny elements"
     write(*,*) " Interpolation FAILED"
     write(*,*)
-    stop
+    error stop
   endif
 
 end subroutine index_interpolation
@@ -328,8 +334,10 @@ subroutine multiple_interpolation()
         coeffs(5:8) = 0.0
       end if
   
-      do k = 1, block%dim(3)         
-        do j = 1, block%dim(2)            
+      !$omp parallel private(i,j,k,i2,j2,k2,i2d,j2d,k2d)
+      !$omp do collapse(3)
+      do k = 1, block%dim(3)
+        do j = 1, block%dim(2)
           do i = 1, block%dim(1)
 
             i2 = 2*i
@@ -353,7 +361,7 @@ subroutine multiple_interpolation()
                                       +  coeffs(6)*oldblock(b)%temperature(i2, j2d,k2)    &
                                       +  coeffs(7)*oldblock(b)%temperature(i2d,j2, k2)    &
                                       +  coeffs(8)*oldblock(b)%temperature(i2, j2, k2)
-            block%mID(i,j,k) = oldblock(b)%mID(i,j,k)    
+            block%mID(i,j,k) = oldblock(b)%mID(i,j,k)
             block%qvol(i,j,k)  =  coeffs(1)*oldblock(b)%qvol(i2d,j2d,k2d)   &
                                +  coeffs(2)*oldblock(b)%qvol(i2, j2d,k2d)   &
                                +  coeffs(3)*oldblock(b)%qvol(i2d,j2, k2d)   &
@@ -364,8 +372,9 @@ subroutine multiple_interpolation()
                                +  coeffs(8)*oldblock(b)%qvol(i2, j2, k2)
 
           enddo
-        enddo     
+        enddo
       enddo
+      !$omp end parallel
 
 
     ! Spcific algorithm for MESH RATIO = 2 (both 2D and 3D)
@@ -391,6 +400,8 @@ subroutine multiple_interpolation()
         coeffs(1:8) = [a1,a2,a2,a4,a3,a4,a4,a4]
       end if
 
+      !$omp parallel private(i,j,k,i2,j2,k2,i2d,j2d,k2d,im,jm,km,ip,jp,kp,id,counter,ii,jj,kk,mask)
+      !$omp do collapse(3)
       do k = 1, oldblock(b)%dim(3)
         do j = 1, oldblock(b)%dim(2)
           do i = 1, oldblock(b)%dim(1)
@@ -419,8 +430,8 @@ subroutine multiple_interpolation()
 
             counter = 1
 
-            do kk = k2d, k2          
-              do jj = j2d, j2            
+            do kk = k2d, k2
+              do jj = j2d, j2
                 do ii = i2d, i2
 
                   if (sym_type=="2D") then
@@ -467,8 +478,9 @@ subroutine multiple_interpolation()
             enddo
 
           enddo
-        enddo     
+        enddo
       enddo
+      !$omp end parallel
 
 
     ! Spcific algorithm for MESH RATIO = 3 (both 2D and 3D)
@@ -521,22 +533,24 @@ subroutine multiple_interpolation()
       end if
 
 
-      do k = 1, oldblock(b)%dim(3)         
-        do j = 1, oldblock(b)%dim(2)            
+      !$omp parallel private(i,j,k,i2,j2,k2,i2d,j2d,k2d,im,jm,km,ip,jp,kp,id,counter,ii,jj,kk,mask,coeffs)
+      !$omp do collapse(3)
+      do k = 1, oldblock(b)%dim(3)
+        do j = 1, oldblock(b)%dim(2)
           do i = 1, oldblock(b)%dim(1)
-              
+
             i2 = rap*i
             j2 = rap*j
             k2 = rap*k
             i2d = i2-(rap-1)
             j2d = j2-(rap-1)
             k2d = k2-(rap-1)
-            
+
             if (sym_type=="2D") then
               k2  = 1
               k2d = 1
             endif
-            
+
             im = max(1,i-1)
             jm = max(1,j-1)
             km = max(1,k-1)
@@ -546,11 +560,11 @@ subroutine multiple_interpolation()
             kp = min(oldblock(b)%dim(3),k+1)
 
             id(1:6) = [im,jm,km,ip,jp,kp]
-            
+
             counter = 1
-            
-            do kk = k2d, k2          
-              do jj = j2d, j2            
+
+            do kk = k2d, k2
+              do jj = j2d, j2
                 do ii = i2d, i2
                   
                   if (sym_type=="2D") then
@@ -735,8 +749,9 @@ subroutine multiple_interpolation()
             enddo
             
           enddo
-        enddo     
+        enddo
       enddo
+      !$omp end parallel
 
 
     ! General algorithm for MESH RATIO = integer (both 2D and 3D)
@@ -746,30 +761,23 @@ subroutine multiple_interpolation()
         write(*,*)
       endif
 
-      indk = 1
-      do k = 1, block%dim(3)         
-        indj = 1
-        do j = 1, block%dim(2)            
-          indi = 1
+      !$omp parallel private(i,j,k,indi,indj,indk)
+      !$omp do collapse(3)
+      do k = 1, block%dim(3)
+        do j = 1, block%dim(2)
           do i = 1, block%dim(1)
-            
-            ! Temperature / matID / qvol        
+            indi = (i-1)/rap + 1
+            indj = (j-1)/rap + 1
+            indk = (k-1)/rap + 1
+
+            ! Temperature / matID / qvol
             block%temperature(i,j,k) = oldblock(b)%temperature(indi,indj,indk)
             block%mID(i,j,k) = oldblock(b)%mID(indi,indj,indk)
             block%qvol(i,j,k) = oldblock(b)%qvol(indi,indj,indk)
-            
-            if (mod(i,rap)==0) then
-              indi = indi+1
-            endif
           enddo
-          if (mod(j,rap)==0) then
-            indj = indj+1
-          endif
         enddo
-        if (mod(k,rap)==0) then
-          indk = indk+1
-        endif       
       enddo
+      !$omp end parallel
     
     endif
   
@@ -778,7 +786,7 @@ subroutine multiple_interpolation()
     write(*,*) " ERROR : Interpolation with law='multiple' is impossible"
     write(*,*) " ERROR : Meshes are not multiple of one another"
     write(*,*)
-    stop
+    error stop
   endif
 
 end subroutine multiple_interpolation
@@ -792,6 +800,7 @@ subroutine distance_interpolation
   implicit none
   real(kind=R8)                                       :: truedist, mindist
   real(kind=R8), dimension(:,:,:), allocatable        :: dx, dy, dz, dist
+  integer                                             :: maxdim(3)
 
   if (verbose) then
     write(*,*)
@@ -799,54 +808,56 @@ subroutine distance_interpolation
     write(*,*)
   endif
 
+  ! Pre-compute max dimensions for per-thread allocation
+  maxdim(1) = maxval(oldblock(:)%dim(1))
+  maxdim(2) = maxval(oldblock(:)%dim(2))
+  maxdim(3) = maxval(oldblock(:)%dim(3))
+
   trueb = 1
+  !$omp parallel private(i,j,k,bb,truedist,mindist,dx,dy,dz,dist,ind,indold,trueb)
+  allocate(dx(maxdim(1),maxdim(2),maxdim(3)))
+  allocate(dy(maxdim(1),maxdim(2),maxdim(3)))
+  allocate(dz(maxdim(1),maxdim(2),maxdim(3)))
+  allocate(dist(maxdim(1),maxdim(2),maxdim(3)))
+  !$omp do collapse(3) schedule(dynamic)
   do k = 1, block%dim(3)
     do j = 1, block%dim(2)
       do i = 1, block%dim(1)
 
-        ! Cell centers minimum distance algorithm
         truedist = 1d+5
+        trueb = 1
         if (oldid == 0) then
           do bb = 1, size(oldblock)
-            allocate(dx(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-            allocate(dy(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-            allocate(dz(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-            allocate(dist(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-            dx(:,:,:) = (block%center(i,j,k)%c(1)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(1))**2
-            dy(:,:,:) = (block%center(i,j,k)%c(2)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(2))**2
-            dz(:,:,:) = (block%center(i,j,k)%c(3)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(3))**2
-            dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
-            indold = minloc(dist(:,:,:),MASK=.true.)
+            associate(ob => oldblock(bb), d1 => oldblock(bb)%dim(1), d2 => oldblock(bb)%dim(2), d3 => oldblock(bb)%dim(3))
+            dx(1:d1,1:d2,1:d3) = (block%center(i,j,k)%c(1)-ob%center(1:d1,1:d2,1:d3)%c(1))**2
+            dy(1:d1,1:d2,1:d3) = (block%center(i,j,k)%c(2)-ob%center(1:d1,1:d2,1:d3)%c(2))**2
+            dz(1:d1,1:d2,1:d3) = (block%center(i,j,k)%c(3)-ob%center(1:d1,1:d2,1:d3)%c(3))**2
+            dist(1:d1,1:d2,1:d3) = sqrt(dx(1:d1,1:d2,1:d3)+dy(1:d1,1:d2,1:d3)+dz(1:d1,1:d2,1:d3))
+            indold = minloc(dist(1:d1,1:d2,1:d3),MASK=.true.)
             mindist = dist(indold(1),indold(2),indold(3))
             if (mindist<truedist) then
               truedist = mindist
               ind = indold
               trueb = bb
             endif
-            deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
+            endassociate
           enddo
-        
         else
-          allocate(dx(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
-          allocate(dy(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
-          allocate(dz(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
-          allocate(dist(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
-          dx(:,:,:) = (block%center(i,j,k)%c(1)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(1))**2
-          dy(:,:,:) = (block%center(i,j,k)%c(2)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(2))**2
-          dz(:,:,:) = (block%center(i,j,k)%c(3)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(3))**2
-          dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
-          indold = minloc(dist(:,:,:),MASK=.true.)
+          associate(ob => oldblock(oldid), d1 => oldblock(oldid)%dim(1), d2 => oldblock(oldid)%dim(2), d3 => oldblock(oldid)%dim(3))
+          dx(1:d1,1:d2,1:d3) = (block%center(i,j,k)%c(1)-ob%center(1:d1,1:d2,1:d3)%c(1))**2
+          dy(1:d1,1:d2,1:d3) = (block%center(i,j,k)%c(2)-ob%center(1:d1,1:d2,1:d3)%c(2))**2
+          dz(1:d1,1:d2,1:d3) = (block%center(i,j,k)%c(3)-ob%center(1:d1,1:d2,1:d3)%c(3))**2
+          dist(1:d1,1:d2,1:d3) = sqrt(dx(1:d1,1:d2,1:d3)+dy(1:d1,1:d2,1:d3)+dz(1:d1,1:d2,1:d3))
+          indold = minloc(dist(1:d1,1:d2,1:d3),MASK=.true.)
           mindist = dist(indold(1),indold(2),indold(3))
           if (mindist<truedist) then
             truedist = mindist
             ind = indold
             trueb = oldid
           endif
-          deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
-        
+          endassociate
         endif
 
-        ! Temperature / matID / qvol
         block%temperature(i,j,k) = oldblock(trueb)%temperature(ind(1),ind(2),ind(3))
         block%mID(i,j,k) = oldblock(trueb)%mID(ind(1),ind(2),ind(3))
         block%qvol(i,j,k) = oldblock(trueb)%qvol(ind(1),ind(2),ind(3))
@@ -854,6 +865,8 @@ subroutine distance_interpolation
       enddo
     enddo
   enddo
+  deallocate(dx); deallocate(dy); deallocate(dz); deallocate(dist)
+  !$omp end parallel
 
 end subroutine distance_interpolation
 
@@ -872,10 +885,12 @@ subroutine spherical_distance_interpolation
 
   call block%compute_bounding([0,0,0])
 
+  !$omp parallel private(i,j,k,c,ii,jj,kk,r,xc,yc,zc,x,y,z,dx,dy,dz,dist,truedist,trueb,ind,bb)
+  !$omp do collapse(3) schedule(dynamic)
   do k = 1, block%dim(3)
     do j = 1, block%dim(2)
       do i = 1, block%dim(1)
-        
+
         xc = block%center(i,j,k)%c(1)
         yc = block%center(i,j,k)%c(2)
         zc = block%center(i,j,k)%c(3)
@@ -885,7 +900,7 @@ subroutine spherical_distance_interpolation
         truedist = 1d+5
         r = 0.0
         c = 0
-        
+
         if (oldid == 0) then
 
           do while (c == 0)
@@ -895,7 +910,7 @@ subroutine spherical_distance_interpolation
               do kk = 1, oldblock(bb)%dim(3)
                 do jj = 1, oldblock(bb)%dim(2)
                   do ii = 1, oldblock(bb)%dim(1)
-                  
+
                     x = oldblock(bb)%center(ii,jj,kk)%c(1)
                     y = oldblock(bb)%center(ii,jj,kk)%c(2)
                     z = oldblock(bb)%center(ii,jj,kk)%c(3)
@@ -928,7 +943,7 @@ subroutine spherical_distance_interpolation
             do kk = 1, oldblock(oldid)%dim(3)
               do jj = 1, oldblock(oldid)%dim(2)
                 do ii = 1, oldblock(oldid)%dim(1)
-                
+
                   x = oldblock(oldid)%center(ii,jj,kk)%c(1)
                   y = oldblock(oldid)%center(ii,jj,kk)%c(2)
                   z = oldblock(oldid)%center(ii,jj,kk)%c(3)
@@ -962,6 +977,7 @@ subroutine spherical_distance_interpolation
       enddo
     enddo
   enddo
+  !$omp end parallel
 
 end subroutine spherical_distance_interpolation
 
