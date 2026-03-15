@@ -1,23 +1,15 @@
 import cantera as ct
-import IG_chemistry
-import IG_transport
-import IG_thermo
-import IG_IO
-from Read_INI import *
+from . import chemistry as IG_chemistry
+from . import transport as IG_transport
+from . import thermo as IG_thermo
+from . import io as IG_IO
+from ini import *
 from NewCEA import CEA
 import os, sys, re
+from config import setup_cantera_dirs, CEA_TRANS_FILE
 
-masterpath = os.environ.get("ATLASDIR")
-if masterpath is None:
-    print("ATLAS environment variable is not set.")
-    sys.exit(1)
-
-# Data path setup
-datapath = masterpath + '/database/'
-ct.add_directory(datapath + 'Thermo')
-ct.add_directory(datapath + 'Transport')
-ct.add_directory(datapath + 'Chemistry')
-CEAtransdir = datapath + 'Transport/CEApolynomials.yaml'
+setup_cantera_dirs()
+CEAtransdir = CEA_TRANS_FILE
 
 def build(inifile,section):
     """

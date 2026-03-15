@@ -3,11 +3,10 @@ import numpy as np
 import yaml
 import os
 import math
-outpath = 'fromATLAStoSolver/'
-try:
-    os.mkdir(outpath)
-except FileExistsError:
-    print(f"Directory '{outpath}' already exists.")
+from config import OUTPATH, ensure_output_dir
+
+outpath = OUTPATH
+ensure_output_dir()
 
 
 def read_yaml_file(file_path):
@@ -235,4 +234,3 @@ def write_chemistry_Lindemann(name, temperatures, k_0_l, k_inf_l, kc_l):
                 if math.isinf(k_0): k_0 = 1e300
                 if math.isinf(kc): kc = 1e300
                 f.write(f"{T:12.3f} {k_inf:20.12E} {k_0:20.12E} {kc:20.12E}\n")
-

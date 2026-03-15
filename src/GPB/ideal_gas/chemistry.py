@@ -1,7 +1,7 @@
 import cantera as ct
 import numpy as np
 import math
-import IG_IO as IG_IO
+from . import io as IG_IO
 
 
 def compute_properties (name, T_low, T_max, phase, further_sp):

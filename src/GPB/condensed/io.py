@@ -1,10 +1,9 @@
 import numpy as np
 import os
-outpath = 'fromATLAStoSolver/'
-try:
-    os.mkdir(outpath)
-except FileExistsError:
-    print(f"Directory '{outpath}' already exists.")
+from config import OUTPATH, ensure_output_dir
+
+outpath = OUTPATH
+ensure_output_dir()
 
 
 def write_basics(type, name, mat_phases, groups):

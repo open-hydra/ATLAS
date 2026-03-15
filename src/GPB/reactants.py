@@ -1,12 +1,8 @@
 import cantera as ct
 import os, sys
-masterpath = os.environ.get("ATLASDIR")
-if masterpath is None:
-    print("ATLAS environment variable is not set.")
-    sys.exit(1)
-datapath = masterpath + '/database/'
-ct.add_directory(datapath+'Thermo')
-ct.add_directory(datapath+'Chemistry')
+from config import setup_cantera_dirs
+
+setup_cantera_dirs()
 
 class Reactant:
     def __init__(self, name='', prop_type='', T=0.0, wt=1.0):

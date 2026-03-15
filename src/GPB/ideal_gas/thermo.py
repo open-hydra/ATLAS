@@ -1,9 +1,10 @@
 import numpy as np
 import cantera as ct
-import IG_IO as IG_IO
+from . import io as IG_IO
+from config import HG_FACTOR, HG_SUBSTRING
 
-HG_factor = 1.0e+5
-HG_substring = '-HG'
+HG_factor = HG_FACTOR
+HG_substring = HG_SUBSTRING
 
 def compute_properties(name,T_low, T_max, all_solutions):
 

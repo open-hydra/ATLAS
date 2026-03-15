@@ -1,20 +1,12 @@
 import cantera as ct
-import CP_properties
-import CP_IO
-from Read_INI import *
+from . import properties as CP_properties
+from . import io as CP_IO
+from ini import *
 import os, sys
+from config import setup_cantera_dirs, CEA_TRANS_FILE
 
-masterpath = os.environ.get("ATLASDIR")
-if masterpath is None:
-    print("ATLAS environment variable is not set.")
-    sys.exit(1)
-
-# Data path setup
-datapath = masterpath + '/database/'
-ct.add_directory(datapath + 'Thermo')
-ct.add_directory(datapath + 'Transport')
-ct.add_directory(datapath + 'Chemistry')
-CEAtransdir = datapath + 'Transport/CEApolynomials.yaml'
+setup_cantera_dirs()
+CEAtransdir = CEA_TRANS_FILE
 
 class Material:
     def __init__(self, name, type):
@@ -120,4 +112,3 @@ def build(type,inifile,section):
     # Build physical and thermal properties
     # ---------------------------------------------------
     CP_properties.compute_properties(type, name, T1, T2, material_group)
-
