@@ -77,7 +77,7 @@ else
           eval "$(conda shell.bash hook)"
       fi
       conda activate ct-env
-      python3 -B $ATLASDIR/src/$program/$program.py $P
+      python3 -B $ATLASDIR/src/$program $P
       conda deactivate
     else
       ls *phase.txt > filelist.txt 2>/dev/null
