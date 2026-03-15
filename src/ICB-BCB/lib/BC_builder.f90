@@ -201,6 +201,8 @@ module build_BC_mod
             do m = 1, size(block%associated_phase)
               call block%face(ff)%bc%build(nrans,faceini,'face',block%associated_phase(m))
             enddo
+            !$omp parallel private(m,n)
+            !$omp do collapse(2)
             do n = 1, block%face(ff)%Nn
               do m = 1, block%face(ff)%Nm
                 allocate(block%face(ff)%center(m,n)%bc%properties(1:block%face(ff)%bc%nproperties))
@@ -222,6 +224,7 @@ module build_BC_mod
                 endif
               enddo
             enddo
+            !$omp end parallel
           endif
         endif
 
@@ -545,6 +548,9 @@ module build_BC_mod
               endassociate
             enddo
           endif
+        !$omp parallel private(m,n,var,f_,i,ninj,radial_distance) firstprivate(ini_o,here) &
+        !$omp reduction(+:cnt_bc) reduction(+:A_inj,x_inj,y_inj)
+        !$omp do collapse(2) schedule(dynamic)
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
             if (file_present) then
@@ -589,11 +595,14 @@ module build_BC_mod
                 call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
               type is (KAFFS_plate_type)
                ! PER ALEX, algoritmo per casi tipo TIC
+                 !$omp critical(kaffs_plate)
                  call Full_plate_2D(plate_file, face, n, m ,dir, Inj_phi_R,type_,A_inj,z_input,ini_o)
+                 !$omp end critical(kaffs_plate)
                  call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
               end select
             endif
         enddo; enddo
+        !$omp end parallel
 
       ! Two dimensional variaton
       case(2)
@@ -638,6 +647,9 @@ module build_BC_mod
           end select
         endif
 
+        !$omp parallel private(m,n,var,f_,i,j,a1,a2,b1,b2,c11,c12,c21,c22,ninj,radial_distance) &
+        !$omp firstprivate(ini_o,here) reduction(+:cnt_bc) reduction(+:A_inj,x_inj,y_inj)
+        !$omp do collapse(2) schedule(dynamic)
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
             here(2) = face%center(m,n)%c(dir(2))
@@ -687,15 +699,18 @@ module build_BC_mod
                     endif
                   enddo
                   call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
-                type is (KAFFS_plate_type)          
+                type is (KAFFS_plate_type)
                   ! PER ALEX, METTI implementazione per casi full 3D
                   ! Eccolo!
+                  !$omp critical(kaffs_plate)
                   call Injector_mapping(plate_file,here,Inj_phi_R,n,m,face,A_inj,type_,ini_o)
+                  !$omp end critical(kaffs_plate)
                   call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
 
-              end select 
+              end select
             endif
         enddo; enddo
+        !$omp end parallel
       end select
 
       ! Write injection plate output file with injector info
@@ -814,12 +829,15 @@ module build_BC_mod
 
       select case (fileDirSize)
       case(0)
+        !$omp parallel private(m,n) firstprivate(ini_o)
+        !$omp do collapse(2)
         do n = ni, ne
           do m = mi, me
             face%center(m,n)%bc%definition = type_
             call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
           enddo
         enddo
+        !$omp end parallel
       
       ! One dimensional variation
       case(1)
@@ -845,6 +863,8 @@ module build_BC_mod
             endassociate
           enddo
         endif
+        !$omp parallel private(m,n,var,f_,i) firstprivate(ini_o,here)
+        !$omp do collapse(2)
         do n = ni, ne; do m = mi, me
           here(1) = face%center(m,n)%c(fileDir(1))
           if (file_present) then
@@ -866,6 +886,7 @@ module build_BC_mod
           face%center(m,n)%bc%definition = type_
           call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
         enddo; enddo
+        !$omp end parallel
 
       ! Two dimensional variaton
       case(2)
@@ -902,6 +923,9 @@ module build_BC_mod
           enddo
         endif
 
+        !$omp parallel private(m,n,var,f_,i,j,a1,a2,b1,b2,c11,c12,c21,c22) &
+        !$omp firstprivate(ini_o,here)
+        !$omp do collapse(2)
         do n = ni, ne; do m = mi, me
             here(1) = face%center(m,n)%c(fileDir(1))
             here(2) = face%center(m,n)%c(fileDir(2))
@@ -929,6 +953,7 @@ module build_BC_mod
             face%center(m,n)%bc%definition = type_
             call face%center(m,n)%bc%build(nrans,ini_o,'cell',phase)
         enddo; enddo
+        !$omp end parallel
       end select
 
     endif

@@ -314,6 +314,7 @@ contains
     Jm = b % dim(2)
     Km = b % dim(3)
 
+    !$omp parallel private(i,j,k,vx,vy,vz,vol)
     !$omp do collapse(3)
     do k = 1, Km ; do j = 1, Jm ; do i = 1, Im
 
@@ -355,7 +356,7 @@ contains
           + tvol(vx,vy,vz,5,8,2,3)
 
       if( vol <= 0d0 ) then
-        stop
+        error stop
       endif
 
       !% Assign computed volume to metrics object
@@ -394,6 +395,15 @@ contains
     integer :: i, j, k, d
     real(8) :: min_x, max_x, min_y, max_y, min_z, max_z
 
+    !> Compute the block bounding-box
+    min_x = b%node(0,0,0)%c(1)
+    max_x = b%node(0,0,0)%c(1)
+    min_y = b%node(0,0,0)%c(2)
+    max_y = b%node(0,0,0)%c(2)
+    min_z = b%node(0,0,0)%c(3)
+    max_z = b%node(0,0,0)%c(3)
+    !$omp parallel private(i,j,k,d)
+    !$omp do collapse(3)
     do k = 1, b%dim(3)
       do j = 1, b%dim(2)
         do i = 1, b%dim(1)
@@ -412,13 +422,7 @@ contains
       enddo
     enddo
 
-    !> Compute the block bounding-box
-    min_x = b%node(0,0,0)%c(1)
-    max_x = b%node(0,0,0)%c(1)
-    min_y = b%node(0,0,0)%c(2)
-    max_y = b%node(0,0,0)%c(2)
-    min_z = b%node(0,0,0)%c(3)
-    max_z = b%node(0,0,0)%c(3) 
+    !$omp do collapse(3) reduction(min:min_x,min_y,min_z) reduction(max:max_x,max_y,max_z)
     do k = 0, b%dim(3)
       do j = 0, b%dim(2)
         do i = 0, b%dim(1)
@@ -431,6 +435,7 @@ contains
         enddo
       enddo
     enddo
+    !$omp end parallel
     b%block_bounding_min(1) = min_x
     b%block_bounding_max(1) = max_x
     b%block_bounding_min(2) = min_y

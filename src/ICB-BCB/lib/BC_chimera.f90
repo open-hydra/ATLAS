@@ -98,29 +98,47 @@ contains
     !% Check volume division for receivers
     do br = 1, size(block)
       ! Face 1
+      !$omp parallel private(ir,jr,kr)
+      !$omp do collapse(3) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = 1-gc(1), 0
         call VolumeFractions(block,br,1,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
+      !$omp end parallel
       ! Face 2
+      !$omp parallel private(ir,jr,kr)
+      !$omp do collapse(3) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc(1)
         call VolumeFractions(block,br,2,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
+      !$omp end parallel
       ! Face 3
+      !$omp parallel private(ir,jr,kr)
+      !$omp do collapse(3) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = 1-gc(2), 0; do ir = 1, block(br)%dim(1)
         call VolumeFractions(block,br,3,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
+      !$omp end parallel
       ! Face 4
+      !$omp parallel private(ir,jr,kr)
+      !$omp do collapse(3) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc(2); do ir = 1, block(br)%dim(1)
         call VolumeFractions(block,br,4,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
+      !$omp end parallel
       ! Face 5
+      !$omp parallel private(ir,jr,kr)
+      !$omp do collapse(3) schedule(dynamic)
       do kr = 1-gc(3), 0; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
         call VolumeFractions(block,br,5,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
+      !$omp end parallel
       ! Face 6
+      !$omp parallel private(ir,jr,kr)
+      !$omp do collapse(3) schedule(dynamic)
       do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc(3); do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
         call VolumeFractions(block,br,6,ir,jr,kr,ni,intersection)
       enddo; enddo; enddo
+      !$omp end parallel
     enddo
 
   end subroutine chimera_wrapper
@@ -401,6 +419,7 @@ contains
       endif
     enddo
 
+    !$omp critical(chimera_print)
     if (abs((volume-block(br)%vol(ir,jr,kr))/block(br)%vol(ir,jr,kr))>1d-3) then
       if (all(nodeinside_local)) then
         write(*,*) 'Chimera volume division failed'
@@ -420,6 +439,7 @@ contains
       write(*,*) ' - Receiver total volume = ', volume
       write(*,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
     endif
+    !$omp end critical(chimera_print)
 
   end subroutine VolumeFractions
 

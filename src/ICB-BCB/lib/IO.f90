@@ -13,7 +13,6 @@ module ATLAS_IO
   public:: read_phase
   public:: coarse_mesh, check_multigrid
 
-  integer:: i,j,k,s
   integer:: unitfile
 
   contains
@@ -28,6 +27,7 @@ module ATLAS_IO
     integer, intent(in)           :: level
     character(len=len(name))      :: name_
     integer                       :: p, b, f, m, n, mend(6), nend(6)
+    integer                       :: i, j, s
     integer                       :: Ai, Aj, Ak, ii, jj, kk
     integer                       :: print_def
     logical                       :: match
@@ -306,6 +306,7 @@ module ATLAS_IO
     type(ATLAS_block), intent(in) :: block(:)
     character(len=len(name))      :: name_
     integer                       :: b, mm, p, f, m, n, mend(6), nend(6), pCD
+    integer                       :: i, j
     integer                       :: Ai, Aj, Ak, ii, jj, kk, u
     logical                       :: match
 
@@ -568,6 +569,7 @@ module ATLAS_IO
     type(phase_type), intent(in)   :: phase
     type(ATLAS_block), intent(in)  :: inblock(:)
     type(ATLAS_block), allocatable :: block(:)
+    integer :: i, j, k
     integer :: b, nb, s, ap, nsc, cnt
 
     nb = 0
@@ -648,6 +650,7 @@ module ATLAS_IO
     character(len=llen), intent(in)  :: filename
     type(ATLAS_block), intent(inout) :: icblock(:)
     ! Local
+    integer                          :: i, j, k, s
     integer                          :: b, nb, Nmax(3), cnt, io
     integer, allocatable             :: Nx(:), Ny(:), Nz(:)
     real(kind=R8), dimension(:,:,:,:), allocatable      :: var
@@ -744,6 +747,7 @@ module ATLAS_IO
     type(ATLAS_block), allocatable, intent(inout) :: icblock(:)
     ! Local
     type(Orion_Data) :: IOfield
+    integer:: i, j, k, s
     integer:: error, b
 
     if (index(filename,'.tec')>0) then
@@ -805,6 +809,7 @@ module ATLAS_IO
     type(orion_data)                   :: orion
     type(obj_material)                 :: mat
     character(len=llen)                :: localpath_vtk, localpath
+    integer(I4P)                       :: i, j, k
     integer(I4P)                       :: E_IO, b, s, nb, cnt, nsc, p, ap
     integer(I4P)                       :: m, g, nnn
     character(len=10*llen)             :: varnames, filename
@@ -892,14 +897,18 @@ module ATLAS_IO
         orion%block(cnt)%Nk = block(b)%dim(3)
         if (meshtype==-2) then
           allocate(orion%block(cnt)%mesh(1:2,0:block(b)%dim(1),0:block(b)%dim(2),0:0))
+          !$omp parallel do collapse(2) private(i,j)
           do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
             orion%block(cnt)%mesh(1:2,i,j,0) = block(b)%node(i,j,0)%c(1:2)
           enddo; enddo
+          !$omp end parallel do
         else
           allocate(orion%block(cnt)%mesh(1:3,0:block(b)%dim(1),0:block(b)%dim(2),0:block(b)%dim(3)))
+          !$omp parallel do collapse(3) private(i,j,k)
           do k = 0, block(b)%dim(3); do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
             orion%block(cnt)%mesh(:,i,j,k) = block(b)%node(i,j,k)%c(1:3)
           enddo; enddo; enddo
+          !$omp end parallel do
         endif
         select case(phase(p)%type)
         case('IG')
@@ -1068,6 +1077,7 @@ module ATLAS_IO
     implicit none
     character(len=*), intent(in):: prefix
     type(obj_material), intent(inout) :: mat
+    integer :: i
     integer :: n, ios, Ti1, Ti2, unitfile
     character(len=30) :: wholestring, args(2)
     type(orion_data) :: orion
@@ -1214,21 +1224,23 @@ module ATLAS_IO
       if ( allocated ( coarse % block(b) % mesh )) deallocate (coarse % block(b) % mesh)
       allocate( coarse%block(b)%mesh(1:3,0:Ni,0:Nj,0:Nk) )
 
+      !$omp parallel do collapse(3) private(i,j,k,i2,j2,k2)
       do k = 0, fine % block(b)%Nk, 2-Mod(fine % block(b)%Nk,2)
       do j = 0, fine % block(b)%Nj, 2
       do i = 0, fine % block(b)%Ni, 2
-          
+
           i2 = i / 2
           j2 = j / 2
           k2 = k / 2
-    
+
           if ( fine % block(b)%Nk == 1 ) then ! 2D
             k2 = k
           end if
-    
+
           coarse%block(b)%mesh(1:3,i2,j2,k2) = fine%block(b)%mesh(1:3,i,j,k)
-        
+
         enddo; enddo; enddo
+      !$omp end parallel do
 
     enddo
 
