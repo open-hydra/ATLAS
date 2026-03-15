@@ -1,0 +1,79 @@
+# Redlich-Kwong real-gas database
+#
+# Each phase is a single-species Redlich-Kwong fluid with kinetic-theory
+# transport.  To add a new fluid, append a phase entry and the
+# corresponding species definition below.
+#
+# Usage in GPB input.ini:
+#   model = redlich-kwong
+#   fluid = CO2              (must match a species name below)
+#
+# Sources:
+#   - NASA 7 coefficients  : GRI-Mech 3.0
+#   - Transport parameters : GRI-Mech 3.0
+#   - RK parameters        : Cantera critical-properties.yaml where available,
+#                             otherwise explicit a, b from NIST critical data.
+
+phases:
+- name: CO2-RK
+  thermo: Redlich-Kwong
+  species: [CO2]
+  state: {T: 300, P: 1e5}
+  kinetics: none
+  transport: mixture-averaged
+
+- name: H2O-RK
+  thermo: Redlich-Kwong
+  species: [H2O]
+  state: {T: 300, P: 1e5}
+  kinetics: none
+  transport: mixture-averaged
+
+species:
+# ---- CO2 ----
+# RK a, b auto-computed from Cantera critical-properties.yaml
+# (Tc = 304.2 K, Pc = 7.39 MPa)
+- name: CO2
+  composition: {C: 1, O: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 3500.0]
+    data:
+    - [2.35677352, 8.98459677e-03, -7.12356269e-06, 2.45919022e-09,
+      -1.43699548e-13, -4.83719697e+04, 9.90105222]
+    - [3.85746029, 4.41437026e-03, -2.21481404e-06, 5.23490188e-10,
+      -4.72084164e-14, -4.8759166e+04, 2.27163806]
+  transport:
+    model: gas
+    geometry: linear
+    well-depth: 244.0
+    diameter: 3.763
+  equation-of-state:
+    model: Redlich-Kwong
+
+# ---- H2O ----
+# H2O is not in Cantera's critical-properties.yaml; explicit a, b required.
+# Tc = 647.096 K, Pc = 22.064 MPa  (NIST)
+#   a = 0.42748 R^2 Tc^2.5 / Pc = 1.4267e7  [Pa m^6 K^0.5 / kmol^2]
+#   b = 0.08664 R Tc / Pc        = 2.1127e-2 [m^3 / kmol]
+- name: H2O
+  composition: {H: 2, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 3500.0]
+    data:
+    - [4.19864056, -2.0364341e-03, 6.52040211e-06, -5.48797062e-09,
+      1.77197817e-12, -3.02937267e+04, -8.49032208e-01]
+    - [3.03399249, 2.17691804e-03, -1.64072518e-07, -9.7041987e-11,
+      1.68200992e-14, -3.00042971e+04, 4.9667701]
+  transport:
+    model: gas
+    geometry: nonlinear
+    well-depth: 572.4
+    diameter: 2.605
+    dipole: 1.844
+    rotational-relaxation: 4.0
+  equation-of-state:
+    model: Redlich-Kwong
+    a: 1.426663e+07
+    b: 2.112696e-02
