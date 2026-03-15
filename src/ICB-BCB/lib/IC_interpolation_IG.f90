@@ -244,21 +244,23 @@ subroutine index_interpolation()
   ! Case 2D-3D interpolation
   if (all(same_dimension).and.sym_type=="2D") then
     if (verbose) then
-      write(*,*) 
+      write(*,*)
       write(*,*) "[LOG] 2D-3D Index based interpolation algorithm"
       write(*,*)
     endif
-    
+
+    !$omp parallel private(i,j,k,s,sold)
+    !$omp do collapse(3)
     do k = 1, block%dim(3)
       do j = 1, block%dim(2)
         do i = 1, block%dim(1)
-          
+
           ! Density
           if (any(block%density(:,i,j,k)/=0.d0)) then
             if (oldspecies%n==1) then
               block%density(:,i,j,k) = block%density(:,i,j,k)*oldblock(b)%density(1,i,j,1)
             else
-              stop "[ERROR] Species mass fractions decomposition available only if old species number = 1"
+              error stop "[ERROR] Species mass fractions decomposition available only if old species number = 1"
             endif
           else
             do s = 1, newspecies%n
@@ -270,23 +272,24 @@ subroutine index_interpolation()
               enddo
             enddo
           endif
-          
+
           ! Velocity
           block%velocity(1,i,j,k) = oldblock(b)%velocity(1,i,j,1)
           block%velocity(2,i,j,k) = oldblock(b)%velocity(2,i,j,1)*&
           cos(atan2(block%center(i,j,k)%c(3),block%center(i,j,k)%c(2)))
           block%velocity(3,i,j,k) = oldblock(b)%velocity(3,i,j,1)*&
           sin(atan2(block%center(i,j,k)%c(3),block%center(i,j,k)%c(2)))
-          
+
           ! Pressure
           block%pressure(i,j,k) = oldblock(b)%pressure(i,j,1)
-          
+
           ! Turbulent properties
           if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,1)
-          
+
         enddo
       enddo
     enddo
+    !$omp end parallel
 
   ! Case 3D-3D interpolation
   elseif (all(same_dimension).and.sym_type=="3D") then
@@ -296,6 +299,8 @@ subroutine index_interpolation()
       write(*,*)
     endif
 
+    !$omp parallel private(i,j,k,s,sold)
+    !$omp do collapse(3)
     do k = 1, block%dim(3)
       do j = 1, block%dim(2)
         do i = 1, block%dim(1)
@@ -305,7 +310,7 @@ subroutine index_interpolation()
             if (oldspecies%n==1) then
               block%density(:,i,j,k) = block%density(:,i,j,k)*oldblock(b)%density(1,i,j,1)
             else
-              stop "[ERROR] Species mass fractions decomposition available only if old species number = 1"
+              error stop "[ERROR] Species mass fractions decomposition available only if old species number = 1"
             endif
           else
             do s = 1, newspecies%n
@@ -320,18 +325,19 @@ subroutine index_interpolation()
 
           ! Velocity
           block%velocity(1,i,j,k) = oldblock(b)%velocity(1,i,j,k)
-          block%velocity(2,i,j,k) = oldblock(b)%velocity(2,i,j,k)                
+          block%velocity(2,i,j,k) = oldblock(b)%velocity(2,i,j,k)
           block%velocity(3,i,j,k) = oldblock(b)%velocity(3,i,j,k)
-          
+
           ! Pressure
           block%pressure(i,j,k) = oldblock(b)%pressure(i,j,k)
-          
+
           ! Turbulent properties
           if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,k)
 
         enddo
       enddo
     enddo
+    !$omp end parallel
 
   else
     write(*,*) 
@@ -395,8 +401,10 @@ subroutine multiple_interpolation()
         coeffs(5:8) = 0.0
       end if
   
-      do k = 1, block%dim(3)         
-        do j = 1, block%dim(2)            
+      !$omp parallel private(i,j,k,i2,j2,k2,i2d,j2d,k2d,s,sold,cnt)
+      !$omp do collapse(3)
+      do k = 1, block%dim(3)
+        do j = 1, block%dim(2)
           do i = 1, block%dim(1)
 
             i2 = 2*i
@@ -424,7 +432,7 @@ subroutine multiple_interpolation()
                                               +  coeffs(6)*oldblock(b)%density(sold,i2, j2d,k2)    &
                                               +  coeffs(7)*oldblock(b)%density(sold,i2d,j2, k2)    &
                                               +  coeffs(8)*oldblock(b)%density(sold,i2, j2, k2)
-                  exit    
+                  exit
                 endif
               enddo
             enddo
@@ -438,7 +446,7 @@ subroutine multiple_interpolation()
                                             +  coeffs(5)*oldblock(b)%velocity(cnt,i2d,j2d,k2)    &
                                             +  coeffs(6)*oldblock(b)%velocity(cnt,i2, j2d,k2)    &
                                             +  coeffs(7)*oldblock(b)%velocity(cnt,i2d,j2, k2)    &
-                                            +  coeffs(8)*oldblock(b)%velocity(cnt,i2, j2, k2)    
+                                            +  coeffs(8)*oldblock(b)%velocity(cnt,i2, j2, k2)
             enddo
 
             ! Pressure
@@ -449,7 +457,7 @@ subroutine multiple_interpolation()
                                       +  coeffs(5)*oldblock(b)%pressure(i2d,j2d,k2)    &
                                       +  coeffs(6)*oldblock(b)%pressure(i2, j2d,k2)    &
                                       +  coeffs(7)*oldblock(b)%pressure(i2d,j2, k2)    &
-                                      +  coeffs(8)*oldblock(b)%pressure(i2, j2, k2)    
+                                      +  coeffs(8)*oldblock(b)%pressure(i2, j2, k2)
 
             ! Turbulent properties
             if (nrans > 0 ) then
@@ -465,8 +473,9 @@ subroutine multiple_interpolation()
               enddo
             endif
           enddo
-        enddo     
+        enddo
       enddo
+      !$omp end parallel
 
 
     ! Spcific algorithm for MESH RATIO = 2 (both 2D and 3D)
@@ -492,6 +501,8 @@ subroutine multiple_interpolation()
         coeffs(1:8) = [a1,a2,a2,a4,a3,a4,a4,a4]
       end if
 
+      !$omp parallel private(i,j,k,i2,j2,k2,i2d,j2d,k2d,im,jm,km,ip,jp,kp,id,counter,ii,jj,kk,mask,s,sold,cnt)
+      !$omp do collapse(3)
       do k = 1, oldblock(b)%dim(3)
         do j = 1, oldblock(b)%dim(2)
           do i = 1, oldblock(b)%dim(1)
@@ -520,8 +531,8 @@ subroutine multiple_interpolation()
 
             counter = 1
 
-            do kk = k2d, k2          
-              do jj = j2d, j2            
+            do kk = k2d, k2
+              do jj = j2d, j2
                 do ii = i2d, i2
 
                   if (sym_type=="2D") then
@@ -603,8 +614,9 @@ subroutine multiple_interpolation()
             enddo
 
           enddo
-        enddo     
+        enddo
       enddo
+      !$omp end parallel
 
 
     ! Spcific algorithm for MESH RATIO = 3 (both 2D and 3D)
@@ -657,22 +669,24 @@ subroutine multiple_interpolation()
       end if
 
 
-      do k = 1, oldblock(b)%dim(3)         
-        do j = 1, oldblock(b)%dim(2)            
+      !$omp parallel private(i,j,k,i2,j2,k2,i2d,j2d,k2d,im,jm,km,ip,jp,kp,id,counter,ii,jj,kk,mask,coeffs,s,sold,cnt)
+      !$omp do collapse(3)
+      do k = 1, oldblock(b)%dim(3)
+        do j = 1, oldblock(b)%dim(2)
           do i = 1, oldblock(b)%dim(1)
-              
+
             i2 = rap*i
             j2 = rap*j
             k2 = rap*k
             i2d = i2-(rap-1)
             j2d = j2-(rap-1)
             k2d = k2-(rap-1)
-            
+
             if (sym_type=="2D") then
               k2  = 1
               k2d = 1
             endif
-            
+
             im = max(1,i-1)
             jm = max(1,j-1)
             km = max(1,k-1)
@@ -682,11 +696,11 @@ subroutine multiple_interpolation()
             kp = min(oldblock(b)%dim(3),k+1)
 
             id(1:6) = [im,jm,km,ip,jp,kp]
-            
+
             counter = 1
-            
-            do kk = k2d, k2          
-              do jj = j2d, j2            
+
+            do kk = k2d, k2
+              do jj = j2d, j2
                 do ii = i2d, i2
                   
                   if (sym_type=="2D") then
@@ -906,8 +920,9 @@ subroutine multiple_interpolation()
             enddo
             
           enddo
-        enddo     
+        enddo
       enddo
+      !$omp end parallel
 
 
     ! General algorithm for MESH RATIO = integer (both 2D and 3D)
@@ -917,14 +932,17 @@ subroutine multiple_interpolation()
         write(*,*)
       endif
 
-      indk = 1
-      do k = 1, block%dim(3)         
-        indj = 1
-        do j = 1, block%dim(2)            
-          indi = 1
+      !$omp parallel private(i,j,k,indi,indj,indk,s,sold,cnt)
+      !$omp do collapse(3)
+      do k = 1, block%dim(3)
+        do j = 1, block%dim(2)
           do i = 1, block%dim(1)
-            
-            ! Density           
+
+            indi = (i-1)/rap + 1
+            indj = (j-1)/rap + 1
+            indk = (k-1)/rap + 1
+
+            ! Density
             do s = 1, newspecies%n
               block%density(s,i,j,k) = 1e-20
               do sold = 1, oldspecies%n
@@ -934,30 +952,22 @@ subroutine multiple_interpolation()
                 endif
               enddo
             enddo
-            
+
             ! Velocity
             do cnt = 1, 3
               block%velocity(cnt,i,j,k) = oldblock(b)%velocity(cnt,indi,indj,indk)
             enddo
-            
-            ! Pressure        
+
+            ! Pressure
             block%pressure(i,j,k) = oldblock(b)%pressure(indi,indj,indk)
-            
+
             ! Turbulent properties
             if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,indi,indj,indk)
-            
-            if (mod(i,rap)==0) then
-              indi = indi+1
-            endif
+
           enddo
-          if (mod(j,rap)==0) then
-            indj = indj+1
-          endif
         enddo
-        if (mod(k,rap)==0) then
-          indk = indk+1
-        endif       
       enddo
+      !$omp end parallel
     
     endif
   
@@ -980,6 +990,7 @@ subroutine distance_interpolation
   implicit none
   real(kind=R8)                                       :: truedist, mindist
   real(kind=R8), dimension(:,:,:), allocatable        :: dx, dy, dz, dist
+  integer, dimension(3)                               :: maxdim
 
   if (verbose) then
     write(*,*)
@@ -987,51 +998,74 @@ subroutine distance_interpolation
     write(*,*)
   endif
 
+  ! Compute max dimensions for pre-allocation
+  if (oldid == 0) then
+    maxdim = 0
+    do bb = 1, size(oldblock)
+      maxdim(1) = max(maxdim(1), oldblock(bb)%dim(1))
+      maxdim(2) = max(maxdim(2), oldblock(bb)%dim(2))
+      maxdim(3) = max(maxdim(3), oldblock(bb)%dim(3))
+    enddo
+  else
+    maxdim(1) = oldblock(oldid)%dim(1)
+    maxdim(2) = oldblock(oldid)%dim(2)
+    maxdim(3) = oldblock(oldid)%dim(3)
+  endif
+
   trueb = 1
+  !$omp parallel private(i,j,k,bb,dx,dy,dz,dist,truedist,mindist,indold,ind,trueb,s,sold,cnt)
+  allocate(dx(1:maxdim(1),1:maxdim(2),1:maxdim(3)))
+  allocate(dy(1:maxdim(1),1:maxdim(2),1:maxdim(3)))
+  allocate(dz(1:maxdim(1),1:maxdim(2),1:maxdim(3)))
+  allocate(dist(1:maxdim(1),1:maxdim(2),1:maxdim(3)))
+  !$omp do collapse(3) schedule(dynamic)
   do k = 1, block%dim(3)
     do j = 1, block%dim(2)
       do i = 1, block%dim(1)
 
         ! Cell centers minimum distance algorithm
         truedist = 1d+5
+        trueb = 1
         if (oldid == 0) then
           do bb = 1, size(oldblock)
-            allocate(dx(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-            allocate(dy(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-            allocate(dz(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-            allocate(dist(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
-            dx(:,:,:) = (block%center(i,j,k)%c(1)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(1))**2
-            dy(:,:,:) = (block%center(i,j,k)%c(2)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(2))**2
-            dz(:,:,:) = (block%center(i,j,k)%c(3)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(3))**2
-            dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
-            indold = minloc(dist(:,:,:),MASK=.true.)
+            dx(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)) = &
+              (block%center(i,j,k)%c(1)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(1))**2
+            dy(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)) = &
+              (block%center(i,j,k)%c(2)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(2))**2
+            dz(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)) = &
+              (block%center(i,j,k)%c(3)-oldblock(bb)%center(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3))%c(3))**2
+            dist(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)) = &
+              sqrt(dx(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)) &
+                  +dy(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)) &
+                  +dz(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)))
+            indold = minloc(dist(1:oldblock(bb)%dim(1),1:oldblock(bb)%dim(2),1:oldblock(bb)%dim(3)),MASK=.true.)
             mindist = dist(indold(1),indold(2),indold(3))
             if (mindist<truedist) then
               truedist = mindist
               ind = indold
               trueb = bb
             endif
-            deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
           enddo
-        
+
         else
-          allocate(dx(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
-          allocate(dy(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
-          allocate(dz(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
-          allocate(dist(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
-          dx(:,:,:) = (block%center(i,j,k)%c(1)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(1))**2
-          dy(:,:,:) = (block%center(i,j,k)%c(2)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(2))**2
-          dz(:,:,:) = (block%center(i,j,k)%c(3)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(3))**2
-          dist(:,:,:) = sqrt(dx(:,:,:)+dy(:,:,:)+dz(:,:,:))
-          indold = minloc(dist(:,:,:),MASK=.true.)
+          dx(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)) = &
+            (block%center(i,j,k)%c(1)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(1))**2
+          dy(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)) = &
+            (block%center(i,j,k)%c(2)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(2))**2
+          dz(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)) = &
+            (block%center(i,j,k)%c(3)-oldblock(oldid)%center(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3))%c(3))**2
+          dist(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)) = &
+            sqrt(dx(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)) &
+                +dy(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)) &
+                +dz(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)))
+          indold = minloc(dist(1:oldblock(oldid)%dim(1),1:oldblock(oldid)%dim(2),1:oldblock(oldid)%dim(3)),MASK=.true.)
           mindist = dist(indold(1),indold(2),indold(3))
           if (mindist<truedist) then
             truedist = mindist
             ind = indold
             trueb = oldid
           endif
-          deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
-        
+
         endif
 
         ! Density
@@ -1049,16 +1083,18 @@ subroutine distance_interpolation
         do cnt = 1, 3
           block%velocity(cnt,i,j,k) = oldblock(trueb)%velocity(cnt,ind(1),ind(2),ind(3))
         end do
-        
+
         ! Pressure
         block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
-        
+
         ! Turbulent properties
-        if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(nrans,ind(1),ind(2),ind(3))
-        
+        if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(1:nrans,ind(1),ind(2),ind(3))
+
       enddo
     enddo
   enddo
+  deallocate(dx); deallocate(dy); deallocate(dz); deallocate(dist)
+  !$omp end parallel
 
 end subroutine distance_interpolation
 
@@ -1077,10 +1113,12 @@ subroutine spherical_distance_interpolation
 
   call block%compute_bounding([0,0,0])
 
+  !$omp parallel private(i,j,k,c,r,xc,yc,zc,dx,dy,dz,x,y,z,dist,truedist,trueb,ind,ii,jj,kk,bb,s,sold,cnt)
+  !$omp do collapse(3) schedule(dynamic)
   do k = 1, block%dim(3)
     do j = 1, block%dim(2)
       do i = 1, block%dim(1)
-        
+
         xc = block%center(i,j,k)%c(1)
         yc = block%center(i,j,k)%c(2)
         zc = block%center(i,j,k)%c(3)
@@ -1090,7 +1128,7 @@ subroutine spherical_distance_interpolation
         truedist = 1d+5
         r = 0.0
         c = 0
-        
+
         if (oldid == 0) then
 
           do while (c == 0)
@@ -1100,7 +1138,7 @@ subroutine spherical_distance_interpolation
               do kk = 1, oldblock(bb)%dim(3)
                 do jj = 1, oldblock(bb)%dim(2)
                   do ii = 1, oldblock(bb)%dim(1)
-                  
+
                     x = oldblock(bb)%center(ii,jj,kk)%c(1)
                     y = oldblock(bb)%center(ii,jj,kk)%c(2)
                     z = oldblock(bb)%center(ii,jj,kk)%c(3)
@@ -1133,7 +1171,7 @@ subroutine spherical_distance_interpolation
             do kk = 1, oldblock(oldid)%dim(3)
               do jj = 1, oldblock(oldid)%dim(2)
                 do ii = 1, oldblock(oldid)%dim(1)
-                
+
                   x = oldblock(oldid)%center(ii,jj,kk)%c(1)
                   y = oldblock(oldid)%center(ii,jj,kk)%c(2)
                   z = oldblock(oldid)%center(ii,jj,kk)%c(3)
@@ -1175,16 +1213,17 @@ subroutine spherical_distance_interpolation
         do cnt = 1, 3
           block%velocity(cnt,i,j,k) = oldblock(trueb)%velocity(cnt,ind(1),ind(2),ind(3))
         end do
-        
+
         ! Pressure
         block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
-        
+
         ! Turbulent properties
         if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(1:nrans,ind(1),ind(2),ind(3))
 
       enddo
     enddo
   enddo
+  !$omp end parallel
 
 end subroutine spherical_distance_interpolation
 

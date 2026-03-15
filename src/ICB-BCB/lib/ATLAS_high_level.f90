@@ -90,14 +90,18 @@ contains
       output(b)%dim(3) = max(input%block(b)%Nk,1) ! Handle 2D meshes
       allocate(output(b)%node(0-gc(1):output(b)%dim(1)+gc(1),0-gc(2):output(b)%dim(2)+gc(2),0-gc(3):output(b)%dim(3)+gc(3)))
       if (meshType/=-2) then
+        !$omp parallel do collapse(3) private(i,j,k)
         do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
               output(b)%node(i,j,k)%c(1:3) = input%block(b)%mesh(1:3,i,j,k)
         enddo; enddo; enddo
+        !$omp end parallel do
       else
+        !$omp parallel do collapse(3) private(i,j,k)
         do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
               output(b)%node(i,j,k)%c(1:2) = input%block(b)%mesh(1:2,i,j,0)
               output(b)%node(i,j,k)%c(3) = dble(k)
         enddo; enddo; enddo
+        !$omp end parallel do
       endif
     enddo
 
@@ -173,7 +177,9 @@ contains
       allocate(self%face(6)%center(1-gc(1):self%dim(1)+gc(1),1-gc(2):self%dim(2)+gc(2)))
     endif
 
+    !$omp parallel private(m,n)
     associate( this => self%face(1) )
+    !$omp do collapse(2)
     do n = 1, this%Nn
       do m = 1, this%Nm
         this%center(m,n)%c = 0.25*(self%node( 0 ,m-1,n-1)%c+ &
@@ -201,6 +207,7 @@ contains
     enddo
     endassociate
     associate( this => self%face(2) )
+    !$omp do collapse(2)
     do n = 1, this%Nn
       do m = 1, this%Nm
         this%center(m,n)%c = 0.25*(self%node(self%dim(1),m-1,n-1)%c+ &
@@ -227,10 +234,13 @@ contains
       enddo
     enddo
     endassociate
+    !$omp end parallel
 
     if (meshType==1) return
 
+    !$omp parallel private(m,n)
     associate( this => self%face(3) )
+    !$omp do collapse(2)
     do n = 1, this%Nn
       do m = 1, this%Nm
         this%center(m,n)%c = 0.25*(self%node(m-1, 0 ,n-1)%c+ &
@@ -258,6 +268,7 @@ contains
     enddo
     endassociate
     associate( this => self%face(4) )
+    !$omp do collapse(2)
     do n = 1, this%Nn
       do m = 1, this%Nm
         this%center(m,n)%c = 0.25*(self%node(m-1,self%dim(2),n-1)%c+ &
@@ -284,10 +295,13 @@ contains
       enddo
     enddo
     endassociate
+    !$omp end parallel
 
     if (meshType<2) return
 
+    !$omp parallel private(m,n)
     associate( this => self%face(5) )
+    !$omp do collapse(2)
     do n = 1, this%Nn
       do m = 1, this%Nm
         this%center(m,n)%c = 0.25*(self%node(m-1,n-1, 0 )%c+ &
@@ -307,6 +321,7 @@ contains
     enddo
     endassociate
     associate( this => self%face(6) )
+    !$omp do collapse(2)
     do n = 1, this%Nn
       do m = 1, this%Nm
         this%center(m,n)%c = 0.25*(self%node(m-1,n-1,self%dim(3))%c+ &
@@ -325,6 +340,7 @@ contains
       enddo
     enddo
     endassociate
+    !$omp end parallel
 
   end subroutine compute_face_centers
 

@@ -69,7 +69,7 @@ contains
   end subroutine destroy
 
   !>@brief: legacy subroutine from AFFS gridfile to compute interface areas and normal vectors for a block
-  pure subroutine compute_norm_area( b )
+  subroutine compute_norm_area( b )
     implicit none
     class(block_type), intent(inout) :: b
     ! Local
@@ -159,8 +159,7 @@ contains
     
     ! compute metrics: n, A
     
-    !$omp parallel private (d1,d2,d3,i,j,k,snix,sniy,sniz,Ai,Aj,snjx,snjy,snjz,Ak,snkx,snky,snkz), &
-    !$omp private (vx,vy,vz,vol)
+    !$omp parallel private (d1,d2,d3,i,j,k,snix,sniy,sniz,Ai,Aj,snjx,snjy,snjz,Ak,snkx,snky,snkz)
     
     ! i direction
     !$omp do collapse(3)
@@ -248,11 +247,12 @@ contains
       b%dir(3)%f(i,j,k)%n = [ snkx, snky, snkz ]
 
     end do ; end do ; end do
+    !$omp end parallel
 
   end subroutine compute_norm_area
 
 
-  pure subroutine compute_volume( b, gc )
+  subroutine compute_volume( b, gc )
     implicit none
     class(block_type), intent(inout) :: b
     integer, intent(in) :: gc(:)
@@ -271,6 +271,7 @@ contains
     allocate(b%vol(1-gc(1):im+gc(1),1-gc(2):jm+gc(2),1-gc(3):km+gc(3)))
 
     ! cell volume computation
+    !$omp parallel private(vx,vy,vz,vol,i,j,k)
     !$omp do collapse(3)
     do k = 1-gc(3), km+gc(3) ; do j = 1-gc(2), jm+gc(2) ; do i = 1-gc(1), im+gc(1)
 
@@ -344,7 +345,7 @@ contains
 
 
   !>@brief: Extrapolate ghost cell nodes with 2nd order accuracy.
-  pure subroutine extrapolate_nodes(self, gc)
+  subroutine extrapolate_nodes(self, gc)
     implicit none
     class(block_type), intent(inout) :: self
     integer, intent(in) :: gc(:)
@@ -357,51 +358,60 @@ contains
     kl = max(kl, -1)             ; ku = min(ku, km+1)
 
     ! i-faces
+    !$omp parallel do collapse(2) private(j,k,n)
     do k = 0, km ; do j = 0, jm
       do n = 1, gc(1)
         self%node(-n,j,k)%c = 3d0*self%node(-n+1,j,k)%c - 3d0*self%node(-n+2,j,k)%c + self%node(-n+3,j,k)%c
         self%node(im+n,j,k)%c = 3d0*self%node(im+n-1,j,k)%c -3d0*self%node(im+n-2,j,k)%c + self%node(im+n-3,j,k)%c
       end do
     enddo ; enddo
+    !$omp end parallel do
 
     ! j-faces
     if ( jm > 2 ) then
 
+      !$omp parallel do collapse(2) private(i,k,n)
       do k = 0, km ; do i = -1, im+1
         do n = 1, gc(2)
           self%node(i,0-n,k)%c  = 3d0*self%node(i,-n+1,k)%c  - 3d0*self%node(i,-n+2,k)%c   + self%node(i,-n+3,k)%c
           self%node(i,jm+n,k)%c = 3d0*self%node(i,jm+n-1,k)%c -3d0*self%node(i,jm+n-2,k)%c + self%node(i,jm+n-3,k)%c
         end do
       enddo ; enddo
+      !$omp end parallel do
 
     else
 
+      !$omp parallel do collapse(2) private(i,k,n)
       do k = 0, km ; do i = -1, im+1
         do n = 1, gc(2)
           self%node(i,-n,k)%c =   2d0*self%node(i,-n+1,k)%c   - self%node(i,-n+2,k)%c
           self%node(i,jm+n,k)%c = 2d0*self%node(i,jm+n-1,k)%c - self%node(i,jm+n-2,k)%c
         enddo
       end do ; end do
+      !$omp end parallel do
 
     endif
 
     ! k-faces
     if ( meshType==2 .and. delthe==0d0 .or. meshType==1 ) then
       ! 2D: extrapolation with only two nodes (exact).
+      !$omp parallel do collapse(2) private(i,j,n)
       do j = -1, jm+1 ; do i = -1, im+1
         do n = 1, gc(3)
           self%node(i,j,-n)%c =   2d0*self%node(i,j,-n+1)%c   - self%node(i,j,-n+2)%c
           self%node(i,j,km+n)%c = 2d0*self%node(i,j,km+n-1)%c - self%node(i,j,km+n-2)%c
         enddo
       end do ; end do
+      !$omp end parallel do
 
     elseif (meshType==2 .and. delthe/=0d0) then
       ! 2Dax: extrapolation with a rotation angle delthe (exact).
+      !$omp parallel do collapse(2) private(i,j,n)
       do j = -1, jm+1 ; do i = -1, im+1
         do n = 1, gc(3)
           self%node(i,j,-n)%c(1) = self%node(i,j,-n+1)%c(1)
           self%node(i,j,km+n)%c(1) = self%node(i,j,km+n-1)%c(1) ! same x
-            
+
           self%node(i,j,-n)%c(2) = self%node(i,j,-n+1)%c(2)/cos(delthe*(0.5d0+n-1))*cos(delthe*(0.5d0+n))
           self%node(i,j,-n)%c(3) = self%node(i,j,-n+1)%c(3)/sin(delthe*(0.5d0+n-1))*sin(delthe*(0.5d0+n))
 
@@ -409,14 +419,17 @@ contains
           self%node(i,j,km+n)%c(3) = -self%node(i,j,-n)%c(3)
         end do
       end do ; end do
+      !$omp end parallel do
 
     elseif (meshType==3) then
+      !$omp parallel do collapse(2) private(i,j,n)
       do j = -1, jm+1 ; do i = -1, im+1
         do n = 1, gc(3)
           self%node(i,j,-n)%c   = 3d0*self%node(i,j,-n+1)%c  - 3d0*self%node(i,j,-n+2)%c   + self%node(i,j,-n+3)%c
           self%node(i,j,km+n)%c = 3d0*self%node(i,j,km+n-1)%c -3d0*self%node(i,j,km+n-2)%c + self%node(i,j,km+n-3)%c
         end do
       end do ; end do
+      !$omp end parallel do
       
     endif
 
@@ -544,7 +557,7 @@ contains
 
   end subroutine check_mesh_type
 
-  pure subroutine compute_bounding(self, gc_)
+  subroutine compute_bounding(self, gc_)
 
     implicit none
     class(block_type), intent(inout) :: self
@@ -556,6 +569,16 @@ contains
     allocate(self%bbmin (1-gc_(1):self%dim(1)+gc_(1),1-gc_(2):self%dim(2)+gc_(2),1-gc_(3):self%dim(3)+gc_(3)))
     allocate(self%bbmax (1-gc_(1):self%dim(1)+gc_(1),1-gc_(2):self%dim(2)+gc_(2),1-gc_(3):self%dim(3)+gc_(3)))
 
+    min_x = self%node(0,0,0)%c(1)
+    max_x = self%node(0,0,0)%c(1)
+    min_y = self%node(0,0,0)%c(2)
+    max_y = self%node(0,0,0)%c(2)
+    min_z = self%node(0,0,0)%c(3)
+    max_z = self%node(0,0,0)%c(3)
+
+    !$omp parallel private(i,j,k,d)
+
+    !$omp do collapse(3)
     do k = 1-gc_(3), self%dim(3)+gc_(3)
       do j = 1-gc_(2), self%dim(2)+gc_(2)
         do i = 1-gc_(1), self%dim(1)+gc_(1)
@@ -575,12 +598,7 @@ contains
     enddo
 
     !> Compute the block bounding-box
-    min_x = self%node(0,0,0)%c(1)
-    max_x = self%node(0,0,0)%c(1)
-    min_y = self%node(0,0,0)%c(2)
-    max_y = self%node(0,0,0)%c(2)
-    min_z = self%node(0,0,0)%c(3)
-    max_z = self%node(0,0,0)%c(3) 
+    !$omp do collapse(3) reduction(min:min_x,min_y,min_z) reduction(max:max_x,max_y,max_z)
     do k = 0, self%dim(3)
       do j = 0, self%dim(2)
         do i = 0, self%dim(1)
@@ -593,6 +611,9 @@ contains
         enddo
       enddo
     enddo
+
+    !$omp end parallel
+
     self%block_bounding_min(1) = min_x
     self%block_bounding_max(1) = max_x
     self%block_bounding_min(2) = min_y
@@ -602,7 +623,7 @@ contains
 
   end subroutine compute_bounding
 
-  pure subroutine compute_centers(self, gc_)
+  subroutine compute_centers(self, gc_)
     implicit none
     class(block_type), intent(inout) :: self
     integer, intent(in)              :: gc_(:)
@@ -612,6 +633,8 @@ contains
     allocate(self%center(1-gc_(1):self%dim(1)+gc_(1),1-gc_(2):self%dim(2)+gc_(2),1-gc_(3):self%dim(3)+gc_(3)))
 
     !> Compute the cells center coords
+    !$omp parallel private(i,j,k,d)
+    !$omp do collapse(3)
     do k = 1-gc_(3), self%dim(3)+gc_(3)
       do j = 1-gc_(2), self%dim(2)+gc_(2)
         do i = 1-gc_(1), self%dim(1)+gc_(1)
@@ -629,6 +652,7 @@ contains
         enddo
       enddo
     enddo
+    !$omp end parallel
 
   end subroutine compute_centers
 

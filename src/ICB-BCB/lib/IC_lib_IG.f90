@@ -225,11 +225,14 @@ contains
         ! Interpolation
         call intersol(block,OMF,OFF,OSF,oldid)
         ! Temperature evaluation (not performed during interpolation but needed for multi-phase coupling)
+        !$omp parallel private(i,j,k,massf,Rgas)
+        !$omp do collapse(3)
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
               massf = block%density(:,i,j,k)/sum(block%density(:,i,j,k))
               Rgas = sum(Runi*massf/sp%w)
               block%temperature(i,j,k) = block%pressure(i,j,k)/(Rgas*sum(block%density(:,i,j,k)))
         enddo; enddo; enddo
+        !$omp end parallel
 
 
       case ('homogeneous')
@@ -237,26 +240,24 @@ contains
         sp%massf = 1d-20
         call define_composition(zoneini, sp, T0c, p0c)
 
+        ! Thermodynamic chain — constant values, compute once
+        Rgas = sum(Runi*sp%massf/sp%w)
+        if (T0c==0 .and. Tc==0) Tc = pc/(Rgas*rhoc)
+        if (T0c/=0 .and. Tc==0) Tc = T02T(T0c,sp%massf,sp%cp,sp%dcp,sp%h,Mc,Rgas)
+        cp_ = sum(sp%massf*sp%cp(:,nint(Tc)))
+        gamma = cp_/(cp_-Rgas)
+        del = 0.5*(gamma-1)
+        if (Mc==0) Mc = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*Tc))
+        if (p0c==0 .and. pc==0) pc = Tc * (Rgas*rhoc)
+        if (p0c/=0 .and. pc==0) pc = p0c/((1+del*Mc*Mc)**(gamma/(gamma-1)))
+        if (rhoc==0) rhoc = pc/(Rgas*Tc)
+        a = sqrt(gamma*Rgas*Tc)
+        vel = Mc*a
+
         here = 1.0
-
+        !$omp parallel private(i,j,k,s,here)
+        !$omp do collapse(3)
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
-
-            ! R
-            Rgas = sum(Runi*sp%massf/sp%w)
-
-            ! Temperature
-            if (T0c==0 .and. Tc==0) Tc = pc/(Rgas*rhoc)
-            if (T0c/=0 .and. Tc==0) Tc = T02T(T0c,sp%massf,sp%cp,sp%dcp,sp%h,Mc,Rgas)
-            cp_ = sum(sp%massf*sp%cp(:,nint(Tc)))
-            gamma = cp_/(cp_-Rgas)
-            del = 0.5*(gamma-1)
-            ! Mach
-            if (Mc==0) Mc = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*Tc))
-            ! Pressure
-            if (p0c==0 .and. pc==0) pc = Tc * (Rgas*rhoc)
-            if (p0c/=0 .and. pc==0) pc = p0c/((1+del*Mc*Mc)**(gamma/(gamma-1)))
-            ! Density  
-            if (rhoc==0) rhoc = pc/(Rgas*Tc)
 
             if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
             if (dirSize>=2) here(2) = block%center(i,j,k)%c(dir(2))
@@ -266,34 +267,33 @@ contains
                 here(3)>=range(5) .and. here(3)<=range(6)) then
                 do s = 1, sp%n
                 block%density(s,i,j,k) = rhoc*sp%massf(s)
-                if (isnan(block%density(s,i,j,k))) stop '[ERROR] NaN in density assignment'
+                if (isnan(block%density(s,i,j,k))) error stop '[ERROR] NaN in density assignment'
                 enddo
-                a = sqrt(gamma*Rgas*Tc)
-                vel = Mc*a
                 block%temperature(i,j,k) = Tc
                 if (ux==0) then
                   block%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
                 else
                   block%velocity(1,i,j,k) = ux
                 endif
-                if (isnan(block%velocity(1,i,j,k))) stop '[ERROR] NaN in velocity assignment'
+                if (isnan(block%velocity(1,i,j,k))) error stop '[ERROR] NaN in velocity assignment'
                 if (uy==0) then
                   block%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
                 else
                   block%velocity(2,i,j,k) = uy
                 endif
-                if (isnan(block%velocity(2,i,j,k))) stop '[ERROR] NaN in velocity assignment'
+                if (isnan(block%velocity(2,i,j,k))) error stop '[ERROR] NaN in velocity assignment'
                 if (uz==0) then
                   block%velocity(3,i,j,k) = vel*sin(beta)
                 else
                   block%velocity(3,i,j,k) = uz
                 endif
-                if (isnan(block%velocity(3,i,j,k))) stop '[ERROR] NaN in velocity assignment'
+                if (isnan(block%velocity(3,i,j,k))) error stop '[ERROR] NaN in velocity assignment'
                 block%pressure(i,j,k) = pc
-                if (isnan(block%pressure(i,j,k))) stop '[ERROR] NaN in pressure assignment'
+                if (isnan(block%pressure(i,j,k))) error stop '[ERROR] NaN in pressure assignment'
             endif
 
         enddo; enddo; enddo
+        !$omp end parallel
 
 
       case ('variable')
@@ -319,7 +319,7 @@ contains
             ! Pressure
             if (p0(i,j,k)==0 .and. p(i,j,k)==0) p(i,j,k) = T(i,j,k) * (Rgas*rho(i,j,k))
             if (p0(i,j,k)/=0 .and. p(i,j,k)==0) p(i,j,k) = p0(i,j,k)/((1+del*M(i,j,k)*M(i,j,k))**(gamma/(gamma-1)))
-            ! Density  
+            ! Density
             if (rho(i,j,k)==0) rho(i,j,k) = p(i,j,k)/(Rgas*T(i,j,k))
 
             if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
@@ -361,14 +361,15 @@ contains
         sp%massf = 1d-20
         call define_composition(zoneini, sp, T0c, p0c)
 
+        Rgas = sum(Runi*sp%massf/sp%w)
+        cp_ = sum(sp%massf*sp%cp(:,1))
+        gamma = cp_/(cp_-Rgas)
+        del = 0.5*(gamma-1)
+
         here = 1.0
-
+        !$omp parallel private(i,j,k,s,here,a)
+        !$omp do collapse(3)
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
-
-              Rgas = sum(Runi*sp%massf/sp%w)
-              cp_ = sum(sp%massf*sp%cp(:,1))
-              gamma = cp_/(cp_-Rgas)
-              del = 0.5*(gamma-1)
 
               if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
               if (dirSize>=2) here(2) = block%center(i,j,k)%c(dir(2))
@@ -384,6 +385,7 @@ contains
                 block%velocity(3,i,j,k) = 0.0
               endif
         enddo; enddo; enddo
+        !$omp end parallel
 
         
       case ('nozzle')
@@ -472,6 +474,8 @@ contains
         call legge_aree(area(i),M0,Mach,throat_area,gamma)
         Mach = Mach * ip
         here = 1.0
+        !$omp parallel private(j,k,s,here,dx,dy,dz,zeta,phi)
+        !$omp do collapse(2)
         do k = 1, block%dim(3)
           do j = 1, block%dim(2)
             if (dirSize>=1) here(1) = block%center(i,j,k)%c(dir(1))
@@ -494,8 +498,9 @@ contains
               block%velocity(3,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*cos(zeta)*sin(phi)
               block%temperature(i,j,k) = T0(1,1,1)/(1+del*(Mach**2))
             endif
-          end do 
+          end do
         end do
+        !$omp end parallel
       end do
 
     end subroutine nozzle1D
@@ -614,6 +619,8 @@ contains
     close(1)
     if (dir == 5) file_dir(:) = file_dir(:) * acos(-1d0) / 180d0
 
+    !$omp parallel private(i,j,k,f,coord,coordm,coordp,varm,varp)
+    !$omp do collapse(3)
     do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
       coord = block%center(i,j,k)%c(dir)
       do f = 1, file_length
@@ -628,8 +635,9 @@ contains
           exit
         endif
       enddo
-        
+
     enddo; enddo; enddo
+    !$omp end parallel
 
   end subroutine read_file_direction
 
@@ -686,11 +694,17 @@ contains
     enddo; enddo; enddo
 
     ! Cell centers minimum distance algorithm
+    !$omp parallel private(i,j,k,ii,jj,kk,cell,inside,inside_loc,dx,dy,dz,dist,ind,mindist)
+    allocate(dx(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+    allocate(dy(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+    allocate(dz(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+    allocate(dist(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
+    !$omp do collapse(3) schedule(dynamic)
     do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
-      
+
       inside = .false.
       do ii = 1, var_tec%dim(1); do jj = 1, var_tec%dim(2); do kk = 1, var_tec%dim(3)
-        
+
         cell(:,1) = var_tec%node(ii-1,jj-1,kk-1)%c(1:3)*fs
         cell(:,2) = var_tec%node(ii-1,jj  ,kk-1)%c(1:3)*fs
         cell(:,3) = var_tec%node(ii-1,jj-1,kk  )%c(1:3)*fs
@@ -699,21 +713,16 @@ contains
         cell(:,6) = var_tec%node(ii  ,jj  ,kk-1)%c(1:3)*fs
         cell(:,7) = var_tec%node(ii  ,jj-1,kk  )%c(1:3)*fs
         cell(:,8) = var_tec%node(ii  ,jj  ,kk  )%c(1:3)*fs
-       
+
         inside_loc = .false.
         call pointInsideHexahedron(block%center(i,j,k)%c(1:3)*fs, cell, inside_loc)
 
         if (inside_loc .eqv. .true.) inside = .true.
-      
+
       enddo; enddo; enddo
 
       if (inside .eqv. .true.) then
-  
-        allocate(dx(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
-        allocate(dy(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
-        allocate(dz(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
-        allocate(dist(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3)))
-              
+
         dx(:,:,:) = (block%center(i,j,k)%c(1)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(1))**2
         dy(:,:,:) = (block%center(i,j,k)%c(2)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(2))**2
         dz(:,:,:) = (block%center(i,j,k)%c(3)-var_tec%center(1:var_tec%dim(1),1:var_tec%dim(2),1:var_tec%dim(3))%c(3))**2
@@ -722,13 +731,13 @@ contains
         ind = minloc(dist(:,:,:), MASK=.true.)
         mindist = dist(ind(1),ind(2),ind(3))
 
-        deallocate(dx);deallocate(dy);deallocate(dz);deallocate(dist)
-
         var(i,j,k) = var_tec%var(ind(1),ind(2),ind(3))
 
       endif
-          
+
     enddo; enddo; enddo
+    deallocate(dx); deallocate(dy); deallocate(dz); deallocate(dist)
+    !$omp end parallel
 
   end subroutine read_file_tec
   

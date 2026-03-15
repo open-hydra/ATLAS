@@ -86,10 +86,12 @@ contains
         block%densityP(g,:,:,:) = sum(block%density(:,:,:,:), dim=1) * krho(g)
         block%velocityP(g,1:3,:,:,:) = block%velocity(:,:,:,:)
         block%temperatureP(g,:,:,:) = block%temperature(:,:,:)* kT(g)
+        !$omp parallel do collapse(3) private(i,j,k,rho)
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
               rho = mat%rho(g,nint(block%temperature(i,j,k)))
               block%np(g,i,j,k) = block%densityP(g,i,j,k)/(4.0/3.0*3.14*rho*rp(g)**3)
         enddo; enddo; enddo
+        !$omp end parallel do
       endif
       if (neuler==1 .or. neuler==6) then
         block%PP(g,:,:,:) = Pp(g)
