@@ -356,51 +356,60 @@ contains
     kl = max(kl, -1)             ; ku = min(ku, km+1)
 
     ! i-faces
+    !$omp parallel do collapse(2) private(j,k,n)
     do k = 0, km ; do j = 0, jm
       do n = 1, gc(1)
         self%node(-n,j,k)%c = 3d0*self%node(-n+1,j,k)%c - 3d0*self%node(-n+2,j,k)%c + self%node(-n+3,j,k)%c
         self%node(im+n,j,k)%c = 3d0*self%node(im+n-1,j,k)%c -3d0*self%node(im+n-2,j,k)%c + self%node(im+n-3,j,k)%c
       end do
     enddo ; enddo
+    !$omp end parallel do
 
     ! j-faces
     if ( jm > 2 ) then
 
+      !$omp parallel do collapse(2) private(i,k,n)
       do k = 0, km ; do i = -1, im+1
         do n = 1, gc(2)
           self%node(i,0-n,k)%c  = 3d0*self%node(i,-n+1,k)%c  - 3d0*self%node(i,-n+2,k)%c   + self%node(i,-n+3,k)%c
           self%node(i,jm+n,k)%c = 3d0*self%node(i,jm+n-1,k)%c -3d0*self%node(i,jm+n-2,k)%c + self%node(i,jm+n-3,k)%c
         end do
       enddo ; enddo
+      !$omp end parallel do
 
     else
 
+      !$omp parallel do collapse(2) private(i,k,n)
       do k = 0, km ; do i = -1, im+1
         do n = 1, gc(2)
           self%node(i,-n,k)%c =   2d0*self%node(i,-n+1,k)%c   - self%node(i,-n+2,k)%c
           self%node(i,jm+n,k)%c = 2d0*self%node(i,jm+n-1,k)%c - self%node(i,jm+n-2,k)%c
         enddo
       end do ; end do
+      !$omp end parallel do
 
     endif
 
     ! k-faces
     if ( meshType==2 .and. delthe==0d0 .or. meshType==1 ) then
       ! 2D: extrapolation with only two nodes (exact).
+      !$omp parallel do collapse(2) private(i,j,n)
       do j = -1, jm+1 ; do i = -1, im+1
         do n = 1, gc(3)
           self%node(i,j,-n)%c =   2d0*self%node(i,j,-n+1)%c   - self%node(i,j,-n+2)%c
           self%node(i,j,km+n)%c = 2d0*self%node(i,j,km+n-1)%c - self%node(i,j,km+n-2)%c
         enddo
       end do ; end do
+      !$omp end parallel do
 
     elseif (meshType==2 .and. delthe/=0d0) then
       ! 2Dax: extrapolation with a rotation angle delthe (exact).
+      !$omp parallel do collapse(2) private(i,j,n)
       do j = -1, jm+1 ; do i = -1, im+1
         do n = 1, gc(3)
           self%node(i,j,-n)%c(1) = self%node(i,j,-n+1)%c(1)
           self%node(i,j,km+n)%c(1) = self%node(i,j,km+n-1)%c(1) ! same x
-            
+
           self%node(i,j,-n)%c(2) = self%node(i,j,-n+1)%c(2)/cos(delthe*(0.5d0+n-1))*cos(delthe*(0.5d0+n))
           self%node(i,j,-n)%c(3) = self%node(i,j,-n+1)%c(3)/sin(delthe*(0.5d0+n-1))*sin(delthe*(0.5d0+n))
 
@@ -408,14 +417,17 @@ contains
           self%node(i,j,km+n)%c(3) = -self%node(i,j,-n)%c(3)
         end do
       end do ; end do
+      !$omp end parallel do
 
     elseif (meshType==3) then
+      !$omp parallel do collapse(2) private(i,j,n)
       do j = -1, jm+1 ; do i = -1, im+1
         do n = 1, gc(3)
           self%node(i,j,-n)%c   = 3d0*self%node(i,j,-n+1)%c  - 3d0*self%node(i,j,-n+2)%c   + self%node(i,j,-n+3)%c
           self%node(i,j,km+n)%c = 3d0*self%node(i,j,km+n-1)%c -3d0*self%node(i,j,km+n-2)%c + self%node(i,j,km+n-3)%c
         end do
       end do ; end do
+      !$omp end parallel do
       
     endif
 

@@ -268,17 +268,21 @@ contains
 
     allocate(nodes(3, 0:n1, 0:n2), centers(3, n1, n2))
 
+    !$omp parallel do collapse(2) private(i1,i2)
     do i2 = 0, n2
       do i1 = 0, n1
         nodes(:,i1,i2) = get_face_node(block, face, i1, i2)
       enddo
     enddo
+    !$omp end parallel do
 
+    !$omp parallel do collapse(2) private(i1,i2)
     do i2 = 1, n2
       do i1 = 1, n1
         centers(:,i1,i2) = block%face(face)%center(i1,i2)%c(1:3)
       enddo
     enddo
+    !$omp end parallel do
   end subroutine
 
 

@@ -95,14 +95,18 @@ contains
       output(b)%dim(3) = max(input%block(b)%Nk,1) ! Handle 2D meshes
       allocate(output(b)%node(0-gc(1):output(b)%dim(1)+gc(1),0-gc(2):output(b)%dim(2)+gc(2),0-gc(3):output(b)%dim(3)+gc(3)))
       if (meshType/=-2) then
+        !$omp parallel do collapse(3) private(i,j,k)
         do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
               output(b)%node(i,j,k)%c(1:3) = input%block(b)%mesh(1:3,i,j,k)
         enddo; enddo; enddo
+        !$omp end parallel do
       else
+        !$omp parallel do collapse(3) private(i,j,k)
         do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
               output(b)%node(i,j,k)%c(1:2) = input%block(b)%mesh(1:2,i,j,0)
               output(b)%node(i,j,k)%c(3) = dble(k)
         enddo; enddo; enddo
+        !$omp end parallel do
       endif
     enddo
 

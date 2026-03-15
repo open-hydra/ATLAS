@@ -184,6 +184,7 @@ contains
       return
     end if
 
+    !$omp parallel do collapse(2) private(i,k,j,t)
     do k = 1, size(xout, dim=2)
       do i = 1, size(xout, dim=1)
         if (xout(i,k) <= xin(1)) then
@@ -201,6 +202,7 @@ contains
         end if
       end do
     end do
+    !$omp end parallel do
   end subroutine interp1_linear
 
 

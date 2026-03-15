@@ -897,14 +897,18 @@ module ATLAS_IO
         orion%block(cnt)%Nk = block(b)%dim(3)
         if (meshtype==-2) then
           allocate(orion%block(cnt)%mesh(1:2,0:block(b)%dim(1),0:block(b)%dim(2),0:0))
+          !$omp parallel do collapse(2) private(i,j)
           do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
             orion%block(cnt)%mesh(1:2,i,j,0) = block(b)%node(i,j,0)%c(1:2)
           enddo; enddo
+          !$omp end parallel do
         else
           allocate(orion%block(cnt)%mesh(1:3,0:block(b)%dim(1),0:block(b)%dim(2),0:block(b)%dim(3)))
+          !$omp parallel do collapse(3) private(i,j,k)
           do k = 0, block(b)%dim(3); do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
             orion%block(cnt)%mesh(:,i,j,k) = block(b)%node(i,j,k)%c(1:3)
           enddo; enddo; enddo
+          !$omp end parallel do
         endif
         select case(phase(p)%type)
         case('IG')
@@ -1220,21 +1224,23 @@ module ATLAS_IO
       if ( allocated ( coarse % block(b) % mesh )) deallocate (coarse % block(b) % mesh)
       allocate( coarse%block(b)%mesh(1:3,0:Ni,0:Nj,0:Nk) )
 
+      !$omp parallel do collapse(3) private(i,j,k,i2,j2,k2)
       do k = 0, fine % block(b)%Nk, 2-Mod(fine % block(b)%Nk,2)
       do j = 0, fine % block(b)%Nj, 2
       do i = 0, fine % block(b)%Ni, 2
-          
+
           i2 = i / 2
           j2 = j / 2
           k2 = k / 2
-    
+
           if ( fine % block(b)%Nk == 1 ) then ! 2D
             k2 = k
           end if
-    
+
           coarse%block(b)%mesh(1:3,i2,j2,k2) = fine%block(b)%mesh(1:3,i,j,k)
-        
+
         enddo; enddo; enddo
+      !$omp end parallel do
 
     enddo
 
