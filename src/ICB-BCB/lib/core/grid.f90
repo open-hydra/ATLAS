@@ -2,9 +2,13 @@
 module ATLAS_Mod_Grid
   implicit none
 
-  integer, dimension(3):: gc         !> number of ghost layers
-  integer              :: meshType   !> -2 -> pure 2D, 1 -> 1D, 2 -> 2D, 3 -> 3D
-  real(kind=8), public :: delthe     !> grid axisymmetric angle
+  type :: mesh_config_type
+    integer, dimension(3) :: gc        !> number of ghost layers
+    integer               :: meshType  !> -2 -> pure 2D, 1 -> 1D, 2 -> 2D, 3 -> 3D
+    real(kind=8)          :: delthe    !> grid axisymmetric angle
+  end type mesh_config_type
+
+  type(mesh_config_type) :: mesh_cfg
 
   type :: vector_3D_type
     real(kind=8)   :: c(3)
@@ -261,7 +265,7 @@ contains
     integer      :: i, j, k, im, jm, km
     real(kind=8) :: vx(8), vy(8), vz(8)
 
-    if (meshType==-2) return
+    if (mesh_cfg%meshType==-2) return
 
     ! Peliminary operations
     im = b%dim(1)
@@ -393,7 +397,7 @@ contains
     endif
 
     ! k-faces
-    if ( meshType==2 .and. delthe==0d0 .or. meshType==1 ) then
+    if ( mesh_cfg%meshType==2 .and. mesh_cfg%delthe==0d0 .or. mesh_cfg%meshType==1 ) then
       ! 2D: extrapolation with only two nodes (exact).
       !$omp parallel do collapse(2) private(i,j,n)
       do j = -1, jm+1 ; do i = -1, im+1
@@ -404,7 +408,7 @@ contains
       end do ; end do
       !$omp end parallel do
 
-    elseif (meshType==2 .and. delthe/=0d0) then
+    elseif (mesh_cfg%meshType==2 .and. mesh_cfg%delthe/=0d0) then
       ! 2Dax: extrapolation with a rotation angle delthe (exact).
       !$omp parallel do collapse(2) private(i,j,n)
       do j = -1, jm+1 ; do i = -1, im+1
@@ -412,8 +416,8 @@ contains
           self%node(i,j,-n)%c(1) = self%node(i,j,-n+1)%c(1)
           self%node(i,j,km+n)%c(1) = self%node(i,j,km+n-1)%c(1) ! same x
 
-          self%node(i,j,-n)%c(2) = self%node(i,j,-n+1)%c(2)/cos(delthe*(0.5d0+n-1))*cos(delthe*(0.5d0+n))
-          self%node(i,j,-n)%c(3) = self%node(i,j,-n+1)%c(3)/sin(delthe*(0.5d0+n-1))*sin(delthe*(0.5d0+n))
+          self%node(i,j,-n)%c(2) = self%node(i,j,-n+1)%c(2)/cos(mesh_cfg%delthe*(0.5d0+n-1))*cos(mesh_cfg%delthe*(0.5d0+n))
+          self%node(i,j,-n)%c(3) = self%node(i,j,-n+1)%c(3)/sin(mesh_cfg%delthe*(0.5d0+n-1))*sin(mesh_cfg%delthe*(0.5d0+n))
 
           self%node(i,j,km+n)%c(2) = self%node(i,j,-n)%c(2)
           self%node(i,j,km+n)%c(3) = -self%node(i,j,-n)%c(3)
@@ -421,7 +425,7 @@ contains
       end do ; end do
       !$omp end parallel do
 
-    elseif (meshType==3) then
+    elseif (mesh_cfg%meshType==3) then
       !$omp parallel do collapse(2) private(i,j,n)
       do j = -1, jm+1 ; do i = -1, im+1
         do n = 1, gc(3)
@@ -447,7 +451,7 @@ contains
       self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j-1,k)%c - 3d0*self%node(i,j-2,k)%c + self%node(i,j-3,k)%c + &
                                     3d0*self%node(i+1,j,k)%c - 3d0*self%node(i+2,j,k)%c + self%node(i+3,j,k)%c)
     enddo
-    if (meshType>=2) then
+    if (mesh_cfg%meshType>=2) then
       ! Edge 5-1
       i = -1; k = -1
       do j = -1, jm+1
@@ -474,7 +478,7 @@ contains
       self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j-1,k)%c - 3d0*self%node(i,j-2,k)%c + self%node(i,j-3,k)%c + &
                                     3d0*self%node(i-1,j,k)%c - 3d0*self%node(i-2,j,k)%c + self%node(i-3,j,k)%c)
     enddo
-    if (meshType>=2) then
+    if (mesh_cfg%meshType>=2) then
       ! Edge 5-2
       i = im+1; k = -1
       do j = -1, jm+1
@@ -489,7 +493,7 @@ contains
       enddo
     endif
 
-    if (meshType>=2) then
+    if (mesh_cfg%meshType>=2) then
       ! Edge 3-5
       j = -1; k = -1
       do i = 0, im
@@ -529,16 +533,16 @@ contains
     ! Mesh definition (2D,2Dplane,2Daxi,3D)
     if (size(mesh,4)>2) then
       ! 3D
-      meshType = 3
+      mesh_cfg%meshType = 3
     elseif (size(mesh,1)==2) then
       ! 2D
-      meshType = -2
+      mesh_cfg%meshType = -2
     elseif (size(mesh,3)==2 .and. size(mesh,4)==2) then
       ! 1D
-      meshType = 1
+      mesh_cfg%meshType = 1
     else
       ! 2Dplane
-      meshType = 2
+      mesh_cfg%meshType = 2
       theta1 = atan2( mesh(3,0,1,0),mesh(2,0,1,0) )
       theta2 = atan2( mesh(3,0,1,1),mesh(2,0,1,1) )
       theta(1) = theta2-theta1
@@ -548,10 +552,10 @@ contains
       theta(2) = theta2-theta1
       if ( (theta(1)-theta(2)) < 1.d-5 ) then
         ! 2Daxi
-        delthe = theta(1)
+        mesh_cfg%delthe = theta(1)
       else
         ! 2Dplane
-        delthe = 0.d0
+        mesh_cfg%delthe = 0.d0
       endif
     endif
 
@@ -644,7 +648,7 @@ contains
                                              self%node(i,j,k)%c(d)+self%node(i,j,k-1)%c(d)+ &
                                              self%node(i,j-1,k)%c(d)+self%node(i-1,j,k)%c(d))
           enddo
-          if (meshType == -2) then
+          if (mesh_cfg%meshType == -2) then
             self%center(i,j,k)%c(4:5) = cartesian2cyl(self%center(i,j,k)%c(1:2))
           else
             self%center(i,j,k)%c(4:5) = cartesian2cyl(self%center(i,j,k)%c(2:3))

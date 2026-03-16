@@ -1,5 +1,5 @@
 module BC_connection
-  use ATLAS_Mod_Grid, only: fmn2ijk, meshType
+  use ATLAS_Mod_Grid, only: fmn2ijk, mesh_cfg
   use ATLAS_high_level
   implicit none
   private
@@ -63,7 +63,7 @@ contains
               m2 = m1
               n2 = n1
               call fmn2ijk(f2,m2,n2,nx(b2),ny(b2),nz(b2),i2,j2,k2)
-              if (meshType == -2) then
+              if (mesh_cfg%meshType == -2) then
               ! ----- Caso 2D: b, i, j, f -----
                 this%bc%properties(1) = b2
                 this%bc%properties(2) = i2
@@ -180,7 +180,7 @@ contains
 
             ! legge  dati della faccia a cui e' connessa la faccia di contorno
 
-            if (meshType == -2) then
+            if (mesh_cfg%meshType == -2) then
               ib2 = nint(this%bc%properties(1))
               i2 = nint(this%bc%properties(2))-1
               j2 = nint(this%bc%properties(3))-1
@@ -304,7 +304,7 @@ contains
     ! se tale distanza e' mininore della tolleranza allora
     ! le due faccie sono connesse
 
-    if (meshType==1) return
+    if (mesh_cfg%meshType==1) return
 
     nb = size(block)
     allocate(nboundb(nb))
@@ -325,7 +325,7 @@ contains
     allocate(b(1:nbound)); allocate(f(1:nbound)); allocate(m(1:nbound))
     allocate(n(1:nbound)); allocate(def(1:nbound)); allocate(adj(1:nbound))
 
-    if (meshType == -2) then
+    if (mesh_cfg%meshType == -2) then
       allocate(prop(1:nbound,1:4))
     else
       allocate(prop(1:nbound,1:5))
@@ -394,7 +394,7 @@ contains
           endif
         enddo
       enddo
-      if (meshType == -2) then
+      if (mesh_cfg%meshType == -2) then
         adj(i) = .true.
         prop(i,1) = b2; prop(i,2) = i2; prop(i,3) = j2; prop(i,4) = f2
         adj(j) = .true.
@@ -534,7 +534,7 @@ contains
 
             ! legge  dati della faccia a cui e' connessa la faccia di contorno
 
-            if (meshType == -2) then
+            if (mesh_cfg%meshType == -2) then
               ib2 = nint(this%bc%properties(1))
               i2 = nint(this%bc%properties(2))-1
               j2 = nint(this%bc%properties(3))-1

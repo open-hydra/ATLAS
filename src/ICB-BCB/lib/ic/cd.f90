@@ -7,7 +7,7 @@ contains
     use ATLAS_high_level
     use finer, only: file_ini
     use material_module
-    use variables, only: neuler
+    use variables, only: cfg
     implicit none
     type(ATLAS_block), intent(inout)  :: block
     type(file_ini), intent(in)        :: zoneini
@@ -37,8 +37,8 @@ contains
     call zoneini%get(section_name='zone', option_name='krho',   val=krho, error=error)
     call zoneini%get(section_name='zone', option_name='kT',   val=kT, error=error)
     call zoneini%get(section_name='zone', option_name='Pp', val=Pp, error=error)
-    if (error==0) neuler = 1
-    call zoneini%get(section_name='zone', option_name='neuler', val=neuler, error=error) 
+    if (error==0) cfg%neuler = 1
+    call zoneini%get(section_name='zone', option_name='neuler', val=cfg%neuler, error=error) 
     call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
     if (error/=0) then
       call zoneini%get(section_name='zone', option_name='rp', val=rp, error=error)
@@ -70,7 +70,7 @@ contains
       block%cd%velocityP(:,1:3,:,:,:) = 1d-20
       block%cd%temperatureP(:,:,:,:) = 1d-20
       block%cd%np(:,:,:,:) = 1d-20
-      if (neuler==1 .or. neuler==6) then
+      if (cfg%neuler==1 .or. cfg%neuler==6) then
         block%cd%PP(:,:,:,:) = 1D-20
       endif
 
@@ -93,7 +93,7 @@ contains
         enddo; enddo; enddo
         !$omp end parallel do
       endif
-      if (neuler==1 .or. neuler==6) then
+      if (cfg%neuler==1 .or. cfg%neuler==6) then
         block%cd%PP(g,:,:,:) = Pp(g)
       endif
     enddo

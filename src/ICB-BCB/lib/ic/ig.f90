@@ -5,7 +5,7 @@ module IC_lib_IG
 contains
 
   subroutine build_IG_field(block,zoneini,IC_type,sp,range,dirSize,dir)
-    use variables, only: nrans
+    use variables, only: cfg
     use ATLAS_high_level
     use finer, only: file_ini
     use Interpolator_IG
@@ -202,7 +202,7 @@ contains
       allocate(block%ig%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
       allocate(block%ig%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
       allocate(block%ig%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-      if (nrans>0) allocate(block%ig%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      if (cfg%nrans>0) allocate(block%ig%turbprop(cfg%nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
 
@@ -215,7 +215,7 @@ contains
         ! Check if an equilibrium composition has to be defined. If so, partial densities are set accordingly to species mass fractions
         call define_composition(zoneini, sp, T0c, p0c)
         if (any(sp%massf>0.d0)) then
-          if (verbose) then
+          if (cfg%verbose) then
             write(*,*) "[LOG] Species mass fractions decomposition in interpolation"
           endif
           do s = 1, sp%n
@@ -400,12 +400,12 @@ contains
     endassociate
 
     ! Turbulence specific parameters
-    if (nrans==1) then
+    if (cfg%nrans==1) then
         if(mit/=0.0) block%ig%turbprop(1,:,:,:) = mit
-    elseif (nrans==2) then
+    elseif (cfg%nrans==2) then
         if(kappa/=0.0) block%ig%turbprop(1,:,:,:) = kappa
         if(omega/=0.0) block%ig%turbprop(2,:,:,:) = omega
-    elseif (nrans==7) then
+    elseif (cfg%nrans==7) then
         if(rhoRij/=0.0) block%ig%turbprop(1:3,:,:,:) = rhoRij
         block%ig%turbprop(4:6,:,:,:) = 1d-8
         if(omega/=0.0) block%ig%turbprop(7,:,:,:) = omega

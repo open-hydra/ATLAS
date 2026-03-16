@@ -102,14 +102,14 @@ program BCB
     character(99):: arg
     integer      :: arg_count, i
 
-    verbose = .false.
+    cfg%verbose = .false.
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
     do i = 1, arg_count
       call GET_COMMAND_ARGUMENT(i, arg)
       if (arg == '-v' .or. arg == '--verbose') then
-        verbose = .true.
+        cfg%verbose = .true.
       end if
     end do
 

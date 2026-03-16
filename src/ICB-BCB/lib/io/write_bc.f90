@@ -13,7 +13,7 @@ module ATLAS_write_bc
   subroutine write_idealgas_bc_file(name,block,level)
     use variables
     use ATLAS_high_level, only: ATLAS_block
-    use ATLAS_Mod_Grid, only: fmn2ijk, meshtype
+    use ATLAS_Mod_Grid, only: fmn2ijk, mesh_cfg
     implicit none
     character(len=*), intent(in)  :: name
     type(ATLAS_block), intent(in) :: block(:)
@@ -70,9 +70,9 @@ module ATLAS_write_bc
             call fmn2ijk(f,m,n,block(b)%dim(1),block(b)%dim(2),block(b)%dim(3),Ai,Aj,Ak)
 
             if (print_def == 77) print_def = 1 ! Necessaria per evitare ambiguità per periodicità multiblocco
-            if (meshtype==1 .and. print_def /= 0) then
+            if (mesh_cfg%meshType==1 .and. print_def /= 0) then
               write(unitfile,'(4I8)')block(b)%id,Ai,f,print_def
-            elseif (meshtype==-2) then
+            elseif (mesh_cfg%meshType==-2) then
               write(unitfile,'(5I8)')block(b)%id,Ai,Aj,f,print_def
             else
               write(unitfile,'(6I8)')block(b)%id,Ai,Aj,Ak,f,print_def
@@ -81,12 +81,12 @@ module ATLAS_write_bc
             select case (print_def)
 
               case(1,1000)
-                if (meshType == -2) then
-                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-2-nrans-1
+                if (mesh_cfg%meshType == -2) then
+                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-2-cfg%nrans-1
                     write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
                   enddo
                 else
-                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-2-nrans
+                  do i = 1, block(b)%face(f)%center(m,n)%bc%nproperties-2-cfg%nrans
                     write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(i))
                   enddo
                 endif
@@ -98,7 +98,7 @@ module ATLAS_write_bc
               case(2,3,11)
 
               case(999)
-                if (meshType /= 1) then
+                if (mesh_cfg%meshType /= 1) then
                   write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(1))
                   write(unitfile,'(I8)',advance='no') nint(block(b)%face(f)%center(m,n)%bc%properties(2))
                   write(unitfile,'(A)') ''

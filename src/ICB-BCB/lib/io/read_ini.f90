@@ -125,18 +125,18 @@ contains
     integer :: i
 
     call fini%get_items(items=items)
-    nrans = 0
+    cfg%nrans = 0
     do i = 1, size(items, dim=1)
-      if (items(i,1)=='mit') nrans = 1
-      if (items(i,1)=='kappa') nrans = 2
-      if (items(i,1)=='rhoRij') nrans = 7
+      if (items(i,1)=='mit') cfg%nrans = 1
+      if (items(i,1)=='kappa') cfg%nrans = 2
+      if (items(i,1)=='rhoRij') cfg%nrans = 7
     enddo
 
     write(*,*)
-    if (nrans==0) write(*,*)' No turbulent model properties found'
-    if (nrans==1) write(*,*)' One-equation turbulent model properties found'
-    if (nrans==2) write(*,*)' Two-equation turbulent model properties found'
-    if (nrans==7) write(*,*)' Full Reynolds Stress Model properties found'
+    if (cfg%nrans==0) write(*,*)' No turbulent model properties found'
+    if (cfg%nrans==1) write(*,*)' One-equation turbulent model properties found'
+    if (cfg%nrans==2) write(*,*)' Two-equation turbulent model properties found'
+    if (cfg%nrans==7) write(*,*)' Full Reynolds Stress Model properties found'
     write(*,*)
 
   end subroutine scan_turbo_input

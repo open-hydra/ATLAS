@@ -60,7 +60,7 @@ contains
 
 
   subroutine write_solfile(phase,inblock)
-    use variables, only: nrans, outpath
+    use variables, only: cfg, outpath
     use ATLAS_high_level, only: ATLAS_block
     use phase_module
     implicit none
@@ -123,9 +123,10 @@ contains
       write(unitfile) (((dble(block(b)%ig%pressure(i,j,k)),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
     end do
 
-    if (nrans>0) then
+    if (cfg%nrans>0) then
       do b = 1, nb
-        write(unitfile) ((((dble(block(b)%ig%turbprop(s,i,j,k)),s=1,nrans),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
+        write(unitfile) ((((dble(block(b)%ig%turbprop(s,i,j,k)), &
+            s=1,cfg%nrans),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
       end do
     endif
 
@@ -139,7 +140,7 @@ contains
 
   subroutine read_solfile(phase_type,filename,icblock,n)
     use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
-    use variables, only: nrans, llen
+    use variables, only: cfg, llen
     use ATLAS_high_level, only: ATLAS_block
     implicit none
     character(len=2), intent(in)     :: phase_type
@@ -178,7 +179,7 @@ contains
 
       allocate(var(1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
       allocate(vars(1:n,1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
-      allocate(vart(1:nrans,1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
+      allocate(vart(1:cfg%nrans,1:nb,1:Nmax(1),1:Nmax(2),1:Nmax(3)))
     
       do b = 1, nb
         read(unitfile)((((vars(s,b,i,j,k),s=1,n),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
@@ -196,11 +197,11 @@ contains
       end do
       ! Turbulent models
       do b = 1, nb
-        read(unitfile,iostat=io)((((vart(s,b,i,j,k),s=1,nrans),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
+        read(unitfile,iostat=io)((((vart(s,b,i,j,k),s=1,cfg%nrans),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
         if (io==0) then
-          icblock(b)%ig%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = vart(:,b,1:Nx(b),1:Ny(b),1:Nz(b))
+          icblock(b)%ig%turbprop(1:cfg%nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = vart(:,b,1:Nx(b),1:Ny(b),1:Nz(b))
         else
-          icblock(b)%ig%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = 0.0
+          icblock(b)%ig%turbprop(1:cfg%nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = 0.0
         endif
       enddo
 
@@ -234,7 +235,7 @@ contains
     use Lib_VTK
     use Lib_Tecplot
     use Lib_ORION_data
-    use variables, only: nrans, llen
+    use variables, only: cfg, llen
     use ATLAS_high_level
     implicit none
     character(len=2), intent(in)     :: phase_type
@@ -260,14 +261,14 @@ contains
     if (phase_type=='IG') then
       do b = 1, size(icblock)
         call icblock(b)%compute_centers([0,0,0])
-        call icblock(b)%allocate(nrans,n,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
+        call icblock(b)%allocate(cfg%nrans,n,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
         if (size(IOfield%block(b)%vars)>0) then
           do s = 1, n
             icblock(b)%ig%density(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(s,:,:,:)
           enddo
           icblock(b)%ig%velocity(1:3,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+1:n+3,:,:,:)
           icblock(b)%ig%pressure(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4,:,:,:)
-          do s = 1, nrans
+          do s = 1, cfg%nrans
             icblock(b)%ig%turbprop(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4+s,:,:,:)
           enddo 
         endif
@@ -292,11 +293,11 @@ contains
     use IR_Precision
     use Lib_VTK
     use Lib_Tecplot
-    use variables, only: nrans, neuler, llen, outpath
+    use variables, only: cfg, llen, outpath
     use ATLAS_high_level
     use phase_module, only: phase_type
     use material_module, only: obj_material
-    use ATLAS_Mod_Grid, only: meshtype
+    use ATLAS_Mod_Grid, only: mesh_cfg
     implicit none
     type(phase_type), intent(in)       :: phase(:)
     character(len=*), intent(in)       :: ICformat
@@ -336,18 +337,18 @@ contains
           do s = 1, nsc
             varnames = trim(varnames)//' "rho'//trim(str(.true.,s))//'"'
           enddo
-          if (meshtype == 10) then
+          if (mesh_cfg%meshType == 10) then
             varnames = trim(varnames)//' "u" "p"'
-          elseif (meshtype == -2) then
+          elseif (mesh_cfg%meshType == -2) then
             varnames = trim(varnames)//' "u" "v" "p"'
           else
             varnames = trim(varnames)//' "u" "v" "w" "p"'
           endif
-          if (nrans==1) then
+          if (cfg%nrans==1) then
             varnames = trim(varnames)//' "mi_t"'
-          elseif (nrans==2) then
+          elseif (cfg%nrans==2) then
             varnames = trim(varnames)//' "kappa" "omega"'
-          elseif (nrans==7) then
+          elseif (cfg%nrans==7) then
             varnames = trim(varnames)//' "ru''u''" "rv''v''" "rw''w''" "ru''v''" "ru''w''" "rv''w''" "omega"'
           endif
         case('CD')
@@ -359,10 +360,10 @@ contains
               varnames = trim(varnames)//' "up_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
               varnames = trim(varnames)//' "vp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
               varnames = trim(varnames)//' "wp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
-              if (neuler==1) then
+              if (cfg%neuler==1) then
                 varnames = trim(varnames)//' "Pp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
               endif
-              if (neuler==6) then
+              if (cfg%neuler==6) then
                 varnames = trim(varnames)//' "Pp11_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
                 varnames = trim(varnames)//' "Pp12_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
                 varnames = trim(varnames)//' "Pp13_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
@@ -389,7 +390,7 @@ contains
         orion%block(cnt)%Ni = block(b)%dim(1)
         orion%block(cnt)%Nj = block(b)%dim(2)
         orion%block(cnt)%Nk = block(b)%dim(3)
-        if (meshtype==-2) then
+        if (mesh_cfg%meshType==-2) then
           allocate(orion%block(cnt)%mesh(1:2,0:block(b)%dim(1),0:block(b)%dim(2),0:0))
           do j = 0, block(b)%dim(2); do i = 0, block(b)%dim(1)
             orion%block(cnt)%mesh(1:2,i,j,0) = block(b)%node(i,j,0)%c(1:2)
@@ -403,41 +404,41 @@ contains
         select case(phase(p)%type)
         case('IG')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-IG'
-          if (meshtype == 10) then
+          if (mesh_cfg%meshType == 10) then
             allocate(orion%block(cnt)%vars(1:nsc+2,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
             orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%ig%density
             orion%block(cnt)%vars(nsc+1,:,:,:) = block(b)%ig%velocity(1,:,:,:)
             orion%block(cnt)%vars(nsc+2,:,:,:) = block(b)%ig%pressure
-          elseif (meshtype == -2) then
-            allocate(orion%block(cnt)%vars(1:nsc+3+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          elseif (mesh_cfg%meshType == -2) then
+            allocate(orion%block(cnt)%vars(1:nsc+3+cfg%nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
             orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%ig%density
             orion%block(cnt)%vars(nsc+1:nsc+2,:,:,:) = block(b)%ig%velocity(1:2,:,:,:)
             orion%block(cnt)%vars(nsc+3,:,:,:) = block(b)%ig%pressure
-            if (nrans>0) then
-              orion%block(cnt)%vars(nsc+4:nsc+3+nrans,:,:,:) = block(b)%ig%turbprop
+            if (cfg%nrans>0) then
+              orion%block(cnt)%vars(nsc+4:nsc+3+cfg%nrans,:,:,:) = block(b)%ig%turbprop
             endif
           else
-            allocate(orion%block(cnt)%vars(1:nsc+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+            allocate(orion%block(cnt)%vars(1:nsc+4+cfg%nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
             orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%ig%density
             orion%block(cnt)%vars(nsc+1:nsc+3,:,:,:) = block(b)%ig%velocity
             orion%block(cnt)%vars(nsc+4,:,:,:) = block(b)%ig%pressure
-            if (nrans>0) then
-              orion%block(cnt)%vars(nsc+5:nsc+4+nrans,:,:,:) = block(b)%ig%turbprop
+            if (cfg%nrans>0) then
+              orion%block(cnt)%vars(nsc+5:nsc+4+cfg%nrans,:,:,:) = block(b)%ig%turbprop
             endif
           endif
         case('CD')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-CD'
-          allocate(orion%block(cnt)%vars(1:nnn*(6+neuler),1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
+          allocate(orion%block(cnt)%vars(1:nnn*(6+cfg%neuler),1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
           s = 1
           do m = 1, nnn
             orion%block(cnt)%vars(s,:,:,:) = block(b)%cd%densityp(m,:,:,:)
             orion%block(cnt)%vars(s+1,:,:,:) = block(b)%cd%velocityp(m,1,:,:,:)
             orion%block(cnt)%vars(s+2,:,:,:) = block(b)%cd%velocityp(m,2,:,:,:)
             orion%block(cnt)%vars(s+3,:,:,:) = block(b)%cd%velocityp(m,3,:,:,:)
-            if (neuler==1) then
+            if (cfg%neuler==1) then
               orion%block(cnt)%vars(s+4,:,:,:) = block(b)%cd%PP(m,:,:,:)
             endif
-            if (neuler==6) then
+            if (cfg%neuler==6) then
               orion%block(cnt)%vars(s+4,:,:,:) = block(b)%cd%PP(m,:,:,:)
               orion%block(cnt)%vars(s+5,:,:,:) = 0d0
               orion%block(cnt)%vars(s+6,:,:,:) = 0d0
@@ -445,9 +446,9 @@ contains
               orion%block(cnt)%vars(s+8,:,:,:) = 0d0
               orion%block(cnt)%vars(s+9,:,:,:) = block(b)%cd%PP(m,:,:,:)
             endif
-            orion%block(cnt)%vars(s+4+neuler,:,:,:) = block(b)%cd%temperatureP(m,:,:,:)
-            orion%block(cnt)%vars(s+5+neuler,:,:,:) = block(b)%cd%np(m,:,:,:)
-            s = s + 6 + neuler
+            orion%block(cnt)%vars(s+4+cfg%neuler,:,:,:) = block(b)%cd%temperatureP(m,:,:,:)
+            orion%block(cnt)%vars(s+5+cfg%neuler,:,:,:) = block(b)%cd%np(m,:,:,:)
+            s = s + 6 + cfg%neuler
           enddo
         case('SP')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'

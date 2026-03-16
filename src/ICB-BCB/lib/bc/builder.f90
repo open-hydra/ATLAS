@@ -22,8 +22,8 @@ module build_BC_mod
   contains
 
   subroutine build_BC(phase,sini,blocks)
-    use ATLAS_Mod_Grid, only: delthe, meshType
-    use variables, only: nrans
+    use ATLAS_Mod_Grid, only: mesh_cfg
+    use variables, only: cfg
     use strings, only: parse
     use ATLAS_read_phase, only: read_idealgas_properties, read_cdp_properties
     implicit none
@@ -121,11 +121,11 @@ module build_BC_mod
                                                               val=block%face(ff)%bc%name, error=error)
 
         if (error/=0) then
-          if (ff<=2 .and. meshtype/=1) then
+          if (ff<=2 .and. mesh_cfg%meshType/=1) then
             write(*,*)'[ERROR] Missing face entry for face ', ff, ' in block ', b
             stop
           else
-            if (delthe==0.d0 .or. meshType == 1) then
+            if (mesh_cfg%delthe==0.d0 .or. mesh_cfg%meshType == 1) then
               block%face(ff)%bc%name = 'null'
               block%face(ff)%bc%definition = 0
             else
@@ -181,7 +181,7 @@ module build_BC_mod
               call patchini%add(section_name='face', option_name='range', val=patchrange)
               call patchini%add(section_name='face', option_name='direction', val=patchdirection)
               do m = 1, size(block%associated_phase)
-                call build_cell(b,ff,block%face(ff),nrans,patchini,block%associated_phase(m))
+                call build_cell(b,ff,block%face(ff),cfg%nrans,patchini,block%associated_phase(m))
               enddo
             enddo
           endif
@@ -194,12 +194,12 @@ module build_BC_mod
           if (cell_dependent) then
             write(*,*)' Face n. = ', ff, ' -> ', trim(block%face(ff)%bc%name), ' = single patch with varying properties'
             do m = 1, size(block%associated_phase)
-              call build_cell(b,ff,block%face(ff),nrans,faceini,block%associated_phase(m))
+              call build_cell(b,ff,block%face(ff),cfg%nrans,faceini,block%associated_phase(m))
             enddo
           else
             write(*,*)' Face n. = ', ff, ' -> ', trim(block%face(ff)%bc%name), ' = single patch'
             do m = 1, size(block%associated_phase)
-              call block%face(ff)%bc%build(nrans,faceini,'face',block%associated_phase(m))
+              call block%face(ff)%bc%build(cfg%nrans,faceini,'face',block%associated_phase(m))
             enddo
             !$omp parallel private(m,n)
             !$omp do collapse(2)
@@ -236,7 +236,7 @@ module build_BC_mod
 
 
   subroutine build_cell(b,f,face,nrans,ini_i,phase)
-    use ATLAS_Mod_Grid, only: meshType
+    use ATLAS_Mod_Grid, only: mesh_cfg
     implicit none
     integer, intent(in)            :: b, f
     type(obj_face)                 :: face
@@ -722,7 +722,7 @@ module build_BC_mod
           write(inj_unit, '(A)') '# Injector_ID    X_center    Y_center    Equiv_Radius'
           do ninj = 1, plate_file%length
             if (A_inj(ninj) > 0.0d0) then
-              if (meshType == -2) then
+              if (mesh_cfg%meshType == -2) then
                 radius = A_inj(ninj) / (2.0d0 * z_input)
               else
                 radius = sqrt(A_inj(ninj) / pi)

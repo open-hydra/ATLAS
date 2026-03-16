@@ -37,40 +37,40 @@ contains
 
     ! Old files reading and data allocation
     if (oldmeshfile_/='Darwin') then
-      if (verbose) write(*,*)"[LOG] Reading mesh file: ", trim(oldmeshfile_)
+      if (cfg%verbose) write(*,*)"[LOG] Reading mesh file: ", trim(oldmeshfile_)
       call read_mesh(oldorion,oldmeshfile_)
       call import_nodes(input=oldorion,output=oldblock)
       deallocate(oldorion%block)
       if (law=='extrude') then
-        if (verbose) write(*,*)"[LOG] Old mesh extrusion"
+        if (cfg%verbose) write(*,*)"[LOG] Old mesh extrusion"
         call extrude360(1)
-        if (verbose) write(*,*) 
+        if (cfg%verbose) write(*,*) 
       endif
       do b = 1, size(oldblock)
         call oldblock(b)%compute_centers([0,0,0])
-        call oldblock(b)%allocate(nrans,oldspecies%n,oldblock(b)%dim(1),oldblock(b)%dim(2),oldblock(b)%dim(3))
+        call oldblock(b)%allocate(cfg%nrans,oldspecies%n,oldblock(b)%dim(1),oldblock(b)%dim(2),oldblock(b)%dim(3))
       end do
-      if (verbose) write(*,*)"[LOG] Reading solution file: ", trim(oldsolutionfile)
+      if (cfg%verbose) write(*,*)"[LOG] Reading solution file: ", trim(oldsolutionfile)
       call read_solfile('IG',oldsolutionfile,oldblock,oldspecies%n)
       if (law=='extrude') then
-        if (verbose) write(*,*)"[LOG] Old solution extrusion"
+        if (cfg%verbose) write(*,*)"[LOG] Old solution extrusion"
         call extrude360(2)
-        if (verbose) write(*,*)
+        if (cfg%verbose) write(*,*)
       endif
 
     else
 
-      if (verbose) write(*,*)"[LOG] Reading solution file: ", trim(oldsolutionfile)
+      if (cfg%verbose) write(*,*)"[LOG] Reading solution file: ", trim(oldsolutionfile)
       call read_vtk_tec('IG',oldsolutionfile,oldblock,oldspecies%n)
       if (law=='extrude') then
-        if (verbose) write(*,*)"[LOG] Old mesh extrusion"
+        if (cfg%verbose) write(*,*)"[LOG] Old mesh extrusion"
         call extrude360(1)
-        if (verbose) write(*,*) 
+        if (cfg%verbose) write(*,*) 
       endif
       if (law=='extrude') then
-        if (verbose) write(*,*)"[LOG] Old solution extrusion"
+        if (cfg%verbose) write(*,*)"[LOG] Old solution extrusion"
         call extrude360(2)
-        if (verbose) write(*,*)
+        if (cfg%verbose) write(*,*)
       endif
     endif
 
@@ -88,7 +88,7 @@ contains
       real(R8), allocatable :: mesh(:,:,:,:)
       integer :: i, j, k
       
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*)"[LOG] Extrusion angle    = ", thetamax_extrude
         write(*,*)"[LOG] Extrusion elements = ", nz_extrude
       endif
@@ -129,7 +129,7 @@ contains
             oldblock(b)%ig%velocity(2,:,:,k) = oldblock(b)%ig%velocity(2,:,:,1)*cos(theta(k))
             oldblock(b)%ig%velocity(3,:,:,k) = oldblock(b)%ig%velocity(2,:,:,1)*sin(theta(k))
             oldblock(b)%ig%pressure(:,:,k) = oldblock(b)%ig%pressure(:,:,1)
-            if (nrans>0) oldblock(b)%ig%turbprop(1:nrans,:,:,k) = oldblock(b)%ig%turbprop(1:nrans,:,:,1)
+            if (cfg%nrans>0) oldblock(b)%ig%turbprop(1:cfg%nrans,:,:,k) = oldblock(b)%ig%turbprop(1:cfg%nrans,:,:,1)
           enddo
         enddo
 
@@ -167,7 +167,7 @@ contains
       call build_old_solution(oldmeshfile_,oldsolutionfile_,oldspeciesfile_,newspecies)
     endif
 
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*) "[LOG] Building new solution"
       write(*,*) "[LOG] Old species number: ", oldspecies%n
       write(*,*) "[LOG] New species number: ", newspecies%n
@@ -197,7 +197,7 @@ contains
 
       end select
 
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*) "[LOG] Interpolation Completed Successfully"
       write(*,*)
     endif
@@ -243,7 +243,7 @@ subroutine index_interpolation()
 
   ! Case 2D-3D interpolation
   if (all(same_dimension).and.sym_type=="2D") then
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*)
       write(*,*) "[LOG] 2D-3D Index based interpolation algorithm"
       write(*,*)
@@ -284,7 +284,7 @@ subroutine index_interpolation()
           block%ig%pressure(i,j,k) = oldblock(b)%ig%pressure(i,j,1)
 
           ! Turbulent properties
-          if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(b)%ig%turbprop(1:nrans,i,j,1)
+          if (cfg%nrans > 0 ) block%ig%turbprop(1:cfg%nrans,i,j,k) = oldblock(b)%ig%turbprop(1:cfg%nrans,i,j,1)
 
         enddo
       enddo
@@ -293,7 +293,7 @@ subroutine index_interpolation()
 
   ! Case 3D-3D interpolation
   elseif (all(same_dimension).and.sym_type=="3D") then
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*) 
       write(*,*) "[LOG] 3D-3D Index based interpolation algorithm"
       write(*,*)
@@ -332,7 +332,7 @@ subroutine index_interpolation()
           block%ig%pressure(i,j,k) = oldblock(b)%ig%pressure(i,j,k)
 
           ! Turbulent properties
-          if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(b)%ig%turbprop(1:nrans,i,j,k)
+          if (cfg%nrans > 0 ) block%ig%turbprop(1:cfg%nrans,i,j,k) = oldblock(b)%ig%turbprop(1:cfg%nrans,i,j,k)
 
         enddo
       enddo
@@ -380,14 +380,14 @@ subroutine multiple_interpolation()
   endif
 
   if (xint_dimension) then
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*) 
       write(*,*) "[LOG] New mesh / Old mesh Ratio = ", rapNx
     endif
 
     ! Reconstruction algorithm fo MESH RATIO = 0.5
     if (rapNx==0.5) then
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*) "[LOG] Mesh ratio = 0.5 - Specific algorithm"
         write(*,*)
       endif
@@ -460,8 +460,8 @@ subroutine multiple_interpolation()
                                       +  coeffs(8)*oldblock(b)%ig%pressure(i2, j2, k2)
 
             ! Turbulent properties
-            if (nrans > 0 ) then
-              do cnt = 1, nrans
+            if (cfg%nrans > 0 ) then
+              do cnt = 1, cfg%nrans
               block%ig%turbprop(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%ig%turbprop(cnt,i2d,j2d,k2d)   &
                                             +  coeffs(2)*oldblock(b)%ig%turbprop(cnt,i2, j2d,k2d)   &
                                             +  coeffs(3)*oldblock(b)%ig%turbprop(cnt,i2d,j2, k2d)   &
@@ -480,7 +480,7 @@ subroutine multiple_interpolation()
 
     ! Spcific algorithm for MESH RATIO = 2 (both 2D and 3D)
     elseif (rapNx==2.0) then
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*) "[LOG] Mesh ratio = 2 - Specific algorithm"
         write(*,*)
       endif
@@ -594,8 +594,8 @@ subroutine multiple_interpolation()
                                               +  coeffs(8)*oldblock(b)%ig%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   ! Turbulent properties
-                  if (nrans > 0 ) then
-                    do cnt = 1, nrans
+                  if (cfg%nrans > 0 ) then
+                    do cnt = 1, cfg%nrans
                     block%ig%turbprop(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%ig%turbprop(cnt,i,j,k)     &
                                                     +  coeffs(2)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),j,k)    &
                                                     +  coeffs(3)*oldblock(b)%ig%turbprop(cnt,i,id(mask(2)),k)    &
@@ -621,7 +621,7 @@ subroutine multiple_interpolation()
 
     ! Spcific algorithm for MESH RATIO = 3 (both 2D and 3D)
     elseif (rapNx==3.0) then
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*) "[LOG] Mesh ratio = 3 - Specific Algorithm"
         write(*,*) "[LOG] 2D works! - GOTTA FIND OUT IF 3D WORKS as well"
         write(*,*)
@@ -900,8 +900,8 @@ subroutine multiple_interpolation()
                                               +  coeffs(8)*oldblock(b)%ig%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   ! Turbulent properties
-                  if (nrans > 0 ) then
-                    do cnt = 1, nrans
+                  if (cfg%nrans > 0 ) then
+                    do cnt = 1, cfg%nrans
                     block%ig%turbprop(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%ig%turbprop(cnt,i,j,k)     &
                                                     +  coeffs(2)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),j,k)    &
                                                     +  coeffs(3)*oldblock(b)%ig%turbprop(cnt,i,id(mask(2)),k)    &
@@ -927,7 +927,7 @@ subroutine multiple_interpolation()
 
     ! General algorithm for MESH RATIO = integer (both 2D and 3D)
     else
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*) "[LOG] Mesh ratio = ", rap, " - Generic algorithm"
         write(*,*)
       endif
@@ -962,7 +962,7 @@ subroutine multiple_interpolation()
             block%ig%pressure(i,j,k) = oldblock(b)%ig%pressure(indi,indj,indk)
 
             ! Turbulent properties
-            if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(b)%ig%turbprop(1:nrans,indi,indj,indk)
+            if (cfg%nrans > 0 ) block%ig%turbprop(1:cfg%nrans,i,j,k) = oldblock(b)%ig%turbprop(1:cfg%nrans,indi,indj,indk)
 
           enddo
         enddo
@@ -992,7 +992,7 @@ subroutine distance_interpolation
   real(kind=R8), dimension(:,:,:), allocatable        :: dx, dy, dz, dist
   integer, dimension(3)                               :: maxdim
 
-  if (verbose) then
+  if (cfg%verbose) then
     write(*,*)
     write(*,*) "[LOG] Cell Centers Minimum Distance interpolation algorithm"
     write(*,*)
@@ -1088,7 +1088,7 @@ subroutine distance_interpolation
         block%ig%pressure(i,j,k) = oldblock(trueb)%ig%pressure(ind(1),ind(2),ind(3))
 
         ! Turbulent properties
-        if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(trueb)%ig%turbprop(1:nrans,ind(1),ind(2),ind(3))
+        if (cfg%nrans > 0 ) block%ig%turbprop(1:cfg%nrans,i,j,k) = oldblock(trueb)%ig%turbprop(1:cfg%nrans,ind(1),ind(2),ind(3))
 
       enddo
     enddo
@@ -1105,7 +1105,7 @@ subroutine spherical_distance_interpolation
   real(kind=R8)                                       :: r, xc, yc, zc, x, y, z, dx, dy, dz
   real(kind=R8)                                       :: dist, truedist
 
-  if (verbose) then
+  if (cfg%verbose) then
     write(*,*)
     write(*,*) "[LOG] Cell Centers Spherical Minimum Distance interpolation algorithm"
     write(*,*)
@@ -1218,7 +1218,7 @@ subroutine spherical_distance_interpolation
         block%ig%pressure(i,j,k) = oldblock(trueb)%ig%pressure(ind(1),ind(2),ind(3))
 
         ! Turbulent properties
-        if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(trueb)%ig%turbprop(1:nrans,ind(1),ind(2),ind(3))
+        if (cfg%nrans > 0 ) block%ig%turbprop(1:cfg%nrans,i,j,k) = oldblock(trueb)%ig%turbprop(1:cfg%nrans,ind(1),ind(2),ind(3))
 
       enddo
     enddo

@@ -49,7 +49,7 @@ program BCB_Q2D
   call fini%get(section_name='BCB-Q2D', option_name='strip-j-face', val=strip_j_face, error=error)
   if (error /= 0) strip_j_face = 1
 
-  if (verbose) then
+  if (cfg%verbose) then
     write(*,*) '[CONFIG] meshfile    = ', trim(meshfile)
     write(*,*) '[CONFIG] q2dfile     = ', trim(q2dfile)
     write(*,*) '[CONFIG] outfile     = ', trim(outfile)
@@ -71,10 +71,10 @@ contains
   subroutine parse_args()
     character(99) :: arg
     integer :: i
-    verbose = .false.
+    cfg%verbose = .false.
     do i = 1, command_argument_count()
       call get_command_argument(i, arg)
-      if (arg == '-v' .or. arg == '--verbose') verbose = .true.
+      if (arg == '-v' .or. arg == '--verbose') cfg%verbose = .true.
       if (arg == '-h' .or. arg == '--help') call print_help()
     enddo
   end subroutine

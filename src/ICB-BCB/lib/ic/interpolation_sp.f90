@@ -25,39 +25,39 @@ contains
 
     ! Old files reading and data allocation
     if (oldmeshfile_/='Darwin') then
-      if (verbose) write(*,*)' Reading mesh file: ', trim(oldmeshfile_)
+      if (cfg%verbose) write(*,*)' Reading mesh file: ', trim(oldmeshfile_)
       call read_mesh(oldorion,oldmeshfile_)
       call import_nodes(input=oldorion,output=oldblock)
       deallocate(oldorion%block)
       if (law=='extrude') then
-        if (verbose) write(*,*)" Old mesh extrusion"
+        if (cfg%verbose) write(*,*)" Old mesh extrusion"
         call extrude360(1)
-        if (verbose) write(*,*) 
+        if (cfg%verbose) write(*,*) 
       endif
       do b = 1, size(oldblock)
         call oldblock(b)%compute_centers([0,0,0])
       end do
-      if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
+      if (cfg%verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
       call read_solfile('SP',oldsolutionfile,oldblock)
       if (law=='extrude') then
-        if (verbose) write(*,*)" Old solution extrusion"
+        if (cfg%verbose) write(*,*)" Old solution extrusion"
         call extrude360(2)
-        if (verbose) write(*,*)
+        if (cfg%verbose) write(*,*)
       endif
 
     else
 
-      if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
+      if (cfg%verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
       call read_vtk_tec('SP',oldsolutionfile,oldblock)
       if (law=='extrude') then
-        if (verbose) write(*,*)" Old mesh extrusion"
+        if (cfg%verbose) write(*,*)" Old mesh extrusion"
         call extrude360(1)
-        if (verbose) write(*,*) 
+        if (cfg%verbose) write(*,*) 
       endif
       if (law=='extrude') then
-        if (verbose) write(*,*)" Old solution extrusion"
+        if (cfg%verbose) write(*,*)" Old solution extrusion"
         call extrude360(2)
-        if (verbose) write(*,*)
+        if (cfg%verbose) write(*,*)
       endif
     endif
 
@@ -75,7 +75,7 @@ contains
       real(R8), allocatable :: mesh(:,:,:,:)
       integer :: i, j, k
       
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*)" Extrusion angle    = ", thetamax_extrude
         write(*,*)" Extrusion elements = ", nz_extrude
       endif
@@ -149,7 +149,7 @@ contains
       call build_old_solution(oldmeshfile_,oldsolutionfile_)
     endif
 
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*) " Building new solution"
     endif
 
@@ -177,7 +177,7 @@ contains
 
       end select
 
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*) " Interpolation Completed Successfully"
       write(*,*)
     endif
@@ -224,7 +224,7 @@ subroutine index_interpolation()
 
   ! Case 2D-3D interpolation
   if (all(same_dimension).and.sym_type=="2D") then
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*) 
       write(*,*) " 2D-3D Index based interpolation algorithm"
       write(*,*)
@@ -248,7 +248,7 @@ subroutine index_interpolation()
 
   ! Case 3D-3D interpolation
   elseif (all(same_dimension).and.sym_type=="3D") then
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*) 
       write(*,*) " 3D-3D Index based interpolation algorithm"
       write(*,*)
@@ -313,14 +313,14 @@ subroutine multiple_interpolation()
   endif
 
   if (xint_dimension) then
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,*) 
       write(*,*) " New mesh / Old mesh Ratio = ", rapNx
     endif
 
     ! Reconstruction algorithm fo MESH RATIO = 0.5
     if (rapNx==0.5) then
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*) " Mesh ratio = 0.5 - Specific algorithm"
         write(*,*)
       endif
@@ -379,7 +379,7 @@ subroutine multiple_interpolation()
 
     ! Spcific algorithm for MESH RATIO = 2 (both 2D and 3D)
     elseif (rapNx==2.0) then
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*) " Mesh ratio = 2 - Specific algorithm"
         write(*,*)
       endif
@@ -485,7 +485,7 @@ subroutine multiple_interpolation()
 
     ! Spcific algorithm for MESH RATIO = 3 (both 2D and 3D)
     elseif (rapNx==3.0) then
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*) " Mesh ratio = 3 - Specific Algorithm"
         write(*,*) " 2D works! - GOTTA FIND OUT IF 3D WORKS as well"
         write(*,*)
@@ -756,7 +756,7 @@ subroutine multiple_interpolation()
 
     ! General algorithm for MESH RATIO = integer (both 2D and 3D)
     else
-      if (verbose) then
+      if (cfg%verbose) then
         write(*,*) " Mesh ratio = ", rap, " - Generic algorithm"
         write(*,*)
       endif
@@ -802,7 +802,7 @@ subroutine distance_interpolation
   real(kind=R8), dimension(:,:,:), allocatable        :: dx, dy, dz, dist
   integer                                             :: maxdim(3)
 
-  if (verbose) then
+  if (cfg%verbose) then
     write(*,*)
     write(*,*) " Cell Centers Minimum Distance interpolation algorithm"
     write(*,*)
@@ -877,7 +877,7 @@ subroutine spherical_distance_interpolation
   real(kind=R8)                                       :: r, xc, yc, zc, x, y, z, dx, dy, dz
   real(kind=R8)                                       :: dist, truedist
 
-  if (verbose) then
+  if (cfg%verbose) then
     write(*,*)
     write(*,*) " Cell Centers Spherical Minimum Distance interpolation algorithm"
     write(*,*)

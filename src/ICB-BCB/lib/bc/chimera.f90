@@ -10,14 +10,17 @@ contains
   subroutine chimera_wrapper(block)
     use intersection_module
     use ATLAS_high_level
-    use ATLAS_Mod_Grid, only: gc
+    use ATLAS_Mod_Grid, only: mesh_cfg
     implicit none
     type(ATLAS_block), intent(inout) :: block(:)
     character(len=200) :: master_path
     integer                 :: ir,jr,kr,br,ni,nint
     integer                 :: unitfile1, unitfile2
+    integer                 :: gc(3)
     type(intersection_type), allocatable :: intersection(:)
     logical, allocatable                 :: nodeinside(:,:,:,:)
+
+    gc = mesh_cfg%gc
 
     !% Look for intersections
     ni = 0; nint = 0

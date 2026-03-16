@@ -13,7 +13,7 @@ program ICB
   use build_IC_mod
   use finer, only: file_ini
   use IC_lib_POWER
-  use ATLAS_Mod_Grid, only: meshType
+  use ATLAS_Mod_Grid, only: mesh_cfg
 
   implicit none
   type(phase_type), allocatable  :: phase(:)
@@ -37,7 +37,7 @@ program ICB
   call read_mesh(orion)
   call import_nodes(input=orion,output=block)
   do b = 1, size(block)
-    if (meshType == -2) then
+    if (mesh_cfg%meshType == -2) then
       call block(b)%extrapolate_nodes([0,0,0])
       call block(b)%compute_centers([1,0,0])
     else
@@ -86,14 +86,14 @@ program ICB
     character(99):: arg
     integer      :: arg_count, i
 
-    verbose = .false.
+    cfg%verbose = .false.
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
     do i = 1, arg_count
       call GET_COMMAND_ARGUMENT(i, arg)
       if (arg == '-v' .or. arg == '--verbose') then
-        verbose = .true.
+        cfg%verbose = .true.
       end if
     end do
 

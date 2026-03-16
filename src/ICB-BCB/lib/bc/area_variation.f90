@@ -5,7 +5,7 @@ module BC_area_variation
   use, intrinsic :: iso_fortran_env, only: R8 => real64
   use finer,            only: file_ini
   use ATLAS_high_level, only: ATLAS_block
-  use variables,        only: outpath, verbose, llen
+  use variables,        only: outpath, cfg, llen
   implicit none
   private
   public :: build_area_variation
@@ -79,7 +79,7 @@ contains
     write(outfile, '(A,"/block",I0,"_area.dat")') trim(outpath), block_id
     call write_area(outfile, aout)
 
-    if (verbose) write(*,'(A,I0,2A)') '   [area] Block ', block_id, ' -> ', trim(outfile)
+    if (cfg%verbose) write(*,'(A,I0,2A)') '   [area] Block ', block_id, ' -> ', trim(outfile)
 
   end subroutine area_variation_for_block
 

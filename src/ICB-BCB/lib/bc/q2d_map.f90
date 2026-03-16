@@ -3,7 +3,7 @@
 ! Periodic interpolation in theta-space with velocity transformation.
 module BC_q2d_map
   use, intrinsic :: iso_fortran_env, only: R8 => real64, iostat_end
-  use variables, only: verbose, llen
+  use variables, only: cfg, llen
   use ATLAS_high_level
   use ATLAS_IO_fields, only: read_mesh
   use Lib_ORION_data
@@ -47,15 +47,15 @@ contains
     ax_idx = face_to_axis(face)
 
     ! Read 3D mesh
-    if (verbose) write(*,'(A,A)') " [LOG] Reading 3D mesh: ", trim(meshfile)
+    if (cfg%verbose) write(*,'(A,A)') " [LOG] Reading 3D mesh: ", trim(meshfile)
     call read_mesh(mesh_orion, trim(meshfile))
     call import_nodes(input=mesh_orion, output=blocks)
     call build_geometry(blocks)
 
-    if (verbose) write(*,'(A,3F10.4)') " [LOG] Cylinder center: ", cyl_center
+    if (cfg%verbose) write(*,'(A,3F10.4)') " [LOG] Cylinder center: ", cyl_center
 
     ! Read Q2D
-    if (verbose) write(*,'(A,A)') " [LOG] Reading Q2D file: ", trim(q2dfile)
+    if (cfg%verbose) write(*,'(A,A)') " [LOG] Reading Q2D file: ", trim(q2dfile)
     q2d_orion%tec%format = 'ascii'
     if (tec_read_structured_multiblock(orion=q2d_orion, filename=trim(q2dfile)) /= 0) &
       stop "[ERROR] Failed to read Q2D file"
@@ -65,7 +65,7 @@ contains
     call read_solution_times(q2dfile, times, nzones)
     call filter_varnames(q2d_orion%varnames, varnames)
 
-    if (verbose) then
+    if (cfg%verbose) then
       write(*,'(A,I0,A,I0)') " [LOG] Zones: ", nzones, ", Variables: ", size(varnames)
       write(*,'(A,I0,A,I0)') " [LOG] Face: ", face, ", Axis: ", ax_idx
     endif
@@ -87,7 +87,7 @@ contains
     enddo
     if (file_opened) close(file_unit)
 
-    if (verbose) write(*,'(A,A)') " [LOG] Output: ", trim(outfile)
+    if (cfg%verbose) write(*,'(A,A)') " [LOG] Output: ", trim(outfile)
   end subroutine
 
 

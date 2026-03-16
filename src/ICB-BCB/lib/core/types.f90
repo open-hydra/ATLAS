@@ -87,10 +87,10 @@ contains
 
     call check_mesh_type(input%block(1)%mesh)
 
-    if (meshType==-2) then
-      gc = [2, 2, 0]
+    if (mesh_cfg%meshType==-2) then
+      mesh_cfg%gc = [2, 2, 0]
     else
-      gc = 2
+      mesh_cfg%gc = 2
     endif 
 
     allocate(output(size(input%block)))
@@ -98,8 +98,11 @@ contains
       output(b)%dim(1) = input%block(b)%Ni
       output(b)%dim(2) = input%block(b)%Nj
       output(b)%dim(3) = max(input%block(b)%Nk,1) ! Handle 2D meshes
-      allocate(output(b)%node(0-gc(1):output(b)%dim(1)+gc(1),0-gc(2):output(b)%dim(2)+gc(2),0-gc(3):output(b)%dim(3)+gc(3)))
-      if (meshType/=-2) then
+      allocate(output(b)%node( &
+        0-mesh_cfg%gc(1):output(b)%dim(1)+mesh_cfg%gc(1), &
+        0-mesh_cfg%gc(2):output(b)%dim(2)+mesh_cfg%gc(2), &
+        0-mesh_cfg%gc(3):output(b)%dim(3)+mesh_cfg%gc(3)))
+      if (mesh_cfg%meshType/=-2) then
         !$omp parallel do collapse(3) private(i,j,k)
         do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
               output(b)%node(i,j,k)%c(1:3) = input%block(b)%mesh(1:3,i,j,k)
@@ -123,11 +126,11 @@ contains
     integer :: b
 
     do b = 1, size(block)
-      call block(b)%extrapolate_nodes(gc)
-      call block(b)%compute_volume(gc)
-      call block(b)%compute_centers(gc)
+      call block(b)%extrapolate_nodes(mesh_cfg%gc)
+      call block(b)%compute_volume(mesh_cfg%gc)
+      call block(b)%compute_centers(mesh_cfg%gc)
       call block(b)%compute_face_centers()
-      call block(b)%compute_bounding(gc)
+      call block(b)%compute_bounding(mesh_cfg%gc)
     enddo
 
   end subroutine build_geometry
@@ -154,9 +157,9 @@ contains
     class(ATLAS_block), intent(inout) :: self
     integer :: m, n
 
-    if (meshType==1) then
+    if (mesh_cfg%meshType==1) then
       self%nfaces = 2
-    elseif (meshType==-2) then
+    elseif (mesh_cfg%meshType==-2) then
       self%nfaces = 4
     else
       self%nfaces = 6
@@ -167,24 +170,24 @@ contains
     !> Compute the face center coords
     self%face(1)%Nm = self%dim(2); self%face(1)%Nn = self%dim(3)
     self%face(2)%Nm = self%dim(2); self%face(2)%Nn = self%dim(3)
-    if (meshType/=1) then
+    if (mesh_cfg%meshType/=1) then
       self%face(3)%Nm = self%dim(1); self%face(3)%Nn = self%dim(3)
       self%face(4)%Nm = self%dim(1); self%face(4)%Nn = self%dim(3)
     endif
-    if (meshType>=2) then
+    if (mesh_cfg%meshType>=2) then
       self%face(5)%Nm = self%dim(1); self%face(5)%Nn = self%dim(2)
       self%face(6)%Nm = self%dim(1); self%face(6)%Nn = self%dim(2)
     endif
 
-    allocate(self%face(1)%center(1-gc(2):self%dim(2)+gc(2),1-gc(3):self%dim(3)+gc(3)))
-    allocate(self%face(2)%center(1-gc(2):self%dim(2)+gc(2),1-gc(3):self%dim(3)+gc(3)))
-    if (meshType/=1) then
-      allocate(self%face(3)%center(1-gc(1):self%dim(1)+gc(1),1-gc(3):self%dim(3)+gc(3)))
-      allocate(self%face(4)%center(1-gc(1):self%dim(1)+gc(1),1-gc(3):self%dim(3)+gc(3)))
+    allocate(self%face(1)%center(1-mesh_cfg%gc(2):self%dim(2)+mesh_cfg%gc(2),1-mesh_cfg%gc(3):self%dim(3)+mesh_cfg%gc(3)))
+    allocate(self%face(2)%center(1-mesh_cfg%gc(2):self%dim(2)+mesh_cfg%gc(2),1-mesh_cfg%gc(3):self%dim(3)+mesh_cfg%gc(3)))
+    if (mesh_cfg%meshType/=1) then
+      allocate(self%face(3)%center(1-mesh_cfg%gc(1):self%dim(1)+mesh_cfg%gc(1),1-mesh_cfg%gc(3):self%dim(3)+mesh_cfg%gc(3)))
+      allocate(self%face(4)%center(1-mesh_cfg%gc(1):self%dim(1)+mesh_cfg%gc(1),1-mesh_cfg%gc(3):self%dim(3)+mesh_cfg%gc(3)))
     endif
-    if (meshType>=2) then
-      allocate(self%face(5)%center(1-gc(1):self%dim(1)+gc(1),1-gc(2):self%dim(2)+gc(2)))
-      allocate(self%face(6)%center(1-gc(1):self%dim(1)+gc(1),1-gc(2):self%dim(2)+gc(2)))
+    if (mesh_cfg%meshType>=2) then
+      allocate(self%face(5)%center(1-mesh_cfg%gc(1):self%dim(1)+mesh_cfg%gc(1),1-mesh_cfg%gc(2):self%dim(2)+mesh_cfg%gc(2)))
+      allocate(self%face(6)%center(1-mesh_cfg%gc(1):self%dim(1)+mesh_cfg%gc(1),1-mesh_cfg%gc(2):self%dim(2)+mesh_cfg%gc(2)))
     endif
 
     !$omp parallel private(m,n)
@@ -200,7 +203,7 @@ contains
                                                   self%node( 0 , m ,n-1)%c, &
                                                   self%node( 0 ,m-1, n )%c, &
                                                   self%node( 0 , m , n )%c)
-        if (meshType == -2) then
+        if (mesh_cfg%meshType == -2) then
           this%center(m,n)%area = sqrt((self%node(0,m,n-1)%c(1)-self%node(0,m-1,n-1)%c(1))**2+(self%node(0,m,n-1)%c(2)-self%node(0,m-1,n-1)%c(2))**2)
         else
           this%center(m,n)%area = CalculateArea(self%node( 0 ,m-1,n-1)%c,     &
@@ -208,7 +211,7 @@ contains
                                                     self%node( 0 ,m-1, n )%c, &
                                                     self%node( 0 , m , n )%c)
         endif
-        if (meshType == -2) then
+        if (mesh_cfg%meshType == -2) then
           this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(1:2))
         else
           this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
@@ -228,7 +231,7 @@ contains
                                                   self%node(self%dim(1), m ,n-1)%c, &
                                                   self%node(self%dim(1),m-1, n )%c, &
                                                   self%node(self%dim(1), m , n )%c)
-        if (meshType == -2) then
+        if (mesh_cfg%meshType == -2) then
           this%center(m,n)%area = sqrt((self%node(self%dim(1),m,n-1)%c(1)-self%node(self%dim(1),m-1,n-1)%c(1))**2+(self%node(self%dim(1),m,n-1)%c(2)-self%node(self%dim(1),m-1,n-1)%c(2))**2)
         else
           this%center(m,n)%area = CalculateArea(self%node(self%dim(1),m-1,n-1)%c,     &
@@ -236,7 +239,7 @@ contains
                                                     self%node(self%dim(1),m-1, n )%c, &
                                                     self%node(self%dim(1), m , n )%c)
         endif
-        if (meshType == -2) then
+        if (mesh_cfg%meshType == -2) then
           this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(1:2))
         else
           this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
@@ -246,7 +249,7 @@ contains
     endassociate
     !$omp end parallel
 
-    if (meshType==1) return
+    if (mesh_cfg%meshType==1) return
 
     !$omp parallel private(m,n)
     associate( this => self%face(3) )
@@ -261,7 +264,7 @@ contains
                                                   self%node( m , 0 ,n-1)%c, &
                                                   self%node(m-1, 0 , n )%c, &
                                                   self%node( m , 0 , n )%c)
-        if (meshType == -2) then
+        if (mesh_cfg%meshType == -2) then
           this%center(m,n)%area = sqrt((self%node(m,0,n-1)%c(1)-self%node(m-1,0,n-1)%c(1))**2+(self%node(m,0,n-1)%c(2)-self%node(m-1,0,n-1)%c(2))**2)
         else
           this%center(m,n)%area = CalculateArea(self%node(m-1, 0 ,n-1)%c,     &
@@ -269,7 +272,7 @@ contains
                                                     self%node(m-1, 0 , n )%c, &
                                                     self%node( m , 0 , n )%c)
         endif
-        if (meshType == -2) then
+        if (mesh_cfg%meshType == -2) then
           this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(1:2))
         else
           this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
@@ -289,7 +292,7 @@ contains
                                                   self%node( m ,self%dim(2),n-1)%c, &
                                                   self%node(m-1,self%dim(2), n )%c, &
                                                   self%node( m ,self%dim(2), n )%c)
-        if (meshType == -2) then
+        if (mesh_cfg%meshType == -2) then
           this%center(m,n)%area = sqrt((self%node(m,self%dim(2),n-1)%c(1)-self%node(m-1,self%dim(2),n-1)%c(1))**2+(self%node(m,self%dim(2),n-1)%c(2)-self%node(m-1,self%dim(2),n-1)%c(2))**2)
         else
           this%center(m,n)%area = CalculateArea(self%node(m-1,self%dim(2),n-1)%c,     &
@@ -297,7 +300,7 @@ contains
                                                     self%node(m-1,self%dim(2), n )%c, &
                                                     self%node( m ,self%dim(2), n )%c)
         endif
-        if (meshType == -2) then
+        if (mesh_cfg%meshType == -2) then
           this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(1:2))
         else
           this%center(m,n)%c(4:5) = cartesian2cyl(this%center(m,n)%c(2:3))
@@ -307,7 +310,7 @@ contains
     endassociate
     !$omp end parallel
 
-    if (meshType<2) return
+    if (mesh_cfg%meshType<2) return
 
     !$omp parallel private(m,n)
     associate( this => self%face(5) )
