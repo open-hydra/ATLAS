@@ -20,26 +20,36 @@
       type(obj_bc_cell_properties), dimension(:,:,:), allocatable :: cell  ! Cell specific BC applied to ghost cells (only for chimera)
     end type obj_face
 
-    type, extends(block_type), public :: ATLAS_block
-      !! IC
-      character(len=20)                          :: type
-      ! IC - IG
+    ! IC sub-types: ideal-gas, condensed-phase dispersed, solid-phase
+    type, public :: block_ic_ig
       real(8), dimension(:,:,:,:), allocatable   :: density
       real(8), dimension(:,:,:), allocatable     :: temperature
       real(8), dimension(:,:,:), allocatable     :: pressure
       real(8), dimension(:,:,:), allocatable     :: mil, kl
       real(8), dimension(:,:,:,:), allocatable   :: turbprop
       real(8), dimension(:,:,:,:), allocatable   :: velocity
-      real(8)                                    :: gamma, R
-      ! IC - CD
+      real(8)                                    :: gamma = 0.d0
+      real(8)                                    :: R = 0.d0
+    end type block_ic_ig
+
+    type, public :: block_ic_cd
       real(8), dimension(:,:,:,:), allocatable   :: densityP
       real(8), dimension(:,:,:,:,:), allocatable :: velocityP
       real(8), dimension(:,:,:,:), allocatable   :: temperatureP
       real(8), dimension(:,:,:,:), allocatable   :: nP
       real(8), dimension(:,:,:,:), allocatable   :: PP
-      ! IC - SP
+    end type block_ic_cd
+
+    type, public :: block_ic_sp
       real(8), dimension(:,:,:), allocatable     :: mID
       real(8), dimension(:,:,:), allocatable     :: qvol
+    end type block_ic_sp
+
+    type, extends(block_type), public :: ATLAS_block
+      character(len=20)                          :: type
+      type(block_ic_ig)                          :: ig
+      type(block_ic_cd)                          :: cd
+      type(block_ic_sp)                          :: sp
       !! BC
       integer :: nfaces
       type(obj_face), dimension(:), allocatable  :: face
@@ -127,15 +137,15 @@ contains
     class(ATLAS_block), intent(inout) :: self
     integer, intent(in)          :: ss, rr, ii, jj, kk
 
-    allocate(self%density(1:ss,1:ii,1:jj,1:kk))
-    allocate(self%velocity(1:3,1:ii,1:jj,1:kk))
-    allocate(self%pressure(1:ii,1:jj,1:kk))
-    allocate(self%turbprop(1:rr,1:ii,1:jj,1:kk))
-    allocate(self%mil(1:ii,1:jj,1:kk))
-    allocate(self%kl(1:ii,1:jj,1:kk))
-    allocate(self%temperature(1:ii,1:jj,1:kk))
-    allocate(self%mID(1:ii,1:jj,1:kk))
-    allocate(self%qvol(1:ii,1:jj,1:kk))
+    allocate(self%ig%density(1:ss,1:ii,1:jj,1:kk))
+    allocate(self%ig%velocity(1:3,1:ii,1:jj,1:kk))
+    allocate(self%ig%pressure(1:ii,1:jj,1:kk))
+    allocate(self%ig%turbprop(1:rr,1:ii,1:jj,1:kk))
+    allocate(self%ig%mil(1:ii,1:jj,1:kk))
+    allocate(self%ig%kl(1:ii,1:jj,1:kk))
+    allocate(self%ig%temperature(1:ii,1:jj,1:kk))
+    allocate(self%sp%mID(1:ii,1:jj,1:kk))
+    allocate(self%sp%qvol(1:ii,1:jj,1:kk))
 
   end subroutine allocate
 

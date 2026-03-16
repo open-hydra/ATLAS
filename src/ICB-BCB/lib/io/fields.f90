@@ -103,29 +103,29 @@ contains
     !write(*,*)' Writing  variables'
     !write(*,*)'        -----> rho(Ns)'
     do b = 1, nb
-      write(unitfile)((((dble(block(b)%density(s,i,j,k)),s=1,nsc), &
+      write(unitfile)((((dble(block(b)%ig%density(s,i,j,k)),s=1,nsc), &
                                              i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
     end do
     !write(*,*)'        -----> u'
     do b = 1, nb
-      write(unitfile) (((dble(block(b)%velocity(1,i,j,k)),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
+      write(unitfile) (((dble(block(b)%ig%velocity(1,i,j,k)),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
     end do
     !write(*,*)'        -----> v'
     do b = 1, nb
-      write(unitfile) (((dble(block(b)%velocity(2,i,j,k)),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
+      write(unitfile) (((dble(block(b)%ig%velocity(2,i,j,k)),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
     end do
     !write(*,*)'        -----> w'
     do b = 1, nb
-      write(unitfile) (((dble(block(b)%velocity(3,i,j,k)),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
+      write(unitfile) (((dble(block(b)%ig%velocity(3,i,j,k)),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
     end do
     !write(*,*)'        -----> p'
     do b = 1, nb
-      write(unitfile) (((dble(block(b)%pressure(i,j,k)),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
+      write(unitfile) (((dble(block(b)%ig%pressure(i,j,k)),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
     end do
 
     if (nrans>0) then
       do b = 1, nb
-        write(unitfile) ((((dble(block(b)%turbprop(s,i,j,k)),s=1,nrans),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
+        write(unitfile) ((((dble(block(b)%ig%turbprop(s,i,j,k)),s=1,nrans),i=1,block(b)%dim(1)),j=1,block(b)%dim(2)),k=1,block(b)%dim(3))
       end do
     endif
 
@@ -182,25 +182,25 @@ contains
     
       do b = 1, nb
         read(unitfile)((((vars(s,b,i,j,k),s=1,n),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-        icblock(b)%density(1:n,1:Nx(b),1:Ny(b),1:Nz(b)) = vars(1:n,b,1:Nx(b),1:Ny(b),1:Nz(b))
+        icblock(b)%ig%density(1:n,1:Nx(b),1:Ny(b),1:Nz(b)) = vars(1:n,b,1:Nx(b),1:Ny(b),1:Nz(b))
       end do
       do cnt = 1, 3
         do b = 1, nb
           read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-          icblock(b)%velocity(cnt,1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+          icblock(b)%ig%velocity(cnt,1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
         end do
       end do
       do b = 1, nb
         read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-        icblock(b)%pressure(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+        icblock(b)%ig%pressure(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
       end do
       ! Turbulent models
       do b = 1, nb
         read(unitfile,iostat=io)((((vart(s,b,i,j,k),s=1,nrans),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
         if (io==0) then
-          icblock(b)%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = vart(:,b,1:Nx(b),1:Ny(b),1:Nz(b))
+          icblock(b)%ig%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = vart(:,b,1:Nx(b),1:Ny(b),1:Nz(b))
         else
-          icblock(b)%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = 0.0
+          icblock(b)%ig%turbprop(1:nrans,1:Nx(b),1:Ny(b),1:Nz(b)) = 0.0
         endif
       enddo
 
@@ -210,17 +210,17 @@ contains
     
       do b = 1, nb
         read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-        icblock(b)%temperature(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+        icblock(b)%ig%temperature(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
       end do
 
       do b = 1, nb
         read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-        icblock(b)%mID(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+        icblock(b)%sp%mID(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
       end do
 
       do b = 1, nb
         read(unitfile)(((var(b,i,j,k),i=1,Nx(b)),j=1,Ny(b)),k=1,Nz(b))
-        icblock(b)%qvol(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
+        icblock(b)%sp%qvol(1:Nx(b),1:Ny(b),1:Nz(b)) = var(b,1:Nx(b),1:Ny(b),1:Nz(b))
       end do
 
     endif
@@ -263,12 +263,12 @@ contains
         call icblock(b)%allocate(nrans,n,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
         if (size(IOfield%block(b)%vars)>0) then
           do s = 1, n
-            icblock(b)%density(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(s,:,:,:)
+            icblock(b)%ig%density(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(s,:,:,:)
           enddo
-          icblock(b)%velocity(1:3,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+1:n+3,:,:,:)
-          icblock(b)%pressure(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4,:,:,:)
+          icblock(b)%ig%velocity(1:3,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+1:n+3,:,:,:)
+          icblock(b)%ig%pressure(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4,:,:,:)
           do s = 1, nrans
-            icblock(b)%turbprop(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4+s,:,:,:)
+            icblock(b)%ig%turbprop(s,1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(n+4+s,:,:,:)
           enddo 
         endif
       end do
@@ -278,9 +278,9 @@ contains
         call icblock(b)%compute_centers([0,0,0])
         call icblock(b)%allocate(1,1,icblock(b)%dim(1),icblock(b)%dim(2),icblock(b)%dim(3))
         if (size(IOfield%block(b)%vars)>0) then
-          icblock(b)%temperature(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(1,:,:,:)
-          icblock(b)%mID(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(2,:,:,:)
-          icblock(b)%qvol(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(3,:,:,:)
+          icblock(b)%ig%temperature(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(1,:,:,:)
+          icblock(b)%sp%mID(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(2,:,:,:)
+          icblock(b)%sp%qvol(1:icblock(b)%dim(1),1:icblock(b)%dim(2),1:icblock(b)%dim(3)) = IOfield%block(b)%vars(3,:,:,:)
         endif
       end do
     endif
@@ -405,24 +405,24 @@ contains
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-IG'
           if (meshtype == 10) then
             allocate(orion%block(cnt)%vars(1:nsc+2,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
-            orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%density
-            orion%block(cnt)%vars(nsc+1,:,:,:) = block(b)%velocity(1,:,:,:)
-            orion%block(cnt)%vars(nsc+2,:,:,:) = block(b)%pressure
+            orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%ig%density
+            orion%block(cnt)%vars(nsc+1,:,:,:) = block(b)%ig%velocity(1,:,:,:)
+            orion%block(cnt)%vars(nsc+2,:,:,:) = block(b)%ig%pressure
           elseif (meshtype == -2) then
             allocate(orion%block(cnt)%vars(1:nsc+3+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
-            orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%density
-            orion%block(cnt)%vars(nsc+1:nsc+2,:,:,:) = block(b)%velocity(1:2,:,:,:)
-            orion%block(cnt)%vars(nsc+3,:,:,:) = block(b)%pressure
+            orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%ig%density
+            orion%block(cnt)%vars(nsc+1:nsc+2,:,:,:) = block(b)%ig%velocity(1:2,:,:,:)
+            orion%block(cnt)%vars(nsc+3,:,:,:) = block(b)%ig%pressure
             if (nrans>0) then
-              orion%block(cnt)%vars(nsc+4:nsc+3+nrans,:,:,:) = block(b)%turbprop
+              orion%block(cnt)%vars(nsc+4:nsc+3+nrans,:,:,:) = block(b)%ig%turbprop
             endif
           else
             allocate(orion%block(cnt)%vars(1:nsc+4+nrans,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
-            orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%density
-            orion%block(cnt)%vars(nsc+1:nsc+3,:,:,:) = block(b)%velocity
-            orion%block(cnt)%vars(nsc+4,:,:,:) = block(b)%pressure
+            orion%block(cnt)%vars(1:nsc,:,:,:) = block(b)%ig%density
+            orion%block(cnt)%vars(nsc+1:nsc+3,:,:,:) = block(b)%ig%velocity
+            orion%block(cnt)%vars(nsc+4,:,:,:) = block(b)%ig%pressure
             if (nrans>0) then
-              orion%block(cnt)%vars(nsc+5:nsc+4+nrans,:,:,:) = block(b)%turbprop
+              orion%block(cnt)%vars(nsc+5:nsc+4+nrans,:,:,:) = block(b)%ig%turbprop
             endif
           endif
         case('CD')
@@ -430,31 +430,31 @@ contains
           allocate(orion%block(cnt)%vars(1:nnn*(6+neuler),1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
           s = 1
           do m = 1, nnn
-            orion%block(cnt)%vars(s,:,:,:) = block(b)%densityp(m,:,:,:)
-            orion%block(cnt)%vars(s+1,:,:,:) = block(b)%velocityp(m,1,:,:,:)
-            orion%block(cnt)%vars(s+2,:,:,:) = block(b)%velocityp(m,2,:,:,:)
-            orion%block(cnt)%vars(s+3,:,:,:) = block(b)%velocityp(m,3,:,:,:)
+            orion%block(cnt)%vars(s,:,:,:) = block(b)%cd%densityp(m,:,:,:)
+            orion%block(cnt)%vars(s+1,:,:,:) = block(b)%cd%velocityp(m,1,:,:,:)
+            orion%block(cnt)%vars(s+2,:,:,:) = block(b)%cd%velocityp(m,2,:,:,:)
+            orion%block(cnt)%vars(s+3,:,:,:) = block(b)%cd%velocityp(m,3,:,:,:)
             if (neuler==1) then
-              orion%block(cnt)%vars(s+4,:,:,:) = block(b)%PP(m,:,:,:)
+              orion%block(cnt)%vars(s+4,:,:,:) = block(b)%cd%PP(m,:,:,:)
             endif
             if (neuler==6) then
-              orion%block(cnt)%vars(s+4,:,:,:) = block(b)%PP(m,:,:,:)
+              orion%block(cnt)%vars(s+4,:,:,:) = block(b)%cd%PP(m,:,:,:)
               orion%block(cnt)%vars(s+5,:,:,:) = 0d0
               orion%block(cnt)%vars(s+6,:,:,:) = 0d0
-              orion%block(cnt)%vars(s+7,:,:,:) = block(b)%PP(m,:,:,:)
+              orion%block(cnt)%vars(s+7,:,:,:) = block(b)%cd%PP(m,:,:,:)
               orion%block(cnt)%vars(s+8,:,:,:) = 0d0
-              orion%block(cnt)%vars(s+9,:,:,:) = block(b)%PP(m,:,:,:)
+              orion%block(cnt)%vars(s+9,:,:,:) = block(b)%cd%PP(m,:,:,:)
             endif
-            orion%block(cnt)%vars(s+4+neuler,:,:,:) = block(b)%temperatureP(m,:,:,:)
-            orion%block(cnt)%vars(s+5+neuler,:,:,:) = block(b)%np(m,:,:,:)
+            orion%block(cnt)%vars(s+4+neuler,:,:,:) = block(b)%cd%temperatureP(m,:,:,:)
+            orion%block(cnt)%vars(s+5+neuler,:,:,:) = block(b)%cd%np(m,:,:,:)
             s = s + 6 + neuler
           enddo
         case('SP')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'
           allocate(orion%block(cnt)%vars(3,1:block(b)%dim(1),1:block(b)%dim(2),1:block(b)%dim(3)))
-          orion%block(cnt)%vars(1,:,:,:) = block(b)%temperature
-          orion%block(cnt)%vars(2,:,:,:) = block(b)%mID
-          orion%block(cnt)%vars(3,:,:,:) = block(b)%qvol
+          orion%block(cnt)%vars(1,:,:,:) = block(b)%ig%temperature
+          orion%block(cnt)%vars(2,:,:,:) = block(b)%sp%mID
+          orion%block(cnt)%vars(3,:,:,:) = block(b)%sp%qvol
         end select
       enddo
 

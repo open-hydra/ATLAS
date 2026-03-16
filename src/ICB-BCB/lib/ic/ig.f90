@@ -197,12 +197,12 @@ contains
 
     write(*,*) ' -- IG type = ',trim(IC_type)
 
-    if (.not.allocated(block%density)) then
-      allocate(block%density(sp%n,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-      allocate(block%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-      allocate(block%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-      allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-      if (nrans>0) allocate(block%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    if (.not.allocated(block%ig%density)) then
+      allocate(block%ig%density(sp%n,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%ig%velocity(3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%ig%pressure(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%ig%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      if (nrans>0) allocate(block%ig%turbprop(nrans,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
 
@@ -211,7 +211,7 @@ contains
 
       case ('interpolation')
 
-        block%density = 0.d0
+        block%ig%density = 0.d0
         ! Check if an equilibrium composition has to be defined. If so, partial densities are set accordingly to species mass fractions
         call define_composition(zoneini, sp, T0c, p0c)
         if (any(sp%massf>0.d0)) then
@@ -219,7 +219,7 @@ contains
             write(*,*) "[LOG] Species mass fractions decomposition in interpolation"
           endif
           do s = 1, sp%n
-            block%density(s,:,:,:) = max(sp%massf(s),1d-20)
+            block%ig%density(s,:,:,:) = max(sp%massf(s),1d-20)
           enddo
         endif
         ! Interpolation
@@ -228,9 +228,9 @@ contains
         !$omp parallel private(i,j,k,massf,Rgas)
         !$omp do collapse(3)
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
-              massf = block%density(:,i,j,k)/sum(block%density(:,i,j,k))
+              massf = block%ig%density(:,i,j,k)/sum(block%ig%density(:,i,j,k))
               Rgas = sum(Runi*massf/sp%w)
-              block%temperature(i,j,k) = block%pressure(i,j,k)/(Rgas*sum(block%density(:,i,j,k)))
+              block%ig%temperature(i,j,k) = block%ig%pressure(i,j,k)/(Rgas*sum(block%ig%density(:,i,j,k)))
         enddo; enddo; enddo
         !$omp end parallel
 
@@ -266,30 +266,30 @@ contains
                 here(2)>=range(3) .and. here(2)<=range(4) .and. &
                 here(3)>=range(5) .and. here(3)<=range(6)) then
                 do s = 1, sp%n
-                block%density(s,i,j,k) = rhoc*sp%massf(s)
-                if (isnan(block%density(s,i,j,k))) error stop '[ERROR] NaN in density assignment'
+                block%ig%density(s,i,j,k) = rhoc*sp%massf(s)
+                if (isnan(block%ig%density(s,i,j,k))) error stop '[ERROR] NaN in density assignment'
                 enddo
-                block%temperature(i,j,k) = Tc
+                block%ig%temperature(i,j,k) = Tc
                 if (ux==0) then
-                  block%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
+                  block%ig%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
                 else
-                  block%velocity(1,i,j,k) = ux
+                  block%ig%velocity(1,i,j,k) = ux
                 endif
-                if (isnan(block%velocity(1,i,j,k))) error stop '[ERROR] NaN in velocity assignment'
+                if (isnan(block%ig%velocity(1,i,j,k))) error stop '[ERROR] NaN in velocity assignment'
                 if (uy==0) then
-                  block%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
+                  block%ig%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
                 else
-                  block%velocity(2,i,j,k) = uy
+                  block%ig%velocity(2,i,j,k) = uy
                 endif
-                if (isnan(block%velocity(2,i,j,k))) error stop '[ERROR] NaN in velocity assignment'
+                if (isnan(block%ig%velocity(2,i,j,k))) error stop '[ERROR] NaN in velocity assignment'
                 if (uz==0) then
-                  block%velocity(3,i,j,k) = vel*sin(beta)
+                  block%ig%velocity(3,i,j,k) = vel*sin(beta)
                 else
-                  block%velocity(3,i,j,k) = uz
+                  block%ig%velocity(3,i,j,k) = uz
                 endif
-                if (isnan(block%velocity(3,i,j,k))) error stop '[ERROR] NaN in velocity assignment'
-                block%pressure(i,j,k) = pc
-                if (isnan(block%pressure(i,j,k))) error stop '[ERROR] NaN in pressure assignment'
+                if (isnan(block%ig%velocity(3,i,j,k))) error stop '[ERROR] NaN in velocity assignment'
+                block%ig%pressure(i,j,k) = pc
+                if (isnan(block%ig%pressure(i,j,k))) error stop '[ERROR] NaN in pressure assignment'
             endif
 
         enddo; enddo; enddo
@@ -329,27 +329,27 @@ contains
                 here(2)>=range(3) .and. here(2)<=range(4) .and. &
                 here(3)>=range(5) .and. here(3)<=range(6)) then
                 do s = 1, sp%n
-                block%density(s,i,j,k) = rho(i,j,k)*sp%massf(s)
+                block%ig%density(s,i,j,k) = rho(i,j,k)*sp%massf(s)
                 enddo
                 a = sqrt(gamma*Rgas*T(i,j,k))
                 vel = M(i,j,k)*a
-                block%temperature(i,j,k) = T(i,j,k)
+                block%ig%temperature(i,j,k) = T(i,j,k)
                 if (ux==0) then
-                  block%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
+                  block%ig%velocity(1,i,j,k) = vel*cos(alpha)*cos(beta)
                 else
-                  block%velocity(1,i,j,k) = ux
+                  block%ig%velocity(1,i,j,k) = ux
                 endif
                 if (uy==0) then
-                  block%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
+                  block%ig%velocity(2,i,j,k) = vel*cos(alpha)*sin(beta)
                 else
-                  block%velocity(2,i,j,k) = uy
+                  block%ig%velocity(2,i,j,k) = uy
                 endif
                 if (uz==0) then
-                  block%velocity(3,i,j,k) = vel*sin(beta)
+                  block%ig%velocity(3,i,j,k) = vel*sin(beta)
                 else
-                  block%velocity(3,i,j,k) = uz
+                  block%ig%velocity(3,i,j,k) = uz
                 endif
-                block%pressure(i,j,k) = p(i,j,k)
+                block%ig%pressure(i,j,k) = p(i,j,k)
             endif
 
         enddo; enddo; enddo
@@ -381,8 +381,8 @@ contains
                   case('1D-centcomp'); call centered_compression()
                   case('1D-cubcomp');  call cubic_compression()
                 end select
-                block%velocity(2,i,j,k) = 0.0
-                block%velocity(3,i,j,k) = 0.0
+                block%ig%velocity(2,i,j,k) = 0.0
+                block%ig%velocity(3,i,j,k) = 0.0
               endif
         enddo; enddo; enddo
         !$omp end parallel
@@ -401,14 +401,14 @@ contains
 
     ! Turbulence specific parameters
     if (nrans==1) then
-        if(mit/=0.0) block%turbprop(1,:,:,:) = mit
+        if(mit/=0.0) block%ig%turbprop(1,:,:,:) = mit
     elseif (nrans==2) then
-        if(kappa/=0.0) block%turbprop(1,:,:,:) = kappa
-        if(omega/=0.0) block%turbprop(2,:,:,:) = omega
+        if(kappa/=0.0) block%ig%turbprop(1,:,:,:) = kappa
+        if(omega/=0.0) block%ig%turbprop(2,:,:,:) = omega
     elseif (nrans==7) then
-        if(rhoRij/=0.0) block%turbprop(1:3,:,:,:) = rhoRij
-        block%turbprop(4:6,:,:,:) = 1d-8
-        if(omega/=0.0) block%turbprop(7,:,:,:) = omega
+        if(rhoRij/=0.0) block%ig%turbprop(1:3,:,:,:) = rhoRij
+        block%ig%turbprop(4:6,:,:,:) = 1d-8
+        if(omega/=0.0) block%ig%turbprop(7,:,:,:) = omega
     endif
 
   
@@ -461,11 +461,11 @@ contains
 
       do i = ib1, ib2, ip
         do s = 1, sp%n
-          block%density(s,i,:,:) = sp%massf(s)*p0(1,1,1)/(Rgas*T0(1,1,1))
+          block%ig%density(s,i,:,:) = sp%massf(s)*p0(1,1,1)/(Rgas*T0(1,1,1))
         enddo
-        block%pressure(i,:,:) = p0(1,1,1)
-        block%velocity(:,i,:,:) = 0.0
-        block%temperature(i,:,:) = T0(1,1,1)
+        block%ig%pressure(i,:,:) = p0(1,1,1)
+        block%ig%velocity(:,i,:,:) = 0.0
+        block%ig%temperature(i,:,:) = T0(1,1,1)
       enddo
 
       do i = ib2, ib3, ip
@@ -490,13 +490,13 @@ contains
               zeta = atan(dy/sqrt(dx*dx+dz*dz))
               phi = atan(dz/dx)
               do s = 1, sp%n
-                block%density(s,i,j,k) = sp%massf(s)*p0(1,1,1)/(Rgas*T0(1,1,1))/((1+del*(Mach**2))**(0.5/del))
+                block%ig%density(s,i,j,k) = sp%massf(s)*p0(1,1,1)/(Rgas*T0(1,1,1))/((1+del*(Mach**2))**(0.5/del))
               enddo
-              block%pressure(i,j,k) = p0(1,1,1)/((1+del*(Mach**2))**(gamma/(2*del)))
-              block%velocity(1,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*cos(zeta)*cos(phi)
-              block%velocity(2,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*sin(zeta)
-              block%velocity(3,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*cos(zeta)*sin(phi)
-              block%temperature(i,j,k) = T0(1,1,1)/(1+del*(Mach**2))
+              block%ig%pressure(i,j,k) = p0(1,1,1)/((1+del*(Mach**2))**(gamma/(2*del)))
+              block%ig%velocity(1,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*cos(zeta)*cos(phi)
+              block%ig%velocity(2,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*sin(zeta)
+              block%ig%velocity(3,i,j,k) = Mach*sqrt(gamma*Rgas*T0(1,1,1)/(1+del*(Mach**2)))*cos(zeta)*sin(phi)
+              block%ig%temperature(i,j,k) = T0(1,1,1)/(1+del*(Mach**2))
             endif
           end do
         end do
@@ -514,11 +514,11 @@ contains
 
       alpha(1) = uTF; alpha(2) = -1/(range(2)-range(1))
       pol = alpha(1)+alpha(2)*(here(1)-range(1))
-      block%velocity(1,i,j,k) = (pol-R1)/(1.d0+del)
-      a = R1+del*block%velocity(1,i,j,k)
-      block%pressure(i,j,k) = (a/R1)**(gamma/del)
+      block%ig%velocity(1,i,j,k) = (pol-R1)/(1.d0+del)
+      a = R1+del*block%ig%velocity(1,i,j,k)
+      block%ig%pressure(i,j,k) = (a/R1)**(gamma/del)
       do s = 1, sp%n
-        block%density(s,i,j,k) = gamma*block%pressure(i,j,k)/(a*a)*sp%massf(s)
+        block%ig%density(s,i,j,k) = gamma*block%ig%pressure(i,j,k)/(a*a)*sp%massf(s)
       enddo
 
     end subroutine centered_compression
@@ -533,11 +533,11 @@ contains
       alpha(4) = -2*(R1-uTF)/((range(2)-range(1))**3)
       csi = here(1)-range(1)
       pol = alpha(1)+alpha(2)*csi+alpha(3)*csi**2+alpha(4)*csi**3
-      block%velocity(1,i,j,k) = (pol-R1)/(1.d0+del)
-      a = R1+del*block%velocity(1,i,j,k)
-      block%pressure(i,j,k) = (a/R1)**(gamma/del)
+      block%ig%velocity(1,i,j,k) = (pol-R1)/(1.d0+del)
+      a = R1+del*block%ig%velocity(1,i,j,k)
+      block%ig%pressure(i,j,k) = (a/R1)**(gamma/del)
       do s = 1, sp%n
-        block%density(s,i,j,k) = gamma*block%pressure(i,j,k)/(a*a)*sp%massf(s)
+        block%ig%density(s,i,j,k) = gamma*block%ig%pressure(i,j,k)/(a*a)*sp%massf(s)
       enddo
       
     end subroutine cubic_compression

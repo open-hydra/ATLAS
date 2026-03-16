@@ -111,9 +111,9 @@ contains
 
         do b = 1, size(oldblock)
           do k = 1, oldblock(b)%dim(3)
-            oldblock(b)%temperature(:,:,k) = oldblock(b)%temperature(:,:,1)
-            oldblock(b)%mID(:,:,k) = oldblock(b)%mID(:,:,1)
-            oldblock(b)%qvol(:,:,k) = oldblock(b)%qvol(:,:,1)
+            oldblock(b)%ig%temperature(:,:,k) = oldblock(b)%ig%temperature(:,:,1)
+            oldblock(b)%sp%mID(:,:,k) = oldblock(b)%sp%mID(:,:,1)
+            oldblock(b)%sp%qvol(:,:,k) = oldblock(b)%sp%qvol(:,:,1)
           enddo
         enddo
 
@@ -237,9 +237,9 @@ subroutine index_interpolation()
         do i = 1, block%dim(1)
 
           ! Temperature / matID / qvol
-          block%temperature(i,j,k) = oldblock(b)%temperature(i,j,1)
-          block%mID(i,j,k) = oldblock(b)%mID(i,j,1)
-          block%qvol(i,j,k) = oldblock(b)%qvol(i,j,1)
+          block%ig%temperature(i,j,k) = oldblock(b)%ig%temperature(i,j,1)
+          block%sp%mID(i,j,k) = oldblock(b)%sp%mID(i,j,1)
+          block%sp%qvol(i,j,k) = oldblock(b)%sp%qvol(i,j,1)
 
         enddo
       enddo
@@ -261,9 +261,9 @@ subroutine index_interpolation()
         do i = 1, block%dim(1)
 
           ! Temperature / matID / qvol
-          block%temperature(i,j,k) = oldblock(b)%temperature(i,j,k)
-          block%mID(i,j,k) = oldblock(b)%mID(i,j,k)
-          block%qvol(i,j,k) = oldblock(b)%qvol(i,j,k)
+          block%ig%temperature(i,j,k) = oldblock(b)%ig%temperature(i,j,k)
+          block%sp%mID(i,j,k) = oldblock(b)%sp%mID(i,j,k)
+          block%sp%qvol(i,j,k) = oldblock(b)%sp%qvol(i,j,k)
 
         enddo
       enddo
@@ -353,23 +353,23 @@ subroutine multiple_interpolation()
             endif
 
             ! Temperature / matID / qvol
-            block%temperature(i,j,k)  =  coeffs(1)*oldblock(b)%temperature(i2d,j2d,k2d)   &
-                                      +  coeffs(2)*oldblock(b)%temperature(i2, j2d,k2d)   &
-                                      +  coeffs(3)*oldblock(b)%temperature(i2d,j2, k2d)   &
-                                      +  coeffs(4)*oldblock(b)%temperature(i2, j2, k2d)   &
-                                      +  coeffs(5)*oldblock(b)%temperature(i2d,j2d,k2)    &
-                                      +  coeffs(6)*oldblock(b)%temperature(i2, j2d,k2)    &
-                                      +  coeffs(7)*oldblock(b)%temperature(i2d,j2, k2)    &
-                                      +  coeffs(8)*oldblock(b)%temperature(i2, j2, k2)
-            block%mID(i,j,k) = oldblock(b)%mID(i,j,k)
-            block%qvol(i,j,k)  =  coeffs(1)*oldblock(b)%qvol(i2d,j2d,k2d)   &
-                               +  coeffs(2)*oldblock(b)%qvol(i2, j2d,k2d)   &
-                               +  coeffs(3)*oldblock(b)%qvol(i2d,j2, k2d)   &
-                               +  coeffs(4)*oldblock(b)%qvol(i2, j2, k2d)   &
-                               +  coeffs(5)*oldblock(b)%qvol(i2d,j2d,k2)    &
-                               +  coeffs(6)*oldblock(b)%qvol(i2, j2d,k2)    &
-                               +  coeffs(7)*oldblock(b)%qvol(i2d,j2, k2)    &
-                               +  coeffs(8)*oldblock(b)%qvol(i2, j2, k2)
+            block%ig%temperature(i,j,k)  =  coeffs(1)*oldblock(b)%ig%temperature(i2d,j2d,k2d)   &
+                                      +  coeffs(2)*oldblock(b)%ig%temperature(i2, j2d,k2d)   &
+                                      +  coeffs(3)*oldblock(b)%ig%temperature(i2d,j2, k2d)   &
+                                      +  coeffs(4)*oldblock(b)%ig%temperature(i2, j2, k2d)   &
+                                      +  coeffs(5)*oldblock(b)%ig%temperature(i2d,j2d,k2)    &
+                                      +  coeffs(6)*oldblock(b)%ig%temperature(i2, j2d,k2)    &
+                                      +  coeffs(7)*oldblock(b)%ig%temperature(i2d,j2, k2)    &
+                                      +  coeffs(8)*oldblock(b)%ig%temperature(i2, j2, k2)
+            block%sp%mID(i,j,k) = oldblock(b)%sp%mID(i,j,k)
+            block%sp%qvol(i,j,k)  =  coeffs(1)*oldblock(b)%sp%qvol(i2d,j2d,k2d)   &
+                               +  coeffs(2)*oldblock(b)%sp%qvol(i2, j2d,k2d)   &
+                               +  coeffs(3)*oldblock(b)%sp%qvol(i2d,j2, k2d)   &
+                               +  coeffs(4)*oldblock(b)%sp%qvol(i2, j2, k2d)   &
+                               +  coeffs(5)*oldblock(b)%sp%qvol(i2d,j2d,k2)    &
+                               +  coeffs(6)*oldblock(b)%sp%qvol(i2, j2d,k2)    &
+                               +  coeffs(7)*oldblock(b)%sp%qvol(i2d,j2, k2)    &
+                               +  coeffs(8)*oldblock(b)%sp%qvol(i2, j2, k2)
 
           enddo
         enddo
@@ -453,23 +453,23 @@ subroutine multiple_interpolation()
                   endif
 
                   ! Temperature / matID / qvol
-                  block%temperature(ii,jj,kk) = coeffs(1)*oldblock(b)%temperature(i,j,k)     &
-                                              + coeffs(2)*oldblock(b)%temperature(id(mask(1)),j,k)    &
-                                              + coeffs(3)*oldblock(b)%temperature(i,id(mask(2)),k)    &
-                                              + coeffs(4)*oldblock(b)%temperature(i,j,id(mask(3)))    &
-                                              + coeffs(5)*oldblock(b)%temperature(id(mask(1)),id(mask(2)),k)   &
-                                              + coeffs(6)*oldblock(b)%temperature(id(mask(1)),j,id(mask(3)))   &
-                                              + coeffs(7)*oldblock(b)%temperature(i,id(mask(2)),id(mask(3)))   &
-                                              + coeffs(8)*oldblock(b)%temperature(id(mask(1)),id(mask(2)),id(mask(3)))
-                  block%mID(ii,jj,kk) = oldblock(b)%mID(i,j,k)
-                  block%qvol(ii,jj,kk) = coeffs(1)*oldblock(b)%qvol(i,j,k)     &
-                                       +  coeffs(2)*oldblock(b)%qvol(id(mask(1)),j,k)    &
-                                       +  coeffs(3)*oldblock(b)%qvol(i,id(mask(2)),k)    &
-                                       +  coeffs(4)*oldblock(b)%qvol(i,j,id(mask(3)))    &
-                                       +  coeffs(5)*oldblock(b)%qvol(id(mask(1)),id(mask(2)),k)   &
-                                       +  coeffs(6)*oldblock(b)%qvol(id(mask(1)),j,id(mask(3)))   &
-                                       +  coeffs(7)*oldblock(b)%qvol(i,id(mask(2)),id(mask(3)))   &
-                                       +  coeffs(8)*oldblock(b)%qvol(id(mask(1)),id(mask(2)),id(mask(3)))
+                  block%ig%temperature(ii,jj,kk) = coeffs(1)*oldblock(b)%ig%temperature(i,j,k)     &
+                                              + coeffs(2)*oldblock(b)%ig%temperature(id(mask(1)),j,k)    &
+                                              + coeffs(3)*oldblock(b)%ig%temperature(i,id(mask(2)),k)    &
+                                              + coeffs(4)*oldblock(b)%ig%temperature(i,j,id(mask(3)))    &
+                                              + coeffs(5)*oldblock(b)%ig%temperature(id(mask(1)),id(mask(2)),k)   &
+                                              + coeffs(6)*oldblock(b)%ig%temperature(id(mask(1)),j,id(mask(3)))   &
+                                              + coeffs(7)*oldblock(b)%ig%temperature(i,id(mask(2)),id(mask(3)))   &
+                                              + coeffs(8)*oldblock(b)%ig%temperature(id(mask(1)),id(mask(2)),id(mask(3)))
+                  block%sp%mID(ii,jj,kk) = oldblock(b)%sp%mID(i,j,k)
+                  block%sp%qvol(ii,jj,kk) = coeffs(1)*oldblock(b)%sp%qvol(i,j,k)     &
+                                       +  coeffs(2)*oldblock(b)%sp%qvol(id(mask(1)),j,k)    &
+                                       +  coeffs(3)*oldblock(b)%sp%qvol(i,id(mask(2)),k)    &
+                                       +  coeffs(4)*oldblock(b)%sp%qvol(i,j,id(mask(3)))    &
+                                       +  coeffs(5)*oldblock(b)%sp%qvol(id(mask(1)),id(mask(2)),k)   &
+                                       +  coeffs(6)*oldblock(b)%sp%qvol(id(mask(1)),j,id(mask(3)))   &
+                                       +  coeffs(7)*oldblock(b)%sp%qvol(i,id(mask(2)),id(mask(3)))   &
+                                       +  coeffs(8)*oldblock(b)%sp%qvol(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   counter = counter + 1
 
@@ -724,23 +724,23 @@ subroutine multiple_interpolation()
                   endif
                   
                   ! Temperature / matID / qvol
-                  block%temperature(ii,jj,kk) = coeffs(1)*oldblock(b)%temperature(i,j,k)     &
-                                              + coeffs(2)*oldblock(b)%temperature(id(mask(1)),j,k)    &
-                                              + coeffs(3)*oldblock(b)%temperature(i,id(mask(2)),k)    &
-                                              + coeffs(4)*oldblock(b)%temperature(i,j,id(mask(3)))    &
-                                              + coeffs(5)*oldblock(b)%temperature(id(mask(1)),id(mask(2)),k)   &
-                                              + coeffs(6)*oldblock(b)%temperature(id(mask(1)),j,id(mask(3)))   &
-                                              + coeffs(7)*oldblock(b)%temperature(i,id(mask(2)),id(mask(3)))   &
-                                              + coeffs(8)*oldblock(b)%temperature(id(mask(1)),id(mask(2)),id(mask(3)))
-                  block%mID(ii,jj,kk) = oldblock(b)%mID(i,j,k)
-                  block%qvol(ii,jj,kk) = coeffs(1)*oldblock(b)%qvol(i,j,k)     &
-                                       +  coeffs(2)*oldblock(b)%qvol(id(mask(1)),j,k)    &
-                                       +  coeffs(3)*oldblock(b)%qvol(i,id(mask(2)),k)    &
-                                       +  coeffs(4)*oldblock(b)%qvol(i,j,id(mask(3)))    &
-                                       +  coeffs(5)*oldblock(b)%qvol(id(mask(1)),id(mask(2)),k)   &
-                                       +  coeffs(6)*oldblock(b)%qvol(id(mask(1)),j,id(mask(3)))   &
-                                       +  coeffs(7)*oldblock(b)%qvol(i,id(mask(2)),id(mask(3)))   &
-                                       +  coeffs(8)*oldblock(b)%qvol(id(mask(1)),id(mask(2)),id(mask(3)))
+                  block%ig%temperature(ii,jj,kk) = coeffs(1)*oldblock(b)%ig%temperature(i,j,k)     &
+                                              + coeffs(2)*oldblock(b)%ig%temperature(id(mask(1)),j,k)    &
+                                              + coeffs(3)*oldblock(b)%ig%temperature(i,id(mask(2)),k)    &
+                                              + coeffs(4)*oldblock(b)%ig%temperature(i,j,id(mask(3)))    &
+                                              + coeffs(5)*oldblock(b)%ig%temperature(id(mask(1)),id(mask(2)),k)   &
+                                              + coeffs(6)*oldblock(b)%ig%temperature(id(mask(1)),j,id(mask(3)))   &
+                                              + coeffs(7)*oldblock(b)%ig%temperature(i,id(mask(2)),id(mask(3)))   &
+                                              + coeffs(8)*oldblock(b)%ig%temperature(id(mask(1)),id(mask(2)),id(mask(3)))
+                  block%sp%mID(ii,jj,kk) = oldblock(b)%sp%mID(i,j,k)
+                  block%sp%qvol(ii,jj,kk) = coeffs(1)*oldblock(b)%sp%qvol(i,j,k)     &
+                                       +  coeffs(2)*oldblock(b)%sp%qvol(id(mask(1)),j,k)    &
+                                       +  coeffs(3)*oldblock(b)%sp%qvol(i,id(mask(2)),k)    &
+                                       +  coeffs(4)*oldblock(b)%sp%qvol(i,j,id(mask(3)))    &
+                                       +  coeffs(5)*oldblock(b)%sp%qvol(id(mask(1)),id(mask(2)),k)   &
+                                       +  coeffs(6)*oldblock(b)%sp%qvol(id(mask(1)),j,id(mask(3)))   &
+                                       +  coeffs(7)*oldblock(b)%sp%qvol(i,id(mask(2)),id(mask(3)))   &
+                                       +  coeffs(8)*oldblock(b)%sp%qvol(id(mask(1)),id(mask(2)),id(mask(3)))
                 
                   counter = counter + 1
                 
@@ -771,9 +771,9 @@ subroutine multiple_interpolation()
             indk = (k-1)/rap + 1
 
             ! Temperature / matID / qvol
-            block%temperature(i,j,k) = oldblock(b)%temperature(indi,indj,indk)
-            block%mID(i,j,k) = oldblock(b)%mID(indi,indj,indk)
-            block%qvol(i,j,k) = oldblock(b)%qvol(indi,indj,indk)
+            block%ig%temperature(i,j,k) = oldblock(b)%ig%temperature(indi,indj,indk)
+            block%sp%mID(i,j,k) = oldblock(b)%sp%mID(indi,indj,indk)
+            block%sp%qvol(i,j,k) = oldblock(b)%sp%qvol(indi,indj,indk)
           enddo
         enddo
       enddo
@@ -858,9 +858,9 @@ subroutine distance_interpolation
           endassociate
         endif
 
-        block%temperature(i,j,k) = oldblock(trueb)%temperature(ind(1),ind(2),ind(3))
-        block%mID(i,j,k) = oldblock(trueb)%mID(ind(1),ind(2),ind(3))
-        block%qvol(i,j,k) = oldblock(trueb)%qvol(ind(1),ind(2),ind(3))
+        block%ig%temperature(i,j,k) = oldblock(trueb)%ig%temperature(ind(1),ind(2),ind(3))
+        block%sp%mID(i,j,k) = oldblock(trueb)%sp%mID(ind(1),ind(2),ind(3))
+        block%sp%qvol(i,j,k) = oldblock(trueb)%sp%qvol(ind(1),ind(2),ind(3))
 
       enddo
     enddo
@@ -970,9 +970,9 @@ subroutine spherical_distance_interpolation
         endif
 
         ! Temperature / matID / qvol
-        block%temperature(i,j,k) = oldblock(trueb)%temperature(ind(1),ind(2),ind(3))
-        block%mID(i,j,k) = oldblock(trueb)%mID(ind(1),ind(2),ind(3))
-        block%qvol(i,j,k) = oldblock(trueb)%qvol(ind(1),ind(2),ind(3))
+        block%ig%temperature(i,j,k) = oldblock(trueb)%ig%temperature(ind(1),ind(2),ind(3))
+        block%sp%mID(i,j,k) = oldblock(trueb)%sp%mID(ind(1),ind(2),ind(3))
+        block%sp%qvol(i,j,k) = oldblock(trueb)%sp%qvol(ind(1),ind(2),ind(3))
 
       enddo
     enddo

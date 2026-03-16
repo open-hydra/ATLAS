@@ -22,12 +22,12 @@ contains
       nnn = nnn + mat%npCP(k)
     enddo
 
-    if (.not.allocated(block%densityP)) then
-      allocate(block%densityP    ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-      allocate(block%velocityP   (nnn,3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-      allocate(block%temperatureP( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-      allocate(block%nP          ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
-      allocate(block%PP          ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    if (.not.allocated(block%cd%densityP)) then
+      allocate(block%cd%densityP    ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%cd%velocityP   (nnn,3,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%cd%temperatureP( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%cd%nP          ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+      allocate(block%cd%PP          ( nnn ,1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
     allocate(krho(1:nnn)); krho = 0.0
@@ -66,35 +66,35 @@ contains
 
     case ('vacuum')
 
-      block%densityP(:,:,:,:) = 1d-20
-      block%velocityP(:,1:3,:,:,:) = 1d-20
-      block%temperatureP(:,:,:,:) = 1d-20
-      block%np(:,:,:,:) = 1d-20
+      block%cd%densityP(:,:,:,:) = 1d-20
+      block%cd%velocityP(:,1:3,:,:,:) = 1d-20
+      block%cd%temperatureP(:,:,:,:) = 1d-20
+      block%cd%np(:,:,:,:) = 1d-20
       if (neuler==1 .or. neuler==6) then
-        block%PP(:,:,:,:) = 1D-20
+        block%cd%PP(:,:,:,:) = 1D-20
       endif
 
     case('equilibrium', 'thermo-mechanical equilibrium', 'mechanical equilibrium')
 
     do g = 1, nnn
       if (krho(g)==0.0) then
-        block%densityP(g,:,:,:) = 0.0
-        block%velocityP(g,1:3,:,:,:) = 0.0
-        block%temperatureP(g,:,:,:) = 0.0
-        block%np(g,:,:,:) = 0.0
+        block%cd%densityP(g,:,:,:) = 0.0
+        block%cd%velocityP(g,1:3,:,:,:) = 0.0
+        block%cd%temperatureP(g,:,:,:) = 0.0
+        block%cd%np(g,:,:,:) = 0.0
       else
-        block%densityP(g,:,:,:) = sum(block%density(:,:,:,:), dim=1) * krho(g)
-        block%velocityP(g,1:3,:,:,:) = block%velocity(:,:,:,:)
-        block%temperatureP(g,:,:,:) = block%temperature(:,:,:)* kT(g)
+        block%cd%densityP(g,:,:,:) = sum(block%ig%density(:,:,:,:), dim=1) * krho(g)
+        block%cd%velocityP(g,1:3,:,:,:) = block%ig%velocity(:,:,:,:)
+        block%cd%temperatureP(g,:,:,:) = block%ig%temperature(:,:,:)* kT(g)
         !$omp parallel do collapse(3) private(i,j,k,rho)
         do k = 1, block%dim(3); do j = 1, block%dim(2); do i = 1, block%dim(1)
-              rho = mat%rho(g,nint(block%temperature(i,j,k)))
-              block%np(g,i,j,k) = block%densityP(g,i,j,k)/(4.0/3.0*3.14*rho*rp(g)**3)
+              rho = mat%rho(g,nint(block%ig%temperature(i,j,k)))
+              block%cd%np(g,i,j,k) = block%cd%densityP(g,i,j,k)/(4.0/3.0*3.14*rho*rp(g)**3)
         enddo; enddo; enddo
         !$omp end parallel do
       endif
       if (neuler==1 .or. neuler==6) then
-        block%PP(g,:,:,:) = Pp(g)
+        block%cd%PP(g,:,:,:) = Pp(g)
       endif
     enddo
 

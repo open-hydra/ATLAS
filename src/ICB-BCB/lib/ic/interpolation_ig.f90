@@ -124,12 +124,12 @@ contains
 
         do b = 1, size(oldblock)
           do k = 1, oldblock(b)%dim(3)
-            oldblock(b)%density(:,:,:,k) = oldblock(b)%density(:,:,:,1)
-            oldblock(b)%velocity(1,:,:,k) = oldblock(b)%velocity(1,:,:,1)
-            oldblock(b)%velocity(2,:,:,k) = oldblock(b)%velocity(2,:,:,1)*cos(theta(k))
-            oldblock(b)%velocity(3,:,:,k) = oldblock(b)%velocity(2,:,:,1)*sin(theta(k))
-            oldblock(b)%pressure(:,:,k) = oldblock(b)%pressure(:,:,1)
-            if (nrans>0) oldblock(b)%turbprop(1:nrans,:,:,k) = oldblock(b)%turbprop(1:nrans,:,:,1)
+            oldblock(b)%ig%density(:,:,:,k) = oldblock(b)%ig%density(:,:,:,1)
+            oldblock(b)%ig%velocity(1,:,:,k) = oldblock(b)%ig%velocity(1,:,:,1)
+            oldblock(b)%ig%velocity(2,:,:,k) = oldblock(b)%ig%velocity(2,:,:,1)*cos(theta(k))
+            oldblock(b)%ig%velocity(3,:,:,k) = oldblock(b)%ig%velocity(2,:,:,1)*sin(theta(k))
+            oldblock(b)%ig%pressure(:,:,k) = oldblock(b)%ig%pressure(:,:,1)
+            if (nrans>0) oldblock(b)%ig%turbprop(1:nrans,:,:,k) = oldblock(b)%ig%turbprop(1:nrans,:,:,1)
           enddo
         enddo
 
@@ -256,9 +256,9 @@ subroutine index_interpolation()
         do i = 1, block%dim(1)
 
           ! Density
-          if (any(block%density(:,i,j,k)/=0.d0)) then
+          if (any(block%ig%density(:,i,j,k)/=0.d0)) then
             if (oldspecies%n==1) then
-              block%density(:,i,j,k) = block%density(:,i,j,k)*oldblock(b)%density(1,i,j,1)
+              block%ig%density(:,i,j,k) = block%ig%density(:,i,j,k)*oldblock(b)%ig%density(1,i,j,1)
             else
               error stop "[ERROR] Species mass fractions decomposition available only if old species number = 1"
             endif
@@ -266,7 +266,7 @@ subroutine index_interpolation()
             do s = 1, newspecies%n
               do sold = 1, oldspecies%n
                 if (newspecies%name(s)==oldspecies%name(sold)) then
-                  block%density(s,i,j,k) = oldblock(b)%density(sold,i,j,1)
+                  block%ig%density(s,i,j,k) = oldblock(b)%ig%density(sold,i,j,1)
                   exit
                 endif
               enddo
@@ -274,17 +274,17 @@ subroutine index_interpolation()
           endif
 
           ! Velocity
-          block%velocity(1,i,j,k) = oldblock(b)%velocity(1,i,j,1)
-          block%velocity(2,i,j,k) = oldblock(b)%velocity(2,i,j,1)*&
+          block%ig%velocity(1,i,j,k) = oldblock(b)%ig%velocity(1,i,j,1)
+          block%ig%velocity(2,i,j,k) = oldblock(b)%ig%velocity(2,i,j,1)*&
           cos(atan2(block%center(i,j,k)%c(3),block%center(i,j,k)%c(2)))
-          block%velocity(3,i,j,k) = oldblock(b)%velocity(3,i,j,1)*&
+          block%ig%velocity(3,i,j,k) = oldblock(b)%ig%velocity(3,i,j,1)*&
           sin(atan2(block%center(i,j,k)%c(3),block%center(i,j,k)%c(2)))
 
           ! Pressure
-          block%pressure(i,j,k) = oldblock(b)%pressure(i,j,1)
+          block%ig%pressure(i,j,k) = oldblock(b)%ig%pressure(i,j,1)
 
           ! Turbulent properties
-          if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,1)
+          if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(b)%ig%turbprop(1:nrans,i,j,1)
 
         enddo
       enddo
@@ -306,9 +306,9 @@ subroutine index_interpolation()
         do i = 1, block%dim(1)
 
           ! Density
-          if (any(block%density(:,i,j,k)/=0.d0)) then
+          if (any(block%ig%density(:,i,j,k)/=0.d0)) then
             if (oldspecies%n==1) then
-              block%density(:,i,j,k) = block%density(:,i,j,k)*oldblock(b)%density(1,i,j,1)
+              block%ig%density(:,i,j,k) = block%ig%density(:,i,j,k)*oldblock(b)%ig%density(1,i,j,1)
             else
               error stop "[ERROR] Species mass fractions decomposition available only if old species number = 1"
             endif
@@ -316,7 +316,7 @@ subroutine index_interpolation()
             do s = 1, newspecies%n
               do sold = 1, oldspecies%n
                 if (newspecies%name(s)==oldspecies%name(sold)) then
-                  block%density(s,i,j,k) = oldblock(b)%density(sold,i,j,1)
+                  block%ig%density(s,i,j,k) = oldblock(b)%ig%density(sold,i,j,1)
                   exit
                 endif
               enddo
@@ -324,15 +324,15 @@ subroutine index_interpolation()
           endif
 
           ! Velocity
-          block%velocity(1,i,j,k) = oldblock(b)%velocity(1,i,j,k)
-          block%velocity(2,i,j,k) = oldblock(b)%velocity(2,i,j,k)
-          block%velocity(3,i,j,k) = oldblock(b)%velocity(3,i,j,k)
+          block%ig%velocity(1,i,j,k) = oldblock(b)%ig%velocity(1,i,j,k)
+          block%ig%velocity(2,i,j,k) = oldblock(b)%ig%velocity(2,i,j,k)
+          block%ig%velocity(3,i,j,k) = oldblock(b)%ig%velocity(3,i,j,k)
 
           ! Pressure
-          block%pressure(i,j,k) = oldblock(b)%pressure(i,j,k)
+          block%ig%pressure(i,j,k) = oldblock(b)%ig%pressure(i,j,k)
 
           ! Turbulent properties
-          if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,i,j,k)
+          if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(b)%ig%turbprop(1:nrans,i,j,k)
 
         enddo
       enddo
@@ -421,17 +421,17 @@ subroutine multiple_interpolation()
 
             ! Density
             do s = 1, newspecies%n
-              block%density(s,i,j,k) = 1e-20
+              block%ig%density(s,i,j,k) = 1e-20
               do sold = 1, oldspecies%n
                 if (newspecies%name(s)==oldspecies%name(sold)) then
-                  block%density(s,i,j,k)      =  coeffs(1)*oldblock(b)%density(sold,i2d,j2d,k2d)   &
-                                              +  coeffs(2)*oldblock(b)%density(sold,i2, j2d,k2d)   &
-                                              +  coeffs(3)*oldblock(b)%density(sold,i2d,j2, k2d)   &
-                                              +  coeffs(4)*oldblock(b)%density(sold,i2, j2, k2d)   &
-                                              +  coeffs(5)*oldblock(b)%density(sold,i2d,j2d,k2)    &
-                                              +  coeffs(6)*oldblock(b)%density(sold,i2, j2d,k2)    &
-                                              +  coeffs(7)*oldblock(b)%density(sold,i2d,j2, k2)    &
-                                              +  coeffs(8)*oldblock(b)%density(sold,i2, j2, k2)
+                  block%ig%density(s,i,j,k)      =  coeffs(1)*oldblock(b)%ig%density(sold,i2d,j2d,k2d)   &
+                                              +  coeffs(2)*oldblock(b)%ig%density(sold,i2, j2d,k2d)   &
+                                              +  coeffs(3)*oldblock(b)%ig%density(sold,i2d,j2, k2d)   &
+                                              +  coeffs(4)*oldblock(b)%ig%density(sold,i2, j2, k2d)   &
+                                              +  coeffs(5)*oldblock(b)%ig%density(sold,i2d,j2d,k2)    &
+                                              +  coeffs(6)*oldblock(b)%ig%density(sold,i2, j2d,k2)    &
+                                              +  coeffs(7)*oldblock(b)%ig%density(sold,i2d,j2, k2)    &
+                                              +  coeffs(8)*oldblock(b)%ig%density(sold,i2, j2, k2)
                   exit
                 endif
               enddo
@@ -439,37 +439,37 @@ subroutine multiple_interpolation()
 
             ! Velocity
             do cnt = 1, 3
-              block%velocity(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%velocity(cnt,i2d,j2d,k2d)   &
-                                            +  coeffs(2)*oldblock(b)%velocity(cnt,i2, j2d,k2d)   &
-                                            +  coeffs(3)*oldblock(b)%velocity(cnt,i2d,j2, k2d)   &
-                                            +  coeffs(4)*oldblock(b)%velocity(cnt,i2, j2, k2d)   &
-                                            +  coeffs(5)*oldblock(b)%velocity(cnt,i2d,j2d,k2)    &
-                                            +  coeffs(6)*oldblock(b)%velocity(cnt,i2, j2d,k2)    &
-                                            +  coeffs(7)*oldblock(b)%velocity(cnt,i2d,j2, k2)    &
-                                            +  coeffs(8)*oldblock(b)%velocity(cnt,i2, j2, k2)
+              block%ig%velocity(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%ig%velocity(cnt,i2d,j2d,k2d)   &
+                                            +  coeffs(2)*oldblock(b)%ig%velocity(cnt,i2, j2d,k2d)   &
+                                            +  coeffs(3)*oldblock(b)%ig%velocity(cnt,i2d,j2, k2d)   &
+                                            +  coeffs(4)*oldblock(b)%ig%velocity(cnt,i2, j2, k2d)   &
+                                            +  coeffs(5)*oldblock(b)%ig%velocity(cnt,i2d,j2d,k2)    &
+                                            +  coeffs(6)*oldblock(b)%ig%velocity(cnt,i2, j2d,k2)    &
+                                            +  coeffs(7)*oldblock(b)%ig%velocity(cnt,i2d,j2, k2)    &
+                                            +  coeffs(8)*oldblock(b)%ig%velocity(cnt,i2, j2, k2)
             enddo
 
             ! Pressure
-            block%pressure(i,j,k)     =  coeffs(1)*oldblock(b)%pressure(i2d,j2d,k2d)   &
-                                      +  coeffs(2)*oldblock(b)%pressure(i2, j2d,k2d)   &
-                                      +  coeffs(3)*oldblock(b)%pressure(i2d,j2, k2d)   &
-                                      +  coeffs(4)*oldblock(b)%pressure(i2, j2, k2d)   &
-                                      +  coeffs(5)*oldblock(b)%pressure(i2d,j2d,k2)    &
-                                      +  coeffs(6)*oldblock(b)%pressure(i2, j2d,k2)    &
-                                      +  coeffs(7)*oldblock(b)%pressure(i2d,j2, k2)    &
-                                      +  coeffs(8)*oldblock(b)%pressure(i2, j2, k2)
+            block%ig%pressure(i,j,k)     =  coeffs(1)*oldblock(b)%ig%pressure(i2d,j2d,k2d)   &
+                                      +  coeffs(2)*oldblock(b)%ig%pressure(i2, j2d,k2d)   &
+                                      +  coeffs(3)*oldblock(b)%ig%pressure(i2d,j2, k2d)   &
+                                      +  coeffs(4)*oldblock(b)%ig%pressure(i2, j2, k2d)   &
+                                      +  coeffs(5)*oldblock(b)%ig%pressure(i2d,j2d,k2)    &
+                                      +  coeffs(6)*oldblock(b)%ig%pressure(i2, j2d,k2)    &
+                                      +  coeffs(7)*oldblock(b)%ig%pressure(i2d,j2, k2)    &
+                                      +  coeffs(8)*oldblock(b)%ig%pressure(i2, j2, k2)
 
             ! Turbulent properties
             if (nrans > 0 ) then
               do cnt = 1, nrans
-              block%turbprop(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%turbprop(cnt,i2d,j2d,k2d)   &
-                                            +  coeffs(2)*oldblock(b)%turbprop(cnt,i2, j2d,k2d)   &
-                                            +  coeffs(3)*oldblock(b)%turbprop(cnt,i2d,j2, k2d)   &
-                                            +  coeffs(4)*oldblock(b)%turbprop(cnt,i2, j2, k2d)   &
-                                            +  coeffs(5)*oldblock(b)%turbprop(cnt,i2d,j2d,k2)    &
-                                            +  coeffs(6)*oldblock(b)%turbprop(cnt,i2, j2d,k2)    &
-                                            +  coeffs(7)*oldblock(b)%turbprop(cnt,i2d,j2, k2)    &
-                                            +  coeffs(8)*oldblock(b)%turbprop(cnt,i2, j2, k2)
+              block%ig%turbprop(cnt,i,j,k)     =  coeffs(1)*oldblock(b)%ig%turbprop(cnt,i2d,j2d,k2d)   &
+                                            +  coeffs(2)*oldblock(b)%ig%turbprop(cnt,i2, j2d,k2d)   &
+                                            +  coeffs(3)*oldblock(b)%ig%turbprop(cnt,i2d,j2, k2d)   &
+                                            +  coeffs(4)*oldblock(b)%ig%turbprop(cnt,i2, j2, k2d)   &
+                                            +  coeffs(5)*oldblock(b)%ig%turbprop(cnt,i2d,j2d,k2)    &
+                                            +  coeffs(6)*oldblock(b)%ig%turbprop(cnt,i2, j2d,k2)    &
+                                            +  coeffs(7)*oldblock(b)%ig%turbprop(cnt,i2d,j2, k2)    &
+                                            +  coeffs(8)*oldblock(b)%ig%turbprop(cnt,i2, j2, k2)
               enddo
             endif
           enddo
@@ -555,17 +555,17 @@ subroutine multiple_interpolation()
 
                   ! Density
                   do s = 1, newspecies%n
-                    block%density(s,ii,jj,kk) = 1e-20
+                    block%ig%density(s,ii,jj,kk) = 1e-20
                     do sold = 1, oldspecies%n
                       if (newspecies%name(s)==oldspecies%name(sold)) then
-                        block%density(s,ii,jj,kk)   = coeffs(1)*oldblock(b)%density(sold,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%density(sold,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%density(sold,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%density(sold,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%density(sold,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%density(sold,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%density(sold,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%density(sold,id(mask(1)),id(mask(2)),id(mask(3)))
+                        block%ig%density(s,ii,jj,kk)   = coeffs(1)*oldblock(b)%ig%density(sold,i,j,k)     &
+                                                    +  coeffs(2)*oldblock(b)%ig%density(sold,id(mask(1)),j,k)    &
+                                                    +  coeffs(3)*oldblock(b)%ig%density(sold,i,id(mask(2)),k)    &
+                                                    +  coeffs(4)*oldblock(b)%ig%density(sold,i,j,id(mask(3)))    &
+                                                    +  coeffs(5)*oldblock(b)%ig%density(sold,id(mask(1)),id(mask(2)),k)   &
+                                                    +  coeffs(6)*oldblock(b)%ig%density(sold,id(mask(1)),j,id(mask(3)))   &
+                                                    +  coeffs(7)*oldblock(b)%ig%density(sold,i,id(mask(2)),id(mask(3)))   &
+                                                    +  coeffs(8)*oldblock(b)%ig%density(sold,id(mask(1)),id(mask(2)),id(mask(3)))
                         exit
                       endif
                     enddo
@@ -573,37 +573,37 @@ subroutine multiple_interpolation()
 
                   ! Velocity
                   do cnt = 1, 3
-                    block%velocity(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%velocity(cnt,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%velocity(cnt,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%velocity(cnt,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%velocity(cnt,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%velocity(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%velocity(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%velocity(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%velocity(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
+                    block%ig%velocity(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%ig%velocity(cnt,i,j,k)     &
+                                                    +  coeffs(2)*oldblock(b)%ig%velocity(cnt,id(mask(1)),j,k)    &
+                                                    +  coeffs(3)*oldblock(b)%ig%velocity(cnt,i,id(mask(2)),k)    &
+                                                    +  coeffs(4)*oldblock(b)%ig%velocity(cnt,i,j,id(mask(3)))    &
+                                                    +  coeffs(5)*oldblock(b)%ig%velocity(cnt,id(mask(1)),id(mask(2)),k)   &
+                                                    +  coeffs(6)*oldblock(b)%ig%velocity(cnt,id(mask(1)),j,id(mask(3)))   &
+                                                    +  coeffs(7)*oldblock(b)%ig%velocity(cnt,i,id(mask(2)),id(mask(3)))   &
+                                                    +  coeffs(8)*oldblock(b)%ig%velocity(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
                   enddo
 
                   ! Pressure
-                  block%pressure(ii,jj,kk)    = coeffs(1)*oldblock(b)%pressure(i,j,k)     &
-                                              +  coeffs(2)*oldblock(b)%pressure(id(mask(1)),j,k)    &
-                                              +  coeffs(3)*oldblock(b)%pressure(i,id(mask(2)),k)    &
-                                              +  coeffs(4)*oldblock(b)%pressure(i,j,id(mask(3)))    &
-                                              +  coeffs(5)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),k)   &
-                                              +  coeffs(6)*oldblock(b)%pressure(id(mask(1)),j,id(mask(3)))   &
-                                              +  coeffs(7)*oldblock(b)%pressure(i,id(mask(2)),id(mask(3)))   &
-                                              +  coeffs(8)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
+                  block%ig%pressure(ii,jj,kk)    = coeffs(1)*oldblock(b)%ig%pressure(i,j,k)     &
+                                              +  coeffs(2)*oldblock(b)%ig%pressure(id(mask(1)),j,k)    &
+                                              +  coeffs(3)*oldblock(b)%ig%pressure(i,id(mask(2)),k)    &
+                                              +  coeffs(4)*oldblock(b)%ig%pressure(i,j,id(mask(3)))    &
+                                              +  coeffs(5)*oldblock(b)%ig%pressure(id(mask(1)),id(mask(2)),k)   &
+                                              +  coeffs(6)*oldblock(b)%ig%pressure(id(mask(1)),j,id(mask(3)))   &
+                                              +  coeffs(7)*oldblock(b)%ig%pressure(i,id(mask(2)),id(mask(3)))   &
+                                              +  coeffs(8)*oldblock(b)%ig%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   ! Turbulent properties
                   if (nrans > 0 ) then
                     do cnt = 1, nrans
-                    block%turbprop(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
+                    block%ig%turbprop(cnt,ii,jj,kk)    = coeffs(1)*oldblock(b)%ig%turbprop(cnt,i,j,k)     &
+                                                    +  coeffs(2)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),j,k)    &
+                                                    +  coeffs(3)*oldblock(b)%ig%turbprop(cnt,i,id(mask(2)),k)    &
+                                                    +  coeffs(4)*oldblock(b)%ig%turbprop(cnt,i,j,id(mask(3)))    &
+                                                    +  coeffs(5)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
+                                                    +  coeffs(6)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
+                                                    +  coeffs(7)*oldblock(b)%ig%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
+                                                    +  coeffs(8)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
                     enddo
                   endif
 
@@ -861,17 +861,17 @@ subroutine multiple_interpolation()
                   
                   ! Density
                   do s = 1, newspecies%n
-                    block%density(s,ii,jj,kk) = 1e-20
+                    block%ig%density(s,ii,jj,kk) = 1e-20
                     do sold = 1, oldspecies%n
                       if (newspecies%name(s)==oldspecies%name(sold)) then
-                        block%density(s,ii,jj,kk)   =  coeffs(1)*oldblock(b)%density(sold,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%density(sold,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%density(sold,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%density(sold,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%density(sold,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%density(sold,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%density(sold,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%density(sold,id(mask(1)),id(mask(2)),id(mask(3)))
+                        block%ig%density(s,ii,jj,kk)   =  coeffs(1)*oldblock(b)%ig%density(sold,i,j,k)     &
+                                                    +  coeffs(2)*oldblock(b)%ig%density(sold,id(mask(1)),j,k)    &
+                                                    +  coeffs(3)*oldblock(b)%ig%density(sold,i,id(mask(2)),k)    &
+                                                    +  coeffs(4)*oldblock(b)%ig%density(sold,i,j,id(mask(3)))    &
+                                                    +  coeffs(5)*oldblock(b)%ig%density(sold,id(mask(1)),id(mask(2)),k)   &
+                                                    +  coeffs(6)*oldblock(b)%ig%density(sold,id(mask(1)),j,id(mask(3)))   &
+                                                    +  coeffs(7)*oldblock(b)%ig%density(sold,i,id(mask(2)),id(mask(3)))   &
+                                                    +  coeffs(8)*oldblock(b)%ig%density(sold,id(mask(1)),id(mask(2)),id(mask(3)))
                         exit
                       endif
                     enddo
@@ -879,37 +879,37 @@ subroutine multiple_interpolation()
 
                   ! Velocity
                   do cnt = 1, 3
-                    block%velocity(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%velocity(cnt,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%velocity(cnt,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%velocity(cnt,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%velocity(cnt,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%velocity(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%velocity(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%velocity(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%velocity(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
+                    block%ig%velocity(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%ig%velocity(cnt,i,j,k)     &
+                                                    +  coeffs(2)*oldblock(b)%ig%velocity(cnt,id(mask(1)),j,k)    &
+                                                    +  coeffs(3)*oldblock(b)%ig%velocity(cnt,i,id(mask(2)),k)    &
+                                                    +  coeffs(4)*oldblock(b)%ig%velocity(cnt,i,j,id(mask(3)))    &
+                                                    +  coeffs(5)*oldblock(b)%ig%velocity(cnt,id(mask(1)),id(mask(2)),k)   &
+                                                    +  coeffs(6)*oldblock(b)%ig%velocity(cnt,id(mask(1)),j,id(mask(3)))   &
+                                                    +  coeffs(7)*oldblock(b)%ig%velocity(cnt,i,id(mask(2)),id(mask(3)))   &
+                                                    +  coeffs(8)*oldblock(b)%ig%velocity(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
                   enddo
 
                   ! Pressure
-                  block%pressure(ii,jj,kk)    =  coeffs(1)*oldblock(b)%pressure(i,j,k)     &
-                                              +  coeffs(2)*oldblock(b)%pressure(id(mask(1)),j,k)    &
-                                              +  coeffs(3)*oldblock(b)%pressure(i,id(mask(2)),k)    &
-                                              +  coeffs(4)*oldblock(b)%pressure(i,j,id(mask(3)))    &
-                                              +  coeffs(5)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),k)   &
-                                              +  coeffs(6)*oldblock(b)%pressure(id(mask(1)),j,id(mask(3)))   &
-                                              +  coeffs(7)*oldblock(b)%pressure(i,id(mask(2)),id(mask(3)))   &
-                                              +  coeffs(8)*oldblock(b)%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
+                  block%ig%pressure(ii,jj,kk)    =  coeffs(1)*oldblock(b)%ig%pressure(i,j,k)     &
+                                              +  coeffs(2)*oldblock(b)%ig%pressure(id(mask(1)),j,k)    &
+                                              +  coeffs(3)*oldblock(b)%ig%pressure(i,id(mask(2)),k)    &
+                                              +  coeffs(4)*oldblock(b)%ig%pressure(i,j,id(mask(3)))    &
+                                              +  coeffs(5)*oldblock(b)%ig%pressure(id(mask(1)),id(mask(2)),k)   &
+                                              +  coeffs(6)*oldblock(b)%ig%pressure(id(mask(1)),j,id(mask(3)))   &
+                                              +  coeffs(7)*oldblock(b)%ig%pressure(i,id(mask(2)),id(mask(3)))   &
+                                              +  coeffs(8)*oldblock(b)%ig%pressure(id(mask(1)),id(mask(2)),id(mask(3)))
 
                   ! Turbulent properties
                   if (nrans > 0 ) then
                     do cnt = 1, nrans
-                    block%turbprop(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%turbprop(cnt,i,j,k)     &
-                                                    +  coeffs(2)*oldblock(b)%turbprop(cnt,id(mask(1)),j,k)    &
-                                                    +  coeffs(3)*oldblock(b)%turbprop(cnt,i,id(mask(2)),k)    &
-                                                    +  coeffs(4)*oldblock(b)%turbprop(cnt,i,j,id(mask(3)))    &
-                                                    +  coeffs(5)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
-                                                    +  coeffs(6)*oldblock(b)%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
-                                                    +  coeffs(7)*oldblock(b)%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
-                                                    +  coeffs(8)*oldblock(b)%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
+                    block%ig%turbprop(cnt,ii,jj,kk)    =  coeffs(1)*oldblock(b)%ig%turbprop(cnt,i,j,k)     &
+                                                    +  coeffs(2)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),j,k)    &
+                                                    +  coeffs(3)*oldblock(b)%ig%turbprop(cnt,i,id(mask(2)),k)    &
+                                                    +  coeffs(4)*oldblock(b)%ig%turbprop(cnt,i,j,id(mask(3)))    &
+                                                    +  coeffs(5)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),id(mask(2)),k)   &
+                                                    +  coeffs(6)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),j,id(mask(3)))   &
+                                                    +  coeffs(7)*oldblock(b)%ig%turbprop(cnt,i,id(mask(2)),id(mask(3)))   &
+                                                    +  coeffs(8)*oldblock(b)%ig%turbprop(cnt,id(mask(1)),id(mask(2)),id(mask(3)))
                     enddo
                   endif
                 
@@ -944,10 +944,10 @@ subroutine multiple_interpolation()
 
             ! Density
             do s = 1, newspecies%n
-              block%density(s,i,j,k) = 1e-20
+              block%ig%density(s,i,j,k) = 1e-20
               do sold = 1, oldspecies%n
                 if (newspecies%name(s)==oldspecies%name(sold)) then
-                  block%density(s,i,j,k) = oldblock(b)%density(sold,indi,indj,indk)
+                  block%ig%density(s,i,j,k) = oldblock(b)%ig%density(sold,indi,indj,indk)
                   exit
                 endif
               enddo
@@ -955,14 +955,14 @@ subroutine multiple_interpolation()
 
             ! Velocity
             do cnt = 1, 3
-              block%velocity(cnt,i,j,k) = oldblock(b)%velocity(cnt,indi,indj,indk)
+              block%ig%velocity(cnt,i,j,k) = oldblock(b)%ig%velocity(cnt,indi,indj,indk)
             enddo
 
             ! Pressure
-            block%pressure(i,j,k) = oldblock(b)%pressure(indi,indj,indk)
+            block%ig%pressure(i,j,k) = oldblock(b)%ig%pressure(indi,indj,indk)
 
             ! Turbulent properties
-            if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(b)%turbprop(1:nrans,indi,indj,indk)
+            if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(b)%ig%turbprop(1:nrans,indi,indj,indk)
 
           enddo
         enddo
@@ -1070,10 +1070,10 @@ subroutine distance_interpolation
 
         ! Density
         do s = 1, newspecies%n
-          block%density(s,i,j,k) = 1e-20
+          block%ig%density(s,i,j,k) = 1e-20
           do sold = 1, oldspecies%n
             if (newspecies%name(s)==oldspecies%name(sold)) then
-              block%density(s,i,j,k) = oldblock(trueb)%density(sold,ind(1),ind(2),ind(3))
+              block%ig%density(s,i,j,k) = oldblock(trueb)%ig%density(sold,ind(1),ind(2),ind(3))
               exit
             endif
           enddo
@@ -1081,14 +1081,14 @@ subroutine distance_interpolation
 
         ! Velocity
         do cnt = 1, 3
-          block%velocity(cnt,i,j,k) = oldblock(trueb)%velocity(cnt,ind(1),ind(2),ind(3))
+          block%ig%velocity(cnt,i,j,k) = oldblock(trueb)%ig%velocity(cnt,ind(1),ind(2),ind(3))
         end do
 
         ! Pressure
-        block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
+        block%ig%pressure(i,j,k) = oldblock(trueb)%ig%pressure(ind(1),ind(2),ind(3))
 
         ! Turbulent properties
-        if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(1:nrans,ind(1),ind(2),ind(3))
+        if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(trueb)%ig%turbprop(1:nrans,ind(1),ind(2),ind(3))
 
       enddo
     enddo
@@ -1200,10 +1200,10 @@ subroutine spherical_distance_interpolation
 
         ! Density
         do s = 1, newspecies%n
-          block%density(s,i,j,k) = 1e-20
+          block%ig%density(s,i,j,k) = 1e-20
           do sold = 1, oldspecies%n
             if (newspecies%name(s)==oldspecies%name(sold)) then
-              block%density(s,i,j,k) = oldblock(trueb)%density(sold,ind(1),ind(2),ind(3))
+              block%ig%density(s,i,j,k) = oldblock(trueb)%ig%density(sold,ind(1),ind(2),ind(3))
               exit
             endif
           enddo
@@ -1211,14 +1211,14 @@ subroutine spherical_distance_interpolation
 
         ! Velocity
         do cnt = 1, 3
-          block%velocity(cnt,i,j,k) = oldblock(trueb)%velocity(cnt,ind(1),ind(2),ind(3))
+          block%ig%velocity(cnt,i,j,k) = oldblock(trueb)%ig%velocity(cnt,ind(1),ind(2),ind(3))
         end do
 
         ! Pressure
-        block%pressure(i,j,k) = oldblock(trueb)%pressure(ind(1),ind(2),ind(3))
+        block%ig%pressure(i,j,k) = oldblock(trueb)%ig%pressure(ind(1),ind(2),ind(3))
 
         ! Turbulent properties
-        if (nrans > 0 ) block%turbprop(1:nrans,i,j,k) = oldblock(trueb)%turbprop(1:nrans,ind(1),ind(2),ind(3))
+        if (nrans > 0 ) block%ig%turbprop(1:nrans,i,j,k) = oldblock(trueb)%ig%turbprop(1:nrans,ind(1),ind(2),ind(3))
 
       enddo
     enddo

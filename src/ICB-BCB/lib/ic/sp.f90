@@ -32,14 +32,14 @@ contains
     character(len=llen)           :: OMF, OFF
     integer                       :: oldid
 
-    if (.not.allocated(block%temperature)) then
-        allocate(block%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    if (.not.allocated(block%ig%temperature)) then
+        allocate(block%ig%temperature(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
-    if (.not.allocated(block%mID)) then
-        allocate(block%mID(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    if (.not.allocated(block%sp%mID)) then
+        allocate(block%sp%mID(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
-    if (.not.allocated(block%qvol)) then
-        allocate(block%qvol(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
+    if (.not.allocated(block%sp%qvol)) then
+        allocate(block%sp%qvol(1:block%dim(1),1:block%dim(2),1:block%dim(3)))
     endif
 
     mID = 0.0
@@ -118,9 +118,9 @@ contains
                   here(2)>=range(3) .and. here(2)<=range(4) .and. &
                   here(3)>=range(5) .and. here(3)<=range(6)) then
 
-                block%temperature(i,j,k) = T(i,j,k)
-                block%mID(i,j,k) = mID
-                block%qvol(i,j,k) = qvol(i,j,k)
+                block%ig%temperature(i,j,k) = T(i,j,k)
+                block%sp%mID(i,j,k) = mID
+                block%sp%qvol(i,j,k) = qvol(i,j,k)
 
               endif
           enddo; enddo; enddo
@@ -159,9 +159,9 @@ contains
                 j>=jmin .and. j<=jmax .and. &
                 k>=kmin .and. k<=kmax) then
 
-              block%temperature(i,j,k) = T(i,j,k)
-              block%mID(i,j,k) = mID
-              block%qvol(i,j,k) = qvol(i,j,k)
+              block%ig%temperature(i,j,k) = T(i,j,k)
+              block%sp%mID(i,j,k) = mID
+              block%sp%qvol(i,j,k) = qvol(i,j,k)
 
             endif
           enddo; enddo; enddo
