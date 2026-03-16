@@ -1,4 +1,4 @@
-file(GLOB SOURCES "*.f90" "IO/*.f90")
+file(GLOB SOURCES "core/*.f90" "bc/*.f90" "ic/*.f90" "io/*.f90")
 
 add_library(ATLAS ${SOURCES})
 target_include_directories(ATLAS INTERFACE ${CMAKE_Fortran_MODULE_DIRECTORY})

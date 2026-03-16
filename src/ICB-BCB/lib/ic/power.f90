@@ -157,7 +157,7 @@ contains
     
     call get_environment_variable('ATLASDIR',master_path)
     if (allocated(intersection)) deallocate(intersection)
-    call IntersectionVolumes(trim(master_path)//'/src/ICB-BCB/lib/convexHull.py',nint,intersection)
+    call IntersectionVolumes(trim(master_path)//'/scripts/convexHull.py',nint,intersection)
 
     ! Modificare il volume della griglia della neutronica
     do ir = 1, powerblock%dim(1)
@@ -267,7 +267,7 @@ contains
       
       call get_environment_variable('ATLASDIR',master_path)
       if (allocated(intersection)) deallocate(intersection)
-      call IntersectionVolumes(trim(master_path)//'/src/ICB-BCB/lib/convexHull.py',nint,intersection)
+      call IntersectionVolumes(trim(master_path)//'/scripts/convexHull.py',nint,intersection)
 
       tot_power = 0.d0
       do ir = 1, block%dim(1)
