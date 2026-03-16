@@ -1,6 +1,7 @@
 module build_IC_mod
   use ATLAS_high_level
   use finer, only: file_ini
+  use direction_mod, only: parse_direction
   implicit none
   private
   public:: build_IC
@@ -122,7 +123,7 @@ module build_IC_mod
     type(var_block), intent(inout), optional :: powerblock
     ! Local
     character(len=2)              :: phase_type
-    logical                       :: found(8), index_based
+    logical                       :: index_based
     integer                       :: pi, i, error
     character(len=20)             :: IC_type
     real(8)                       :: range(6)
@@ -138,28 +139,7 @@ module build_IC_mod
     dirSize = 0
     call zoneini%get(section_name='zone', option_name='direction', val=dirID, error=error)
     if (error==0) then
-      found = .false.
-      dirSize = len_trim(dirID)
-      allocate(dir(1:dirSize))
-      do i = 1, dirSize
-        if (index(dirID,'x')/=0 .and. .not.found(1)) then
-          dir(i) = 1; found(1)=.true.
-        elseif (index(dirID,'y')/=0 .and. .not.found(2)) then
-          dir(i) = 2; found(2)=.true.
-        elseif (index(dirID,'z')/=0 .and. .not.found(3)) then
-          dir(i) = 3; found(3)=.true.
-        elseif (index(dirID,'r')/=0 .and. .not.found(4)) then
-          dir(i) = 4; found(4)=.true.
-        elseif (index(dirID,'t')/=0 .and. .not.found(5)) then
-          dir(i) = 5; found(5)=.true.
-        elseif (index(dirID,'i')/=0 .and. .not.found(6)) then
-          dir(i) = 6; found(6)=.true.; index_based=.true.
-        elseif (index(dirID,'j')/=0 .and. .not.found(7)) then
-          dir(i) = 7; found(7)=.true.; index_based=.true.
-        elseif (index(dirID,'k')/=0 .and. .not.found(8)) then
-          dir(i) = 8; found(8)=.true.; index_based=.true.
-        endif
-      enddo
+      call parse_direction(dirID, dir, dirSize, index_based)
     endif
 
     ! Check range for multizone
