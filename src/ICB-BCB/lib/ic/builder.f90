@@ -5,8 +5,6 @@ module build_IC_mod
   private
   public:: build_IC
 
-  integer, parameter :: nIG=5
-
   contains
 
   subroutine build_IC(phase,sini,blocks,powerblock)

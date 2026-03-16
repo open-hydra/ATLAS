@@ -5,7 +5,7 @@ module lib_bc
   implicit none
   private
 
-  integer, parameter :: nIG=7
+  integer, parameter :: nIG_bc=7
   integer, public, parameter :: nCP=8
 
   type, public:: obj_bc_cellface_properties
@@ -48,7 +48,7 @@ module lib_bc
     !% General
     self%connection = 0
     self%adj_assigned = .false.
-    self%nproperties = nIG+nrans
+    self%nproperties = nIG_bc+nrans
     if (self%definition==14) self%nproperties = 8
     if (.not.allocated(self%properties)) allocate(self%properties(1:self%nproperties))
     if (.not.allocated(self%IG_time_BC)) allocate(self%IG_time_BC(1:self%nproperties))
@@ -391,14 +391,14 @@ module lib_bc
           endif
           self%properties(7) = rel_fac
           if (nrans==1) then
-            self%properties(nIG+1) = mit
+            self%properties(nIG_bc+1) = mit
           elseif (nrans==2) then
-            self%properties(nIG+1) = kappa
-            self%properties(nIG+2) = omega
+            self%properties(nIG_bc+1) = kappa
+            self%properties(nIG_bc+2) = omega
           elseif (nrans==7) then
-            self%properties(nIG+1:nIG+3) = rhoRij
-            self%properties(nIG+4:nIG+6) = 1d-8
-            self%properties(nIG+7) = omega
+            self%properties(nIG_bc+1:nIG_bc+3) = rhoRij
+            self%properties(nIG_bc+4:nIG_bc+6) = 1d-8
+            self%properties(nIG_bc+7) = omega
           endif
         else
           m = size(self%properties)
