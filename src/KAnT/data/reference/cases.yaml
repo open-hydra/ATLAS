@@ -1,0 +1,35 @@
+# Reference experimental cases for KAnT validation.
+# Each entry defines the parameters needed to reproduce a literature test case.
+# All compositions use the same {species:fraction} format as the INI config.
+
+pierro:
+  label: "Pierro et al."
+  fuel: "{CH4:1.672995}"
+  oxidizer: "{O2:6.673626} {AR:91.653379}"
+  pressure: [100]
+  of: [0.0]
+  temperature_linear: [1050, 1350, 20]
+
+huang-40-stoich:
+  label: "Huang et al."
+  fuel: "{CH4:0.05502567}"
+  oxidizer: "{O2:0.22180952} {N2:0.72316481}"
+  pressure: [40]
+  of: [0.0]
+  temperature_linear: [1024, 1295, 20]
+
+huang-40-rich:
+  label: "Huang et al."
+  fuel: "{CH4:0.07048119}"
+  oxidizer: "{O2:0.216721} {N2:0.71279781}"
+  pressure: [40]
+  of: [0.0]
+  temperature_linear: [1068, 1290, 20]
+
+lifshitz-4.6:
+  label: "Lifshitz et al."
+  fuel: "{H2:0.00534534}"
+  oxidizer: "{CL2:0.18798856} {Ar:0.8066661}"
+  pressure: [4.6]
+  of: [0.0]
+  temperature_linear: [800, 1300, 10]
