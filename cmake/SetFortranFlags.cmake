@@ -109,9 +109,34 @@ SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}"
 
 # Check array bounds
 SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}"
-                 Fortran "-check bound"  # Intel
-                         "/check:bound"  # Intel Windows
-                         "-fcheck=bound" # GNU (New style)
+                 Fortran "-check bounds"  # Intel
+                         "/check:bounds"  # Intel Windows
+                         "-fcheck=bounds" # GNU (New style)
+                )
+
+# Check all runtime conditions (uninitialised vars, pointers, etc.)
+SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}"
+                 Fortran "-check all"     # Intel
+                         "/check:all"     # Intel Windows
+                         "-fcheck=all"    # GNU
+                )
+
+# Trap floating-point exceptions (divide-by-zero, overflow, invalid)
+SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}"
+                 Fortran "-fpe0"                                          # Intel
+                         "/fpe:0"                                         # Intel Windows
+                         "-ffpe-trap=invalid,zero,overflow"               # GNU
+                )
+
+# Initialise local variables to signalling NaN (helps catch use-before-set)
+SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}"
+                 Fortran "-init=snan"          # Intel
+                         "-finit-real=snan"    # GNU
+                )
+
+# Enable extra warnings beyond -Wall
+SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}"
+                 Fortran "-Wextra"    # GNU
                 )
 
 #####################
@@ -128,7 +153,11 @@ SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_TESTING "${CMAKE_Fortran_FLAGS_TESTING}"
 ### RELEASE FLAGS ###
 #####################
 
-# NOTE: agressive optimizations (-O3) are already turned on by default
+# Aggressive optimizations
+SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}"
+                 Fortran REQUIRED "-O3" # All compilers not on Windows
+                                  "/O2" # Intel Windows (max level)
+                )
 
 # Unroll loops
 SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}"
@@ -147,22 +176,14 @@ SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}"
                 )
 
 # Interprocedural (link-time) optimizations
-# SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}"
-#                  Fortran "-ipo"     # Intel
-#                          "/Qipo"    # Intel Windows
-#                          "-flto"    # GNU
-#                          "-Mipa"    # Portland Group
-#                 )
+SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}"
+                 Fortran "-ipo"     # Intel
+                         "/Qipo"    # Intel Windows
+                         "-Mipa"    # Portland Group
+                )
 
-# Single-file optimizations
-#SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}"
-#                 Fortran "-ip"  # Intel
-#                         "/Qip" # Intel Windows
-#                )
-
-# Vectorize code
-#SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}"
-#                 Fortran "-vec-report0"  # Intel
-#                         "/Qvec-report0" # Intel Windows
-#                         "-Mvect"        # Portland Group
-#                )
+# Single-file interprocedural optimizations
+SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}"
+                 Fortran "-ip"  # Intel
+                         "/Qip" # Intel Windows
+                )
