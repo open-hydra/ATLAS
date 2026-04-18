@@ -19,19 +19,19 @@ contains
     call sourceini%get(section_name=section, option_name='qrad',  val=qrad, error=eqrad)
     call sourceini%get(section_name=section, option_name='eps',   val=eps,  error=eeps)
 
-    ! Heat flux and roughness (if 0, smooth wall)
+    ! Heat flux, roughness (if 0, smooth wall), and emissivity
     if (eq==0._R8 .and. (eT+eqrad)/=0._R8) then
-      self % ig_n = 2
+      self % ig_n = 3
       allocate(self % ig_properties(1:self % ig_n))
       self % ig_id = 301
-      self % ig_properties(1:2) = [q, ks]
+      self % ig_properties(1:3) = [q, ks, eps]
     
-    ! Temperature and roughness (if 0, smooth wall)
+    ! Temperature, roughness (if 0, smooth wall), and emissivity
     elseif (eT==0._R8 .and. (eq+eqrad)/=0._R8) then
-      self % ig_n = 2
+      self % ig_n = 3
       allocate(self % ig_properties(1:self % ig_n))
       self % ig_id = 302
-      self % ig_properties(1:2) = [T, ks]
+      self % ig_properties(1:3) = [T, ks, eps]
 
     ! Temperature, radiative heat flux, and roughness (if 0, smooth wall)
     elseif (eT==0._R8 .and. eqrad==0._R8 .and. eq/=0._R8) then
