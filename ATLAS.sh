@@ -5,7 +5,6 @@ function print_usage {
   echo "CFD pre-processing tools:"
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
-  echo "   ATLAS BCB-Q2D"
   echo "   ATLAS ICB"
   echo
   echo "General tools:"
@@ -77,7 +76,11 @@ else
           eval "$(conda shell.bash hook)"
       fi
       conda activate ct-env
-      python3 -B $ATLASDIR/src/$program $P
+      if [[ $program == 'GPB' ]]; then
+        python3 -B $ATLASDIR/src/hydra-tools/$program $P
+      else
+        python3 -B $ATLASDIR/src/$program $P
+      fi
       conda deactivate
     else
       ls *phase.txt > filelist.txt 2>/dev/null

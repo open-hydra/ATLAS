@@ -13,20 +13,30 @@ contains
     type(BC_block), intent(inout) :: block(:)
     character(len=200) :: master_path
     integer                 :: ir,jr,kr,br,ni,nint
-    integer                 :: unitfile1, unitfile2
+    integer                 :: unitfile1, unitfile2, unitlog
     integer                 :: gc(3)
+    integer                 :: procStart(3)
     type(intersection_type), allocatable :: intersection(:)
     logical, allocatable                 :: nodeinside(:,:,:,:)
+    logical, allocatable                 :: processed(:,:,:)
 
     gc = mesh_cfg%gc
+    procStart = [1-gc(1),1-gc(2),1-gc(3)]
 
     !% Look for intersections
     ni = 0; nint = 0
     open(newunit=unitfile1,file='couples.txt')
     open(newunit=unitfile2,file='points.txt')
+    open(newunit=unitlog,file='chimera.log',status='replace',action='write')
 
     ! Loop over the receiver block cells
     do br = 1, size(block)
+
+      if (allocated(processed)) deallocate(processed)
+      allocate(processed(1-gc(1):block(br)%dim(1)+gc(1),                              &
+                         1-gc(2):block(br)%dim(2)+gc(2),                              &
+                         1-gc(3):block(br)%dim(3)+gc(3)))
+      processed = .false.
 
       allocate(block(br)%face(1)%cell(1-gc(1):0,                                 1-gc(2):block(br)%dim(2)+gc(2),            1-gc(3):block(br)%dim(3)+gc(3)))
       allocate(block(br)%face(2)%cell(block(br)%dim(1)+1:block(br)%dim(1)+gc(1), 1-gc(2):block(br)%dim(2)+gc(2),            1-gc(3):block(br)%dim(3)+gc(3)))
@@ -40,7 +50,8 @@ contains
       allocate(nodeinside(8,1-gc(1):0,1-gc(2):block(br)%dim(2)+gc(2),1-gc(3):block(br)%dim(3)+gc(3)))
       nodeinside = .false.
       do kr = 1-gc(3), block(br)%dim(3)+gc(3); do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = 1-gc(1), 0
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),1-gc(2),1-gc(3)])
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,processed,nint, &
+                           [1-gc(1),1-gc(2),1-gc(3)],procStart)
         ni = ni+nint
       enddo; enddo; enddo
 
@@ -49,7 +60,8 @@ contains
       allocate(nodeinside(8,block(br)%dim(1)+1:block(br)%dim(1)+gc(1),1-gc(2):block(br)%dim(2)+gc(2),1-gc(3):block(br)%dim(3)+gc(3)))
       nodeinside = .false.
       do kr = 1-gc(3), block(br)%dim(3)+gc(3); do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc(1)
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[block(br)%dim(1)+1,1-gc(2),1-gc(3)])
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,processed,nint, &
+                           [block(br)%dim(1)+1,1-gc(2),1-gc(3)],procStart)
         ni = ni+nint
       enddo; enddo; enddo
 
@@ -58,7 +70,8 @@ contains
       allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),1-gc(2):0,1-gc(3):block(br)%dim(3)+gc(3)))
       nodeinside = .false.
       do kr = 1-gc(3), block(br)%dim(3)+gc(3); do jr = 1-gc(2), 0; do ir = 1-gc(1), block(br)%dim(1)+gc(1)
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),1-gc(2),1-gc(3)])
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,processed,nint, &
+                           [1-gc(1),1-gc(2),1-gc(3)],procStart)
         ni = ni+nint
       enddo; enddo; enddo
 
@@ -67,27 +80,34 @@ contains
       allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),block(br)%dim(2)+1:block(br)%dim(2)+gc(2),1-gc(3):block(br)%dim(3)+gc(3)))
       nodeinside = .false.
       do kr = 1-gc(3), block(br)%dim(3)+gc(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc(2); do ir = 1-gc(1), block(br)%dim(1)+gc(1)
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),block(br)%dim(2)+1,1-gc(3)])
+        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,processed,nint, &
+                           [1-gc(1),block(br)%dim(2)+1,1-gc(3)],procStart)
         ni = ni+nint
       enddo; enddo; enddo
 
-      ! Face 5
-      if (allocated(nodeinside)) deallocate(nodeinside)
-      allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),1-gc(2):block(br)%dim(2)+gc(2),1-gc(3):0))
-      nodeinside = .false.
-      do kr = 1-gc(3), 0; do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = 1-gc(1), block(br)%dim(1)+gc(1)
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),1-gc(2),1-gc(3)])
-        ni = ni+nint
-      enddo; enddo; enddo
+      if (mesh_cfg%meshType==3) then
 
-      !Face 6
-      if (allocated(nodeinside)) deallocate(nodeinside)
-      allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),1-gc(2):block(br)%dim(2)+gc(2),block(br)%dim(3)+1:block(br)%dim(3)+gc(3)))
-      nodeinside = .false.
-      do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc(3); do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = 1-gc(1), block(br)%dim(1)+gc(1)
-        call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,[1-gc(1),1-gc(2),block(br)%dim(3)+1])
-        ni = ni+nint
-      enddo; enddo; enddo
+        ! Face 5
+        if (allocated(nodeinside)) deallocate(nodeinside)
+        allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),1-gc(2):block(br)%dim(2)+gc(2),1-gc(3):0))
+        nodeinside = .false.
+        do kr = 1-gc(3), 0; do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = 1-gc(1), block(br)%dim(1)+gc(1)
+          call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,processed,nint, &
+                            [1-gc(1),1-gc(2),1-gc(3)],procStart)
+          ni = ni+nint
+        enddo; enddo; enddo
+
+        !Face 6
+        if (allocated(nodeinside)) deallocate(nodeinside)
+        allocate(nodeinside(8,1-gc(1):block(br)%dim(1)+gc(1),1-gc(2):block(br)%dim(2)+gc(2),block(br)%dim(3)+1:block(br)%dim(3)+gc(3)))
+        nodeinside = .false.
+        do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc(3); do jr = 1-gc(2), block(br)%dim(2)+gc(2); do ir = 1-gc(1), block(br)%dim(1)+gc(1)
+          call LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,processed,nint, &
+                            [1-gc(1),1-gc(2),block(br)%dim(3)+1],procStart)
+          ni = ni+nint
+        enddo; enddo; enddo
+
+      endif
       
     enddo
 
@@ -102,49 +122,51 @@ contains
       !$omp parallel private(ir,jr,kr)
       !$omp do collapse(3) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = 1-gc(1), 0
-        call VolumeFractions(block,br,1,ir,jr,kr,ni,intersection)
+          call VolumeFractions(block,br,1,ir,jr,kr,ni,intersection,unitlog)
       enddo; enddo; enddo
       !$omp end parallel
       ! Face 2
       !$omp parallel private(ir,jr,kr)
       !$omp do collapse(3) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc(1)
-        call VolumeFractions(block,br,2,ir,jr,kr,ni,intersection)
+          call VolumeFractions(block,br,2,ir,jr,kr,ni,intersection,unitlog)
       enddo; enddo; enddo
       !$omp end parallel
       ! Face 3
       !$omp parallel private(ir,jr,kr)
       !$omp do collapse(3) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = 1-gc(2), 0; do ir = 1, block(br)%dim(1)
-        call VolumeFractions(block,br,3,ir,jr,kr,ni,intersection)
+          call VolumeFractions(block,br,3,ir,jr,kr,ni,intersection,unitlog)
       enddo; enddo; enddo
       !$omp end parallel
       ! Face 4
       !$omp parallel private(ir,jr,kr)
       !$omp do collapse(3) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc(2); do ir = 1, block(br)%dim(1)
-        call VolumeFractions(block,br,4,ir,jr,kr,ni,intersection)
+          call VolumeFractions(block,br,4,ir,jr,kr,ni,intersection,unitlog)
       enddo; enddo; enddo
       !$omp end parallel
       ! Face 5
       !$omp parallel private(ir,jr,kr)
       !$omp do collapse(3) schedule(dynamic)
       do kr = 1-gc(3), 0; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
-        call VolumeFractions(block,br,5,ir,jr,kr,ni,intersection)
+          call VolumeFractions(block,br,5,ir,jr,kr,ni,intersection,unitlog)
       enddo; enddo; enddo
       !$omp end parallel
       ! Face 6
       !$omp parallel private(ir,jr,kr)
       !$omp do collapse(3) schedule(dynamic)
       do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc(3); do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
-        call VolumeFractions(block,br,6,ir,jr,kr,ni,intersection)
+          call VolumeFractions(block,br,6,ir,jr,kr,ni,intersection,unitlog)
       enddo; enddo; enddo
       !$omp end parallel
-    enddo
+      enddo
+
+      close(unitlog)
 
   end subroutine chimera_wrapper
 
-  subroutine LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,nint,startingIndexes)
+  subroutine LoopOverDonors(block,unitfile1,unitfile2,br,ir,jr,kr,nodeinside,processed,nint,startingIndexes,procStart)
     use bc_block_mod, only: BC_block
     use intersection_mod
     use ir_precision
@@ -153,7 +175,9 @@ contains
     integer, intent(in)    :: unitfile1, unitfile2
     integer, intent(in)    :: br,ir,jr,kr
     integer, intent(in)    :: startingIndexes(3)
+    integer, intent(in)    :: procStart(3)
     logical, intent(inout) :: nodeinside(:,startingIndexes(1):,startingIndexes(2):,startingIndexes(3):)
+    logical, intent(inout) :: processed(procStart(1):,procStart(2):,procStart(3):)
     integer, intent(out)   :: nint
 
     integer                :: bd,id,jd,kd,p,d,ff
@@ -162,7 +186,11 @@ contains
     real(8), allocatable   :: hull_points(:)
     character(len=18)      :: fmt
        
-    
+    if (processed(ir,jr,kr)) then
+      nint = 0
+      return
+    endif
+    processed(ir,jr,kr) = .true.
 
     ! Check if center-face inside any donor BLOCK bounding-box (I level)
     next = .false.
@@ -172,7 +200,7 @@ contains
       if (bd==br) cycle
 
       ! Face 1 
-      if (ir.le.0) then
+      if (ir<=0) then
         ff = 0
         do d = 1, 3
           if ( (block(br)%face(1)%center(jr,kr)%c(d) > block(bd)%block_bounding_min(d)-toll) .and. &
@@ -184,7 +212,7 @@ contains
       endif
 
       ! Face 2
-      if (ir.ge.block(br)%dim(1)+1) then
+      if (ir>=block(br)%dim(1)+1) then
         ff = 0
         do d = 1, 3
           if ( (block(br)%face(2)%center(jr,kr)%c(d) > block(bd)%block_bounding_min(d)-toll) .and. &
@@ -196,7 +224,7 @@ contains
       endif
 
       ! Face 3
-      if (jr.le.0) then   
+      if (jr<=0) then   
         ff = 0
         do d = 1, 3
           if ( (block(br)%face(3)%center(ir,kr)%c(d) > block(bd)%block_bounding_min(d)-toll) .and. &
@@ -208,7 +236,7 @@ contains
       endif
 
       ! Face 4
-      if (jr.ge.block(br)%dim(2)+1) then        
+      if (jr>=block(br)%dim(2)+1) then        
         ff = 0
         do d = 1, 3
           if ( (block(br)%face(4)%center(ir,kr)%c(d) > block(bd)%block_bounding_min(d)-toll) .and. &
@@ -220,7 +248,7 @@ contains
       endif
 
       ! Face 5
-      if (kr.le.0) then   
+      if (kr<=0) then   
         ff = 0
         do d = 1, 3
           if ( (block(br)%face(5)%center(ir,jr)%c(d) > block(bd)%block_bounding_min(d)-toll) .and. &
@@ -232,7 +260,7 @@ contains
       endif
 
       ! Face 6
-      if (kr.ge.block(br)%dim(3)+1) then        
+      if (kr>=block(br)%dim(3)+1) then        
         ff = 0
         do d = 1, 3
           if ( (block(br)%face(6)%center(ir,jr)%c(d) > block(bd)%block_bounding_min(d)-toll) .and. &
@@ -249,11 +277,8 @@ contains
 
     enddo    
 
-    ! If the point in not in any block bounding box --> It is not a connection.
-    if (.not.next) then
-      nint = 0    
-      return
-    endif
+    ! Do not reject here: a receiver cell can intersect a donor cell even when
+    ! its face-center is outside donor block bounding boxes.
 
 1234    continue
 
@@ -297,18 +322,15 @@ contains
           call pointInsideHexahedron(block(br)%face(6)%center(ir,jr)%c(1:3)*fs, donor, next)
         endif 
         
-        if ( next ) then
+          if ( next ) then
           goto 2345
         endif
       
       enddo; enddo; enddo
     enddo
     
-    ! If the point in not in any cell of any block --> It is not a connection.
-    if (.not.next) then
-      nint = 0    
-      return
-    endif
+    ! Do not reject here: center-point inclusion is only a heuristic and can
+    ! miss valid partial hexahedron-hexahedron intersections.
 
 2345    continue
 
@@ -316,6 +338,20 @@ contains
     nint = 0   
     do bd = 1, size(block)
       if (bd==br) cycle
+
+      ! Conservative block-level AABB prefilter: keep only donor blocks that
+      ! overlap the receiver-cell bounding box.
+      next = .false.
+      do d = 1, 3
+        if (block(bd)%block_bounding_max(d) < block(br)%bbmin(ir,jr,kr)%c(d)) then
+          next = .true.
+        endif
+        if (block(bd)%block_bounding_min(d) > block(br)%bbmax(ir,jr,kr)%c(d)) then
+          next = .true.
+        endif
+      enddo
+
+      if (next) cycle
 
         do kd = 1, block(bd)%dim(3); do jd = 1, block(bd)%dim(2); do id = 1, block(bd)%dim(1)
                
@@ -365,40 +401,51 @@ contains
   end subroutine LoopOverDonors
 
 
-  subroutine VolumeFractions(block,br,fr,ir,jr,kr,ni,intersection)
+  subroutine VolumeFractions(block,br,fr,ir,jr,kr,ni,intersection,unitlog)
     use bc_block_mod, only: BC_block
     use intersection_mod
     use grid_mod, only: ijk2mn
     implicit none
     type(BC_block), intent(inout)       :: block(:)
-    integer, intent(in)                    :: ir,jr,kr,fr,br,ni
+    integer, intent(in)                    :: ir,jr,kr,fr,br,ni,unitlog
     type(intersection_type), intent(inout) :: intersection(:)
     
     integer                 :: localID(4)
     real(8)                 :: volume
-    integer                 :: k,i,m,n,t,t_init,t_end
+    real(8)                 :: vol_tol
+    integer                 :: k,i,m,n,t
     integer                 :: ni_per_receiver
     logical                 :: nodeinside_local(8)
 
     localID = [br,ir,jr,kr]
     volume = 0.d0
     ni_per_receiver = 0
+    vol_tol = max(1d-18, 1d-6*block(br)%vol(ir,jr,kr))
     t = 0
+    nodeinside_local = .false.
     do i = 1, ni
       if (all(intersection(i)%receiverID==localID)) then
         t = t + 1
-        if ( t == 1) t_init = i
-        volume = volume+intersection(i)%inter_volume
-        if (intersection(i)%inter_volume>0.d0) ni_per_receiver = ni_per_receiver+1
+        if (intersection(i)%inter_volume>vol_tol) then
+          volume = volume+intersection(i)%inter_volume
+          ni_per_receiver = ni_per_receiver+1
+        endif
         nodeinside_local = intersection(i)%nodeinside
       endif
     enddo
-    t_end = t_init + t-1
-    
+
+    if (t==0) return
     if (volume==0.d0) return
-    
-    do i = t_init,t_end
-      intersection(i)%volume_fraction = intersection(i)%inter_volume/volume
+    if (ni_per_receiver==0) return
+
+    do i = 1, ni
+      if (all(intersection(i)%receiverID==localID)) then
+        if (intersection(i)%inter_volume>vol_tol) then
+          intersection(i)%volume_fraction = intersection(i)%inter_volume/volume
+        else
+          intersection(i)%volume_fraction = 0.d0
+        endif
+      endif
     enddo
     
     allocate(block(br)%face(fr)%cell(ir,jr,kr)%chimerainfo(1:ni_per_receiver,1:5))
@@ -408,7 +455,7 @@ contains
     k = 0
     do i = 1, ni
       if (all(intersection(i)%receiverID==localID)) then
-        if (intersection(i)%inter_volume>0.d0) then
+        if (intersection(i)%inter_volume>vol_tol) then
           k = k+1
           block(br)%face(fr)%cell(ir,jr,kr)%chimerainfo(k,1:4) = real(intersection(i)%donorID)
           block(br)%face(fr)%cell(ir,jr,kr)%chimerainfo(k,5) = intersection(i)%volume_fraction
@@ -419,22 +466,22 @@ contains
     !$omp critical(chimera_print)
     if (abs((volume-block(br)%vol(ir,jr,kr))/block(br)%vol(ir,jr,kr))>1d-3) then
       if (all(nodeinside_local)) then
-        write(*,*) 'Chimera volume division failed'
-        write(*,*) ' - Receiver ID           = ', br,ir,jr,kr
-        write(*,*) ' - Receiver total volume = ', volume
-        write(*,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
+        write(unitlog,*) 'Chimera volume division failed'
+        write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
+        write(unitlog,*) ' - Receiver total volume = ', volume
+        write(unitlog,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
         !stop
       else
-        write(*,*) 'Volume division succesful (not checkable)'
-        write(*,*) ' - Receiver ID           = ', br,ir,jr,kr
-        write(*,*) ' - Receiver total volume = ', volume
-        write(*,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
+        write(unitlog,*) 'Volume division succesful (not checkable)'
+        write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
+        write(unitlog,*) ' - Receiver total volume = ', volume
+        write(unitlog,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
       endif
     else
-      write(*,*) 'Volume division succesful'
-      write(*,*) ' - Receiver ID           = ', br,ir,jr,kr
-      write(*,*) ' - Receiver total volume = ', volume
-      write(*,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
+      write(unitlog,*) 'Volume division succesful'
+      write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
+      write(unitlog,*) ' - Receiver total volume = ', volume
+      write(unitlog,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
     endif
     !$omp end critical(chimera_print)
 

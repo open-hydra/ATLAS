@@ -426,53 +426,28 @@ contains
     !$omp parallel do collapse(2) private(j,k,n)
     do k = 0, km ; do j = 0, jm
       do n = 1, gc(1)
-        self%node(-n,j,k)%c = 3d0*self%node(-n+1,j,k)%c - 3d0*self%node(-n+2,j,k)%c + self%node(-n+3,j,k)%c
-        self%node(im+n,j,k)%c = 3d0*self%node(im+n-1,j,k)%c -3d0*self%node(im+n-2,j,k)%c + self%node(im+n-3,j,k)%c
+        self%node(-n,j,k)%c   = 2d0*self%node(-n+1,j,k)%c   - self%node(-n+2,j,k)%c
+        self%node(im+n,j,k)%c = 2d0*self%node(im+n-1,j,k)%c - self%node(im+n-2,j,k)%c
       end do
     enddo ; enddo
     !$omp end parallel do
 
     ! j-faces
-    if ( jm > 2 ) then
-
-      !$omp parallel do collapse(2) private(i,k,n)
-      do k = 0, km ; do i = -1, im+1
-        do n = 1, gc(2)
-          self%node(i,0-n,k)%c  = 3d0*self%node(i,-n+1,k)%c  - 3d0*self%node(i,-n+2,k)%c   + self%node(i,-n+3,k)%c
-          self%node(i,jm+n,k)%c = 3d0*self%node(i,jm+n-1,k)%c -3d0*self%node(i,jm+n-2,k)%c + self%node(i,jm+n-3,k)%c
-        end do
-      enddo ; enddo
-      !$omp end parallel do
-
-    else
-
-      !$omp parallel do collapse(2) private(i,k,n)
-      do k = 0, km ; do i = -1, im+1
-        do n = 1, gc(2)
-          self%node(i,-n,k)%c =   2d0*self%node(i,-n+1,k)%c   - self%node(i,-n+2,k)%c
-          self%node(i,jm+n,k)%c = 2d0*self%node(i,jm+n-1,k)%c - self%node(i,jm+n-2,k)%c
-        enddo
-      end do ; end do
-      !$omp end parallel do
-
-    endif
+    !$omp parallel do collapse(2) private(i,k,n)
+    do k = 0, km ; do i = -gc(1), im+gc(1)
+      do n = 1, gc(2)
+        self%node(i,-n,k)%c   = 2d0*self%node(i,-n+1,k)%c   - self%node(i,-n+2,k)%c
+        self%node(i,jm+n,k)%c = 2d0*self%node(i,jm+n-1,k)%c - self%node(i,jm+n-2,k)%c
+      enddo
+    end do ; end do
+    !$omp end parallel do
 
     ! k-faces
-    if ( mesh_cfg%meshType==2 .and. mesh_cfg%delthe==0d0 .or. mesh_cfg%meshType==1 ) then
-      ! 2D: extrapolation with only two nodes (exact).
-      !$omp parallel do collapse(2) private(i,j,n)
-      do j = -1, jm+1 ; do i = -1, im+1
-        do n = 1, gc(3)
-          self%node(i,j,-n)%c =   2d0*self%node(i,j,-n+1)%c   - self%node(i,j,-n+2)%c
-          self%node(i,j,km+n)%c = 2d0*self%node(i,j,km+n-1)%c - self%node(i,j,km+n-2)%c
-        enddo
-      end do ; end do
-      !$omp end parallel do
+    if (mesh_cfg%meshType==2 .and. mesh_cfg%delthe/=0d0) then
 
-    elseif (mesh_cfg%meshType==2 .and. mesh_cfg%delthe/=0d0) then
       ! 2Dax: extrapolation with a rotation angle delthe (exact).
       !$omp parallel do collapse(2) private(i,j,n)
-      do j = -1, jm+1 ; do i = -1, im+1
+      do j = -gc(2), jm+gc(2) ; do i = -gc(1), im+gc(1)
         do n = 1, gc(3)
           self%node(i,j,-n)%c(1) = self%node(i,j,-n+1)%c(1)
           self%node(i,j,km+n)%c(1) = self%node(i,j,km+n-1)%c(1) ! same x
@@ -486,13 +461,14 @@ contains
       end do ; end do
       !$omp end parallel do
 
-    elseif (mesh_cfg%meshType==3) then
+    else
+
       !$omp parallel do collapse(2) private(i,j,n)
-      do j = -1, jm+1 ; do i = -1, im+1
+      do j = -gc(2), jm+gc(2) ; do i = -gc(1), im+gc(1)
         do n = 1, gc(3)
-          self%node(i,j,-n)%c   = 3d0*self%node(i,j,-n+1)%c  - 3d0*self%node(i,j,-n+2)%c   + self%node(i,j,-n+3)%c
-          self%node(i,j,km+n)%c = 3d0*self%node(i,j,km+n-1)%c -3d0*self%node(i,j,km+n-2)%c + self%node(i,j,km+n-3)%c
-        end do
+          self%node(i,j,-n)%c =   2d0*self%node(i,j,-n+1)%c   - self%node(i,j,-n+2)%c
+          self%node(i,j,km+n)%c = 2d0*self%node(i,j,km+n-1)%c - self%node(i,j,km+n-2)%c
+        enddo
       end do ; end do
       !$omp end parallel do
       
@@ -503,54 +479,54 @@ contains
     ! Edge 3-1
     i = -1; j = -1
     do k = kl, ku
-      self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j+1,k)%c - 3d0*self%node(i,j+2,k)%c + self%node(i,j+3,k)%c + &
-                                    3d0*self%node(i+1,j,k)%c - 3d0*self%node(i+2,j,k)%c + self%node(i+3,j,k)%c)
+      self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j+1,k)%c - self%node(i,j+2,k)%c + &
+                                2d0*self%node(i+1,j,k)%c - self%node(i+2,j,k)%c )
     enddo
     ! Edge 4-1
     i = -1; j = jm+1
     do k = kl, ku
-      self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j-1,k)%c - 3d0*self%node(i,j-2,k)%c + self%node(i,j-3,k)%c + &
-                                    3d0*self%node(i+1,j,k)%c - 3d0*self%node(i+2,j,k)%c + self%node(i+3,j,k)%c)
+      self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j-1,k)%c - self%node(i,j-2,k)%c + &
+                                2d0*self%node(i+1,j,k)%c - self%node(i+2,j,k)%c )
     enddo
     if (mesh_cfg%meshType>=2) then
       ! Edge 5-1
       i = -1; k = -1
       do j = -1, jm+1
-        self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j,k+1)%c - 3d0*self%node(i,j,k+2)%c + self%node(i,j,k+3)%c + &
-                                      3d0*self%node(i+1,j,k)%c - 3d0*self%node(i+2,j,k)%c + self%node(i+3,j,k)%c)
+        self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j,k+1)%c - self%node(i,j,k+2)%c + &
+                                  2d0*self%node(i+1,j,k)%c - self%node(i+2,j,k)%c )
       enddo
       ! Edge 6-1
       i = -1; k = km+1
       do j = -1, jm+1
-        self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j,k-1)%c - 3d0*self%node(i,j,k-2)%c + self%node(i,j,k-3)%c + &
-                                      3d0*self%node(i+1,j,k)%c - 3d0*self%node(i+2,j,k)%c + self%node(i+3,j,k)%c)
+        self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j,k-1)%c - self%node(i,j,k-2)%c + &
+                                  2d0*self%node(i+1,j,k)%c - self%node(i+2,j,k)%c )
       enddo
     endif
     
     ! Edge 3-2
     i = im+1; j = -1
     do k = kl, ku
-      self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j+1,k)%c - 3d0*self%node(i,j+2,k)%c + self%node(i,j+3,k)%c + &
-                                    3d0*self%node(i-1,j,k)%c - 3d0*self%node(i-2,j,k)%c + self%node(i-3,j,k)%c)
+      self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j+1,k)%c - self%node(i,j+2,k)%c + &
+                                2d0*self%node(i-1,j,k)%c - self%node(i-2,j,k)%c )
     enddo
     ! Edge 4-2
     i = im+1; j = jm+1
     do k = kl, ku
-      self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j-1,k)%c - 3d0*self%node(i,j-2,k)%c + self%node(i,j-3,k)%c + &
-                                    3d0*self%node(i-1,j,k)%c - 3d0*self%node(i-2,j,k)%c + self%node(i-3,j,k)%c)
+      self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j-1,k)%c - self%node(i,j-2,k)%c + &
+                                2d0*self%node(i-1,j,k)%c - self%node(i-2,j,k)%c )
     enddo
     if (mesh_cfg%meshType>=2) then
       ! Edge 5-2
       i = im+1; k = -1
       do j = -1, jm+1
-        self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j,k+1)%c - 3d0*self%node(i,j,k+2)%c + self%node(i,j,k+3)%c + &
-                                      3d0*self%node(i-1,j,k)%c - 3d0*self%node(i-2,j,k)%c + self%node(i-3,j,k)%c)
+        self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j,k+1)%c - self%node(i,j,k+2)%c + &
+                                  2d0*self%node(i-1,j,k)%c - self%node(i-2,j,k)%c )
       enddo
       ! Edge 6-2
       i = im+1; k = km+1
       do j = -1, jm+1
-        self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j,k-1)%c - 3d0*self%node(i,j,k-2)%c + self%node(i,j,k-3)%c + &
-                                      3d0*self%node(i-1,j,k)%c - 3d0*self%node(i-2,j,k)%c + self%node(i-3,j,k)%c)
+        self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j,k-1)%c - self%node(i,j,k-2)%c + &
+                                  2d0*self%node(i-1,j,k)%c - self%node(i-2,j,k)%c )
       enddo
     endif
 
@@ -558,26 +534,26 @@ contains
       ! Edge 3-5
       j = -1; k = -1
       do i = 0, im
-        self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j,k+1)%c - 3d0*self%node(i,j,k+2)%c + self%node(i,j,k+3)%c + &
-                                      3d0*self%node(i,j+1,k)%c - 3d0*self%node(i,j+2,k)%c + self%node(i,j+3,k)%c)
+        self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j,k+1)%c - self%node(i,j,k+2)%c + &
+                                  2d0*self%node(i,j+1,k)%c - self%node(i,j+2,k)%c )
       enddo
       ! Edge 4-5
       j = jm+1; k = -1
       do i = 0, im
-        self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j,k+1)%c - 3d0*self%node(i,j,k+2)%c + self%node(i,j,k+3)%c + &
-                                      3d0*self%node(i,j-1,k)%c - 3d0*self%node(i,j-2,k)%c + self%node(i,j-3,k)%c)
+        self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j,k+1)%c - self%node(i,j,k+2)%c + &
+                                  2d0*self%node(i,j-1,k)%c - self%node(i,j-2,k)%c )
       enddo
       ! Edge 3-6
       j = -1; k = km+1
       do i = 0, im
-        self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j,k-1)%c - 3d0*self%node(i,j,k-2)%c + self%node(i,j,k-3)%c + &
-                                      3d0*self%node(i,j+1,k)%c - 3d0*self%node(i,j+2,k)%c + self%node(i,j+3,k)%c)
+        self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j,k-1)%c - self%node(i,j,k-2)%c + &
+                                  2d0*self%node(i,j+1,k)%c - self%node(i,j+2,k)%c )
       enddo
       ! Edge 4-6
       j = jm+1; k = km+1
       do i = 0, im
-        self%node(i,j,k)%c = 0.5*(3d0*self%node(i,j,k-1)%c - 3d0*self%node(i,j,k-2)%c + self%node(i,j,k-3)%c + &
-                                      3d0*self%node(i,j-1,k)%c - 3d0*self%node(i,j-2,k)%c + self%node(i,j-3,k)%c)
+        self%node(i,j,k)%c = 0.5*(2d0*self%node(i,j,k-1)%c - self%node(i,j,k-2)%c + &
+                                  2d0*self%node(i,j-1,k)%c - self%node(i,j-2,k)%c )
       enddo
     endif
 

@@ -338,7 +338,7 @@ module io_write_bc_mod
     type(obj_face), intent(in) :: face
     integer,        intent(in) :: f, Ai, Aj, Ak
     ! Local
-    integer :: g, ii, jj, kk, i, j
+    integer :: g, ii, jj, kk, i, j, nchi
 
     do g = 1, 2
       select case(f)
@@ -356,7 +356,11 @@ module io_write_bc_mod
           kk = Ak+g; ii = Ai; jj = Aj
       end select     
 
-      write(unitfile,'(I8)',advance='no') size(face%cell(ii,jj,kk)%chimerainfo,1)
+      nchi = 0
+      if (allocated(face%cell(ii,jj,kk)%chimerainfo)) then
+        nchi = size(face%cell(ii,jj,kk)%chimerainfo,1)
+      endif
+      write(unitfile,'(I8)',advance='no') nchi
     
     enddo
 
@@ -378,6 +382,7 @@ module io_write_bc_mod
           kk = Ak+g; ii = Ai; jj = Aj
       end select     
 
+      if (.not.allocated(face%cell(ii,jj,kk)%chimerainfo)) cycle
       do i = 1, size(face%cell(ii,jj,kk)%chimerainfo,1)
         write(unitfile,'(4I8)',advance='no') (nint(face%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
         write(unitfile,'(E20.10)') face%cell(ii,jj,kk)%chimerainfo(i,5)
