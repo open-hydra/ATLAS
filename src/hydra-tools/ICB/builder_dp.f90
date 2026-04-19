@@ -8,7 +8,7 @@ contains
     use ic_block_mod
     use finer, only: file_ini
     use phase_mod, only: material_t
-    use variables, only: cfg, llen
+    use global_mod, only: llen
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map
     use config_mod,                   only: config_interpolation
@@ -103,7 +103,7 @@ contains
         call dealloc_src()
 
         ! pseudopressure (only when active)
-        if (cfg%neuler >= 1) then
+        if (blk%neuler >= 1) then
           do bb = 1, size(oldblock)
             allocate(src_field(bb)%var(oldblock(bb)%dim(1), oldblock(bb)%dim(2), oldblock(bb)%dim(3)))
             src_field(bb)%var = oldblock(bb)%dp%pseudopressure(m_i,:,:,:)
@@ -126,8 +126,8 @@ contains
     call zoneini%get(section_name='zone', option_name='krho',   val=krho, error=error)
     call zoneini%get(section_name='zone', option_name='kT',   val=kT, error=error)
     call zoneini%get(section_name='zone', option_name='Pp', val=Pp, error=error)
-    if (error==0) cfg%neuler = 1
-    call zoneini%get(section_name='zone', option_name='neuler', val=cfg%neuler, error=error) 
+    if (error==0) blk%neuler = 1
+    call zoneini%get(section_name='zone', option_name='neuler', val=blk%neuler, error=error)
     call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
     if (error/=0) then
       call zoneini%get(section_name='zone', option_name='rp', val=rp, error=error)
@@ -155,7 +155,7 @@ contains
       blk%dp%velocity(:,1:3,:,:,:) = 1d-20
       blk%dp%temperature(:,:,:,:) = 1d-20
       blk%dp%nP(:,:,:,:) = 1d-20
-      if (cfg%neuler==1 .or. cfg%neuler==6) then
+      if (blk%neuler==1 .or. blk%neuler==6) then
         blk%dp%pseudopressure(:,:,:,:) = 1D-20
       endif
 
@@ -178,7 +178,7 @@ contains
         enddo; enddo; enddo
         !$omp end parallel do
       endif
-      if (cfg%neuler==1 .or. cfg%neuler==6) then
+      if (blk%neuler==1 .or. blk%neuler==6) then
         blk%dp%pseudopressure(g,:,:,:) = Pp(g)
       endif
     enddo

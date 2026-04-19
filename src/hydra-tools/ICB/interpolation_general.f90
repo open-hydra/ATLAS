@@ -70,7 +70,7 @@ contains
   !> law       : 'index','multiple','minimum_distance',
   !>             'spherical_minimum_distance'
   subroutine compute_interp_map(map, oldblocks, tgt, oldid, law)
-    use variables, only: cfg
+    use global_mod, only: verbose
     implicit none
     type(interp_map_t),  intent(out)   :: map
     type(IC_block),      intent(in)    :: oldblocks(:)
@@ -91,7 +91,7 @@ contains
       call build_distance_map(map, oldblocks, tgt, oldid)
     end select
 
-    if (cfg%verbose) then
+    if (verbose) then
       write(*,*) "[LOG] Interpolation map built (law = '", &
         trim(law), "', stencil = ", map%n_stencil, ")"
     endif
@@ -153,7 +153,7 @@ contains
   !  INDEX map builder
   ! ---------------------------------------------------------------
   subroutine build_index_map(map, oldblocks, tgt, oldid)
-    use variables, only: cfg
+    use global_mod, only: verbose
     implicit none
     type(interp_map_t), intent(out) :: map
     type(IC_block),     intent(in)  :: oldblocks(:)
@@ -183,7 +183,7 @@ contains
       stop
     endif
 
-    if (cfg%verbose) then
+    if (verbose) then
       if (sym_type == "2D") then
         write(*,*) "[LOG] 2D-3D Index based interpolation"
       else
@@ -223,7 +223,7 @@ contains
   !  MULTIPLE map builder
   ! ---------------------------------------------------------------
   subroutine build_multiple_map(map, oldblocks, tgt, oldid)
-    use variables, only: cfg
+    use global_mod, only: verbose
     implicit none
     type(interp_map_t), intent(out) :: map
     type(IC_block),     intent(in)  :: oldblocks(:)
@@ -261,7 +261,7 @@ contains
       stop
     endif
 
-    if (cfg%verbose) then
+    if (verbose) then
       write(*,*) "[LOG] New mesh / Old mesh Ratio = ", rapNx
     endif
 
@@ -279,7 +279,7 @@ contains
 
   ! --- ratio = 0.5 ---
   subroutine build_multiple_map_half(map, tgt, b, sym_type)
-    use variables, only: cfg
+    use global_mod, only: verbose
     implicit none
     type(interp_map_t), intent(out) :: map
     type(IC_block),     intent(in)  :: tgt
@@ -289,7 +289,7 @@ contains
     integer  :: i, j, k, i2, j2, k2, i2d, j2d, k2d
     real(R8) :: coeffs(8)
 
-    if (cfg%verbose) then
+    if (verbose) then
       write(*,*) "[LOG] Mesh ratio = 0.5 - Specific algorithm"
     endif
 
@@ -341,7 +341,7 @@ contains
 
   ! --- ratio = 2 ---
   subroutine build_multiple_map_x2(map, oldblocks, tgt, b, rap, sym_type)
-    use variables, only: cfg
+    use global_mod, only: verbose
     implicit none
     type(interp_map_t), intent(out) :: map
     type(IC_block),     intent(in)  :: oldblocks(:)
@@ -356,7 +356,7 @@ contains
     real(R8) :: coeffs(8)
     real(R8) :: a1, a2, a3, a4
 
-    if (cfg%verbose) then
+    if (verbose) then
       write(*,*) "[LOG] Mesh ratio = 2 - Specific algorithm"
     endif
 
@@ -447,7 +447,7 @@ contains
   ! --- ratio = 3 ---
   subroutine build_multiple_map_x3(map, oldblocks, tgt, &
                                     b, rap, sym_type)
-    use variables, only: cfg
+    use global_mod, only: verbose
     implicit none
     type(interp_map_t), intent(out) :: map
     type(IC_block),     intent(in)  :: oldblocks(:)
@@ -465,7 +465,7 @@ contains
     real(R8) :: coeff_cf_i(8), coeff_cf_j(8), coeff_cf_k(8)
     real(R8) :: coeff_cs_jk(8), coeff_cs_ik(8), coeff_cs_ij(8)
 
-    if (cfg%verbose) then
+    if (verbose) then
       write(*,*) "[LOG] Mesh ratio = 3 - Specific Algorithm"
     endif
 
@@ -671,7 +671,7 @@ contains
 
   ! --- generic integer ratio ---
   subroutine build_multiple_map_generic(map, tgt, b, rap)
-    use variables, only: cfg
+    use global_mod, only: verbose
     implicit none
     type(interp_map_t), intent(out) :: map
     type(IC_block),     intent(in)  :: tgt
@@ -679,7 +679,7 @@ contains
     ! Local
     integer :: i, j, k, indi, indj, indk
 
-    if (cfg%verbose) then
+    if (verbose) then
       write(*,*) "[LOG] Mesh ratio = ", rap, " - Generic algorithm"
     endif
 
@@ -711,7 +711,7 @@ contains
   !  MINIMUM DISTANCE map builder
   ! ---------------------------------------------------------------
   subroutine build_distance_map(map, oldblocks, tgt, oldid)
-    use variables, only: cfg
+    use global_mod, only: verbose
     implicit none
     type(interp_map_t), intent(out) :: map
     type(IC_block),     intent(in)  :: oldblocks(:)
@@ -724,7 +724,7 @@ contains
     real(R8), allocatable :: dx(:,:,:), dy(:,:,:)
     real(R8), allocatable :: dz(:,:,:), dist(:,:,:)
 
-    if (cfg%verbose) then
+    if (verbose) then
       write(*,*) "[LOG] Cell Centers Minimum Distance interpolation algorithm"
     endif
 
@@ -812,7 +812,7 @@ contains
   !  SPHERICAL MINIMUM DISTANCE map builder
   ! ---------------------------------------------------------------
   subroutine build_spherical_distance_map(map, oldblocks, tgt, oldid)
-    use variables, only: cfg
+    use global_mod, only: verbose
     implicit none
     type(interp_map_t), intent(out) :: map
     type(IC_block),     intent(in)  :: oldblocks(:)
@@ -824,7 +824,7 @@ contains
     real(R8) :: r, xc, yc, zc, x, y, z
     real(R8) :: ddx, ddy, ddz, dist_val, truedist
 
-    if (cfg%verbose) write(*,*) "[LOG] Cell Centers Spherical Minimum Distance interpolation algorithm"
+    if (verbose) write(*,*) "[LOG] Cell Centers Spherical Minimum Distance interpolation algorithm"
 
     call tgt%compute_bounding([0,0,0])
 

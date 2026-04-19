@@ -51,6 +51,8 @@ module ic_block_mod
     type(IC_block_sp)                          :: sp
     type(phase_t), dimension(:), allocatable   :: associated_phase
     integer                                    :: id = 0
+    integer                                    :: nrans = 0
+    integer                                    :: neuler = 0
   contains
     private
     procedure, pass(self), public :: allocate

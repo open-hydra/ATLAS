@@ -6,7 +6,7 @@ module ic_ig_mod
 contains
 
   subroutine build_IG_field(blk,zoneini,IC_type,sp,range,dirSize,dir)
-    use variables,                    only: cfg, llen
+    use global_mod,                    only: verbose, llen
     use finer,                        only: file_ini
     use phase_mod,                    only: species_t, define_composition
     use ic_block_mod
@@ -86,6 +86,18 @@ contains
     call zoneini%get(section_name='zone', option_name='rhoRij', val=rhoRij, error=error)
     if (error/=0) rhoRij = 0.0
 
+    ! Set nrans: read explicitly from INI, else infer from turbulence parameters
+    call zoneini%get(section_name='zone', option_name='nrans', val=blk%nrans, error=error)
+    if (error /= 0) then
+      if (rhoRij /= 0.0_R8) then
+        blk%nrans = 7
+      elseif (kappa /= 0.0_R8 .or. omega /= 0.0_R8) then
+        blk%nrans = 2
+      elseif (mit /= 0.0_R8) then
+        blk%nrans = 1
+      endif
+    endif
+
     ! Nozzle specific parameters
     call zoneini%get(section_name='zone', option_name='nozzle-direction',  val=nozzle_dir, error=error)
     if (error/=0) nozzle_dir = 'dx'
@@ -115,7 +127,7 @@ contains
       allocate(blk%ig%velocity(3,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
       allocate(blk%ig%pressure(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
       allocate(blk%ig%temperature(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
-      if (cfg%nrans>0) allocate(blk%ig%turbprop(cfg%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+      if (blk%nrans>0) allocate(blk%ig%turbprop(blk%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
     endif
 
 
@@ -136,16 +148,16 @@ contains
     end select
 
     ! Turbulence specific parameters
-    if (cfg%nrans==1) then
+    if (blk%nrans==1) then
 
         if(mit/=0.0) blk%ig%turbprop(1,:,:,:) = mit
 
-    elseif (cfg%nrans==2) then
+    elseif (blk%nrans==2) then
 
         if(kappa/=0.0) blk%ig%turbprop(1,:,:,:) = kappa
         if(omega/=0.0) blk%ig%turbprop(2,:,:,:) = omega
 
-    elseif (cfg%nrans==7) then
+    elseif (blk%nrans==7) then
 
         if(rhoRij/=0.0) blk%ig%turbprop(1:3,:,:,:) = rhoRij
         blk%ig%turbprop(4:6,:,:,:) = 1d-8
@@ -191,7 +203,7 @@ contains
       ! Equilibrium mass-fraction decomposition (pre-seed densities before map multiply)
       call define_composition(zoneini, sp, T0c, p0c)
       if (any(sp%massf>0.d0)) then
-        if (cfg%verbose) write(*,*) "[LOG] Species mass fractions decomposition in interpolation"
+        if (verbose) write(*,*) "[LOG] Species mass fractions decomposition in interpolation"
         do s = 1, sp%n
           blk%ig%density(s,:,:,:) = max(sp%massf(s),1d-20)
         enddo
@@ -269,8 +281,8 @@ contains
       call dealloc_src()
 
       ! ---- Turbulent properties ----
-      if (cfg%nrans > 0) then
-        do cnt = 1, cfg%nrans
+      if (blk%nrans > 0) then
+        do cnt = 1, blk%nrans
           allocate(src_field(size(oldblock)))
           do bb = 1, size(oldblock)
             allocate(src_field(bb)%var(oldblock(bb)%dim(1), oldblock(bb)%dim(2), oldblock(bb)%dim(3)))

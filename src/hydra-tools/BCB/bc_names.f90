@@ -26,7 +26,7 @@ module bc_names_mod
     .true.,  & ! periodic
     .true. , & ! wall
     .true.,  & ! inlet
-    .true.,  & ! outlet
+    .false., & ! outlet
     .true.,  & ! manifold
     .true.   & ! srm
   ]

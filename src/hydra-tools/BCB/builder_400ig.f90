@@ -1,5 +1,4 @@
 submodule (bc_mod) ig_inflow_outflow_mod
-  use variables, only: cfg
   use phase_mod, only: phase_t, species_t, define_composition
   implicit none
 
@@ -9,9 +8,10 @@ contains
     implicit none
     real(R8) :: p0, T0, h0, mach, T, g, alpha, beta, p, rel_fac, Ae_At, rt, psup, psub
     real(R8) :: mit, kappa, omega, rhoRij
-    integer  :: error, dim, start
+    integer  :: error, dim, start, nrans
     real(R8) :: ceah0, ceaT0, ceap0
-    character(len=32) :: p0_time_file, p_time_file
+    character(len=32) :: p0_time_file, p_time_file, time_file
+    logical :: periodic
 
     self % ig_species = phase % species
     if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
@@ -20,6 +20,8 @@ contains
     mach = 0.0_R8; p0 = 0.0_R8; T0 = 0.0_R8; h0 = 0.0_R8; T = 0.0_R8; g = 0.0_R8; alpha = huge(1_R8); beta = huge(1_R8); p = 0.0_R8; rel_fac = 1.0_R8; Ae_At = 0.0_R8; rt = 0.0_R8
     p0_time_file = 'none'
     p_time_file = 'none'
+    time_file = 'none'
+    periodic = .false.
 
     call sourceini%get(section_name=section, option_name='mach',         val=mach,         error=error)
     call sourceini%get(section_name=section, option_name='p0',           val=p0,           error=error)
@@ -33,8 +35,10 @@ contains
 
     ! Time bc - only total pressure currently allowed
     call sourceini%get(section_name=section, option_name='p0-time-file', val=p0_time_file, error=error)
-    call sourceini%get(section_name=section, option_name='p-time-file', val=p_time_file, error=error)
-    if (error==0) self % time_varying = .true.
+    call sourceini%get(section_name=section, option_name='p-time-file',  val=p_time_file,  error=error)
+
+    call sourceini%get(section_name=section, option_name='time-file',    val=time_file,    error=error)
+    call sourceini%get(section_name=section, option_name='periodic',     val=periodic,     error=error)
 
     ! Relaxation factor
     call sourceini%get(section_name=section, option_name='rf',           val=rel_fac,      error=error)
@@ -47,9 +51,20 @@ contains
 
     ! Turbulence properties
     call sourceini%get(section_name=section, option_name='mit',          val=mit,          error=error)
-    call sourceini%get(section_name=section, option_name='kappa',        val=kappa,        error=error)
-    call sourceini%get(section_name=section, option_name='omega',        val=omega,        error=error)
-    call sourceini%get(section_name=section, option_name='rhoRij',       val=rhoRij,       error=error)
+    if (error==0) then
+      nrans = 1
+    else
+      call sourceini%get(section_name=section, option_name='kappa',      val=kappa,        error=error)
+      call sourceini%get(section_name=section, option_name='omega',      val=omega,        error=error)
+      if (error==0) then
+        nrans = 2
+      else
+        call sourceini%get(section_name=section, option_name='rhoRij',   val=rhoRij,       error=error)
+        if (error==0) then
+          nrans = 7
+        endif
+      endif
+    endif
 
     ! Assign species mass fractions
     call define_composition(sourceini, self%ig_species, CEAT0, CEAp0, CEAh0)
@@ -77,14 +92,14 @@ contains
 
       ! Turbulence
       start = dim + 2 + self%ig_species%n
-      if     (cfg%nrans==1) then
+      if     (nrans==1) then
         self%ig_properties(start+1) = mit
 
-      elseif (cfg%nrans==2) then
+      elseif (nrans==2) then
         self%ig_properties(start+1) = kappa
         self%ig_properties(start+2) = omega
 
-      elseif (cfg%nrans==7) then
+      elseif (nrans==7) then
         self%ig_properties(start+1:start+3) = rhoRij
         self%ig_properties(start+4:start+6) = 1d-8
         self%ig_properties(start+7) = omega
@@ -115,6 +130,7 @@ contains
       ! Subsonic inflow | p0(t), T0
       elseif (p0_time_file/='none' .and. self%definition=='inlet') then
         self % ig_id = 403
+        self % time_varying = .true.
         dim = 3
         call setup_bc_inlet(ip0=1)
         self % ig_properties(2) = T0
@@ -147,11 +163,31 @@ contains
         call setup_bc_inlet(ip0=0)
         self % ig_properties(1:2) = [T, g]
 
+      ! Subsonic outflow | p
       elseif ( p/=0_R8     .and. self%definition=='outlet') then
         self % ig_id = 408
         dim = 1
         call setup_bc_outlet(ip=1)
         self % ig_properties(1) = p
+
+      ! Forced outflow
+      elseif ( p==0_R8     .and. self%definition=='outlet') then
+        self % ig_id = 409
+        self % ig_n = 0
+
+      ! Full specification with time-varying properties
+      elseif ( time_file/='none') then
+        self % ig_id = 410
+        self % ig_n = 2
+        self % time_varying = .true.
+        allocate(self % ig_properties(1:self % ig_n))
+        allocate(self % ig_time(1:self % ig_n))
+        allocate(self % ig_time_file(1:self % ig_n))
+        self % ig_properties = 0.0_R8
+        self % IG_time = .true.
+        self % IG_time_file(1) = time_file
+        self % IG_time_file(2) = 'one-shot'
+        if (periodic) self % IG_time_file(2) = 'periodic'
       
       else
         write(*,*) '[ERROR] insufficient or inconsistent inflow properties specified.'
@@ -172,14 +208,14 @@ contains
         self%ig_properties(dim+1) = rel_fac
       endif
 
-      
     end subroutine standard
 
+    
     subroutine setup_bc_inlet(ip0)
       implicit none
       integer, intent(in) :: ip0
       
-      self % ig_n = dim + 2 + self % ig_species % n + cfg % nrans
+      self % ig_n = dim + 2 + self % ig_species % n + nrans
       allocate(self % ig_properties(1:self % ig_n))
       allocate(self % ig_time(1:self % ig_n))
       allocate(self % ig_time_file(1:self % ig_n))
@@ -261,7 +297,7 @@ contains
 
       self%ig_id = 420
       dim = 5
-      self % ig_n = dim + 2 + self % ig_species % n + cfg % nrans
+      self % ig_n = dim + 2 + self % ig_species % n + nrans
       allocate(self % ig_properties(1:self % ig_n))
       self % ig_properties(2:6) = [T0, p0, psub, psup, rt]
 

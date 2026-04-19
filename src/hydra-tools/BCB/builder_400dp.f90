@@ -1,5 +1,4 @@
 submodule (bc_mod) dp_inflow_outflow_mod
-  use variables, only: cfg
   use phase_mod, only: phase_t
   implicit none
 

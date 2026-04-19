@@ -10,7 +10,7 @@ contains
   subroutine build_SP_field(blk,zoneini,IC_type,mat,range,dirSize,dir,index_based)
     use finer,                        only: file_ini
     use phase_mod,                    only: material_t
-    use variables,                    only: llen
+    use global_mod,                    only: llen
     use ic_block_mod
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock, config_interpolation
     use ic_interpolation_cons_mod

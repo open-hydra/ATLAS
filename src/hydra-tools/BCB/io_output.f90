@@ -9,11 +9,11 @@ module io_write_bc_mod
   public:: write_dp_bc
 
   integer:: unitfile
+  character(len=18), parameter :: outpath = 'fromATLAStoSolver/'
 
   contains
   
   subroutine write_ig_bc(name,blk)
-    use variables
     use bc_block_mod, only: BC_block
     use grid_mod, only: fmn2ijk, mesh_cfg
     implicit none
@@ -24,6 +24,8 @@ module io_write_bc_mod
     integer                      :: Ai, Aj, Ak, ii, jj, kk
     integer                      :: print_id
     logical                      :: match
+
+    call execute_command_line('mkdir -p '//trim(outpath))
 
     if (trim(name)=='') then
       name_ = name
@@ -127,7 +129,6 @@ module io_write_bc_mod
 
 
   subroutine write_sp_bc(name,blk)
-    use variables
     use bc_block_mod, only: BC_block
     use grid_mod, only: fmn2ijk, mesh_cfg
     implicit none
@@ -138,6 +139,8 @@ module io_write_bc_mod
     integer                      :: Ai, Aj, Ak, ii, jj, kk
     integer                      :: print_id
     logical                      :: match
+
+    call execute_command_line('mkdir -p '//trim(outpath))
 
     if (trim(name)=='') then
       name_ = name
@@ -227,7 +230,6 @@ module io_write_bc_mod
 
 
   subroutine write_dp_bc(name,blk)
-    use variables
     use bc_block_mod, only: BC_block
     use grid_mod, only: fmn2ijk, mesh_cfg
     implicit none
@@ -238,6 +240,8 @@ module io_write_bc_mod
     integer                      :: print_id
     integer                      :: Ai, Aj, Ak, ii, jj, kk
     logical                      :: match
+
+    call execute_command_line('mkdir -p '//trim(outpath))
 
     if (trim(name)=='') then
       name_ = name

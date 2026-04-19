@@ -1,6 +1,6 @@
 module config_mod
   use iso_fortran_env, only: I4 => int32, R8 => real64
-  use variables
+  use global_mod, only: llen
 
   implicit none
   private

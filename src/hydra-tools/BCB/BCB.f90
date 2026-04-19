@@ -3,7 +3,7 @@
 !>
 
 program BCB
-  use variables
+  use global_mod
   use bc_block_mod
   use phase_mod
   use read_mesh_mod
@@ -18,17 +18,16 @@ program BCB
   implicit none
   type(phase_t),  allocatable :: phase(:)
   type(BC_block), allocatable :: blk(:)
-  type(orion_data)               :: orion 
-  type(file_ini)                 :: sourceini
-  integer                        :: b
-  logical                        :: force_connect, chimeraon
+  type(orion_data)            :: orion 
+  type(file_ini)              :: sourceini
+  integer                     :: b
+  logical                     :: force_connect, chimeraon
 
   write(*,*)
   write(*,*) ' ATLAS - Boundary Conditions Builder'
   write(*,*)
 
   call command_line_argument()
-  call execute_command_line('mkdir -p '//trim(outpath))
 
   ! Geometry import
   write(*,*)' Reading mesh file ...'
@@ -83,14 +82,14 @@ contains
     character(99):: arg
     integer      :: arg_count, i
 
-    cfg%verbose = .false.
+    verbose = .false.
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
     do i = 1, arg_count
       call GET_COMMAND_ARGUMENT(i, arg)
       if (arg == '-v' .or. arg == '--verbose') then
-        cfg%verbose = .true.
+        verbose = .true.
       end if
     end do
 

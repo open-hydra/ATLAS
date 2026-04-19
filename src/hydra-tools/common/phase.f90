@@ -18,8 +18,8 @@ module phase_mod
 
   type :: material_t
     integer :: n
-    character(len=16), allocatable       :: name(:)
-    integer, allocatable                 :: npCP(:)
+    character(len=16), allocatable        :: name(:)
+    integer, allocatable                  :: npCP(:)
     real(R8), dimension(:,:), allocatable :: h
     real(R8), dimension(:,:), allocatable :: rho
     real(R8), dimension(:,:), allocatable :: cp

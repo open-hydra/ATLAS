@@ -1,7 +1,6 @@
 !! TODO: dispersed-phase bc for srm + adapt ideal gas bc to handle multiphase cases (e.g., mass fractions of condensed species, etc.)
 
 submodule (bc_mod) special_bc_mod
-  use variables, only: cfg
   use phase_mod, only: phase_t, species_t, define_composition
   implicit none
 
@@ -11,7 +10,7 @@ contains
     implicit none
     real(R8) :: mit, kappa, omega, rhoRij
     real(R8) :: T0, a_srm, n_srm, pRef_srm, rhoGrain_srm, SFgeo_srm
-    integer  :: error, dim, start
+    integer  :: error, dim, start, nrans
     real(R8) :: ceah0, ceaT0, ceap0
 
     self%ig_id = 501
@@ -22,7 +21,7 @@ contains
     if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
     self % ig_species % massf = 1d-20
 
-    self % ig_n = dim + self % ig_species % n + cfg % nrans
+    self % ig_n = dim + self % ig_species % n + nrans
     allocate(self % ig_properties(1:self % ig_n))
     allocate(self % ig_time(1:self % ig_n))
     self % ig_properties = 0.0_R8
@@ -32,9 +31,20 @@ contains
 
     ! Turbulence properties
     call sourceini%get(section_name=section, option_name='mit',          val=mit,          error=error)
-    call sourceini%get(section_name=section, option_name='kappa',        val=kappa,        error=error)
-    call sourceini%get(section_name=section, option_name='omega',        val=omega,        error=error)
-    call sourceini%get(section_name=section, option_name='rhoRij',       val=rhoRij,       error=error)
+    if (error==0) then
+      nrans = 1
+    else
+      call sourceini%get(section_name=section, option_name='kappa',      val=kappa,        error=error)
+      call sourceini%get(section_name=section, option_name='omega',      val=omega,        error=error)
+      if (error==0) then
+        nrans = 2
+      else
+        call sourceini%get(section_name=section, option_name='rhoRij',   val=rhoRij,       error=error)
+        if (error==0) then
+          nrans = 7
+        endif
+      endif
+    endif
 
     ! SRM grain parameters
     call sourceini%get(section_name=section, option_name='a',        val=a_srm,        error=error)
@@ -78,14 +88,14 @@ contains
 
     ! Turbulence
     start = dim + self%ig_species%n
-    if     (cfg%nrans==1) then
+    if     (nrans==1) then
       self%ig_properties(start+1) = mit
 
-    elseif (cfg%nrans==2) then
+    elseif (nrans==2) then
       self%ig_properties(start+1) = kappa
       self%ig_properties(start+2) = omega
 
-    elseif (cfg%nrans==7) then
+    elseif (nrans==7) then
       self%ig_properties(start+1:start+3) = rhoRij
       self%ig_properties(start+4:start+6) = 1d-8
       self%ig_properties(start+7) = omega

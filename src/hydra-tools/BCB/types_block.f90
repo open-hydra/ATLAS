@@ -10,22 +10,22 @@ module bc_block_mod
   public :: import_nodes, build_geometry
 
   type, extends(vector_nD_type) :: obj_boundary_cellface
-    type(bc_t) :: bc
-    real(8), dimension(3)            :: normal
-    real(8)                          :: area
+    type(bc_t)            :: bc
+    real(8), dimension(3) :: normal
+    real(8)               :: area
   end type obj_boundary_cellface
 
   type, public :: obj_face
     integer :: Nm, Nn
-    type(bc_t) :: bc
-    type(obj_boundary_cellface), dimension(:,:), allocatable :: center
+    type(bc_t)            :: bc
+    type(obj_boundary_cellface),  dimension(:,:),   allocatable :: center
     type(obj_bc_cell_properties), dimension(:,:,:), allocatable :: cell
   end type obj_face
 
   type, extends(block_type), public :: BC_block
     integer :: nfaces = 0
     type(obj_face), dimension(:), allocatable  :: face
-    integer :: nproperties = 0
+    integer                                    :: nproperties = 0
     real(8), dimension(:), allocatable         :: properties
     type(phase_t), dimension(:), allocatable   :: associated_phase
     integer                                    :: id = 0

@@ -5,7 +5,7 @@ module ic_rf_mod
 contains
 
   subroutine build_RF_field(blk,zoneini,IC_type,fl,range,dirSize,dir)
-    use variables,                    only: cfg, llen
+    use global_mod,                    only: llen
     use finer,                        only: file_ini
     use phase_mod,                    only: real_fluid_t
     use ic_block_mod
@@ -76,6 +76,18 @@ contains
     call zoneini%get(section_name='zone', option_name='rhoRij', val=rhoRij, error=error)
     if (error/=0) rhoRij = 0.0_R8
 
+    ! Set nrans: read explicitly from INI, else infer from turbulence parameters
+    call zoneini%get(section_name='zone', option_name='nrans', val=blk%nrans, error=error)
+    if (error /= 0) then
+      if (rhoRij /= 0.0_R8) then
+        blk%nrans = 7
+      elseif (kappa /= 0.0_R8 .or. omega /= 0.0_R8) then
+        blk%nrans = 2
+      elseif (mit /= 0.0_R8) then
+        blk%nrans = 1
+      endif
+    endif
+
     ! Interpolation parameters
     call zoneini%get(section_name='zone', option_name='old-solution', val=OFF, error=error)
     if (error==0) IC_type = 'interpolation'
@@ -97,8 +109,8 @@ contains
       allocate(blk%rf%pressure   (         1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
       allocate(blk%rf%enthalpy   (         1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
       allocate(blk%rf%temperature(         1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
-      if (cfg%nrans>0) &
-        allocate(blk%rf%turbprop(cfg%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+      if (blk%nrans>0) &
+        allocate(blk%rf%turbprop(blk%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
     endif
 
     select case (IC_type)
@@ -117,16 +129,16 @@ contains
     ! Turbulence post-assignment
 
     ! Turbulence specific parameters
-    if (cfg%nrans==1) then
+    if (blk%nrans==1) then
 
         if(mit/=0.0) blk%rf%turbprop(1,:,:,:) = mit
 
-    elseif (cfg%nrans==2) then
+    elseif (blk%nrans==2) then
 
         if(kappa/=0.0) blk%rf%turbprop(1,:,:,:) = kappa
         if(omega/=0.0) blk%rf%turbprop(2,:,:,:) = omega
 
-    elseif (cfg%nrans==7) then
+    elseif (blk%nrans==7) then
 
         if(rhoRij/=0.0) blk%rf%turbprop(1:3,:,:,:) = rhoRij
         blk%rf%turbprop(4:6,:,:,:) = 1d-8
@@ -188,8 +200,8 @@ contains
       call dealloc_src()
 
       ! ---- Turbulent properties ----
-      if (cfg%nrans > 0) then
-        do cnt = 1, cfg%nrans
+      if (blk%nrans > 0) then
+        do cnt = 1, blk%nrans
           allocate(src_field(size(oldblock)))
           do bb = 1, size(oldblock)
             allocate(src_field(bb)%var(oldblock(bb)%dim(1), oldblock(bb)%dim(2), &

@@ -54,8 +54,6 @@ contains
     call fini%load(filename=inifile)
     inisource = generate_sections_input(prog,fini,nb)
 
-    call scan_turbo_input(fini)
-
   end subroutine build_INI
 
 
@@ -109,28 +107,28 @@ contains
   end function generate_sections_input
 
 
-  subroutine scan_turbo_input(fini)
-    use variables
-    implicit none
-    type(file_ini), intent(in)    :: fini       !< INI File.
-    character(len=:), allocatable :: items(:,:)
-    integer :: i
+  ! subroutine scan_turbo_input(fini)
+  !   use variables
+  !   implicit none
+  !   type(file_ini), intent(in)    :: fini       !< INI File.
+  !   character(len=:), allocatable :: items(:,:)
+  !   integer :: i
 
-    call fini%get_items(items=items)
-    cfg%nrans = 0
-    do i = 1, size(items, dim=1)
-      if (items(i,1)=='mit') cfg%nrans = 1
-      if (items(i,1)=='kappa') cfg%nrans = 2
-      if (items(i,1)=='rhoRij') cfg%nrans = 7
-    enddo
+  !   call fini%get_items(items=items)
+  !   cfg%nrans = 0
+  !   do i = 1, size(items, dim=1)
+  !     if (items(i,1)=='mit') cfg%nrans = 1
+  !     if (items(i,1)=='kappa') cfg%nrans = 2
+  !     if (items(i,1)=='rhoRij') cfg%nrans = 7
+  !   enddo
 
-    write(*,*)
-    if (cfg%nrans==0) write(*,*)' No turbulent model properties found'
-    if (cfg%nrans==1) write(*,*)' One-equation turbulent model properties found'
-    if (cfg%nrans==2) write(*,*)' Two-equation turbulent model properties found'
-    if (cfg%nrans==7) write(*,*)' Full Reynolds Stress Model properties found'
-    write(*,*)
+  !   write(*,*)
+  !   if (cfg%nrans==0) write(*,*)' No turbulent model properties found'
+  !   if (cfg%nrans==1) write(*,*)' One-equation turbulent model properties found'
+  !   if (cfg%nrans==2) write(*,*)' Two-equation turbulent model properties found'
+  !   if (cfg%nrans==7) write(*,*)' Full Reynolds Stress Model properties found'
+  !   write(*,*)
 
-  end subroutine scan_turbo_input
+  ! end subroutine scan_turbo_input
 
 end module io_ini_mod

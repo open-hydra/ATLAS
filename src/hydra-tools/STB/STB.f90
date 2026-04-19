@@ -3,7 +3,7 @@
 !>
 
 program STB
-  use variables
+  use global_mod
   use grid_mod
   use read_mesh_mod
   use Lib_ORION_data
@@ -21,7 +21,6 @@ program STB
   write(*,*)
 
   call command_line_argument()
-  call execute_command_line('mkdir -p '//trim(outpath))
 
   ! Geometry import
   write(*,*)' Reading mesh file ...'
@@ -46,14 +45,14 @@ contains
     character(99):: arg
     integer      :: arg_count, i
 
-    cfg%verbose = .false.
+    verbose = .false.
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
     do i = 1, arg_count
       call GET_COMMAND_ARGUMENT(i, arg)
       if (arg == '-v' .or. arg == '--verbose') then
-        cfg%verbose = .true.
+        verbose = .true.
       end if
     end do
 

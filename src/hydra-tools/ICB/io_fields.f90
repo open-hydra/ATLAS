@@ -4,6 +4,7 @@ module io_fields_mod
 
   implicit none
 
+  character(len=18), parameter :: outpath = 'fromATLAStoSolver/'
 
 contains
 
@@ -45,7 +46,7 @@ contains
     use Lib_VTK
     use Lib_Tecplot
     use Lib_ORION_data
-    use variables, only: cfg, llen
+    use global_mod, only: llen
     use ic_block_mod
     implicit none
     character(len=2), intent(in)     :: phase_type
@@ -78,18 +79,18 @@ contains
       if (present(n)) then
         n_species = n
       else
-        n_species = size(IOfield%block(1)%vars, 1) - 4 - cfg%nrans
+        n_species = size(IOfield%block(1)%vars, 1) - 4 - blk(1)%nrans
       endif
       do b = 1, size(blk)
         call blk(b)%compute_centers([0,0,0])
-        call blk(b)%allocate(cfg%nrans,n_species,blk(b)%dim(1),blk(b)%dim(2),blk(b)%dim(3))
+        call blk(b)%allocate(blk(b)%nrans,n_species,blk(b)%dim(1),blk(b)%dim(2),blk(b)%dim(3))
         if (size(IOfield%block(b)%vars)>0) then
           do s = 1, n_species
             blk(b)%ig%density(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s,:,:,:)
           enddo
           blk(b)%ig%velocity(1:3,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(n_species+1:n_species+3,:,:,:)
           blk(b)%ig%pressure(1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(n_species+4,:,:,:)
-          do s = 1, cfg%nrans
+          do s = 1, blk(b)%nrans
             blk(b)%ig%turbprop(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(n_species+4+s,:,:,:)
           enddo
         endif
@@ -107,8 +108,8 @@ contains
       end do
 
     elseif (phase_type=='CD') then
-      ! Derive population count: each population has 6+cfg%neuler variables
-      nnn = size(IOfield%block(1)%vars, 1) / (6 + cfg%neuler)
+      ! Derive population count: each population has 6+blk(1)%neuler variables
+      nnn = size(IOfield%block(1)%vars, 1) / (6 + blk(1)%neuler)
       do b = 1, size(blk)
         call blk(b)%compute_centers([0,0,0])
         allocate(blk(b)%dp%density      (1:nnn, 1:blk(b)%dim(1), 1:blk(b)%dim(2), 1:blk(b)%dim(3)))
@@ -119,29 +120,29 @@ contains
         blk(b)%dp%pseudopressure = 0.0_R8P
         if (size(IOfield%block(b)%vars) > 0) then
           do m = 1, nnn
-            s = (m-1)*(6+cfg%neuler) + 1
+            s = (m-1)*(6+blk(b)%neuler) + 1
             blk(b)%dp%density  (m,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s,  :,:,:)
             blk(b)%dp%velocity (m,1,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+1,:,:,:)
             blk(b)%dp%velocity (m,2,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+2,:,:,:)
             blk(b)%dp%velocity (m,3,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+3,:,:,:)
-            if (cfg%neuler >= 1) then
+            if (blk(b)%neuler >= 1) then
               blk(b)%dp%pseudopressure(m,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+4,:,:,:)
             endif
-            blk(b)%dp%temperature(m,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+4+cfg%neuler,:,:,:)
-            blk(b)%dp%nP         (m,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+5+cfg%neuler,:,:,:)
+            blk(b)%dp%temperature(m,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+4+blk(b)%neuler,:,:,:)
+            blk(b)%dp%nP         (m,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+5+blk(b)%neuler,:,:,:)
           enddo
         endif
       enddo
 
     elseif (phase_type=='RF') then
-      nvel = size(IOfield%block(1)%vars, 1) - 3 - cfg%nrans
+      nvel = size(IOfield%block(1)%vars, 1) - 3 - blk(1)%nrans
       do b = 1, size(blk)
         call blk(b)%compute_centers([0,0,0])
         if (.not.allocated(blk(b)%rf%pressure)) then
           allocate(blk(b)%rf%velocity(1:3,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
           allocate(blk(b)%rf%pressure(1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
           allocate(blk(b)%rf%enthalpy(1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
-          if (cfg%nrans>0) allocate(blk(b)%rf%turbprop(1:cfg%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
+          if (blk(b)%nrans>0) allocate(blk(b)%rf%turbprop(1:blk(b)%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
         endif
         if (size(IOfield%block(b)%vars) > 0) then
           blk(b)%rf%pressure   (1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(1,:,:,:)
@@ -150,7 +151,7 @@ contains
             blk(b)%rf%velocity(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+1,:,:,:)
           enddo
           blk(b)%rf%enthalpy   (1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(nvel+2,:,:,:)
-          do s = 1, cfg%nrans
+          do s = 1, blk(b)%nrans
             blk(b)%rf%turbprop(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(nvel+3+s,:,:,:)
           enddo
         endif
@@ -164,7 +165,7 @@ contains
     use IR_Precision
     use Lib_VTK
     use Lib_Tecplot
-    use variables, only: cfg, llen, outpath
+    use global_mod, only: llen
     use ic_block_mod
     use phase_mod, only: phase_t, material_t
     use grid_mod, only: mesh_cfg
@@ -180,14 +181,19 @@ contains
     character(len=10*llen)             :: varnames, filename
     character(len=llen)                :: name_
     logical                            :: thereis
+    integer                            :: nrans_ref, neuler_ref
 
     localpath = outpath
     orion%solutiontime = -10.0
+
+    call execute_command_line('mkdir -p '//trim(outpath))
 
     do p = 1, size(phase)
       write(*,*)' - Phase : ',trim(phase(p)%name)
 
       varnames=' '
+      nrans_ref = 0
+      neuler_ref = 0
 
       nb = 0
       do b = 1, size(blk)
@@ -196,6 +202,8 @@ contains
             nb = nb + 1
             if (phase(p)%type=='IG') nsc = blk(b)%associated_phase(ap)%species%n
             if (phase(p)%type=='CD') mat = blk(b)%associated_phase(ap)%material
+            nrans_ref  = blk(b)%nrans
+            neuler_ref = blk(b)%neuler
           endif
         enddo
       enddo
@@ -214,11 +222,11 @@ contains
           else
             varnames = trim(varnames)//' "u" "v" "w" "p"'
           endif
-          if (cfg%nrans==1) then
+          if (nrans_ref==1) then
             varnames = trim(varnames)//' "mi_t"'
-          elseif (cfg%nrans==2) then
+          elseif (nrans_ref==2) then
             varnames = trim(varnames)//' "kappa" "omega"'
-          elseif (cfg%nrans==7) then
+          elseif (nrans_ref==7) then
             varnames = trim(varnames)//' "ru''u''" "rv''v''" "rw''w''" "ru''v''" "ru''w''" "rv''w''" "omega"'
           endif
         case('CD')
@@ -230,10 +238,10 @@ contains
               varnames = trim(varnames)//' "up_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
               varnames = trim(varnames)//' "vp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
               varnames = trim(varnames)//' "wp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
-              if (cfg%neuler==1) then
+              if (neuler_ref==1) then
                 varnames = trim(varnames)//' "Pp_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
               endif
-              if (cfg%neuler==6) then
+              if (neuler_ref==6) then
                 varnames = trim(varnames)//' "Pp11_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
                 varnames = trim(varnames)//' "Pp12_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
                 varnames = trim(varnames)//' "Pp13_'//trim(str(.true.,m))//trim(str(.true.,g))//'"'
@@ -253,11 +261,11 @@ contains
           else
             varnames = trim(varnames)//' "p" "u" "v" "w" "h"'
           endif
-          if (cfg%nrans==1) then
+          if (nrans_ref==1) then
             varnames = trim(varnames)//' "mi_t"'
-          elseif (cfg%nrans==2) then
+          elseif (nrans_ref==2) then
             varnames = trim(varnames)//' "kappa" "omega"'
-          elseif (cfg%nrans==7) then
+          elseif (nrans_ref==7) then
             varnames = trim(varnames)// &
               ' "ru''u''" "rv''v''" "rw''w''" "ru''v''" "ru''w''" "rv''w''" "omega"'
           endif
@@ -296,36 +304,36 @@ contains
             orion%block(cnt)%vars(nsc+1,:,:,:) = blk(b)%ig%velocity(1,:,:,:)
             orion%block(cnt)%vars(nsc+2,:,:,:) = blk(b)%ig%pressure
           elseif (mesh_cfg%meshType == -2) then
-            allocate(orion%block(cnt)%vars(1:nsc+3+cfg%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
+            allocate(orion%block(cnt)%vars(1:nsc+3+blk(b)%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
             orion%block(cnt)%vars(1:nsc,:,:,:) = blk(b)%ig%density
             orion%block(cnt)%vars(nsc+1:nsc+2,:,:,:) = blk(b)%ig%velocity(1:2,:,:,:)
             orion%block(cnt)%vars(nsc+3,:,:,:) = blk(b)%ig%pressure
-            if (cfg%nrans>0) then
-              orion%block(cnt)%vars(nsc+4:nsc+3+cfg%nrans,:,:,:) = blk(b)%ig%turbprop
+            if (blk(b)%nrans>0) then
+              orion%block(cnt)%vars(nsc+4:nsc+3+blk(b)%nrans,:,:,:) = blk(b)%ig%turbprop
             endif
           else
-            allocate(orion%block(cnt)%vars(1:nsc+4+cfg%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
+            allocate(orion%block(cnt)%vars(1:nsc+4+blk(b)%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
             orion%block(cnt)%vars(1:nsc,:,:,:) = blk(b)%ig%density
             orion%block(cnt)%vars(nsc+1:nsc+3,:,:,:) = blk(b)%ig%velocity
             orion%block(cnt)%vars(nsc+4,:,:,:) = blk(b)%ig%pressure
-            if (cfg%nrans>0) then
-              orion%block(cnt)%vars(nsc+5:nsc+4+cfg%nrans,:,:,:) = blk(b)%ig%turbprop
+            if (blk(b)%nrans>0) then
+              orion%block(cnt)%vars(nsc+5:nsc+4+blk(b)%nrans,:,:,:) = blk(b)%ig%turbprop
             endif
           endif
 
         case('CD')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-CD'
-          allocate(orion%block(cnt)%vars(1:nnn*(6+cfg%neuler),1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
+          allocate(orion%block(cnt)%vars(1:nnn*(6+blk(b)%neuler),1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
           s = 1
           do m = 1, nnn
             orion%block(cnt)%vars(s,:,:,:) = blk(b)%dp%density(m,:,:,:)
             orion%block(cnt)%vars(s+1,:,:,:) = blk(b)%dp%velocity(m,1,:,:,:)
             orion%block(cnt)%vars(s+2,:,:,:) = blk(b)%dp%velocity(m,2,:,:,:)
             orion%block(cnt)%vars(s+3,:,:,:) = blk(b)%dp%velocity(m,3,:,:,:)
-            if (cfg%neuler==1) then
+            if (blk(b)%neuler==1) then
               orion%block(cnt)%vars(s+4,:,:,:) = blk(b)%dp%pseudopressure(m,:,:,:)
             endif
-            if (cfg%neuler==6) then
+            if (blk(b)%neuler==6) then
               orion%block(cnt)%vars(s+4,:,:,:) = blk(b)%dp%pseudopressure(m,:,:,:)
               orion%block(cnt)%vars(s+5,:,:,:) = 0d0
               orion%block(cnt)%vars(s+6,:,:,:) = 0d0
@@ -333,9 +341,9 @@ contains
               orion%block(cnt)%vars(s+8,:,:,:) = 0d0
               orion%block(cnt)%vars(s+9,:,:,:) = blk(b)%dp%pseudopressure(m,:,:,:)
             endif
-            orion%block(cnt)%vars(s+4+cfg%neuler,:,:,:) = blk(b)%dp%temperature(m,:,:,:)
-            orion%block(cnt)%vars(s+5+cfg%neuler,:,:,:) = blk(b)%dp%np(m,:,:,:)
-            s = s + 6 + cfg%neuler
+            orion%block(cnt)%vars(s+4+blk(b)%neuler,:,:,:) = blk(b)%dp%temperature(m,:,:,:)
+            orion%block(cnt)%vars(s+5+blk(b)%neuler,:,:,:) = blk(b)%dp%np(m,:,:,:)
+            s = s + 6 + blk(b)%neuler
           enddo
 
         case('SP')
@@ -348,23 +356,23 @@ contains
         case('RF')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-RF'
           if (mesh_cfg%meshType == 10) then
-            allocate(orion%block(cnt)%vars(1:3+cfg%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
+            allocate(orion%block(cnt)%vars(1:3+blk(b)%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
             orion%block(cnt)%vars(1,:,:,:) = blk(b)%rf%pressure
             orion%block(cnt)%vars(2,:,:,:) = blk(b)%rf%velocity(1,:,:,:)
             orion%block(cnt)%vars(3,:,:,:) = blk(b)%rf%enthalpy
-            if (cfg%nrans>0) orion%block(cnt)%vars(5:4+cfg%nrans,:,:,:) = blk(b)%rf%turbprop
+            if (blk(b)%nrans>0) orion%block(cnt)%vars(5:4+blk(b)%nrans,:,:,:) = blk(b)%rf%turbprop
           elseif (mesh_cfg%meshType == -2) then
-            allocate(orion%block(cnt)%vars(1:4+cfg%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
+            allocate(orion%block(cnt)%vars(1:4+blk(b)%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
             orion%block(cnt)%vars(1,:,:,:)   = blk(b)%rf%pressure
             orion%block(cnt)%vars(2:3,:,:,:) = blk(b)%rf%velocity(1:2,:,:,:)
             orion%block(cnt)%vars(4,:,:,:)   = blk(b)%rf%enthalpy
-            if (cfg%nrans>0) orion%block(cnt)%vars(6:5+cfg%nrans,:,:,:) = blk(b)%rf%turbprop
+            if (blk(b)%nrans>0) orion%block(cnt)%vars(6:5+blk(b)%nrans,:,:,:) = blk(b)%rf%turbprop
           else
-            allocate(orion%block(cnt)%vars(1:5+cfg%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
+            allocate(orion%block(cnt)%vars(1:5+blk(b)%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
             orion%block(cnt)%vars(1,:,:,:)   = blk(b)%rf%pressure
             orion%block(cnt)%vars(2:4,:,:,:) = blk(b)%rf%velocity
             orion%block(cnt)%vars(5,:,:,:)   = blk(b)%rf%enthalpy
-            if (cfg%nrans>0) orion%block(cnt)%vars(7:6+cfg%nrans,:,:,:) = blk(b)%rf%turbprop
+            if (blk(b)%nrans>0) orion%block(cnt)%vars(7:6+blk(b)%nrans,:,:,:) = blk(b)%rf%turbprop
           endif
 
         end select

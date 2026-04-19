@@ -3,7 +3,7 @@
 !>
 
 program ICB
-  use variables
+  use global_mod
   use ic_block_mod
   use phase_mod
   use read_mesh_mod
@@ -61,7 +61,6 @@ program ICB
 
   ! IC writing
   write(*,*)' IC writing'
-  call execute_command_line('mkdir -p '//trim(outpath))
   call write_vtk_tec(phase, ICformat, block)
 
   contains
@@ -71,14 +70,14 @@ program ICB
     character(99):: arg
     integer      :: arg_count, i
 
-    cfg%verbose = .false.
+    verbose = .false.
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
     do i = 1, arg_count
       call GET_COMMAND_ARGUMENT(i, arg)
       if (arg == '-v' .or. arg == '--verbose') then
-        cfg%verbose = .true.
+        verbose = .true.
       end if
     end do
 

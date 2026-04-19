@@ -1,7 +1,7 @@
 module ic_interpolation_old_mod
   use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
-  use variables
-  use config_mod, only: config_interpolation
+  use global_mod
+  use config_mod,    only: config_interpolation
   use ic_block_mod,  only: IC_block
   use io_fields_mod, only: read_vtk_tec
   use Lib_ORION_data
@@ -34,12 +34,12 @@ contains
 
     allocate(theta(1:nz+1))
 
-    if (cfg%verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
+    if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
     call read_vtk_tec(phase,oldsolutionfile,oldblock)
 
     if (config_interpolation % law=='extrude') then
 
-      if (cfg%verbose) then
+      if (verbose) then
         write(*,*)" Old mesh extrusion"
         write(*,*)" Extrusion angle    = ", thetamax_extrude
         write(*,*)" Extrusion elements = ", nz
@@ -89,7 +89,8 @@ contains
             oldblock(b)%ig%velocity(2,:,:,k) = oldblock(b)%ig%velocity(2,:,:,1)*cos(theta(k))
             oldblock(b)%ig%velocity(3,:,:,k) = oldblock(b)%ig%velocity(2,:,:,1)*sin(theta(k))
             oldblock(b)%ig%pressure(:,:,k) = oldblock(b)%ig%pressure(:,:,1)
-            if (cfg%nrans>0) oldblock(b)%ig%turbprop(1:cfg%nrans,:,:,k) = oldblock(b)%ig%turbprop(1:cfg%nrans,:,:,1)
+            if (oldblock(b)%nrans>0) oldblock(b)%ig%turbprop(1:oldblock(b)%nrans,:,:,k) = &
+              oldblock(b)%ig%turbprop(1:oldblock(b)%nrans,:,:,1)
           enddo
         enddo
 
@@ -101,7 +102,8 @@ contains
             oldblock(b)%rf%velocity(1,:,:,k) = oldblock(b)%rf%velocity(1,:,:,1)
             oldblock(b)%rf%velocity(2,:,:,k) = oldblock(b)%rf%velocity(2,:,:,1)*cos(theta(k))
             oldblock(b)%rf%velocity(3,:,:,k) = oldblock(b)%rf%velocity(2,:,:,1)*sin(theta(k))
-            if (cfg%nrans>0) oldblock(b)%rf%turbprop(1:cfg%nrans,:,:,k) = oldblock(b)%rf%turbprop(1:cfg%nrans,:,:,1)
+            if (oldblock(b)%nrans>0) oldblock(b)%rf%turbprop(1:oldblock(b)%nrans,:,:,k) = &
+              oldblock(b)%rf%turbprop(1:oldblock(b)%nrans,:,:,1)
           enddo
         enddo
 
@@ -120,7 +122,7 @@ contains
 
       end select
 
-      if (cfg%verbose) write(*,*)
+      if (verbose) write(*,*) "[LOG] Old solution built"
 
     endif
 
