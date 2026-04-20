@@ -14,9 +14,9 @@ if ATLASDIR is None:
 # Database paths
 # ------------------------------------------------------------------
 DATAPATH = os.path.join(ATLASDIR, "database")
-THERMO_DIR = os.path.join(DATAPATH, "Thermo")
-TRANSPORT_DIR = os.path.join(DATAPATH, "Transport")
-CHEMISTRY_DIR = os.path.join(DATAPATH, "Chemistry")
+THERMO_DIR = os.path.join(DATAPATH, "thermo")
+TRANSPORT_DIR = os.path.join(DATAPATH, "transport")
+CHEMISTRY_DIR = os.path.join(DATAPATH, "chemistry")
 CEA_TRANS_FILE = os.path.join(TRANSPORT_DIR, "CEApolynomials.yaml")
 
 # ------------------------------------------------------------------

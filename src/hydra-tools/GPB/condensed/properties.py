@@ -1,12 +1,12 @@
 import numpy as np
 import cantera as ct
 from . import io as CP_IO
-import os, sys
+import sys
 from config import THERMO_DIR
 
 # Import required module
 sys.path.append(THERMO_DIR)
-from SP_database import compute_properties_from_database
+from sp_custom import compute_properties_from_database
 
 def compute_properties(type, name, T_low, T_max, all_materials):
 
