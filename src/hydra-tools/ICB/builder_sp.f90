@@ -111,7 +111,7 @@ contains
     !! Assign support variables to blk (range-filtered)
     if (.not.index_based) then
       here = 1.0
-      !$omp parallel private(i,j,k,here)
+      !$omp parallel private(i,j,k) firstprivate(here)
       !$omp do collapse(3)
       do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
           if (dirSize>=1) here(1) = blk%center(i,j,k)%c(dir(1))
