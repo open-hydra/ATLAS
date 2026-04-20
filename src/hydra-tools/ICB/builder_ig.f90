@@ -5,18 +5,20 @@ module ic_ig_mod
 
 contains
 
-  subroutine build_IG_field(blk,zoneini,IC_type,sp,range,dirSize,dir)
+  subroutine build_IG_field(blk,zoneini,ig_cfg,IC_type,sp,range,dirSize,dir)
     use global_mod,                    only: verbose, llen
     use finer,                        only: file_ini
     use phase_mod,                    only: species_t, define_composition
     use ic_block_mod
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, interpolate_from_file
-    use config_mod,                   only: config_interpolation
+    use config_mod,                   only: config_ig_t, config_field_source_t, &
+                                            config_interpolation, sync_interpolation_config
     use io_phase_mod,                 only: read_idealgas_properties
     implicit none
     type(IC_block),   intent(inout)  :: blk
     type(file_ini),   intent(in)     :: zoneini
+    type(config_ig_t), intent(in)    :: ig_cfg
     character(len=*), intent(inout)  :: IC_type
     real(R8),         intent(in)     :: range(6)
     integer,          intent(in)     :: dirSize
@@ -24,7 +26,7 @@ contains
     integer,          intent(in)     :: dir(:)
     !! Local
     ! Unsepcified
-    integer                       :: i, ip, j, s, k, error
+    integer                       :: i, ip, j, s, k
     ! Support fields for assignment and interpolation
     real(R8)                      :: M  (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
     real(R8)                      :: p0 (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
@@ -42,10 +44,6 @@ contains
     real(R8)                      :: here(3)
     character(len=2)              :: nozzle_dir
     real(R8)                      :: L_threshold
-    real(R8)                      :: val_const
-    character(len=200)            :: val_file
-    character(len=16)             :: val_direction
-    integer                       :: errorfile, errordirection
     logical                       :: is_variable
     ! Interpolation-specific locals
     type(interp_map_t)            :: map
@@ -56,69 +54,35 @@ contains
     integer                       :: sold, cnt, bb
 
     is_variable = .false.
-    call load_zone_field(M,   'mach', 1.d0)
-    call load_zone_field(p0,  'p0',   1.d0)
-    call load_zone_field(T0,  'T0',   1.d0)
-    call load_zone_field(p,   'p',    1.d0)
-    call load_zone_field(T,   'T',    1.d0)
-    call load_zone_field(rho, 'rho',  1.d0)
+    call load_zone_field(M, ig_cfg%mach, 1.d0)
+    call load_zone_field(p0, ig_cfg%p0, 1.d0)
+    call load_zone_field(T0, ig_cfg%T0, 1.d0)
+    call load_zone_field(p, ig_cfg%p, 1.d0)
+    call load_zone_field(T, ig_cfg%T, 1.d0)
+    call load_zone_field(rho, ig_cfg%rho, 1.d0)
 
     if (is_variable) IC_type = 'variable'
 
-    call zoneini%get(section_name='zone', option_name='alpha',val=alpha, error=error)
-    if (error/=0) alpha = 0.0
-    call zoneini%get(section_name='zone', option_name='beta', val=beta, error=error)
-    if (error/=0) beta = 0.0
-    call zoneini%get(section_name='zone', option_name='u', val=ux, error=error)
-    if (error/=0) ux = 0.0
-    call zoneini%get(section_name='zone', option_name='v', val=uy, error=error)
-    if (error/=0) uy = 0.0
-    call zoneini%get(section_name='zone', option_name='w', val=uz, error=error)
-    if (error/=0) uz = 0.0
+    alpha = ig_cfg%velocity%alpha
+    beta = ig_cfg%velocity%beta
+    ux = ig_cfg%velocity%u
+    uy = ig_cfg%velocity%v
+    uz = ig_cfg%velocity%w
 
-    ! Turbulence specific parameters
-    call zoneini%get(section_name='zone', option_name='mit', val=mit, error=error)
-    if (error/=0) mit = 0.0
-    call zoneini%get(section_name='zone', option_name='kappa', val=kappa, error=error)
-    if (error/=0) kappa = 0.0
-    call zoneini%get(section_name='zone', option_name='omega', val=omega, error=error)
-    if (error/=0) omega = 0.0
-    call zoneini%get(section_name='zone', option_name='rhoRij', val=rhoRij, error=error)
-    if (error/=0) rhoRij = 0.0
+    mit = ig_cfg%turbulence%mit
+    kappa = ig_cfg%turbulence%kappa
+    omega = ig_cfg%turbulence%omega
+    rhoRij = ig_cfg%turbulence%rhoRij
+    blk%nrans = ig_cfg%turbulence%nrans
 
-    ! Set nrans: read explicitly from INI, else infer from turbulence parameters
-    call zoneini%get(section_name='zone', option_name='nrans', val=blk%nrans, error=error)
-    if (error /= 0) then
-      if (rhoRij /= 0.0_R8) then
-        blk%nrans = 7
-      elseif (kappa /= 0.0_R8 .or. omega /= 0.0_R8) then
-        blk%nrans = 2
-      elseif (mit /= 0.0_R8) then
-        blk%nrans = 1
-      endif
-    endif
+    nozzle_dir = ig_cfg%nozzle_direction
+    L_threshold = ig_cfg%nozzle_threshold
 
-    ! Nozzle specific parameters
-    call zoneini%get(section_name='zone', option_name='nozzle-direction',  val=nozzle_dir, error=error)
-    if (error/=0) nozzle_dir = 'dx'
-    call zoneini%get(section_name='zone', option_name='nozzle-threshold',  val=L_threshold, error=error)
-    if (error/=0) L_threshold = huge(alpha)
-
-    ! Interpolation specific parameters
-    call zoneini%get(section_name='zone', option_name='old-species', val=OSF, error=error)
-    if (error/=0) OSF = ''
-    call zoneini%get(section_name='zone', option_name='old-solution', val=OFF, error=error)
-    if (error==0) IC_type = 'interpolation'
-    call zoneini%get(section_name='zone', option_name='old-block-id', val=oldid, error=error)
-    if (error/=0) oldid = 0
-    call zoneini%get(section_name='zone', option_name='interpolation-law', val=config_interpolation % law, error=error)
-    if (error/=0) config_interpolation % law = 'outlaw'
-    if (config_interpolation % law=='extrude') then
-      call zoneini%get(section_name='zone', option_name='theta', val=config_interpolation % theta, error=error)
-      if (error/=0) config_interpolation % theta = 90.0_R8
-      call zoneini%get(section_name='zone', option_name='nz', val=config_interpolation % nz, error=error)
-      if (error/=0) config_interpolation % nz = 4
-    endif
+    OSF = ig_cfg%interpolation%old_species
+    OFF = ig_cfg%interpolation%old_solution
+    oldid = ig_cfg%interpolation%old_block_id
+    call sync_interpolation_config(ig_cfg%interpolation)
+    if (ig_cfg%interpolation%enabled) IC_type = 'interpolation'
 
     write(*,*) ' -- IG type = ',trim(IC_type)
 
@@ -499,34 +463,29 @@ contains
     end subroutine assign_nozzle
 
 
-    ! Load a field for IG assignment. The field can be either a constant value or read from a file. 
-    ! In the latter case, the file can be either a Tecplot file (with the same grid as the current block) or a file with an additional direction specified by the user (e.g., for 1D profiles).
-    subroutine load_zone_field(field, base_name, scale)
+    ! Load a field for IG assignment. The field can be either a constant value
+    ! or read from a file. File-based inputs support Tecplot data on the same
+    ! grid or a 1D profile when an additional direction is provided.
+    subroutine load_zone_field(field, field_cfg, scale)
       implicit none
       real(R8),         intent(inout) :: field(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
-      character(len=*), intent(in)    :: base_name
+      type(config_field_source_t), intent(in) :: field_cfg
       real(R8),         intent(in)    :: scale
-      character(len=64)               :: file_option, dir_option
 
-      call zoneini%get(section_name='zone', option_name=trim(base_name), val=val_const, error=error)
-      if (error==0) then
-        field = val_const
+      if (field_cfg%has_value) then
+        field = field_cfg%value
         if (scale/=1.d0) field = field*scale
         return
       endif
 
       field = 0.d0
-      file_option = trim(base_name)//'-file'
-      call zoneini%get(section_name='zone', option_name=trim(file_option), val=val_file, error=errorfile)
-      if (errorfile/=0) return
+      if (.not. field_cfg%has_file) return
 
       is_variable = .true.
-      dir_option = trim(base_name)//'-direction'
-      call zoneini%get(section_name='zone', option_name=trim(dir_option), val=val_direction, error=errordirection)
-      if (errordirection==0) then
-        call assign_from_1D_table(blk, val_file, val_direction, field)
+      if (field_cfg%has_direction) then
+        call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field)
       else
-        call interpolate_from_file(field, blk, val_file)
+        call interpolate_from_file(field, blk, field_cfg%file)
       endif
       if (scale/=1.d0) field = field*scale
 

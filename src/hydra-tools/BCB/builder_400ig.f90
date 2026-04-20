@@ -1,4 +1,5 @@
 submodule (bc_mod) ig_inflow_outflow_mod
+  use bcb_config_mod, only: bcb_ig_boundary_config_t, load_bcb_ig_boundary_config
   use phase_mod, only: phase_t, species_t, define_composition
   implicit none
 
@@ -6,9 +7,10 @@ contains
 
   module procedure build_inflow_outflow_ig
     implicit none
+    type(bcb_ig_boundary_config_t) :: cfg
     real(R8) :: p0, T0, h0, mach, T, g, alpha, beta, p, rel_fac, Ae_At, rt, psup, psub
     real(R8) :: mit, kappa, omega, rhoRij
-    integer  :: error, dim, start, nrans
+    integer  :: dim, start, nrans
     real(R8) :: ceah0, ceaT0, ceap0
     character(len=32) :: p0_time_file, p_time_file, time_file
     logical :: periodic
@@ -17,54 +19,31 @@ contains
     if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
     self % ig_species % massf = 1d-20
 
-    mach = 0.0_R8; p0 = 0.0_R8; T0 = 0.0_R8; h0 = 0.0_R8; T = 0.0_R8; g = 0.0_R8; alpha = huge(1_R8); beta = huge(1_R8); p = 0.0_R8; rel_fac = 1.0_R8; Ae_At = 0.0_R8; rt = 0.0_R8
-    p0_time_file = 'none'
-    p_time_file = 'none'
-    time_file = 'none'
-    periodic = .false.
+    call load_bcb_ig_boundary_config(sourceini, section, cfg)
 
-    call sourceini%get(section_name=section, option_name='mach',         val=mach,         error=error)
-    call sourceini%get(section_name=section, option_name='p0',           val=p0,           error=error)
-    call sourceini%get(section_name=section, option_name='T0',           val=T0,           error=error)
-    call sourceini%get(section_name=section, option_name='h0',           val=h0,           error=error)
-    call sourceini%get(section_name=section, option_name='T',            val=T,            error=error)
-    call sourceini%get(section_name=section, option_name='g',            val=g,            error=error)
-    call sourceini%get(section_name=section, option_name='alpha',        val=alpha,        error=error)
-    call sourceini%get(section_name=section, option_name='beta',         val=beta,         error=error)
-    call sourceini%get(section_name=section, option_name='p',            val=p,            error=error)
-
-    ! Time bc - only total pressure currently allowed
-    call sourceini%get(section_name=section, option_name='p0-time-file', val=p0_time_file, error=error)
-    call sourceini%get(section_name=section, option_name='p-time-file',  val=p_time_file,  error=error)
-
-    call sourceini%get(section_name=section, option_name='time-file',    val=time_file,    error=error)
-    call sourceini%get(section_name=section, option_name='periodic',     val=periodic,     error=error)
-
-    ! Relaxation factor
-    call sourceini%get(section_name=section, option_name='rf',           val=rel_fac,      error=error)
-
-    ! Nozzle bc
-    call sourceini%get(section_name=section, option_name='Ae_At',        val=Ae_At,        error=error)
-    call sourceini%get(section_name=section, option_name='rt',           val=rt,           error=error)
-    call sourceini%get(section_name=section, option_name='psub',         val=psub,         error=error)
-    call sourceini%get(section_name=section, option_name='psup',         val=psup,         error=error)
-
-    ! Turbulence properties
-    call sourceini%get(section_name=section, option_name='mit',          val=mit,          error=error)
-    if (error==0) then
-      nrans = 1
-    else
-      call sourceini%get(section_name=section, option_name='kappa',      val=kappa,        error=error)
-      call sourceini%get(section_name=section, option_name='omega',      val=omega,        error=error)
-      if (error==0) then
-        nrans = 2
-      else
-        call sourceini%get(section_name=section, option_name='rhoRij',   val=rhoRij,       error=error)
-        if (error==0) then
-          nrans = 7
-        endif
-      endif
-    endif
+    mach         = cfg%mach
+    p0           = cfg%p0
+    T0           = cfg%T0
+    h0           = cfg%h0
+    T            = cfg%T
+    g            = cfg%g
+    alpha        = cfg%velocity%alpha
+    beta         = cfg%velocity%beta
+    p            = cfg%p
+    rel_fac      = cfg%rel_fac
+    Ae_At        = cfg%Ae_At
+    rt           = cfg%rt
+    psub         = cfg%psub
+    psup         = cfg%psup
+    p0_time_file = cfg%p0_time_file
+    p_time_file  = cfg%p_time_file
+    time_file    = cfg%time_file
+    periodic     = cfg%periodic
+    mit          = cfg%turbulence%mit
+    kappa        = cfg%turbulence%kappa
+    omega        = cfg%turbulence%omega
+    rhoRij       = cfg%turbulence%rhoRij
+    nrans        = cfg%turbulence%nrans
 
     ! Assign species mass fractions
     call define_composition(sourceini, self%ig_species, CEAT0, CEAp0, CEAh0)

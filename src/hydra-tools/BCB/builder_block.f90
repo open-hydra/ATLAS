@@ -10,6 +10,8 @@ contains
   subroutine build_BC(phase,sini,blocks)
     use ir_precision
     use strings,             only: parse
+    use bcb_config_mod,      only: bcb_block_config_t, bcb_face_setup_t, &
+                                   load_bcb_block_config, load_bcb_face_setup
     use finer,               only: file_ini
     use phase_mod,           only: phase_t
     use grid_mod,            only: mesh_cfg
@@ -29,13 +31,14 @@ contains
     character(len=30)             :: wholestring, args(3), phase_name
     logical                       :: multipatch=.false.
     type(file_ini)                :: faceini, patchini
-    integer                       :: error, error_patch
+    integer                       :: error
     character(len=7)              :: patchdirection
     character(len=50)             :: patchname, section_name
     real(8)                       :: patchrange(4)
+    type(bcb_block_config_t)      :: block_cfg
+    type(bcb_face_setup_t)        :: face_cfg
 
     n_blocks_phase = 0
-    error_patch = 0
     patchrange = 0.d0
 
 
@@ -44,13 +47,15 @@ contains
       section_name = 'BCB-Block'//trim(str(.true.,b))   
       associate(blk => blocks(b))
 
+      call load_bcb_block_config(sini, section_name, blk%nfaces, block_cfg)
+
       do while (sini%loop(section_name=section_name, option_pairs=option_pairs))
         call faceini%add(section_name=section_name, option_name=option_pairs(1), val=option_pairs(2))
       enddo
 
       ! Look for phases solved in block b
-      call sini%get(section_name=section_name, option_name='phase', val=wholestring, error=error)
-      if (error/=0) then
+      wholestring = block_cfg%phase
+      if (.not. block_cfg%has_phase) then
         allocate(blk%associated_phase(1:size(phase)))
         blk%associated_phase = phase
       else
@@ -100,8 +105,8 @@ contains
       do ff = 1, blk%nfaces
 
         multipatch = .false.
-
-        call sini%get(section_name=section_name, option_name='face'//trim(str(.true.,ff)), val=blk%face(ff)%bc%name, error=error)
+        blk%face(ff)%bc%name = trim(block_cfg%face_names(ff))
+        error = merge(0, 1, len_trim(blk%face(ff)%bc%name) > 0)
 
         if (error/=0) then
           ! Check if mesh is 2Dplane or 2Daxi
@@ -122,20 +127,14 @@ contains
 
         else
 
+          call load_bcb_face_setup(sini, trim(blk%face(ff)%bc%name), face_cfg)
+          multipatch = face_cfg%multipatch
+
           do while (sini%loop(section_name=trim(blk%face(ff)%bc%name), option_pairs=option_pairs))
             call faceini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
-            if (index(option_pairs(1),'patch')>0) multipatch=.true.
           enddo
 
-          ! Check if the bc is a homogeneous type with input
-          call sini%get(section_name=trim(blk%face(ff)%bc%name), option_name='type', val=blk%face(ff)%bc%definition, error=error)
-          if (error==0) then
-            call check_assignment_with_input(trim(blk%face(ff)%bc%definition), blk%face(ff)%bc%definition)
-          endif
-          if (error/=0 .and. .not.multipatch) then
-            ! Check predefined bc
-            call check_assignment_no_input(trim(blk%face(ff)%bc%name), blk%face(ff)%bc%definition)
-          endif
+          blk%face(ff)%bc%definition = face_cfg%definition
         endif
 
         ! Face-related INI source
@@ -149,14 +148,12 @@ contains
         if (multipatch) then
           
           ! Multipatch BCs
-          call sini%get(section_name=blk%face(ff)%bc%name, option_name='direction', val=patchdirection, error=error)
-          if (error==0) then
+          patchdirection = face_cfg%direction
+          if (face_cfg%has_direction) then
             write(*,*)' Face n. = ', ff, ' -> ', trim(blk%face(ff)%bc%name), ' = multipatch'
-            p = 0
-            do
-              p = p+1; write(ind,'(I4)') p
-              call sini%get(section_name=blk%face(ff)%bc%name, option_name='patch'//adjustl(ind), val=patchname, error=error_patch)
-              if (error_patch/=0) exit
+            do p = 1, face_cfg%patch_count
+              patchname = face_cfg%patches(p)%name
+              patchrange = face_cfg%patches(p)%range
               call patchini%free
               call patchini%add(section_name='face')
               call patchini%add(section_name='face', option_name='name', val=patchname)
@@ -164,7 +161,6 @@ contains
                 call patchini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
               enddo
               call patchini%add(section_name='face', option_name='direction', val=patchdirection)
-              call sini%get(section_name=blk%face(ff)%bc%name, option_name='range'//adjustl(ind), val=patchrange, error=error)
               call patchini%add(section_name='face', option_name='range', val=patchrange)
               do m = 1, size(blk%associated_phase)
                 call build_face(b,ff,blk%face(ff),patchini,blk%associated_phase(m))

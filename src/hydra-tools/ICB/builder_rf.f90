@@ -4,25 +4,25 @@ module ic_rf_mod
 
 contains
 
-  subroutine build_RF_field(blk,zoneini,IC_type,fl,range,dirSize,dir)
+  subroutine build_RF_field(blk,rf_cfg,IC_type,fl,range,dirSize,dir)
     use global_mod,                    only: llen
-    use finer,                        only: file_ini
     use phase_mod,                    only: real_fluid_t
     use ic_block_mod
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, &
                                             interpolate_from_file
-    use config_mod,                   only: config_interpolation
+    use config_mod,                   only: config_rf_t, config_field_source_t, &
+                                            config_interpolation, sync_interpolation_config
     implicit none
     type(IC_block),    intent(inout) :: blk
-    type(file_ini),    intent(in)    :: zoneini
+    type(config_rf_t), intent(in)    :: rf_cfg
     character(len=*),  intent(inout) :: IC_type
     real(R8),          intent(in)    :: range(6)
     integer,           intent(in)    :: dirSize
     type(real_fluid_t),intent(inout) :: fl
     integer,           intent(in)    :: dir(:)
     !! Local
-    integer                       :: i, j, k, error
+    integer                       :: i, j, k
     ! Support fields
     real(R8)  :: p  (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
     real(R8)  :: T  (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
@@ -36,10 +36,6 @@ contains
     character(len=llen)           :: OFF
     integer                       :: oldid
     real(R8)                      :: here(3)
-    real(R8)                      :: val_const
-    character(len=200)            :: val_file
-    character(len=16)             :: val_direction
-    integer                       :: errorfile, errordirection
     logical                       :: is_variable
     ! Interpolation-specific locals
     type(interp_map_t)            :: map
@@ -47,60 +43,29 @@ contains
     integer                       :: cnt, bb
 
     is_variable = .false.
-    call load_zone_field(p,   'p',   1.d0)
-    call load_zone_field(T,   'T',   1.d0)
-    call load_zone_field(h,   'h',   1.d0)
-    call load_zone_field(vel, 'vel', 1.d0)
+    call load_zone_field(p, rf_cfg%p, 1.d0)
+    call load_zone_field(T, rf_cfg%T, 1.d0)
+    call load_zone_field(h, rf_cfg%h, 1.d0)
+    call load_zone_field(vel, rf_cfg%vel, 1.d0)
 
     if (is_variable) IC_type = 'variable'
 
-    ! Velocity direction parameters
-    call zoneini%get(section_name='zone', option_name='alpha', val=alpha, error=error)
-    if (error/=0) alpha = 0.0_R8
-    call zoneini%get(section_name='zone', option_name='beta',  val=beta,  error=error)
-    if (error/=0) beta  = 0.0_R8
-    call zoneini%get(section_name='zone', option_name='u',     val=ux,    error=error)
-    if (error/=0) ux = 0.0_R8
-    call zoneini%get(section_name='zone', option_name='v',     val=uy,    error=error)
-    if (error/=0) uy = 0.0_R8
-    call zoneini%get(section_name='zone', option_name='w',     val=uz,    error=error)
-    if (error/=0) uz = 0.0_R8
+    alpha = rf_cfg%velocity%alpha
+    beta = rf_cfg%velocity%beta
+    ux = rf_cfg%velocity%u
+    uy = rf_cfg%velocity%v
+    uz = rf_cfg%velocity%w
 
-    ! Turbulence parameters
-    call zoneini%get(section_name='zone', option_name='mit',    val=mit,    error=error)
-    if (error/=0) mit = 0.0_R8
-    call zoneini%get(section_name='zone', option_name='kappa',  val=kappa,  error=error)
-    if (error/=0) kappa = 0.0_R8
-    call zoneini%get(section_name='zone', option_name='omega',  val=omega,  error=error)
-    if (error/=0) omega = 0.0_R8
-    call zoneini%get(section_name='zone', option_name='rhoRij', val=rhoRij, error=error)
-    if (error/=0) rhoRij = 0.0_R8
+    mit = rf_cfg%turbulence%mit
+    kappa = rf_cfg%turbulence%kappa
+    omega = rf_cfg%turbulence%omega
+    rhoRij = rf_cfg%turbulence%rhoRij
+    blk%nrans = rf_cfg%turbulence%nrans
 
-    ! Set nrans: read explicitly from INI, else infer from turbulence parameters
-    call zoneini%get(section_name='zone', option_name='nrans', val=blk%nrans, error=error)
-    if (error /= 0) then
-      if (rhoRij /= 0.0_R8) then
-        blk%nrans = 7
-      elseif (kappa /= 0.0_R8 .or. omega /= 0.0_R8) then
-        blk%nrans = 2
-      elseif (mit /= 0.0_R8) then
-        blk%nrans = 1
-      endif
-    endif
-
-    ! Interpolation parameters
-    call zoneini%get(section_name='zone', option_name='old-solution', val=OFF, error=error)
-    if (error==0) IC_type = 'interpolation'
-    call zoneini%get(section_name='zone', option_name='old-block-id', val=oldid, error=error)
-    if (error/=0) oldid = 0
-    call zoneini%get(section_name='zone', option_name='interpolation-law', val=config_interpolation%law, error=error)
-    if (error/=0) config_interpolation%law = 'outlaw'
-    if (config_interpolation%law=='extrude') then
-      call zoneini%get(section_name='zone', option_name='theta', val=config_interpolation%theta, error=error)
-      if (error/=0) config_interpolation%theta = 90.0_R8
-      call zoneini%get(section_name='zone', option_name='nz', val=config_interpolation%nz, error=error)
-      if (error/=0) config_interpolation%nz = 4
-    endif
+    OFF = rf_cfg%interpolation%old_solution
+    oldid = rf_cfg%interpolation%old_block_id
+    call sync_interpolation_config(rf_cfg%interpolation)
+    if (rf_cfg%interpolation%enabled) IC_type = 'interpolation'
 
     write(*,*) ' -- RF type = ',trim(IC_type)
 
@@ -280,34 +245,26 @@ contains
     ! Load a field for RF assignment. The field can be either a constant value
     ! or read from a file (Tecplot/1D-profile). scale is a unit-conversion factor
     ! applied when a scalar or file-based value is found.
-    subroutine load_zone_field(field, base_name, scale)
+    subroutine load_zone_field(field, field_cfg, scale)
       implicit none
       real(R8),         intent(inout) :: field(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
-      character(len=*), intent(in)    :: base_name
+      type(config_field_source_t), intent(in) :: field_cfg
       real(R8),         intent(in)    :: scale
-      character(len=64)               :: file_option, dir_option
 
-      call zoneini%get(section_name='zone', option_name=trim(base_name), val=val_const, error=error)
-      if (error==0) then
-        field = val_const
+      if (field_cfg%has_value) then
+        field = field_cfg%value
         if (scale/=1.d0) field = field*scale
         return
       endif
 
       field = 0.0_R8
-      file_option = trim(base_name)//'-file'
-      call zoneini%get(section_name='zone', option_name=trim(file_option), val=val_file, &
-                       error=errorfile)
-      if (errorfile/=0) return
+      if (.not. field_cfg%has_file) return
 
       is_variable = .true.
-      dir_option = trim(base_name)//'-direction'
-      call zoneini%get(section_name='zone', option_name=trim(dir_option), val=val_direction, &
-                       error=errordirection)
-      if (errordirection==0) then
-        call assign_from_1D_table(blk, val_file, val_direction, field)
+      if (field_cfg%has_direction) then
+        call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field)
       else
-        call interpolate_from_file(field, blk, val_file)
+        call interpolate_from_file(field, blk, field_cfg%file)
       endif
       if (scale/=1.d0) field = field*scale
 

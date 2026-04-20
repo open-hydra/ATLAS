@@ -78,7 +78,7 @@ module io_write_bc_mod
             endif
 
             select case (this % gp_id)
-            case(101, 201)
+            case(101, 103, 201)
               do i = 1, this % ci_n
                 write(unitfile,'(I8)',advance='no') this % ci_properties(i)
               enddo
@@ -106,8 +106,8 @@ module io_write_bc_mod
               do i = 1, this % ig_n
                 if (this % IG_time(i)) then
                   write(unitfile,'(X,A,A1)',advance='no') trim(this % IG_time_file(i)),','
-                elseif (this % ig_properties(i) > 1000_R8) then
-                  write(unitfile,'(A)',advance='no') 'normal,'
+                elseif (this % ig_properties(i) > 1e10) then
+                  write(unitfile,'(A16)',advance='no') 'normal,'
                 else
                   write(unitfile,'(E16.6,A1)',advance='no') this % ig_properties(i),','
                 endif
@@ -195,7 +195,7 @@ module io_write_bc_mod
 
             select case (this % gp_id)
             ! 100-series -> connection | 200-series -> periodic
-            case(101, 201)
+            case(101, 103, 201)
               do i = 1, this % ci_n
                 write(unitfile,'(I8)',advance='no') this % ci_properties(i)
               enddo
@@ -316,7 +316,7 @@ module io_write_bc_mod
                 case(401:403)
                   do i = 1, size(blk(b)%face(f)%center(m,n)%bc%dp_properties,3)
                     if (blk(b)%face(f)%center(m,n)%bc%dp_properties(mm,p,i) > 1000.0_R8) then
-                      write(unitfile,'(A)',advance='no') ' normal'
+                      write(unitfile,'(A16)',advance='no') 'normal,'
                     else
                       write(unitfile,'(E14.5)',advance='no') blk(b)%face(f)%center(m,n)%bc%dp_properties(mm,p,i)
                     endif

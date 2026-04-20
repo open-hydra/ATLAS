@@ -36,24 +36,48 @@ INCLUDE(${CMAKE_MODULE_PATH}/SetParallelizationLibrary.cmake)
 # Add the needed libraries and special compiler flags
 #####################################################
 
+# -------- Helper: initialize a git submodule from the correct git root --------
+macro(ensure_submodule_initialized SUBMOD_PATH)
+  if (NOT EXISTS "${SUBMOD_PATH}/CMakeLists.txt")
+    message(STATUS "Submodule at ${SUBMOD_PATH} not initialized. Attempting git submodule update --init...")
+    get_filename_component(_sm_parent "${SUBMOD_PATH}" DIRECTORY)
+    execute_process(
+      COMMAND git rev-parse --show-toplevel
+      WORKING_DIRECTORY "${_sm_parent}"
+      OUTPUT_VARIABLE _sm_git_root
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      RESULT_VARIABLE _sm_git_result)
+    if(_sm_git_result EQUAL 0)
+      file(RELATIVE_PATH _sm_rel "${_sm_git_root}" "${SUBMOD_PATH}")
+      execute_process(
+        COMMAND git submodule update --init "${_sm_rel}"
+        WORKING_DIRECTORY "${_sm_git_root}"
+        RESULT_VARIABLE _sm_init_result)
+      if(NOT _sm_init_result EQUAL 0)
+        message(FATAL_ERROR "Failed to initialize submodule: ${SUBMOD_PATH}")
+      endif()
+    else()
+      message(FATAL_ERROR "Could not find git root for submodule: ${SUBMOD_PATH}")
+    endif()
+  endif()
+endmacro()
+
 # NewCEA
 add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/lib/NewCEA/ )
 
-# # ORION
-if(MASTER STREQUAL None)
-  set ( orionD ${CMAKE_CURRENT_SOURCE_DIR}/lib/ORION/ )
-elseif(MASTER STREQUAL hydra)
-  set ( orionD $ENV{HYDRADIR}/lib/ORION/ "${CMAKE_CURRENT_SOURCE_DIR}/build/lib/ORION/")
+# ORION
+if (NOT TARGET ORION)
+  ensure_submodule_initialized("${ORION_PATH}")
+  set(orionD "${ORION_PATH}" "${CMAKE_BINARY_DIR}/lib/ORION")
+  add_subdirectory(${orionD})
 endif()
-add_subdirectory(${orionD})
 
 # FiNeR
-if(MASTER STREQUAL None)
-  set ( finerD ${CMAKE_CURRENT_SOURCE_DIR}/lib/third_party/FiNeR/ )
-elseif(MASTER STREQUAL hydra)
-  set ( finerD $ENV{HYDRADIR}/lib/third_party/FiNeR/ "${CMAKE_CURRENT_SOURCE_DIR}/build/lib/third_party/FiNeR/")
+if (NOT TARGET FiNeR)
+  ensure_submodule_initialized("${FINER_PATH}")
+  set(finerD "${FINER_PATH}" "${CMAKE_BINARY_DIR}/lib/third_party/FiNeR")
+  add_subdirectory(${finerD})
 endif()
-add_subdirectory(${finerD})
 
 ############################################
 # Define the actual files and building rules

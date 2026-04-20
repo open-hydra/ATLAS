@@ -3,6 +3,7 @@
 !>
 
 program BCB
+  use bcb_config_mod, only: write_bcb_registry_markdown
   use global_mod
   use bc_block_mod
   use phase_mod
@@ -22,12 +23,19 @@ program BCB
   type(file_ini)              :: sourceini
   integer                     :: b
   logical                     :: force_connect, chimeraon
+  logical                     :: write_config_doc
 
   write(*,*)
   write(*,*) ' ATLAS - Boundary Conditions Builder'
   write(*,*)
 
   call command_line_argument()
+
+  if (write_config_doc) then
+    call write_bcb_registry_markdown('bcb-input.md')
+    write(*,*) ' BCB input documentation written to bcb-input.md'
+    stop
+  endif
 
   ! Geometry import
   write(*,*)' Reading mesh file ...'
@@ -83,6 +91,7 @@ contains
     integer      :: arg_count, i
 
     verbose = .false.
+    write_config_doc = .false.
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
@@ -90,6 +99,8 @@ contains
       call GET_COMMAND_ARGUMENT(i, arg)
       if (arg == '-v' .or. arg == '--verbose') then
         verbose = .true.
+      elseif (arg == '--write-config-doc') then
+        write_config_doc = .true.
       end if
     end do
 

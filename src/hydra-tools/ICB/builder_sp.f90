@@ -7,18 +7,19 @@ module ic_sp_mod
 
 contains
 
-  subroutine build_SP_field(blk,zoneini,IC_type,mat,range,dirSize,dir,index_based)
-    use finer,                        only: file_ini
+  subroutine build_SP_field(blk,sp_cfg,IC_type,mat,range,dirSize,dir,index_based)
     use phase_mod,                    only: material_t
     use global_mod,                    only: llen
     use ic_block_mod
-    use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock, config_interpolation
+    use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock
     use ic_interpolation_cons_mod
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, interpolate_from_file
+    use config_mod,                   only: config_sp_t, config_field_source_t, &
+                                            sync_interpolation_config
 
     implicit none
     type(IC_block),   intent(inout) :: blk
-    type(file_ini),   intent(in)    :: zoneini
+    type(config_sp_t), intent(in)   :: sp_cfg
     character(len=*), intent(inout) :: IC_type
     type(material_t), intent(in)    :: mat
     logical,          intent(in)    :: index_based
@@ -29,13 +30,7 @@ contains
     ! Unspecified
     integer                       :: i, j, k
     integer                       :: imin, imax, jmin, jmax, kmin, kmax
-    integer                       :: error, errorfile, errordirection
-    character(len=16)             :: material_name
     real(R8)                      :: here(3)
-    ! 1D Table specific parameters
-    character(len=16)             :: val_direction
-    character(len=128)            :: val_file
-    real(R8)                      :: val_const
     ! Support fields
     real(R8)                      :: qvol(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
     real(R8)                      :: T   (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
@@ -57,10 +52,11 @@ contains
     mID_field = 1.0_R8
 
     !! Determine material ID (scalar → broadcast to support array)
-    call zoneini%get(section_name='zone', option_name='material', val=material_name, error=error)
     do i = 1, mat%n
-      if (trim(mat%name(i))==trim(material_name)) mID_field = real(i,R8)
+      if (trim(mat%name(i))==trim(sp_cfg%material)) mID_field = real(i,R8)
     enddo
+
+    if (sp_cfg%interpolation%enabled) IC_type = 'interpolation'
 
     write(*,*) ' -- SP type = ',trim(IC_type)
 
@@ -68,18 +64,13 @@ contains
 
     case ('interpolation')
 
-      call zoneini%get(section_name='zone', option_name='old-solution', val=OFF, error=error)
-      call zoneini%get(section_name='zone', option_name='old-block-id', val=oldid, error=error)
-      if (error/=0) oldid = 0
-      call zoneini%get(section_name='zone', option_name='interpolation-law', val=config_interpolation % law, error=error)
-      if (config_interpolation % law=='extrude') then
-        call zoneini%get(section_name='zone', option_name='theta', val=config_interpolation % theta, error=error)
-        call zoneini%get(section_name='zone', option_name='nz', val=config_interpolation % nz, error=error)
-      endif
+      OFF = sp_cfg%interpolation%old_solution
+      oldid = sp_cfg%interpolation%old_block_id
+      call sync_interpolation_config(sp_cfg%interpolation)
       call ensure_old_solution(OFF,'SP')
 
       ! Build interpolation map (once for all variables)
-      call compute_interp_map(map, oldblock, blk, oldid, config_interpolation % law)
+      call compute_interp_map(map, oldblock, blk, oldid, sp_cfg%interpolation % law)
 
       ! Temperature
       call wrap_src(oldblock, src_field, 'temperature')
@@ -112,37 +103,8 @@ contains
 
     case default
 
-      !! Fill T
-      ! Uniform value
-      call zoneini%get(section_name='zone', option_name='T', val=val_const, error=error)
-      if (error==0) T = val_const
-      ! 1D file
-      call zoneini%get(section_name='zone', option_name='T-file', val=val_file, error=errorfile)
-      if (errorfile==0) then
-        call zoneini%get(section_name='zone', option_name='T-direction', val=val_direction, error=errordirection)
-        if (errordirection==0) then
-          call assign_from_1D_table (blk, val_file, val_direction, T)
-        else
-          ! 3D nearest-neighbor interpolation
-          call interpolate_from_file(T, blk, val_file)
-        endif
-      endif
-
-      !! Fill qvol
-      ! Uniform value
-      call zoneini%get(section_name='zone', option_name='qvol', val=val_const, error=error)
-      if (error==0) qvol = val_const
-      ! File-based
-      call zoneini%get(section_name='zone', option_name='qvol-file', val=val_file, error=errorfile)
-      if (errorfile==0) then
-        call zoneini%get(section_name='zone', option_name='qvol-direction', val=val_direction, error=errordirection)
-        if (errordirection==0) then
-          call assign_from_1D_table (blk, val_file, val_direction, qvol)
-        else
-          ! 3D conservative interpolation
-          call interpolate_conservative(qvol, blk, val_file)
-        endif
-      endif
+      call load_zone_field(T, sp_cfg%T, .false.)
+      call load_zone_field(qvol, sp_cfg%qvol, .true.)
 
     end select
 
@@ -213,6 +175,28 @@ contains
         if (allocated(sf(b)%var)) deallocate(sf(b)%var)
       enddo
     end subroutine unwrap_src
+
+    subroutine load_zone_field(field, field_cfg, conservative)
+      real(R8), intent(inout) :: field(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
+      type(config_field_source_t), intent(in) :: field_cfg
+      logical, intent(in) :: conservative
+
+      if (field_cfg%has_value) then
+        field = field_cfg%value
+        return
+      endif
+
+      field = 0.0_R8
+      if (.not. field_cfg%has_file) return
+
+      if (field_cfg%has_direction) then
+        call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field)
+      elseif (conservative) then
+        call interpolate_conservative(field, blk, field_cfg%file)
+      else
+        call interpolate_from_file(field, blk, field_cfg%file)
+      endif
+    end subroutine load_zone_field
 
   end subroutine build_SP_field
 

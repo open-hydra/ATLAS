@@ -12,6 +12,7 @@ program ICB
   use Lib_ORION_data
   use io_ini_mod
   use ic_builder_mod
+  use config_mod, only: write_icb_registry_markdown
   use finer, only: file_ini
   use grid_mod, only: mesh_cfg
 
@@ -22,12 +23,19 @@ program ICB
   character(len=30)            :: ICformat
   type(file_ini)               :: sourceini
   integer                      :: b
+  logical                      :: write_config_doc
 
   write(*,*)
   write(*,*) ' ATLAS - Initial Conditions Builder'
   write(*,*)
 
   call command_line_argument()
+
+  if (write_config_doc) then
+    call write_icb_registry_markdown('icb-input.md')
+    write(*,*) ' ICB input documentation written to icb-input.md'
+    stop
+  endif
 
   ! Geometry import
   write(*,*)' Reading mesh file ...'
@@ -71,6 +79,7 @@ program ICB
     integer      :: arg_count, i
 
     verbose = .false.
+    write_config_doc = .false.
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
@@ -78,6 +87,8 @@ program ICB
       call GET_COMMAND_ARGUMENT(i, arg)
       if (arg == '-v' .or. arg == '--verbose') then
         verbose = .true.
+      elseif (arg == '--write-config-doc') then
+        write_config_doc = .true.
       end if
     end do
 

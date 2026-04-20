@@ -1,8 +1,24 @@
 # Shared sources
 file(GLOB COMMON_SOURCES "common/*.f90")
+list(REMOVE_ITEM COMMON_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/global.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/registry.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/config_shared.f90"
+)
+list(PREPEND COMMON_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/global.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/registry.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/common/config_shared.f90"
+)
 
 # ICB executable: ICB/ + common
 file(GLOB ICB_SOURCES "ICB/*.f90")
+list(REMOVE_ITEM ICB_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/ICB/config.f90"
+)
+list(PREPEND ICB_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/ICB/config.f90"
+)
 add_executable(ICB ${ICB_SOURCES} ${COMMON_SOURCES})
 target_link_libraries(ICB PRIVATE FiNeR::FiNeR NewCEA ORION)
 target_include_directories(ICB PRIVATE
@@ -11,6 +27,16 @@ target_include_directories(ICB PRIVATE
 
 # BCB executable: BCB/ + common
 file(GLOB BCB_SOURCES "BCB/*.f90")
+list(REMOVE_ITEM BCB_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/BCB/bc_names.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/BCB/config.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/BCB/types_bc.f90"
+)
+list(PREPEND BCB_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/BCB/bc_names.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/BCB/config.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/BCB/types_bc.f90"
+)
 add_executable(BCB ${BCB_SOURCES} ${COMMON_SOURCES})
 target_link_libraries(BCB PRIVATE FiNeR::FiNeR NewCEA ORION)
 target_include_directories(BCB PRIVATE

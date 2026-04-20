@@ -1,4 +1,6 @@
 submodule (bc_mod) bc_wall_mod
+  use bcb_config_mod, only: bcb_wall_fluid_config_t, bcb_wall_solid_config_t, &
+                            load_bcb_wall_fluid_config, load_bcb_wall_solid_config
 
   implicit none
 
@@ -6,46 +8,39 @@ contains
 
   module procedure build_wall_fluid
     implicit none
-    real(R8) :: q, T, ks, qrad, eps
-    integer  :: eq, eT, eks, eqrad, eeps
+    type(bcb_wall_fluid_config_t) :: cfg
 
     self % ig_species % n = 0
 
-    q = 0._R8; T = 0._R8; ks = 0._R8; qrad = 0._R8; eps = 0._R8
-
-    call sourceini%get(section_name=section, option_name='q',     val=q,    error=eq)
-    call sourceini%get(section_name=section, option_name='T',     val=T,    error=eT)
-    call sourceini%get(section_name=section, option_name='ks',    val=ks,   error=eks)
-    call sourceini%get(section_name=section, option_name='qrad',  val=qrad, error=eqrad)
-    call sourceini%get(section_name=section, option_name='eps',   val=eps,  error=eeps)
+    call load_bcb_wall_fluid_config(sourceini, section, cfg)
 
     ! Heat flux, roughness (if 0, smooth wall), and emissivity
-    if (eq==0._R8 .and. (eT+eqrad)/=0._R8) then
+    if (cfg%has_q .and. .not. cfg%has_T .and. .not. cfg%has_qrad) then
       self % ig_n = 3
       allocate(self % ig_properties(1:self % ig_n))
       self % ig_id = 301
-      self % ig_properties(1:3) = [q, ks, eps]
+      self % ig_properties(1:3) = [cfg%q, cfg%ks, cfg%eps]
     
     ! Temperature, roughness (if 0, smooth wall), and emissivity
-    elseif (eT==0._R8 .and. (eq+eqrad)/=0._R8) then
+    elseif (cfg%has_T .and. .not. cfg%has_q .and. .not. cfg%has_qrad) then
       self % ig_n = 3
       allocate(self % ig_properties(1:self % ig_n))
       self % ig_id = 302
-      self % ig_properties(1:3) = [T, ks, eps]
+      self % ig_properties(1:3) = [cfg%T, cfg%ks, cfg%eps]
 
     ! Temperature, radiative heat flux, and roughness (if 0, smooth wall)
-    elseif (eT==0._R8 .and. eqrad==0._R8 .and. eq/=0._R8) then
+    elseif (cfg%has_T .and. cfg%has_qrad .and. .not. cfg%has_q) then
       self % ig_n = 3
       allocate(self % ig_properties(1:self % ig_n))
       self % ig_id = 303
-      self % ig_properties(1:3) = [T, qrad, ks]
+      self % ig_properties(1:3) = [cfg%T, cfg%qrad, cfg%ks]
 
     ! Radiative heat flux, and roughness (if 0, smooth wall)
-    elseif (eqrad==0._R8 .and. (eT+eq)/=0._R8) then
+    elseif (cfg%has_qrad .and. .not. cfg%has_T .and. .not. cfg%has_q) then
       self % ig_n = 2
       allocate(self % ig_properties(1:self % ig_n))
       self % ig_id = 304
-      self % ig_properties(1:2) = [qrad, ks]
+      self % ig_properties(1:2) = [cfg%qrad, cfg%ks]
 
     ! Eulerian symmetry
     else
@@ -59,49 +54,41 @@ contains
 
   module procedure build_wall_solid
     implicit none
-    real(R8) :: q, T, qrad, h, Tref, eps
-    integer  :: eq, eT, eqrad, eh, eTref, eeps
+    type(bcb_wall_solid_config_t) :: cfg
 
-    q = 0._R8; T = 0._R8; qrad = 0._R8; h = 0._R8; Tref = 0._R8; eps = 0._R8
-
-    call sourceini%get(section_name=section, option_name='q',     val=q,    error=eq)
-    call sourceini%get(section_name=section, option_name='T',     val=T,    error=eT)
-    call sourceini%get(section_name=section, option_name='qrad',  val=qrad, error=eqrad)
-    call sourceini%get(section_name=section, option_name='hconv', val=h,    error=eh)
-    call sourceini%get(section_name=section, option_name='Tref',  val=Tref, error=eTref)
-    call sourceini%get(section_name=section, option_name='eps',   val=eps,  error=eeps)
+    call load_bcb_wall_solid_config(sourceini, section, cfg)
 
     ! Heat flux
-    if (eq==0 .and. (eT+eqrad)/=0) then
+    if (cfg%has_q .and. .not. cfg%has_T .and. .not. cfg%has_qrad) then
       self % sp_n = 1
       if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
 
       self % sp_id = 301
-      self % sp_properties(1) = q
+      self % sp_properties(1) = cfg%q
     
     ! Temperature
-    elseif (eT==0 .and. (eq+eqrad)/=0) then
+    elseif (cfg%has_T .and. .not. cfg%has_q .and. .not. cfg%has_qrad) then
       self % sp_n = 1
       if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
 
       self % sp_id = 302
-      self % sp_properties(1) = T
+      self % sp_properties(1) = cfg%T
 
     ! Convection coefficient, reference temperature, and radiative heat flux
-    elseif (eh==0 .and. eqrad==0 .and. eTref==0) then
+    elseif (cfg%has_hconv .and. cfg%has_qrad .and. cfg%has_Tref) then
       self % sp_n = 3
       if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
 
       self % sp_id = 303
-      self % sp_properties(1:3) = [h, Tref, qrad]
+      self % sp_properties(1:3) = [cfg%hconv, cfg%Tref, cfg%qrad]
 
     ! Radiative heat flux
-    elseif (eeps==0 .and. (eq+eqrad)/=0) then
+    elseif (cfg%has_eps) then
       self % sp_n = 1
       if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
 
       self % sp_id = 304
-      self % sp_properties(1) = eps
+      self % sp_properties(1) = cfg%eps
 
     endif
 

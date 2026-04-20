@@ -121,35 +121,42 @@ module ic_builder_mod
     use ic_rf_mod
     use ic_sp_mod
     use ic_dp_mod
+    use config_mod, only: config_zone_runtime_t, config_ig_t, config_rf_t, config_sp_t, &
+                          config_dp_t, load_zone_runtime_config, load_ig_config, &
+                          load_rf_config, load_sp_config, load_dp_config
     implicit none
     type(IC_block), intent(inout) :: self
     type(file_ini), intent(in)    :: zoneini
     ! Local
     character(len=2)              :: phase_type
     logical                       :: index_based
-    integer                       :: pi, i, error
-    character(len=20)             :: IC_type
+    logical                       :: ig_loaded, rf_loaded, sp_loaded, dp_loaded
+    integer                       :: pi, i, nnn
+    character(len=32)             :: IC_type
     real(R8)                      :: range(6)
-    character(len=3)              :: dirID
     integer                       :: dirSize
     integer, allocatable          :: dir(:)
+    type(config_zone_runtime_t)   :: zone_cfg
+    type(config_ig_t)             :: ig_cfg
+    type(config_rf_t)             :: rf_cfg
+    type(config_sp_t)             :: sp_cfg
+    type(config_dp_t)             :: dp_cfg
     
-    call zoneini%get(section_name='zone', option_name='type', val=IC_type, error=error)
-    if (error/=0) IC_type='homogeneous'
+    call load_zone_runtime_config(zoneini, zone_cfg)
+    IC_type = zone_cfg%ic_type
     
     ! Check direction
     index_based = .false.
     dirSize = 0
-    call zoneini%get(section_name='zone', option_name='direction', val=dirID, error=error)
-    if (error==0) then
-      call parse_direction(dirID, dir, dirSize, index_based)
+    if (zone_cfg%has_direction) then
+      call parse_direction(zone_cfg%direction, dir, dirSize, index_based)
     endif
 
     ! Check range for multizone
-    call zoneini%get(section_name='zone',option_name='range',val=range, error=error)
-    if (error/=0) then
+    if (.not. zone_cfg%has_range) then
       do i = 1, 6 ; range(i) = (-1.0)**i*huge(range(i)) ; enddo
     else
+      range = zone_cfg%range
       do i = dirSize*2+1, 6 ; range(i) = (-1.0)**i*huge(range(i)) ; enddo
     endif
 
@@ -164,6 +171,11 @@ module ic_builder_mod
       endif
     endif
 
+    ig_loaded = .false.
+    rf_loaded = .false.
+    sp_loaded = .false.
+    dp_loaded = .false.
+
     do pi = 1, size(self%associated_phase)
       phase_type = self%associated_phase(pi)%type
 
@@ -171,19 +183,42 @@ module ic_builder_mod
 
       case ('IG')
 
-        call build_IG_field(self,zoneini,IC_type,self%associated_phase(pi)%species,range,dirSize,dir)
+        if (.not. ig_loaded) then
+          call load_ig_config(zoneini, ig_cfg)
+          ig_loaded = .true.
+        endif
+        call build_IG_field(self, zoneini, ig_cfg, IC_type, self%associated_phase(pi)%species, &
+                            range, dirSize, dir)
 
       case ('RF')
 
-        call build_RF_field(self,zoneini,IC_type,self%associated_phase(pi)%fluid,range,dirSize,dir)
+        if (.not. rf_loaded) then
+          call load_rf_config(zoneini, rf_cfg)
+          rf_loaded = .true.
+        endif
+        call build_RF_field(self, rf_cfg, IC_type, self%associated_phase(pi)%fluid, &
+                            range, dirSize, dir)
 
       case ('DP')
 
-        call build_DP_field(self,zoneini,self%associated_phase(pi)%material)
+        if (.not. dp_loaded) then
+          nnn = 0
+          do i = 1, self%associated_phase(pi)%material%n
+            nnn = nnn + self%associated_phase(pi)%material%npCP(i)
+          enddo
+          call load_dp_config(zoneini, nnn, dp_cfg)
+          dp_loaded = .true.
+        endif
+        call build_DP_field(self, dp_cfg, IC_type, self%associated_phase(pi)%material)
 
       case ('SP')
 
-        call build_SP_field(self,zoneini,IC_type,self%associated_phase(pi)%material,range,dirSize,dir,index_based)
+        if (.not. sp_loaded) then
+          call load_sp_config(zoneini, sp_cfg)
+          sp_loaded = .true.
+        endif
+        call build_SP_field(self, sp_cfg, IC_type, self%associated_phase(pi)%material, range, &
+                            dirSize, dir, index_based)
 
       end select
 

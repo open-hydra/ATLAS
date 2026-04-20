@@ -377,7 +377,7 @@ contains
       b2 = b(j); f2 = f(j); m2 = m(j); n2 = n(j)
       call fmn2ijk(f1,m1,n1,nx(b1),ny(b1),nz(b1),i1,j1,k1)
       call fmn2ijk(f2,m2,n2,nx(b2),ny(b2),nz(b2),i2,j2,k2)
-      def(i) = 1000; def(j) = 1000
+      def(i) = 103; def(j) = 103
       do p1 = 1, size(blk(b1)%associated_phase)
         do p2 = 1, size(blk(b2)%associated_phase)
           if (blk(b1)%associated_phase(p1)%name==blk(b2)%associated_phase(p2)%name) then
@@ -417,7 +417,7 @@ contains
         do n1 = 1, blk(b1)%face(f1)%Nn
           do m1 = 1, blk(b1)%face(f1)%Nm
             j = i + (n1-1)*blk(b1)%face(f1)%Nm + m1
-            if ((def(j)==101 .or. def(j)==1000) .and. adj(j)) then
+            if ((def(j)==101 .or. def(j)==103) .and. adj(j)) then
               associate( this => blk(b1)%face(f1)%center(m1,n1) )
               this%bc%gp_id = def(j)
               this%bc%adj_assigned = adj(j)
@@ -621,7 +621,7 @@ contains
         do n1 = 1, blk(b1)%face(f1)%Nn
           do m1 = 1, blk(b1)%face(f1)%Nm
             j = i + (n1-1)*blk(b1)%face(f1)%Nm + m1
-            if ((def(j)==101 .or. def(j)==1000) .and. adj(j)) &
+            if ((def(j)==101 .or. def(j)==103) .and. adj(j)) &
               blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1) = blk(prop(j,1))%id
           enddo
         enddo

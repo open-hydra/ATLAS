@@ -1,6 +1,7 @@
 !! TODO: dispersed-phase bc for srm + adapt ideal gas bc to handle multiphase cases (e.g., mass fractions of condensed species, etc.)
 
 submodule (bc_mod) special_bc_mod
+  use bcb_config_mod, only: bcb_srm_config_t, load_bcb_srm_config
   use phase_mod, only: phase_t, species_t, define_composition
   implicit none
 
@@ -8,9 +9,10 @@ contains
 
   module procedure build_srm_ig
     implicit none
+    type(bcb_srm_config_t) :: cfg
     real(R8) :: mit, kappa, omega, rhoRij
     real(R8) :: T0, a_srm, n_srm, pRef_srm, rhoGrain_srm, SFgeo_srm
-    integer  :: error, dim, start, nrans
+    integer  :: dim, start, nrans
     real(R8) :: ceah0, ceaT0, ceap0
 
     self%ig_id = 501
@@ -21,37 +23,25 @@ contains
     if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
     self % ig_species % massf = 1d-20
 
+    call load_bcb_srm_config(sourceini, section, cfg)
+
+    mit = cfg%turbulence%mit
+    kappa = cfg%turbulence%kappa
+    omega = cfg%turbulence%omega
+    rhoRij = cfg%turbulence%rhoRij
+    nrans = cfg%turbulence%nrans
+
+    a_srm = cfg%a
+    n_srm = cfg%n
+    pRef_srm = cfg%pRef
+    rhoGrain_srm = cfg%rhoGrain
+    SFgeo_srm = cfg%SF
+
     self % ig_n = dim + self % ig_species % n + nrans
     allocate(self % ig_properties(1:self % ig_n))
     allocate(self % ig_time(1:self % ig_n))
     self % ig_properties = 0.0_R8
     self % IG_time = .false.
-
-    a_srm = 0.0_R8; n_srm = 0.0_R8; pRef_srm = 1.0_R8; rhoGrain_srm = 0.0_R8; SFgeo_srm = 1.0_R8
-
-    ! Turbulence properties
-    call sourceini%get(section_name=section, option_name='mit',          val=mit,          error=error)
-    if (error==0) then
-      nrans = 1
-    else
-      call sourceini%get(section_name=section, option_name='kappa',      val=kappa,        error=error)
-      call sourceini%get(section_name=section, option_name='omega',      val=omega,        error=error)
-      if (error==0) then
-        nrans = 2
-      else
-        call sourceini%get(section_name=section, option_name='rhoRij',   val=rhoRij,       error=error)
-        if (error==0) then
-          nrans = 7
-        endif
-      endif
-    endif
-
-    ! SRM grain parameters
-    call sourceini%get(section_name=section, option_name='a',        val=a_srm,        error=error)
-    call sourceini%get(section_name=section, option_name='n',        val=n_srm,        error=error)
-    call sourceini%get(section_name=section, option_name='pRef',     val=pRef_srm,     error=error)
-    call sourceini%get(section_name=section, option_name='rhoGrain', val=rhoGrain_srm, error=error)
-    call sourceini%get(section_name=section, option_name='SF',       val=SFgeo_srm,    error=error)
 
     ! Assign species mass fractions
     call define_composition(sourceini, self%ig_species, CEAT0, CEAp0, CEAh0)

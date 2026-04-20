@@ -1,4 +1,5 @@
 module io_ini_mod
+  use config_shared_mod, only: atlas_parameters_t, load_atlas_parameters
   use finer, only: file_ini
   implicit none
   private
@@ -19,39 +20,18 @@ contains
     integer, intent(inout), optional            :: MG_levels
     character(len=*), intent(inout), optional   :: ICformat
     logical, intent(inout), optional            :: chimeraon, force_connect
-    character(len=30)                           :: inifile
+    type(atlas_parameters_t)                    :: atlas_cfg
     type(file_ini)                              :: fini
 
-    call fini%load(filename='input.ini')
+    call load_atlas_parameters(prog, atlas_cfg)
 
-    call fini%get(section_name=par_section, option_name='ICB-file', val=inifile, error=error)
-    if (error/=0) inifile = 'input.ini'
-
-    call fini%get(section_name=par_section, option_name='BCB-file', val=inifile, error=error)
-    if (error/=0) inifile = 'input.ini'
-
-    if (present(MG_levels)) then
-      call fini%get(section_name=par_section, option_name='MG-levels', val=MG_levels, error=error)
-      if (error/=0) MG_levels = 1
-    endif
-
-    if (present(ICformat)) then
-      call fini%get(section_name=par_section, option_name='IC-format', val=ICformat, error=error)
-      if (error/=0) ICformat = 'tec'
-    endif
-
-    if (present(force_connect)) then
-      call fini%get(section_name=par_section, option_name='BC-force-connect', val=force_connect, error=error)
-      if (error/=0) force_connect = .true.
-    endif
-
-    if (present(chimeraon)) then
-      call fini%get(section_name=par_section, option_name='BC-chimera', val=chimeraon, error=error)
-      if (error/=0) chimeraon = .false.
-    endif
+    if (present(MG_levels)) MG_levels = atlas_cfg%mg_levels
+    if (present(ICformat)) ICformat = atlas_cfg%ic_format
+    if (present(force_connect)) force_connect = atlas_cfg%bc_force_connect
+    if (present(chimeraon)) chimeraon = atlas_cfg%bc_chimera
 
     ! Read specific INI file
-    call fini%load(filename=inifile)
+    call fini%load(filename=atlas_cfg%input_file)
     inisource = generate_sections_input(prog,fini,nb)
 
   end subroutine build_INI

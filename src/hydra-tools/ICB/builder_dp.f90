@@ -4,22 +4,21 @@ module ic_dp_mod
 
 contains
 
-  subroutine build_DP_field(blk,zoneini,mat)
+  subroutine build_DP_field(blk,dp_cfg,IC_type,mat)
     use ic_block_mod
-    use finer, only: file_ini
     use phase_mod, only: material_t
     use global_mod, only: llen
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map
-    use config_mod,                   only: config_interpolation
+    use config_mod,                   only: config_dp_t, config_interpolation, &
+                                            sync_interpolation_config
     implicit none
     type(IC_block),   intent(inout) :: blk
-    type(file_ini),   intent(in)    :: zoneini
+    type(config_dp_t), intent(in)   :: dp_cfg
+    character(len=*), intent(inout) :: IC_type
     type(material_t), intent(in)    :: mat
-    character(len=32)               :: IC_type
-    integer                         :: i, j, k, error, nnn, g
+    integer                         :: i, j, k, nnn, g
     real(R8)                        :: rho
-    real(R8), allocatable           :: krho(:), rp(:), kT(:), Pp(:)
     ! Interpolation-specific locals
     character(len=llen)             :: OFF
     integer                         :: oldid
@@ -40,24 +39,12 @@ contains
       allocate(blk%dp%pseudopressure( nnn ,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
     endif
 
-    ! Check for interpolation first — read 'type' and 'old-solution' before other INI params
-    call zoneini%get(section_name='zone', option_name='type', val=IC_type, error=error)
-    if (error/=0) IC_type = 'homogeneous'
-    call zoneini%get(section_name='zone', option_name='old-solution', val=OFF, error=error)
-    if (error==0) IC_type = 'interpolation'
+    OFF = dp_cfg%interpolation%old_solution
+    oldid = dp_cfg%interpolation%old_block_id
+    call sync_interpolation_config(dp_cfg%interpolation)
+    if (dp_cfg%interpolation%enabled) IC_type = 'interpolation'
 
     if (IC_type == 'interpolation') then
-      call zoneini%get(section_name='zone', option_name='old-block-id', val=oldid, error=error)
-      if (error/=0) oldid = 0
-      call zoneini%get(section_name='zone', option_name='interpolation-law', val=config_interpolation % law, error=error)
-      if (error/=0) config_interpolation % law = 'outlaw'
-      if (config_interpolation % law == 'extrude') then
-        call zoneini%get(section_name='zone', option_name='theta', val=config_interpolation % theta, error=error)
-        if (error/=0) config_interpolation % theta = 90.0_R8
-        call zoneini%get(section_name='zone', option_name='nz', val=config_interpolation % nz, error=error)
-        if (error/=0) config_interpolation % nz = 4
-      endif
-
       write(*,*) ' -- CD type = interpolation'
 
       call ensure_old_solution(OFF, 'CD')
@@ -119,30 +106,16 @@ contains
       return
     endif
 
-    allocate(krho(1:nnn)); krho = 0.0
-    allocate(kT(1:nnn)); kT = 1.0
-    allocate(rp(1:nnn))
-    allocate(Pp(1:nnn))
-    call zoneini%get(section_name='zone', option_name='krho',   val=krho, error=error)
-    call zoneini%get(section_name='zone', option_name='kT',   val=kT, error=error)
-    call zoneini%get(section_name='zone', option_name='Pp', val=Pp, error=error)
-    if (error==0) blk%neuler = 1
-    call zoneini%get(section_name='zone', option_name='neuler', val=blk%neuler, error=error)
-    call zoneini%get(section_name='zone', option_name='dp', val=rp, error=error)
-    if (error/=0) then
-      call zoneini%get(section_name='zone', option_name='rp', val=rp, error=error)
-      if (error/=0) then
-        stop "[ERROR] you must provide either dp or rp for CD"
-      endif
-    else
-      rp = 0.5*rp
+    blk%neuler = dp_cfg%neuler
+    if (.not. dp_cfg%has_rp) then
+      stop "[ERROR] you must provide either dp or rp for CD"
     endif
 
-    if (sum(krho)==0.0) then
+    if (sum(dp_cfg%krho)==0.0) then
       IC_type = 'vacuum'
-    elseif (sum(krho)/=0.0 .and. product(kT)==1.0) then
+    elseif (sum(dp_cfg%krho)/=0.0 .and. product(dp_cfg%kT)==1.0_R8) then
       IC_type = 'thermo-mechanical equilibrium'
-    elseif (sum(krho)/=0.0 .and. product(kT)/=1.0) then
+    elseif (sum(dp_cfg%krho)/=0.0 .and. product(dp_cfg%kT)/=1.0_R8) then
       IC_type = 'mechanical equilibrium'
     endif
 
@@ -162,24 +135,25 @@ contains
     case('equilibrium', 'thermo-mechanical equilibrium', 'mechanical equilibrium')
 
     do g = 1, nnn
-      if (krho(g)==0.0) then
+      if (dp_cfg%krho(g)==0.0_R8) then
         blk%dp%density(g,:,:,:) = 0.0
         blk%dp%velocity(g,1:3,:,:,:) = 0.0
         blk%dp%temperature(g,:,:,:) = 0.0
         blk%dp%nP(g,:,:,:) = 0.0
       else
-        blk%dp%density(g,:,:,:) = sum(blk%ig%density(:,:,:,:), dim=1) * krho(g)
+        blk%dp%density(g,:,:,:) = sum(blk%ig%density(:,:,:,:), dim=1) * dp_cfg%krho(g)
         blk%dp%velocity(g,1:3,:,:,:) = blk%ig%velocity(:,:,:,:)
-        blk%dp%temperature(g,:,:,:) = blk%ig%temperature(:,:,:)* kT(g)
+        blk%dp%temperature(g,:,:,:) = blk%ig%temperature(:,:,:) * dp_cfg%kT(g)
         !$omp parallel do collapse(3) private(i,j,k,rho)
         do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
               rho = mat%rho(g,nint(blk%ig%temperature(i,j,k)))
-              blk%dp%np(g,i,j,k) = blk%dp%density(g,i,j,k)/(4.0/3.0*3.14*rho*rp(g)**3)
+              blk%dp%np(g,i,j,k) = blk%dp%density(g,i,j,k) / &
+                                   (4.0/3.0*3.14*rho*dp_cfg%rp(g)**3)
         enddo; enddo; enddo
         !$omp end parallel do
       endif
       if (blk%neuler==1 .or. blk%neuler==6) then
-        blk%dp%pseudopressure(g,:,:,:) = Pp(g)
+        blk%dp%pseudopressure(g,:,:,:) = dp_cfg%Pp(g)
       endif
     enddo
 
