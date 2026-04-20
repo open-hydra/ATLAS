@@ -12,3 +12,24 @@ CMakePresets.json
 
 # Executables
 bin
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build output
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+
+# Development
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.log
+
+# OS files
+Thumbs.db
