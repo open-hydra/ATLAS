@@ -6,10 +6,14 @@ function print_usage {
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
   echo "   ATLAS ICB"
+  echo "   ATLAS DOCS"
   echo
   echo "General tools:"
   echo "   ATLAS CEA"
   echo "   ATLAS KAnT"
+  echo
+  echo "Options:"
+  echo "   --write-config-doc     Generate input documentation for selected tools"
   exit 1
 }
 
@@ -43,6 +47,11 @@ while test $# -gt 0; do
       P=--plot
       ;;
 
+    --write-config-doc )
+      shift
+      W=--write-config-doc
+      ;;
+
     -? | --help )
       usage
       exit
@@ -70,7 +79,18 @@ if [[ $1 == CEA ]]; then
 else
   ls *phase.txt > filelist.txt 2>/dev/null
   for program in $@; do
-    if [[ $program == 'GPB' || $program == 'KAnT' ]]; then
+    if [[ $program == 'DOCS' ]]; then
+      if [ -n "$ZSH_VERSION" ]; then
+          eval "$(conda shell.zsh hook)"
+      elif [ -n "$BASH_VERSION" ]; then
+          eval "$(conda shell.bash hook)"
+      fi
+      conda activate ct-env
+      python3 -B $ATLASDIR/src/hydra-tools/GPB --write-config-doc
+      conda deactivate
+      $ATLASDIR/bin/BCB --write-config-doc
+      $ATLASDIR/bin/ICB --write-config-doc
+    elif [[ $program == 'GPB' || $program == 'KAnT' ]]; then
       if [ -n "$ZSH_VERSION" ]; then
           eval "$(conda shell.zsh hook)"
       elif [ -n "$BASH_VERSION" ]; then
@@ -78,13 +98,13 @@ else
       fi
       conda activate ct-env
       if [[ $program == 'GPB' ]]; then
-        python3 -B $ATLASDIR/src/hydra-tools/$program $P
+        python3 -B $ATLASDIR/src/hydra-tools/$program $P $W
       else
         python3 -B $ATLASDIR/src/$program $P
       fi
       conda deactivate
     else
-      $ATLASDIR/bin/$program $V
+      $ATLASDIR/bin/$program $V $W
     fi
   done
   rm -f filelist.txt
