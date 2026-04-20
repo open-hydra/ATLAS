@@ -68,6 +68,7 @@ if [[ $1 == CEA ]]; then
   mv CEAfile.out $2.out
   mv CEAfile.plt $2.plt 2>/dev/null
 else
+  ls *phase.txt > filelist.txt 2>/dev/null
   for program in $@; do
     if [[ $program == 'GPB' || $program == 'KAnT' ]]; then
       if [ -n "$ZSH_VERSION" ]; then
@@ -83,9 +84,8 @@ else
       fi
       conda deactivate
     else
-      ls *phase.txt > filelist.txt 2>/dev/null
       $ATLASDIR/bin/$program $V
-      rm -f filelist.txt
     fi
   done
+  rm -f filelist.txt
 fi

@@ -9,8 +9,8 @@ module phase_mod
   end type species_t
 
   type :: real_fluid_t
-    integer                               :: n
-    character(len=16),        allocatable :: name
+    integer                               :: n = 0
+    character(len=16)                     :: name = ''
     real(R8), dimension(:),   allocatable :: p
     real(R8), dimension(:),   allocatable :: h
     real(R8), dimension(:,:), allocatable :: T

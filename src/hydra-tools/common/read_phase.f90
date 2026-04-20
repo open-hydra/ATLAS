@@ -178,49 +178,55 @@ contains
     use strings, only: parse
     use phase_mod, only: phase_t
     implicit none
-    type(phase_t), allocatable, intent(out) :: phase(:)
+    type(phase_t), allocatable, intent(inout) :: phase(:)
     character(len=128) :: filename, stringa(2)
     integer :: i, num_files, u, ios
     character(len=128), allocatable :: file_list(:)
     character(len=128) :: type
 
+    if (allocated(phase)) deallocate(phase)
+
     ! Get the list of .txt files in the current directory
     call get_file_list(file_list, num_files)
 
-    ! Check if the file is a species file (ideal-gas) or a material file (condensed-dispersed or a solid phase)
+    ! Check if the file is a species file (ideal-gas) or a material file
     if (num_files>=1) then
       allocate(phase(num_files))
       phase%type = 'JD'
+      phase%name = ''
       do i = 1, size(phase)
         filename = trim(adjustl(file_list(i)))
-        ! Check if the phase has a name. If not, an empty string is returned
         call parse(filename,'-',stringa)
         if (stringa(2)=='') then
           stringa(2) = stringa(1)
           stringa(1) = ''
         endif
         if (index(stringa(2),'phase')>0) then
-          open(newunit=u, file=filename, status="old")
-          read(u,'(A)',iostat=ios) type
-          if (index(type,'condensed-dispersed')>0) then
-            phase(i)%type = 'DP'
-          elseif (index(type,'solid')>0) then
-            phase(i)%type = 'SP'
-          elseif (index(type,'ideal-gas')>0) then
-            phase(i)%type = 'IG'
-          elseif (index(type,'real-fluid')>0) then
-            phase(i)%type = 'RF'
-          else
-            write(*,*) '[ERROR] unknown phase type'
-            stop
+          open(newunit=u, file=filename, status="old", iostat=ios)
+          if (ios==0) then
+            read(u,'(A)',iostat=ios) type
+            if (ios==0) then
+              if (index(type,'condensed-dispersed')>0) then
+                phase(i)%type = 'DP'
+              elseif (index(type,'solid')>0) then
+                phase(i)%type = 'SP'
+              elseif (index(type,'ideal-gas')>0) then
+                phase(i)%type = 'IG'
+              elseif (index(type,'real-fluid')>0) then
+                phase(i)%type = 'RF'
+              else
+                write(*,*) '[ERROR] unknown phase type'
+                stop
+              endif
+            endif
+            close(u)
           endif
-          close(u)
         endif
         phase(i)%name = stringa(1)
       end do
       deallocate(file_list)
     else
-      ! If no species or material file is present, the ideal-gas phase is assumed
+      ! If no species or material file is present, ideal-gas phase is assumed
       allocate(phase(1))
       phase%type = 'IG'
       phase%name = ''
@@ -231,25 +237,36 @@ contains
 
   subroutine get_file_list(file_list, num_files)
       implicit none
-      character(len=*), allocatable, intent(out) :: file_list(:)
+      character(len=128), allocatable, intent(out) :: file_list(:)
       integer, intent(out) :: num_files
       character(len=256) :: line
       integer :: ios, unit, u
 
       open(newunit=u, file="filelist.txt", status="old", action="read", iostat=ios)
 
+      if (ios /= 0) then
+        num_files = 0
+        allocate(file_list(0))
+        return
+      endif
+
       num_files = 0
       do
         read(u, '(A)', iostat=ios) line
         if (ios /= 0) exit
-        num_files = num_files + 1
+        if (len_trim(line) > 0) num_files = num_files + 1
       end do
 
       rewind(u)
       allocate(file_list(num_files))
 
-      do unit = 1, num_files
-        read(u, '(A)', iostat=ios) file_list(unit)
+      unit = 0
+      do
+        read(u, '(A)', iostat=ios) line
+        if (ios /= 0) exit
+        if (len_trim(line) == 0) cycle
+        unit = unit + 1
+        file_list(unit) = adjustl(trim(line))
       end do
 
       close(u)

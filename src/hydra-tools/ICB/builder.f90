@@ -16,7 +16,7 @@ module ic_builder_mod
     use strings,                   only: parse
     use ir_precision,              only: str
     implicit none
-    type(phase_t), intent(in)     :: phase(:)
+    type(phase_t), allocatable, intent(in)     :: phase(:)
     type(IC_block), intent(inout), target :: blocks(:)
     type(file_ini), intent(in)       :: sini
     ! Local
@@ -41,8 +41,7 @@ module ic_builder_mod
       ! Look for phases solved in block b
       call sini%get(section_name=section_name, option_name='phase', val=wholestring, error=error)
       if (error/=0) then
-        allocate(blk%associated_phase(1:size(phase)))
-        blk%associated_phase = phase
+        allocate(blk%associated_phase, source=phase)
       else
         call parse(wholestring,' ',args)
         p = count(args /= '')
