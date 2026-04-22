@@ -1,9 +1,9 @@
 module config_mod
-  use MOSE_Input_Registry, only: registry_t
   use iso_fortran_env, only: R8 => real64
+  use finer,           only: file_ini
+  use global_mod,      only: llen
+  use registry_mod,    only: registry_t
   use config_shared_mod
-  use finer, only: file_ini
-  use global_mod, only: llen
 
   implicit none
   private

@@ -42,6 +42,8 @@ module bc_mod
     procedure, pass(self)      :: build_wall_fluid
     procedure, pass(self)      :: build_wall_solid
     procedure, pass(self)      :: build_periodic
+    procedure, pass(self)      :: build_manifold
+    procedure, pass(self)      :: build_srm_ig
 
   end type bc_t
 

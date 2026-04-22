@@ -1,4 +1,4 @@
-module MOSE_Input_Registry
+module registry_mod
 
   use iso_fortran_env, only: I4 => int32, R8 => real64
   implicit none
@@ -566,4 +566,4 @@ contains
   end function lowercase
 
 
-end module MOSE_Input_Registry
+end module registry_mod

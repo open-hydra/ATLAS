@@ -1,19 +1,19 @@
 module bcb_config_mod
-  use iso_fortran_env,     only: R8 => real64
-  use MOSE_Input_Registry, only: registry_t
+  use iso_fortran_env, only: R8 => real64
+  use registry_mod,    only: registry_t
+  use finer,           only: file_ini
+  use global_mod,      only: llen
+  use phase_mod,       only: phase_t
   use bc_names_mod
   use config_shared_mod
-  use finer,               only: file_ini
-  use global_mod,          only: llen
-  use phase_mod,           only: phase_t
 
   implicit none
   private
 
-  integer, parameter :: max_faces = 6
-  integer, parameter :: n_variable_file_keys = 18
+  integer, parameter         :: max_faces = 6
+  integer, parameter, public :: n_variable_file_keys = 18
 
-  character(len=10), parameter :: variable_file_keys(n_variable_file_keys) = [ &
+  character(len=10), parameter, public :: variable_file_keys(n_variable_file_keys) = [ &
     'ks        ', 'q         ', 'T         ', 'Tref      ', 'hconv     ', &
     'qrad      ', 'eps       ', 'alpha     ', 'beta      ', 'g         ', &
     'krho      ', 'a         ', 'n         ', 'pRef      ', 'rhoGrain  ', &

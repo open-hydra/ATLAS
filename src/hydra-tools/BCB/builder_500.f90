@@ -1,11 +1,28 @@
 !! TODO: dispersed-phase bc for srm + adapt ideal gas bc to handle multiphase cases (e.g., mass fractions of condensed species, etc.)
 
 submodule (bc_mod) special_bc_mod
-  use bcb_config_mod, only: bcb_srm_config_t, load_bcb_srm_config
+  use bcb_config_mod, only: bcb_srm_config_t, load_bcb_srm_config, &
+                            bcb_manifold_config_t, load_bcb_manifold_config
   use phase_mod, only: phase_t, species_t, define_composition
   implicit none
 
 contains
+
+  module procedure build_manifold
+    implicit none
+    type(bcb_manifold_config_t) :: cfg
+
+    self%gp_id = 501
+    call load_bcb_manifold_config(sourceini, section, cfg)
+
+    self % ig_n = 2
+    allocate(self % ig_properties(1:self % ig_n))
+    allocate(self % ig_time(1:self % ig_n))
+    self % ig_properties = 0.0_R8
+    self % IG_time = .false.
+    self%ig_properties = [cfg%block, cfg%face]
+
+  end procedure build_manifold
 
   module procedure build_srm_ig
     implicit none
@@ -15,7 +32,7 @@ contains
     integer  :: dim, start, nrans
     real(R8) :: ceah0, ceaT0, ceap0
 
-    self%ig_id = 501
+    self%ig_id = 502
 
     dim = 6
 

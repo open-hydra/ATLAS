@@ -5,6 +5,7 @@
 module io_external_mod
   use finer, only: file_ini
   use io_ascii_table_mod, only: read_ascii_table
+  use bcb_config_mod
   implicit none
   private
 
@@ -24,37 +25,6 @@ module io_external_mod
     real(8), allocatable :: dirArray1(:), dirArray2(:), array(:,:)
   end type bc_file_type
 
-  !> (option_suffix, variable_label) pairs scanned in detect_bc_files.
-  integer, parameter :: N_FILE_KEYS = 18
-  character(len=10), parameter :: file_keys(2, N_FILE_KEYS) = &
-    reshape([ &
-      ! Roughness
-      'ks        ', 'ks        ', &
-      ! Thermal properties
-      'q         ', 'q         ', &
-      'T         ', 'T         ', &
-      'Tref      ', 'Tref      ', &
-      'hconv     ', 'hconv     ', &
-      'qrad      ', 'qrad      ', &
-      ! Radiative properties
-      'eps       ', 'eps       ', &
-      ! Velocity components
-      'alpha     ', 'alpha     ', &
-      'beta      ', 'beta      ', &
-      ! Mass flux
-      'g         ', 'g         ', &
-      ! Dispersed phase mass fraction
-      'krho      ', 'krho      ', &
-      ! Solid rocket motor
-      'a         ', 'a         ', &
-      'n         ', 'n         ', &
-      'pRef      ', 'pRef      ', &
-      'rhoGrain  ', 'rhoGrain  ', &
-      'Taf       ', 'Taf       ', &
-      'SFgeo     ', 'SFgeo     ', &
-      'SF        ', 'SF        '  &
-    ], [2, N_FILE_KEYS])
-
 contains
 
   !> Scan an INI section for all known *-file options and populate
@@ -69,11 +39,11 @@ contains
     integer            :: k, error
 
     n_files = 0
-    do k = 1, N_FILE_KEYS
-      call ini%get(section_name=section, option_name=trim(file_keys(1,k))//'-file', val=infile_dummy, error=error)
+    do k = 1, n_variable_file_keys
+      call ini%get(section_name=section, option_name=trim(variable_file_keys(k))//'-file', val=infile_dummy, error=error)
       if (error == 0) then
         n_files = n_files + 1
-        bc_file(n_files)%var  = trim(file_keys(2,k))
+        bc_file(n_files)%var  = trim(variable_file_keys(k))
         bc_file(n_files)%name = infile_dummy
       endif
     enddo
