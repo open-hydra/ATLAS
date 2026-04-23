@@ -349,7 +349,7 @@ contains
         case('SP')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-SP'
           allocate(orion%block(cnt)%vars(3,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
-          orion%block(cnt)%vars(1,:,:,:) = blk(b)%ig%temperature
+          orion%block(cnt)%vars(1,:,:,:) = blk(b)%sp%temperature
           orion%block(cnt)%vars(2,:,:,:) = blk(b)%sp%mID
           orion%block(cnt)%vars(3,:,:,:) = blk(b)%sp%qvol
 

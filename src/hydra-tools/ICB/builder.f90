@@ -68,6 +68,8 @@ module ic_builder_mod
           call read_realfluid_properties(trim(phase_name),blk%associated_phase(p)%fluid)
         elseif (blk%associated_phase(p)%type=='DP') then
           call read_dp_properties(trim(phase_name),blk%associated_phase(p)%material)
+        elseif (blk%associated_phase(p)%type=='SP') then
+          call read_dp_properties(trim(phase_name),blk%associated_phase(p)%material)
         endif
         if (.not.allocated(blk%associated_phase(p)%species%massf)) &
         allocate(blk%associated_phase(p)%species%massf(1:blk%associated_phase(p)%species%n))
@@ -216,8 +218,8 @@ module ic_builder_mod
           call load_sp_config(zoneini, sp_cfg)
           sp_loaded = .true.
         endif
-        call build_SP_field(self, sp_cfg, IC_type, self%associated_phase(pi)%material, range, &
-                            dirSize, dir, index_based)
+        print *, 'Building SP field for material: ', self%associated_phase(pi)%material%name
+        call build_SP_field(self, sp_cfg, IC_type, self%associated_phase(pi)%material, range, dirSize, dir, index_based)
 
       end select
 
