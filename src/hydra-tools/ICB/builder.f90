@@ -218,7 +218,6 @@ module ic_builder_mod
           call load_sp_config(zoneini, sp_cfg)
           sp_loaded = .true.
         endif
-        print *, 'Building SP field for material: ', self%associated_phase(pi)%material%name
         call build_SP_field(self, sp_cfg, IC_type, self%associated_phase(pi)%material, range, dirSize, dir, index_based)
 
       end select
