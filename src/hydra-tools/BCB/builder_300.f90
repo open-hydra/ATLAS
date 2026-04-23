@@ -80,16 +80,23 @@ contains
       if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
 
       self % sp_id = 303
-      self % sp_properties(1:3) = [cfg%hconv, cfg%Tref, cfg%qrad]
+      self % sp_properties(1:3) = [cfg%hconv, cfg%qrad, cfg%Tref]
 
     ! Radiative heat flux
-    elseif (cfg%has_eps) then
-      self % sp_n = 1
+    elseif (cfg%has_eps .and. cfg%has_Tref) then
+      self % sp_n = 2
       if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
 
       self % sp_id = 304
-      self % sp_properties(1) = cfg%eps
+      self % sp_properties(1:2) = [cfg%eps, cfg%Tref]
 
+    ! Convective and radiative heat flux
+    elseif (cfg%has_hconv .and. cfg%has_eps .and. cfg%has_Tref .and. .not. cfg%has_qrad) then
+      self % sp_n = 3
+      if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
+
+      self % sp_id = 305
+      self % sp_properties(1:3) = [cfg%hconv, cfg%eps, cfg%Tref]
     endif
 
   end procedure build_wall_solid
