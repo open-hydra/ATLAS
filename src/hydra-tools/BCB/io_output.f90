@@ -214,8 +214,10 @@ module io_write_bc_mod
               enddo
               write(unitfile,'(A)') ''
 
-            end select
+            case(102)
+              call write_chimera(blk(b)%face(f), f, Ai, Aj, Ak)
 
+            end select
 
             select case (print_id)
             ! 300-series -> wall
