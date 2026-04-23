@@ -9,8 +9,8 @@ contains
   subroutine coarse_mesh ( fine, coarse )
     use Lib_ORION_data
     implicit none
-    type(ORION_data), intent(in)    :: fine
-    type(ORION_data), intent(inout) :: coarse
+    type(orion_data), intent(in)    :: fine
+    type(orion_data), intent(inout) :: coarse
     ! Local
     integer :: b, nb, Ni, Nj, Nk, i, j, k, i2, j2, k2
 
@@ -52,7 +52,7 @@ contains
   subroutine check_multigrid ( orion, MGL )
     use Lib_ORION_data
     implicit none
-    type(ORION_data), intent(in)    :: orion
+    type(orion_data), intent(in)    :: orion
     integer, intent(in)             :: MGL
     ! Local
     integer :: b, rap, check
