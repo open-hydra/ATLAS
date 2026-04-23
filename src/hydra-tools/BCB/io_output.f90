@@ -223,7 +223,13 @@ module io_write_bc_mod
             ! 300-series -> wall
             case(301:309)
               do i = 1, this % sp_n
-                write(unitfile,'(E16.6,A1)',advance='no') this % sp_properties(i),','
+                if (allocated(this % sp_time)) then
+                  if (this % sp_time(i)) then
+                    write(unitfile,'(X,A,A1)',advance='no') trim(this % sp_time_file(i)),','
+                  endif
+                else
+                  write(unitfile,'(E16.6,A1)',advance='no') this % sp_properties(i),','
+                endif
               enddo
               write(unitfile,'(A)') ''
               
