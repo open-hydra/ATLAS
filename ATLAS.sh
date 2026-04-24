@@ -1,5 +1,12 @@
 #!/bin/bash -
 
+# If ATLASDIR is not set (e.g. when invoked directly from CTest without
+# sourcing the user's shell rc file), derive it from the location of this
+# script so that all bin/ and src/ references still resolve correctly.
+if [[ -z "${ATLASDIR:-}" ]]; then
+  ATLASDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+fi
+
 function print_usage {
   echo "Bash srcipt to run ATLAS programs"
   echo "CFD pre-processing tools:"
