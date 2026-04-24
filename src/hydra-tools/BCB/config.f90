@@ -67,12 +67,16 @@ module bcb_config_mod
   type, public :: bcb_wall_solid_config_t
     real(R8) :: q = 0.0_R8
     real(R8) :: T = 0.0_R8
+    character(len=32) :: q_timefile = 'none'
+    character(len=32) :: T_timefile = 'none'
     real(R8) :: qrad = 0.0_R8
     real(R8) :: hconv = 0.0_R8
     real(R8) :: Tref = 0.0_R8
     real(R8) :: eps = 0.0_R8
     logical  :: has_q = .false.
     logical  :: has_T = .false.
+    logical  :: has_q_timefile = .false.
+    logical  :: has_T_timefile = .false.
     logical  :: has_qrad = .false.
     logical  :: has_hconv = .false.
     logical  :: has_Tref = .false.
@@ -304,6 +308,14 @@ contains
     type(bcb_wall_solid_config_t), intent(out) :: cfg
 
     integer :: error
+
+    call sourceini%get(section_name=section, option_name='q-timefile', val=cfg%q_timefile, error=error)
+    cfg%has_q_timefile = error == 0
+    if (.not. cfg%has_q_timefile) cfg%q_timefile = 'none'
+
+    call sourceini%get(section_name=section, option_name='T-timefile', val=cfg%T_timefile, error=error)
+    cfg%has_T_timefile = error == 0
+    if (.not. cfg%has_T_timefile) cfg%T_timefile = 'none'
 
     call sourceini%get(section_name=section, option_name='q', val=cfg%q, error=error)
     cfg%has_q = error == 0

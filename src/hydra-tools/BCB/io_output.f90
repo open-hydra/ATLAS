@@ -13,12 +13,13 @@ module io_write_bc_mod
 
   contains
   
-  subroutine write_ig_bc(name,blk)
+  subroutine write_ig_bc(name,blk,level)
     use bc_block_mod, only: BC_block
     use grid_mod, only: fmn2ijk, mesh_cfg
     implicit none
     character(len=*), intent(in) :: name
     type(BC_block),   intent(in) :: blk(:)
+    integer, intent(in)          :: level
     character(len=len(name))     :: name_
     integer                      :: i, j, s, p, b, f, m, n, mend(6), nend(6)
     integer                      :: Ai, Aj, Ak, ii, jj, kk
@@ -41,7 +42,11 @@ module io_write_bc_mod
     enddo
 
     if (match) then
+      if (level > 1) then
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc'//trim(str(.true.,level))//'.txt',action='write')
+      else
         open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+      endif
     else
       return
     endif
@@ -128,12 +133,13 @@ module io_write_bc_mod
   end subroutine write_ig_bc
 
 
-  subroutine write_sp_bc(name,blk)
+  subroutine write_sp_bc(name,blk,level)
     use bc_block_mod, only: BC_block
     use grid_mod, only: fmn2ijk, mesh_cfg
     implicit none
     character(len=*), intent(in) :: name
     type(BC_block),   intent(in) :: blk(:)
+    integer, intent(in)          :: level
     character(len=len(name))     :: name_
     integer                      :: i, j, s, p, b, f, m, n, mend(6), nend(6)
     integer                      :: Ai, Aj, Ak, ii, jj, kk
@@ -156,7 +162,11 @@ module io_write_bc_mod
     enddo
 
     if (match) then
+      if (level > 1) then
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc'//trim(str(.true.,level))//'.txt',action='write')
+      else
         open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+      endif
     else
       return
     endif
@@ -204,14 +214,22 @@ module io_write_bc_mod
               enddo
               write(unitfile,'(A)') ''
 
-            end select
+            case(102)
+              call write_chimera(blk(b)%face(f), f, Ai, Aj, Ak)
 
+            end select
 
             select case (print_id)
             ! 300-series -> wall
             case(301:309)
               do i = 1, this % sp_n
-                write(unitfile,'(E16.6,A1)',advance='no') this % sp_properties(i),','
+                if (allocated(this % sp_time)) then
+                  if (this % sp_time(i)) then
+                    write(unitfile,'(X,A,A1)',advance='no') trim(this % sp_time_file(i)),','
+                  endif
+                else
+                  write(unitfile,'(E16.6,A1)',advance='no') this % sp_properties(i),','
+                endif
               enddo
               write(unitfile,'(A)') ''
               

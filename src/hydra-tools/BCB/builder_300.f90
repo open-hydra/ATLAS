@@ -66,6 +66,16 @@ contains
       self % sp_id = 301
       self % sp_properties(1) = cfg%q
     
+    elseif (cfg%has_q_timefile .and. .not. cfg%has_T .and. .not. cfg%has_qrad) then
+      self % sp_n = 1
+      if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
+      self % sp_id = 301
+      allocate(self % sp_time(1:self % sp_n))
+      allocate(self % sp_time_file(1:self % sp_n))
+      self % sp_properties(1) = 0.0_R8
+      self % sp_time(1) = .true.
+      self % sp_time_file(1) = cfg%q_timefile
+
     ! Temperature
     elseif (cfg%has_T .and. .not. cfg%has_q .and. .not. cfg%has_qrad) then
       self % sp_n = 1
@@ -73,6 +83,16 @@ contains
 
       self % sp_id = 302
       self % sp_properties(1) = cfg%T
+
+    elseif (cfg%has_T_timefile .and. .not. cfg%has_q .and. .not. cfg%has_qrad) then
+      self % sp_n = 1
+      if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
+      self % sp_id = 302
+      allocate(self % sp_time(1:self % sp_n))
+      allocate(self % sp_time_file(1:self % sp_n))
+      self % sp_properties(1) = 0.0_R8
+      self % sp_time(1) = .true.
+      self % sp_time_file(1) = cfg%T_timefile
 
     ! Convection coefficient, reference temperature, and radiative heat flux
     elseif (cfg%has_hconv .and. cfg%has_qrad .and. cfg%has_Tref) then
