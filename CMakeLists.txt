@@ -23,6 +23,14 @@ SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 #OPTION(USE_MPI "Use the MPI library for parallelization" OFF)
 OPTION(USE_OPENMP "Use OpenMP for parallelization" OFF)
 
+# Default submodule paths (override with -DORION_PATH=... -DFINER_PATH=...)
+if (NOT DEFINED ORION_PATH)
+  set(ORION_PATH "${CMAKE_SOURCE_DIR}/lib/ORION" CACHE PATH "Path to ORION submodule")
+endif()
+if (NOT DEFINED FINER_PATH)
+  set(FINER_PATH "${CMAKE_SOURCE_DIR}/lib/third_party/FiNeR" CACHE PATH "Path to FiNeR submodule")
+endif()
+
 # This INCLUDE statement executes code that sets the compile flags for DEBUG,
 # RELEASE, and TESTING. You should  review this file and make sure the flags 
 # are to your liking.
@@ -67,16 +75,24 @@ add_subdirectory( ${CMAKE_CURRENT_SOURCE_DIR}/lib/NewCEA/ )
 
 # ORION
 if (NOT TARGET ORION)
-  ensure_submodule_initialized("${ORION_PATH}")
-  set(orionD "${ORION_PATH}" "${CMAKE_BINARY_DIR}/lib/ORION")
-  add_subdirectory(${orionD})
+  if (DEFINED ORION_PATH AND NOT "${ORION_PATH}" STREQUAL "")
+    ensure_submodule_initialized("${ORION_PATH}")
+    set(orionD "${ORION_PATH}" "${CMAKE_BINARY_DIR}/lib/ORION")
+    add_subdirectory(${orionD})
+  else()
+    message(WARNING "ORION_PATH not defined; skipping ORION submodule initialization")
+  endif()
 endif()
 
 # FiNeR
 if (NOT TARGET FiNeR)
-  ensure_submodule_initialized("${FINER_PATH}")
-  set(finerD "${FINER_PATH}" "${CMAKE_BINARY_DIR}/lib/third_party/FiNeR")
-  add_subdirectory(${finerD})
+  if (DEFINED FINER_PATH AND NOT "${FINER_PATH}" STREQUAL "")
+    ensure_submodule_initialized("${FINER_PATH}")
+    set(finerD "${FINER_PATH}" "${CMAKE_BINARY_DIR}/lib/third_party/FiNeR")
+    add_subdirectory(${finerD})
+  else()
+    message(WARNING "FINER_PATH not defined; skipping FiNeR submodule initialization")
+  endif()
 endif()
 
 ############################################

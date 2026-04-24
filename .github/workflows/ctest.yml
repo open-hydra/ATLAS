@@ -20,26 +20,18 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gfortran
+          sudo apt-get install -y build-essential cmake git diffutils python3 python3-pip gfortran
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
 
-      - name: Configure
+      - name: Build with install.sh
         run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=TESTING \
-            -DCMAKE_Fortran_COMPILER=gfortran \
-            -DCMAKE_C_COMPILER=gcc \
-            -DCMAKE_CXX_COMPILER=g++ \
-            -DUSE_OPENMP=ON \
-            -DUSE_MPI=OFF \
-            -DUSE_TECIO=OFF
-
-      - name: Build
-        run: cmake --build build --parallel $(nproc)
+          chmod +x ./install.sh
+          # Use GNU compilers, do not create Conda env in CI
+          ./install.sh build --compilers=gnu --no-conda
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure --timeout 300
