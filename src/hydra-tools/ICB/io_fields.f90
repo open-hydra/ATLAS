@@ -213,21 +213,21 @@ contains
       select case(phase(p)%type)
         case('IG')
           do s = 1, nsc
-            varnames = trim(varnames)//' "rho'//trim(str(.true.,s))//'"'
+            varnames = trim(varnames)//' rho'//trim(str(.true.,s))
           enddo
           if (mesh_cfg%meshType == 10) then
-            varnames = trim(varnames)//' "u" "p"'
+            varnames = trim(varnames)//' u p'
           elseif (mesh_cfg%meshType == -2) then
-            varnames = trim(varnames)//' "u" "v" "p"'
+            varnames = trim(varnames)//' u v p'
           else
-            varnames = trim(varnames)//' "u" "v" "w" "p"'
+            varnames = trim(varnames)//' u v w p'
           endif
           if (nrans_ref==1) then
-            varnames = trim(varnames)//' "mi_t"'
+            varnames = trim(varnames)//' mi_t'
           elseif (nrans_ref==2) then
-            varnames = trim(varnames)//' "kappa" "omega"'
+            varnames = trim(varnames)//' kappa omega'
           elseif (nrans_ref==7) then
-            varnames = trim(varnames)//' "ru''u''" "rv''v''" "rw''w''" "ru''v''" "ru''w''" "rv''w''" "omega"'
+            varnames = trim(varnames)//' ru''u'' rv''v'' rw''w'' ru''v'' ru''w'' rv''w'' omega'
           endif
         case('CD')
           nnn = 0
@@ -388,7 +388,13 @@ contains
         localpath_vtk = trim(localpath)//'/vtk/'
         call execute_command_line('mkdir -p '//trim(localpath_vtk))
         write(*,*)' - Writing vtk-fomat file'
-        orion%vtk%format = 'ascii'
+        if (index(ICformat,'binary')>0) then
+          orion%vtk%format = 'binary'
+        elseif (index(ICformat,'ascii')>0) then
+          orion%vtk%format = 'ascii'
+        else
+          orion%vtk%format = 'raw'
+        endif
         orion%vtk%node = .false.
         E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk), &
                                                vtmpath=trim(localpath)//'/'//trim(name_)//'ic',varnames=varnames)
