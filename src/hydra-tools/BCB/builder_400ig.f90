@@ -99,16 +99,9 @@ contains
         call setup_bc_inlet(ip0=2)
         self % ig_properties(1:2) = [T0, p0]
 
-      ! Inflow/outflow | p0, T0, p
-      elseif (p0/=0_R8     .and. T0/=0_R8 .and. p/=0._R8 .and. self%definition=='inlet') then
-        self % ig_id = 402
-        dim = 4
-        call setup_bc_inlet(ip0=2)
-        self % ig_properties(1:3) = [T0, p0, p]
-
       ! Inflow | p0(t), T0
       elseif (p0_time_file/='none' .and. self%definition=='inlet') then
-        self % ig_id = 403
+        self % ig_id = 402
         self % time_varying = .true.
         dim = 3
         call setup_bc_inlet(ip0=1)
@@ -116,31 +109,38 @@ contains
 
       ! Subsonic inflow | g, T0
       elseif ( g/=0_R8     .and. T0/=0_R8 .and. self%definition=='inlet') then
-        self % ig_id = 404
+        self % ig_id = 403
         dim = 3
         call setup_bc_inlet(ip0=0)
         self % ig_properties(1:2) = [T0, g]
 
       ! Subsonic inflow | g, T
       elseif ( g/=0_R8     .and.  T/=0_R8 .and. self%definition=='inlet') then
-        self % ig_id = 405
+        self % ig_id = 404
         dim = 3
         call setup_bc_inlet(ip0=0)
         self % ig_properties(1:2) = [T, g]
 
       ! Supersonic inflow | M, p0, T0
       elseif ( mach/=0._R8 .and. p0/=0_R8 .and. T0/=0._R8 .and. self%definition=='inlet') then
-        self % ig_id = 406
+        self % ig_id = 405
         dim = 4
         call setup_bc_inlet(ip0=3)
         self % ig_properties(1:3) = [mach, T0, p0]
 
       ! Supersonic inflow | M, p, T
       elseif ( mach/=0._R8 .and.  p/=0_R8 .and. T/=0._R8 .and. self%definition=='inlet') then
-        self % ig_id = 407
+        self % ig_id = 406
         dim = 4
         call setup_bc_inlet(ip0=0)
         self % ig_properties(1:3) = [mach, T, p]
+
+      ! Inflow/outflow | p0, T0, p
+      elseif (p0/=0_R8     .and. T0/=0_R8 .and. p/=0._R8 .and. self%definition=='inlet') then
+        self % ig_id = 407
+        dim = 4
+        call setup_bc_inlet(ip0=2)
+        self % ig_properties(1:3) = [T0, p0, p]
 
       ! Pressure outflow | p
       elseif ( p/=0_R8     .and. self%definition=='outlet') then
@@ -148,11 +148,6 @@ contains
         dim = 1
         call setup_bc_outlet(ip=1)
         self % ig_properties(1) = p
-
-      ! Free outflow
-      elseif ( p==0_R8     .and. self%definition=='outlet') then
-        self % ig_id = 409
-        self % ig_n = 0
 
       ! Full state specification with time-varying properties
       elseif ( time_file/='none') then
