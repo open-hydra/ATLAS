@@ -292,6 +292,9 @@ contains
       real(R8), intent(in) :: vel_mag
       integer :: l
 
+      if (alpha>2026d0) alpha = 0d0
+      if (beta>2026d0)  beta = 0d0
+
       if (ux == 0.0_R8) then
         blk%rf%velocity(1,i,j,k) = vel_mag*cos(alpha)*cos(beta)
       else

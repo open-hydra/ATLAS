@@ -289,14 +289,14 @@ contains
       cp_ = sum(sp%massf*sp%cp(:,nint(Tc)))
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
-      if (Mc==0) Mc = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*Tc))
+      a = sqrt(gamma*Rgas*Tc)
+      if (Mc==0) Mc = sqrt(ux*ux+uy*uy+uz*uz)/a
       ! Pressure
       if (p0c==0 .and. pc==0) pc = Tc * (Rgas*rhoc)
       if (p0c/=0 .and. pc==0) pc = p0c/((1+del*Mc*Mc)**(gamma/(gamma-1)))
       ! Density
       if (rhoc==0) rhoc = pc/(Rgas*Tc)
       ! Velocity
-      a = sqrt(gamma*Rgas*Tc)
       vel = Mc*a
 
       !$omp parallel private(i,j,k,s,here)
@@ -512,6 +512,10 @@ contains
       integer,  intent(in) :: i, j, k
       real(R8), intent(in) :: vel_mag
       integer :: l
+
+      ! Default to zero if angles are unphysically large (undefined in config)
+      if (alpha>2026d0) alpha = 0d0
+      if (beta>2026d0)  beta = 0d0
 
       if (ux==0.d0) then
         blk%ig%velocity(1,i,j,k) = vel_mag*cos(alpha)*cos(beta)
