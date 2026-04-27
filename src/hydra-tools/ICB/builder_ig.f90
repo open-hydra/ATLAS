@@ -6,9 +6,9 @@ module ic_ig_mod
 contains
 
   subroutine build_IG_field(blk,zoneini,ig_cfg,IC_type,sp,range,dirSize,dir)
-    use global_mod,                    only: verbose, llen
+    use global_mod,                   only: verbose, llen
     use finer,                        only: file_ini
-    use phase_mod,                    only: species_t, define_composition
+    use phase_mod,                    only: species_t, define_composition, T02T
     use ic_block_mod
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, interpolate_from_file
@@ -284,7 +284,7 @@ contains
       Rgas = sum(Runi*sp%massf/sp%w)
       ! Temperature
       if (T0c==0 .and. Tc==0) Tc = pc/(Rgas*rhoc)
-      if (T0c/=0 .and. Tc==0) Tc = T02T(T0c,sp%massf,sp%cp,sp%dcp,sp%h,Mc,Rgas)
+      if (T0c/=0 .and. Tc==0) Tc = T02T(T0c,Mc,sp)
       ! Mach
       cp_ = sum(sp%massf*sp%cp(:,nint(Tc)))
       gamma = cp_/(cp_-Rgas)
@@ -338,7 +338,7 @@ contains
 
           ! Temperature
           if (T0(i,j,k)==0 .and. T(i,j,k)==0) T(i,j,k) = p(i,j,k)/(Rgas*rho(i,j,k))
-          if (T0(i,j,k)/=0 .and. T(i,j,k)==0) T(i,j,k) = T02T(T0(i,j,k),sp%massf,sp%cp,sp%dcp,sp%h,M(i,j,k),Rgas)
+          if (T0(i,j,k)/=0 .and. T(i,j,k)==0) T(i,j,k) = T02T(T0(i,j,k),M(i,j,k),sp)
           cp_ = sum(sp%massf*sp%cp(:,nint(T(i,j,k))))
           gamma = cp_/(cp_-Rgas)
           del = 0.5*(gamma-1)
@@ -552,46 +552,6 @@ contains
     end subroutine dealloc_src
 
   end subroutine build_IG_field
-
-
-  !> Newton-Raphson procedure for T0
-  pure function T02T(T0,ci,cp,dcp,h,M,Rgas) result(T)
-    implicit none
-    real(R8), intent(in)  :: ci(:)
-    real(R8), intent(in)  :: T0,M,Rgas
-    real(R8), intent(in)  :: cp(:,:),dcp(:,:),h(:,:)
-    real(R8)              :: T
-    real(R8)              :: TT,Tnew,H0,h_tot,cp_tot,dcp_tot,FT,DFT
-    real(R8), parameter   :: toll=1.d-8
-    integer              :: s
-
-    Tnew = T0*0.95
-    H0 = 0.0
-    do s = 1, size(ci)
-      H0 = H0+ci(s)*(h(s,idint(T0))+(h(s,idint(T0)+1)-h(s,idint(T0)))*(T0-idint(T0)))
-    enddo
-
-    FT  = 1.0
-    DFT = 1.0
-    TT  = 1.0
-    do while (abs(FT/(DFT*TT))>toll)
-      TT = Tnew
-      cp_tot = 0.0
-      dcp_tot = 0.0
-      h_tot = 0.0
-      do s = 1, size(ci)
-        cp_tot = cp_tot+ci(s)*(cp(s,idint(TT))+(cp(s,idint(TT)+1)-cp(s,idint(TT)))*(TT-idint(TT)))
-        dcp_tot = dcp_tot+ci(s)*(dcp(s,idint(TT))+(dcp(s,idint(TT)+1)-dcp(s,idint(TT)))*(TT-idint(TT)))
-        h_tot = h_tot+ci(s)*(h(s,idint(TT))+(h(s,idint(TT)+1)-h(s,idint(TT)))*(TT-idint(TT)))
-      enddo
-      FT = H0-h_tot-0.5d0*M*M*cp_tot/(cp_tot-Rgas)*Rgas*TT
-      DFT = -cp_tot-0.5d0*M*M*Rgas*(cp_tot*(cp_tot-Rgas)-TT*dcp_tot*Rgas)/(cp_tot-Rgas)**2
-      Tnew = TT-FT/DFT
-    enddo
-
-    T = TT
-
-  end function T02T
 
 
   subroutine assign_from_1D_table (blk, varfile, vardirection, var)

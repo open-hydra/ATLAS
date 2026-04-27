@@ -3,6 +3,8 @@ module phase_mod
   use CEA_module
   implicit none
 
+  real(8), parameter :: Runi = 8314.51d0  !< Universal gas constant [J/(kmol·K)]
+
   type, extends(obj_CEA_species) :: species_t
     real(R8), dimension(:), allocatable   :: w
     real(R8), dimension(:,:), allocatable :: dcp, h, s, cp
@@ -102,5 +104,64 @@ contains
     if (present(h0)) h0 = CEA%SE%h0*1000
 
   end subroutine define_composition
+
+
+  !> Newton-Raphson procedure for T0
+  pure function T02T(T0,M,sp) result(T)
+    implicit none
+    real(R8), intent(in)        :: T0, M
+    type(species_t), intent(in) :: sp
+    ! Local
+    real(R8)             :: T
+    real(R8)             :: TT,Tnew,H0,h_tot,cp_tot,dcp_tot,FT,DFT,Rgas
+    real(R8), parameter  :: toll=1.d-8
+    integer              :: s
+
+    Rgas = sum(Runi*sp%massf/sp%w)
+
+    Tnew = T0*0.95
+    H0 = 0.0
+    do s = 1, size(sp%massf)
+      H0 = H0+sp%massf(s)*(sp%h(s,idint(T0))+(sp%h(s,idint(T0)+1)-sp%h(s,idint(T0)))*(T0-idint(T0)))
+    enddo
+
+    FT  = 1.0
+    DFT = 1.0
+    TT  = 1.0
+    do while (abs(FT/(DFT*TT))>toll)
+      TT = Tnew
+      cp_tot = 0.0
+      dcp_tot = 0.0
+      h_tot = 0.0
+      do s = 1, size(sp%massf)
+        cp_tot  = cp_tot  + sp%massf(s) * (sp%cp(s,idint(TT))  + (sp%cp(s,idint(TT)+1)  - sp%cp(s,idint(TT)))*(TT-idint(TT)))
+        dcp_tot = dcp_tot + sp%massf(s) * (sp%dcp(s,idint(TT)) + (sp%dcp(s,idint(TT)+1) - sp%dcp(s,idint(TT)))*(TT-idint(TT)))
+        h_tot   = h_tot   + sp%massf(s) * (sp%h(s,idint(TT))   + (sp%h(s,idint(TT)+1)   - sp%h(s,idint(TT)))*(TT-idint(TT)))
+      enddo
+      FT = H0-h_tot-0.5d0*M*M*cp_tot/(cp_tot-Rgas)*Rgas*TT
+      DFT = -cp_tot-0.5d0*M*M*Rgas*(cp_tot*(cp_tot-Rgas)-TT*dcp_tot*Rgas)/(cp_tot-Rgas)**2d0
+      Tnew = TT-FT/DFT
+    enddo
+
+    T = TT
+
+  end function T02T
+
+
+  pure function p02p(p0,M,T,sp) result(p)
+    implicit none
+    real(R8), intent(in)        :: p0, M, T
+    type(species_t), intent(in) :: sp
+    ! Local
+    real(R8) :: p
+    real(R8) :: cp_, Rgas, gamma, del
+
+    Rgas = sum(Runi*sp%massf/sp%w)
+    cp_ = sum(sp%massf*sp%cp(:,nint(T)))
+    gamma = cp_/(cp_-Rgas)
+    del = 0.5d0*(gamma-1d0)
+    p = p0/((1d0+del*M*M)**(gamma/(gamma-1d0)))
+
+  end function p02p
 
 end module phase_mod

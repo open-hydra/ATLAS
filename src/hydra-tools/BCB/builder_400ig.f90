@@ -1,6 +1,6 @@
 submodule (bc_mod) ig_inflow_outflow_mod
   use bcb_config_mod, only: bcb_ig_boundary_config_t, load_bcb_ig_boundary_config
-  use phase_mod, only: phase_t, species_t, define_composition
+  use phase_mod, only: phase_t, species_t, define_composition, T02T, p02p
   implicit none
 
 contains
@@ -126,15 +126,25 @@ contains
       elseif ( mach/=0._R8 .and. p0/=0_R8 .and. T0/=0._R8 .and. self%definition=='inlet') then
         self % ig_id = 405
         dim = 4
-        call setup_bc_inlet(ip0=3)
-        self % ig_properties(1:3) = [mach, T0, p0]
+        call setup_bc_inlet(ip0=0)
+        T = T02T(T0,mach,self%ig_species)
+        p = p02p(p0,mach,T,self%ig_species)
+        self % ig_properties(1:3) = [mach, T, p]
 
       ! Supersonic inflow | M, p, T
       elseif ( mach/=0._R8 .and.  p/=0_R8 .and. T/=0._R8 .and. self%definition=='inlet') then
-        self % ig_id = 406
+        self % ig_id = 405
         dim = 4
         call setup_bc_inlet(ip0=0)
         self % ig_properties(1:3) = [mach, T, p]
+
+      ! Pressure outflow | p
+      elseif (self%definition=='outlet') then
+        self % ig_id = 406
+        dim = 1
+        call setup_bc_outlet(ip=1)
+        self % ig_properties(1) = p
+        return
 
       ! Inflow/outflow | p0, T0, p
       elseif (p0/=0_R8     .and. T0/=0_R8 .and. p/=0._R8 .and. self%definition=='inlet') then
@@ -142,14 +152,6 @@ contains
         dim = 4
         call setup_bc_inlet(ip0=2)
         self % ig_properties(1:3) = [T0, p0, p]
-
-      ! Pressure outflow | p
-      elseif (self%definition=='outlet') then
-        self % ig_id = 408
-        dim = 1
-        call setup_bc_outlet(ip=1)
-        self % ig_properties(1) = p
-        return
 
       ! Full state specification with time-varying properties
       elseif ( time_file/='none') then
