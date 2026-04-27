@@ -41,8 +41,8 @@ contains
     implicit none
     type(file_ini),  intent(in)            :: sini
     type(species_t), intent(inout)         :: species
-    real(R8),        intent(out)           :: T0, p0
-    real(R8),        intent(out), optional :: h0
+    real(R8),        intent(inout)         :: T0, p0
+    real(R8),        intent(inout), optional :: h0
     type(obj_CEA)                    :: CEA
     character(len=500)               :: CEAfile
     character(len=20)                :: name, str(2)
@@ -51,9 +51,6 @@ contains
     real(R8) :: ytot
 
     species%massf = 0.0d0
-
-    ! Initialize h0, if CEA is used, its value will be overwritten
-    if (present(h0)) h0 = 0.d0
 
     CEA%OG = .false.
     call sini%get_sections_list(section_name)

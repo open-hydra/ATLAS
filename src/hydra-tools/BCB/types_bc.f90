@@ -167,7 +167,7 @@ contains
 
 
     ! Phase-specific properties
-    select case(phase%type)
+    select case(phase % type)
 
     ! Ideal gas
     case('IG', 'RF')

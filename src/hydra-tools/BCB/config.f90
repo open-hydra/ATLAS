@@ -250,9 +250,8 @@ contains
     cfg%has_connection = .false.
 
     call sourceini%get(section_name=section, option_name='blocks', val=cfg%blocks, error=error)
-    cfg%has_connection = error == 0
     call sourceini%get(section_name=section, option_name='faces', val=cfg%faces, error=error)
-    cfg%has_connection = cfg%has_connection .and. error == 0
+    cfg%has_connection = (error == 0)
   end subroutine load_bcb_periodic_config
 
   subroutine load_bcb_manifold_config(sourceini, section, cfg)

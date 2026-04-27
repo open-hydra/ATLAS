@@ -45,7 +45,8 @@ contains
     rhoRij       = cfg%turbulence%rhoRij
     nrans        = cfg%turbulence%nrans
 
-    ! Assign species mass fractions
+    ! Assign species mass fractions; pre-init so intent(inout) args are never sNaN
+    CEAT0 = 0.0_R8; CEAp0 = 0.0_R8; CEAh0 = 0.0_R8
     call define_composition(sourceini, self%ig_species, CEAT0, CEAp0, CEAh0)
 
     if (p0==0_R8 .and. g==0_R8) p0 = CEAp0
@@ -143,11 +144,12 @@ contains
         self % ig_properties(1:3) = [T0, p0, p]
 
       ! Pressure outflow | p
-      elseif ( p/=0_R8     .and. self%definition=='outlet') then
+      elseif (self%definition=='outlet') then
         self % ig_id = 408
         dim = 1
         call setup_bc_outlet(ip=1)
         self % ig_properties(1) = p
+        return
 
       ! Full state specification with time-varying properties
       elseif ( time_file/='none') then

@@ -75,6 +75,8 @@ contains
 
     if (mesh_cfg%meshType==-2) then
       mesh_cfg%gc = [2, 2, 0]
+    elseif (mesh_cfg%meshType==-1) then
+      mesh_cfg%gc = [2, 0, 0]
     else
       mesh_cfg%gc = 2
     endif 
@@ -91,6 +93,7 @@ contains
         !$omp parallel do collapse(3) private(i,j,k)
         do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
               output(b)%node(i,j,k)%c(1:3) = input%block(b)%mesh(1:3,i,j,k)
+              output(b)%node(i,j,k)%c(4:5) = 0.0d0
         enddo; enddo; enddo
         !$omp end parallel do
       else
@@ -98,6 +101,7 @@ contains
         do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
               output(b)%node(i,j,k)%c(1:2) = input%block(b)%mesh(1:2,i,j,0)
               output(b)%node(i,j,k)%c(3) = dble(k)
+              output(b)%node(i,j,k)%c(4:5) = 0.0d0
         enddo; enddo; enddo
         !$omp end parallel do
       endif

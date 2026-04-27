@@ -40,11 +40,11 @@ contains
     implicit none
     class(BC_block), intent(inout) :: self
     integer :: m, n
-    logical :: is_axi
+    logical :: is_2D
 
-    is_axi = (mesh_cfg%meshType == -2)
+    is_2D = (mesh_cfg%meshType == -2)
 
-    if (mesh_cfg%meshType==1) then
+    if (mesh_cfg%meshType==-1) then
       self%nfaces = 2
     elseif (mesh_cfg%meshType==-2) then
       self%nfaces = 4
@@ -57,11 +57,11 @@ contains
     !> Compute the face center coords
     self%face(1)%Nm = self%dim(2); self%face(1)%Nn = self%dim(3)
     self%face(2)%Nm = self%dim(2); self%face(2)%Nn = self%dim(3)
-    if (mesh_cfg%meshType/=1) then
+    if (self%nfaces > 2) then
       self%face(3)%Nm = self%dim(1); self%face(3)%Nn = self%dim(3)
       self%face(4)%Nm = self%dim(1); self%face(4)%Nn = self%dim(3)
     endif
-    if (mesh_cfg%meshType>=2) then
+    if (self%nfaces >= 6) then
       self%face(5)%Nm = self%dim(1); self%face(5)%Nn = self%dim(2)
       self%face(6)%Nm = self%dim(1); self%face(6)%Nn = self%dim(2)
     endif
@@ -72,7 +72,7 @@ contains
     allocate(self%face(2)%center( &
       1-mesh_cfg%gc(2):self%dim(2)+mesh_cfg%gc(2), &
       1-mesh_cfg%gc(3):self%dim(3)+mesh_cfg%gc(3)))
-    if (mesh_cfg%meshType/=1) then
+    if (self%nfaces > 2) then
       allocate(self%face(3)%center( &
         1-mesh_cfg%gc(1):self%dim(1)+mesh_cfg%gc(1), &
         1-mesh_cfg%gc(3):self%dim(3)+mesh_cfg%gc(3)))
@@ -80,7 +80,7 @@ contains
         1-mesh_cfg%gc(1):self%dim(1)+mesh_cfg%gc(1), &
         1-mesh_cfg%gc(3):self%dim(3)+mesh_cfg%gc(3)))
     endif
-    if (mesh_cfg%meshType>=2) then
+    if (self%nfaces >= 6) then
       allocate(self%face(5)%center( &
         1-mesh_cfg%gc(1):self%dim(1)+mesh_cfg%gc(1), &
         1-mesh_cfg%gc(2):self%dim(2)+mesh_cfg%gc(2)))
@@ -98,7 +98,7 @@ contains
             self%node( 0 ,m-1,n-1)%c, &
             self%node( 0 , m ,n-1)%c, &
             self%node( 0 ,m-1, n )%c, &
-            self%node( 0 , m , n )%c, is_axi, &
+            self%node( 0 , m , n )%c, is_2D, &
             this%center(m,n)%c, &
             this%center(m,n)%normal, &
             this%center(m,n)%area)
@@ -114,7 +114,7 @@ contains
             self%node(self%dim(1),m-1,n-1)%c, &
             self%node(self%dim(1), m ,n-1)%c, &
             self%node(self%dim(1),m-1, n )%c, &
-            self%node(self%dim(1), m , n )%c, is_axi, &
+            self%node(self%dim(1), m , n )%c, is_2D, &
             this%center(m,n)%c, &
             this%center(m,n)%normal, &
             this%center(m,n)%area)
@@ -123,7 +123,7 @@ contains
     endassociate
     !$omp end parallel
 
-    if (mesh_cfg%meshType==1) return
+    if (self%nfaces < 4) return
 
     !$omp parallel private(m,n)
     associate( this => self%face(3) )
@@ -134,7 +134,7 @@ contains
             self%node(m-1, 0 ,n-1)%c, &
             self%node( m , 0 ,n-1)%c, &
             self%node(m-1, 0 , n )%c, &
-            self%node( m , 0 , n )%c, is_axi, &
+            self%node( m , 0 , n )%c, is_2D, &
             this%center(m,n)%c, &
             this%center(m,n)%normal, &
             this%center(m,n)%area)
@@ -150,7 +150,7 @@ contains
             self%node(m-1,self%dim(2),n-1)%c, &
             self%node( m ,self%dim(2),n-1)%c, &
             self%node(m-1,self%dim(2), n )%c, &
-            self%node( m ,self%dim(2), n )%c, is_axi, &
+            self%node( m ,self%dim(2), n )%c, is_2D, &
             this%center(m,n)%c, &
             this%center(m,n)%normal, &
             this%center(m,n)%area)
@@ -159,7 +159,7 @@ contains
     endassociate
     !$omp end parallel
 
-    if (mesh_cfg%meshType<2) return
+    if (self%nfaces < 6) return
 
     !$omp parallel private(m,n)
     associate( this => self%face(5) )
@@ -197,14 +197,14 @@ contains
 
   end subroutine compute_face_centers
 
-  pure subroutine compute_face_point(p1, p2, p3, p4, is_axi, c, normal, area)
+  pure subroutine compute_face_point(p1, p2, p3, p4, is_2D, c, normal, area)
     real(8), intent(in) :: p1(5), p2(5), p3(5), p4(5)
-    logical, intent(in) :: is_axi
+    logical, intent(in) :: is_2D
     real(8), intent(out) :: c(5), normal(3), area
 
-    c = 0.25d0*(p1 + p2 + p3 + p4)
+    c(1:3) = 0.25d0*(p1(1:3) + p2(1:3) + p3(1:3) + p4(1:3))
     normal = CalculateNormal(p1, p2, p3, p4)
-    if (is_axi) then
+    if (is_2D) then
       area = sqrt((p2(1)-p1(1))**2+(p2(2)-p1(2))**2)
       c(4:5) = cartesian2cyl(c(1:2))
     else

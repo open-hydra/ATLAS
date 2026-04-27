@@ -130,8 +130,8 @@ SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}"
 
 # Initialise local variables to signalling NaN (helps catch use-before-set)
 SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}"
-                 Fortran "-init=snan"          # Intel
-                         "-finit-real=snan"    # GNU
+                 Fortran "-finit-real=snan"    # GNU
+                         "-init=snan"          # Intel
                 )
 
 # Enable extra warnings beyond -Wall
