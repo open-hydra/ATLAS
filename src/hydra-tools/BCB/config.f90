@@ -600,116 +600,65 @@ contains
   contains
 
     subroutine add_ig_entries()
-      call bcb_registry%add('BCB-IG', 'mach', ig_cfg%mach, '0.0', &
-                            'Ideal-gas Mach number.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'p0', ig_cfg%p0, '0.0', &
-                            'Ideal-gas stagnation pressure.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'T0', ig_cfg%T0, '0.0', &
-                            'Ideal-gas stagnation temperature.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'h0', ig_cfg%h0, '0.0', &
-                            'Ideal-gas stagnation enthalpy.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'T', ig_cfg%T, '0.0', &
-                            'Ideal-gas static temperature.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'g', ig_cfg%g, '0.0', &
-                            'Mass flux for inlet boundaries.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'p', ig_cfg%p, '0.0', &
-                            'Static pressure for outlet or mixed inflow boundaries.', &
-                            '', .false.)
-      call bcb_registry%add('BCB-IG', 'p0-time-file', ig_cfg%p0_time_file, 'none', &
-                            'Time-series file for total pressure.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'p-time-file', ig_cfg%p_time_file, 'none', &
-                            'Time-series file for static pressure.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'time-file', time_file, 'none', &
-                            'Full time-varying boundary data file.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'periodic', periodic, 'F', &
-                            'Treat a time-file series as periodic.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'rf', relaxation_factor, '1.0', &
-                            'Boundary relaxation factor.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'Ae_At', nozzle_scalar, '0.0', &
-                            'Nozzle exit-to-throat area ratio.', '>=1', .false.)
-      call bcb_registry%add('BCB-IG', 'rt', nozzle_scalar, '0.0', &
-                            'Nozzle throat loading parameter.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'psub', nozzle_scalar, '0.0', &
-                            'Subsonic exit pressure used with rt.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'psup', nozzle_scalar, '0.0', &
-                            'Supersonic exit pressure used with rt.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'mach', ig_cfg%mach, '0.0','Ideal-gas Mach number.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'p0', ig_cfg%p0, '0.0', 'Ideal-gas stagnation pressure.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'T0', ig_cfg%T0, '0.0', 'Ideal-gas stagnation temperature.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'h0', ig_cfg%h0, '0.0', 'Ideal-gas stagnation enthalpy.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'T', ig_cfg%T, '0.0', 'Ideal-gas static temperature.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'g', ig_cfg%g, '0.0', 'Mass flux for inlet boundaries.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'p', ig_cfg%p, '0.0', 'Static pressure for outlet or far-field boundaries.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'p0-time-file', ig_cfg%p0_time_file, 'none', 'Time-series file for total pressure.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'p-time-file', ig_cfg%p_time_file, 'none', 'Time-series file for static pressure.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'time-file', time_file, 'none', 'Time-series file of full boundary state.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'periodic', periodic, 'F', 'Treat a time-file series as periodic.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'rf', relaxation_factor, '1.0', 'Boundary relaxation factor.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'Ae_At', nozzle_scalar, '0.0', 'Nozzle exit-to-throat area ratio.', '>=1', .false.)
+      call bcb_registry%add('BCB-IG', 'rt', nozzle_scalar, '0.0', 'Nozzle throat loading parameter.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'psub', nozzle_scalar, '0.0', 'Subsonic exit pressure used with rt.', '', .false.)
+      call bcb_registry%add('BCB-IG', 'psup', nozzle_scalar, '0.0', 'Supersonic exit pressure used with rt.', '', .false.)
     end subroutine add_ig_entries
 
     subroutine add_wall_entries()
-      call bcb_registry%add('BCB-Wall-Fluid', 'q', wall_fluid_cfg%q, '0.0', &
-                            'Prescribed wall heat flux.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Fluid', 'T', wall_fluid_cfg%T, '0.0', &
-                            'Prescribed wall temperature.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Fluid', 'ks', wall_fluid_cfg%ks, '0.0', &
-                            'Wall roughness height.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Fluid', 'qrad', wall_fluid_cfg%qrad, '0.0', &
-                            'Radiative heat flux.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Fluid', 'eps', wall_fluid_cfg%eps, '0.0', &
-                            'Wall emissivity.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Fluid', 'q', wall_fluid_cfg%q, '0.0', 'Prescribed wall heat flux.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Fluid', 'T', wall_fluid_cfg%T, '0.0', 'Prescribed wall temperature.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Fluid', 'ks', wall_fluid_cfg%ks, '0.0', 'Wall roughness height.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Fluid', 'qrad', wall_fluid_cfg%qrad, '0.0', 'Radiative heat flux.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Fluid', 'eps', wall_fluid_cfg%eps, '0.0', 'Wall emissivity.', '', .false.)
 
-      call bcb_registry%add('BCB-Wall-Solid', 'q', wall_solid_cfg%q, '0.0', &
-                            'Prescribed wall heat flux.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'T', wall_solid_cfg%T, '0.0', &
-                            'Prescribed wall temperature.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'qrad', wall_solid_cfg%qrad, '0.0', &
-                            'Radiative heat flux.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'hconv', wall_solid_cfg%hconv, '0.0', &
-                            'Convective heat-transfer coefficient.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'Tref', wall_solid_cfg%Tref, '0.0', &
-                            'Reference temperature for convection.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'eps', wall_solid_cfg%eps, '0.0', &
-                            'Wall emissivity.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Solid', 'q', wall_solid_cfg%q, '0.0', 'Prescribed wall heat flux.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Solid', 'T', wall_solid_cfg%T, '0.0', 'Prescribed wall temperature.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Solid', 'qrad', wall_solid_cfg%qrad, '0.0', 'Radiative heat flux.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Solid', 'hconv', wall_solid_cfg%hconv, '0.0', 'Convective heat-transfer coefficient.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Solid', 'Tref', wall_solid_cfg%Tref, '0.0', 'Reference temperature for convection.', '', .false.)
+      call bcb_registry%add('BCB-Wall-Solid', 'eps', wall_solid_cfg%eps, '0.0', 'Wall emissivity.', '', .false.)
     end subroutine add_wall_entries
 
     subroutine add_dp_entries()
-      call bcb_registry%add('BCB-DP', 'krho', dp_scalar, '0.0', &
-                            'Density ratios for dispersed populations.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'kV', dp_scalar, '1.0', &
-                            'Velocity scaling factors for dispersed populations.', &
-                            '', .false.)
-      call bcb_registry%add('BCB-DP', 'kT', dp_scalar, '1.0', &
-                            'Temperature scaling factors for dispersed populations.', &
-                            '', .false.)
-      call bcb_registry%add('BCB-DP', 'gp', dp_scalar, '0.0', &
-                            'Mass flux per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'up', dp_scalar, '0.0', &
-                            'x-velocity component per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'vp', dp_scalar, '0.0', &
-                            'y-velocity component per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'wp', dp_scalar, '0.0', &
-                            'z-velocity component per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'Vp', dp_scalar, '0.0', &
-                            'Velocity magnitude per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'Tp', dp_scalar, '0.0', &
-                            'Temperature per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'rp', dp_scalar, '0.0', &
-                            'Particle radii per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'dp', dp_scalar, '0.0', &
-                            'Particle diameters per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'sigmap', dp_scalar, '0.0', &
-                            'Particle dispersion widths.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'alphap', dp_scalar, '0.0', &
-                            'Primary injection angle per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'betap', dp_scalar, '0.0', &
-                            'Secondary injection angle per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'rRes', dp_scalar, '0.0', &
-                            'Residual radius per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'Tsat', dp_scalar, '0.0', &
-                            'Saturation temperature per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'krho', dp_scalar, '0.0', 'Density ratios for dispersed populations.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'kV', dp_scalar, '1.0', 'Velocity scaling factors for dispersed populations.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'kT', dp_scalar, '1.0', 'Temperature scaling factors for dispersed populations.','', .false.)
+      call bcb_registry%add('BCB-DP', 'gp', dp_scalar, '0.0', 'Mass flux per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'up', dp_scalar, '0.0', 'x-velocity component per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'vp', dp_scalar, '0.0', 'y-velocity component per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'wp', dp_scalar, '0.0', 'z-velocity component per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'Vp', dp_scalar, '0.0', 'Velocity magnitude per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'Tp', dp_scalar, '0.0', 'Temperature per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'rp', dp_scalar, '0.0', 'Particle radii per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'dp', dp_scalar, '0.0', 'Particle diameters per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'sigmap', dp_scalar, '0.0', 'Particle dispersion widths.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'alphap', dp_scalar, '0.0', 'Primary injection angle per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'betap', dp_scalar, '0.0', 'Secondary injection angle per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'rRes', dp_scalar, '0.0', 'Residual radius per dispersed population.', '', .false.)
+      call bcb_registry%add('BCB-DP', 'Tsat', dp_scalar, '0.0', 'Saturation temperature per dispersed population.', '', .false.)
     end subroutine add_dp_entries
 
     subroutine add_srm_entries()
       call add_turbulence_registry_entries(bcb_registry, 'BCB-SRM', srm_cfg%turbulence)
-      call bcb_registry%add('BCB-SRM', 'a', srm_cfg%a, '0.0', &
-                            'Burn-rate pre-exponential coefficient.', '', .false.)
-      call bcb_registry%add('BCB-SRM', 'n', srm_cfg%n, '0.0', &
-                            'Burn-rate pressure exponent.', '', .false.)
-      call bcb_registry%add('BCB-SRM', 'pRef', srm_cfg%pRef, '1.0', &
-                            'Reference pressure for the burn law.', '', .false.)
-      call bcb_registry%add('BCB-SRM', 'rhoGrain', srm_cfg%rhoGrain, '0.0', &
-                            'Solid propellant density.', '', .false.)
-      call bcb_registry%add('BCB-SRM', 'SF', srm_cfg%SF, '1.0', &
-                            'Geometric scaling factor for the grain surface.', '', .false.)
+      call bcb_registry%add('BCB-SRM', 'a', srm_cfg%a, '0.0', 'Burn-rate pre-exponential coefficient.', '', .false.)
+      call bcb_registry%add('BCB-SRM', 'n', srm_cfg%n, '0.0', 'Burn-rate pressure exponent.', '', .false.)
+      call bcb_registry%add('BCB-SRM', 'pRef', srm_cfg%pRef, '1.0', 'Reference pressure for the burn law.', '', .false.)
+      call bcb_registry%add('BCB-SRM', 'rhoGrain', srm_cfg%rhoGrain, '0.0', 'Solid propellant density.', '', .false.)
+      call bcb_registry%add('BCB-SRM', 'SF', srm_cfg%SF, '1.0',  'Scale factor for the grain propellant.', '', .false.)
     end subroutine add_srm_entries
 
     subroutine add_variable_file_entries()
