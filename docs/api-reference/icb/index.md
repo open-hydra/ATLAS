@@ -25,6 +25,5 @@ Fortran program `ICB` — `src/hydra-tools/ICB/`
 | `builder_dp.f90` | `ic_builder_dp_mod` | Dispersed-phase builder |
 | `builder_sp.f90` | `ic_builder_sp_mod` | Solid-particle builder |
 | `interpolation_general.f90` | `ic_interpolation_mod` | Interpolation |
-| `interpolation_cons.f90` | — | Conservative interpolation |
 | `interpolation_import.f90` | — | Hydra solution import |
 | `io_fields.f90` | — | Binary output |

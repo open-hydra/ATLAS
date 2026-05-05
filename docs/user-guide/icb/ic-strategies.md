@@ -26,7 +26,6 @@ This page is being populated. See `src/hydra-tools/ICB/` source files for curren
 | Strategy | Description |
 |----------|-------------|
 | `interpolate` | Interpolate a solution from a different (coarser/finer) mesh |
-| `interpolate-conservative` | Conservative interpolation preserving integral quantities |
 
 ### Restart / Import
 
