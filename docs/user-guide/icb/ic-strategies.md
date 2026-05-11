@@ -1,36 +1,38 @@
 # IC Strategies
 
-::: warning Work in progress
-This page is being populated. See `src/hydra-tools/ICB/` source files for current strategy implementations.
-:::
+Full reference for all strategies recognised by ICB. See `src/hydra-tools/ICB/` for current implementations.
 
-## Available Strategies
+## Direct Assignment
 
-### Direct Assignment
+| Strategy | Code | Phase | When to use |
+|----------|------|-------|-------------|
+| Uniform ideal gas | `uniform-ig` | Ideal gas | Cold-start from a known reference condition (freestream, chamber, stagnation state). |
+| Uniform real fluid | `uniform-rf` | Real fluid | Cold-start for high-pressure or cryogenic flow simulations. |
+| Uniform condensed | `uniform-dp` | Condensed (dispersed) | Initial spray distribution at rest or with a known velocity. |
+| Uniform solid | `uniform-sp` | Solid | Initial wall temperature for conjugate heat transfer setups. |
 
-| Strategy | Description |
-|----------|-------------|
-| `uniform-ig` | Uniform primitive-variable state for an ideal-gas phase |
-| `uniform-rf` | Uniform state for a real-fluid phase |
-| `uniform-sp` | Uniform state for a solid-particle phase |
-| `uniform-dp` | Uniform state for a condensed dispersed phase |
+## Profile-Based
 
-### Profile-Based
+| Strategy | Code | Phase | When to use |
+|----------|------|-------|-------------|
+| 1-D profile | `profile-ig` | Ideal gas | Inlet boundary-layer or jet profiles; non-uniform freestream conditions. |
 
-| Strategy | Description |
-|----------|-------------|
-| `profile-ig` | Read a 1-D profile and map onto the 3-D block |
+## Nozzle Initialization
 
-### Interpolation
+| Strategy | Code | Phase | When to use |
+|----------|------|-------|-------------|
+| De Laval nozzle | `nozzle` | Ideal gas | Cold-start of a supersonic nozzle. Requires STB area schedule. Avoids starting transients. |
 
-| Strategy | Description |
-|----------|-------------|
-| `interpolate` | Interpolate a solution from a different (coarser/finer) mesh |
-| `interpolate-conservative` | Conservative interpolation preserving integral quantities |
+## Interpolation
 
-### Restart / Import
+| Strategy | Code | Phase | When to use |
+|----------|------|-------|-------------|
+| Interpolate | `interpolate` | Any | Mesh refinement studies, p-adaptive restarts, transferring results between grid generations. |
+| Conservative interpolate | `interpolate-conservative` | Any | When local conservation (mass, momentum, energy) must be preserved across the interpolation. |
 
-| Strategy | Description |
-|----------|-------------|
-| `import` | Import a Hydra-format solution file |
-| `restart` | Continue from an existing Hydra restart file |
+## Restart / Import
+
+| Strategy | Code | Phase | When to use |
+|----------|------|-------|-------------|
+| Import | `import` | Any | Load a Hydra-format solution file generated externally. |
+| Restart | `restart` | Any | Standard simulation continuation; recovering from an interrupted run. |

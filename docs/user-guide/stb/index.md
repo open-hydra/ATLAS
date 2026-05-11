@@ -1,6 +1,52 @@
 # STB — Setup Tool Builder
 
-STB is a Fortran executable that pre-processes geometric data for nozzle and duct configurations. Its primary output is the **area schedule** used by Hydra's quasi-1-D geometry option.
+STB computes geometric data required by Hydra for variable-area configurations such as nozzles and ducts.
+
+---
+
+## What STB Can Produce
+
+<div class="grid cards" markdown>
+
+-   :material-ruler-square: **Area Schedule**
+
+    ---
+
+    Compute the cross-sectional area distribution $A(x)$ from a contour or point set. Output is used by Hydra's quasi-1-D variable-area option.
+
+    **Inputs:** axial station coordinates and corresponding cross-sectional areas or contour points.
+
+    **Output:** area variation file read by Hydra at runtime.
+
+    **When to use:** any converging–diverging nozzle, duct with varying cross-section, or thrust chamber geometry.
+
+-   :material-chart-areaspline: **Cross-Section Profile**
+
+    ---
+
+    Tabulate the area at each axial station from a geometric description of the contour.
+
+    **When to use:** nozzle design validation, checking that the area ratio matches design intent before a run.
+
+</div>
+
+---
+
+## Typical Workflow
+
+```
+STB reads: axial stations + area or contour points
+       ↓
+Produces: area schedule file (read by Hydra)
+       ↓
+ICB uses: area schedule as input for De Laval nozzle initialization
+       ↓
+Hydra uses: area variation at runtime for 3-D body-force term
+```
+
+STB output is required whenever the ICB `nozzle` strategy is used.
+
+---
 
 ## Usage
 
@@ -8,18 +54,9 @@ STB is a Fortran executable that pre-processes geometric data for nozzle and duc
 ./STB -input stb.ini
 ```
 
-## Sections
+## Configuration
 
 - [Input Reference](./input-reference) — INI keys and supported parameters
 - [Output Files](./output) — Files written for Hydra
-
-## Overview
-
-STB reads a cross-sectional area distribution (or a set of points defining the contour) and writes the area-variation data needed by Hydra for variable-area duct / nozzle simulations.
-
-Implemented modules (see `src/hydra-tools/STB/`):
-
-- `area_variation.f90` — area schedule computation from geometry input
-- `STB.f90` — main program, INI parsing and dispatch
 
 See the [tutorials](/tutorials/stb/) for worked examples.

@@ -1,0 +1,182 @@
+site_name: ATLAS Documentation
+site_url: https://open-hydra.github.io/ATLAS/
+repo_name: open-hydra/ATLAS
+repo_url: https://github.com/open-hydra/ATLAS
+
+docs_dir: docs
+exclude_docs: README.md
+
+validation:
+  nav:
+    omitted_files: ignore
+    not_found: warn
+    absolute_links: ignore
+  links:
+    not_found: warn
+    absolute_links: ignore
+    unrecognized_links: ignore
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  highlightjs: true
+  code_style: monokai
+  font:
+    text: Roboto
+    code: Fira Code
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue grey
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - navigation.indexes
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - admonition
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+      toc_depth: 2-3
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+# Plugins
+plugins:
+  - macros
+  - search:
+      lang: en
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Overview: overview.md
+
+  - Getting Started:
+    - Overview: getting-started/index.md
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quick-start.md
+
+  - User Guide:
+    - Overview: user-guide/index.md
+    - General Phase Builder:
+      - Overview: user-guide/gpb/index.md
+      - Ideal Gas: user-guide/gpb/ideal-gas.md
+      - Real Fluid: user-guide/gpb/real-fluid.md
+      - Condensed and Solid: user-guide/gpb/condensed-solid.md
+      - Output Files: user-guide/gpb/output.md
+      - Input Reference: user-guide/gpb/input-reference.md
+    - Boundary Conditions Builder:
+      - Overview: user-guide/bcb/index.md
+      - Required Files: user-guide/bcb/required-files.md
+      - BC Setup: user-guide/bcb/bc-setup.md
+      - BC Types: user-guide/bcb/bc-types.md
+      - Output Files: user-guide/bcb/output.md
+      - Input Reference: user-guide/bcb/input-reference.md
+    - Initial Conditions Builder:
+      - Overview: user-guide/icb/index.md
+      - IC Strategies: user-guide/icb/ic-strategies.md
+      - Output Files: user-guide/icb/output.md
+      - Input Reference: user-guide/icb/input-reference.md
+    - Source Terms Builder:
+      - Overview: user-guide/stb/index.md
+      - Input Reference: user-guide/stb/input-reference.md
+      - Output Files: user-guide/stb/output.md
+    - KAnT:
+      - Overview: user-guide/kant/index.md
+
+
+  - Databases:
+    - Overview: databases/index.md
+    - Thermodynamics:
+      - Overview: databases/thermodynamics/index.md
+      - NASA Polynomials: databases/thermodynamics/nasa-polynomials.md
+      - Real Fluids: databases/thermodynamics/real-fluids.md
+      - Solid-Phase Custom: databases/thermodynamics/custom.md
+    - Transport:
+      - Overview: databases/transport/index.md
+      - CEA Polynomials: databases/transport/cea-polynomials.md
+      - Lennard-Jones: databases/transport/lennard-jones.md
+      - Custom: databases/transport/custom.md
+    - Chemistry:
+      - Overview: databases/chemistry/index.md
+      - Mechanisms: databases/chemistry/list.md
+
+  - Tutorials:
+    - Overview: tutorials/index.md
+    - GPB:
+      - Overview: tutorials/gpb/index.md
+      - Fixed Gas: tutorials/gpb/fixed-gas.md
+      - Cantera Ideal Gas: tutorials/gpb/cantera-ideal-gas.md
+      - Cantera Equilibrium: tutorials/gpb/cantera-equilibrium.md
+      - CEA Reactive: tutorials/gpb/cea-reactive.md
+      - Heavy Gas: tutorials/gpb/heavy-gas.md
+      - Condensed Phase: tutorials/gpb/condensed.md
+      - Solid Phase: tutorials/gpb/solid.md
+      - Real Fluid: tutorials/gpb/real-fluid.md
+    - BCB:
+      - Overview: tutorials/bcb/index.md
+    - ICB:
+      - Overview: tutorials/icb/index.md
+    - KAnT:
+      - Overview: tutorials/kant/index.md
+
+  - Development:
+    - Overview: development/index.md
+    - Build System: development/build.md
+    - Project Structure: development/structure.md
+    - Testing: development/testing.md
+    - Contributing: development/contributing.md
+    - Code Style: development/code-style.md
+    - Fortran Guide: development/fortran-guide.md
+    - Fortran Modules: development/fortran-modules.md
+    - Python Guide: development/python-guide.md
+    - Python Packages: development/python-packages.md
+
+  - About:
+    - about/index.md
+    - Acknowledgements: about/acknowledgements.md
+    - License: about/license.md

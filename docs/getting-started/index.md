@@ -1,34 +1,34 @@
-# Introduction
+# Getting Started
 
-ATLAS (**A**dvanced **T**ooling for hydra **L**aunch and **A**nalysi**S**) is a pre-processing toolchain for the Hydra multi-physics solver. It prepares every data file that Hydra reads at startup: phase thermodynamics, boundary conditions, initial conditions, and solver geometry.
+Welcome to the ATLAS getting-started guide! This section will help you install ATLAS and run your first examples.
 
-## Architecture
+<div class="grid cards" markdown>
 
-ATLAS is split into independent tools that are called in sequence before a Hydra run:
+-   :material-download:{ .lg .middle } __Installation__
 
-```
-  [ GPB ]  →  phase property tables
-  [ BCB ]  →  boundary condition blocks
-  [ ICB ]  →  initial condition blocks
-  [ STB ]  →  geometry / area schedule
-               ↓
-           Hydra solver
-```
+    ---
 
-Each tool reads a dedicated INI (Fortran-based tools) or `.ini` / YAML (Python-based tools) configuration file and writes binary/ASCII output consumed by Hydra. Tools are **independent**: you can run them in any order once their inputs are ready.
+    Build the API and the executable from source
 
-## Language Stack
+    [:octicons-arrow-right-24: Install ATLAS](installation.md)
 
-ATLAS maintains two language tracks in the same repository and build system:
+-   :material-rocket-launch:{ .lg .middle } __Quick Start__
 
-- **Fortran 2008** — BCB, ICB, STB; Fortran libraries (ORION, NewCEA, …)
-- **Python 3** — GPB, KAnT; installed as importable packages
+    ---
 
-See [System Requirements](./requirements) for compiler and interpreter versions.
+    Get up and running in minutes
 
-## Next Steps
+    [:octicons-arrow-right-24: Quick start tutorial](quick-start.md)
 
-1. [Check Requirements](./requirements)
-2. [Install ATLAS](./installation)
-3. [Run your first case](./quick-start)
+</div>
 
+## Scope of This Section
+
+This getting started guide covers:
+
+1. **Installation**
+   - Step-by-step build instructions
+   - Build options and customization
+
+2. **Quick Start**
+   - Run your first case

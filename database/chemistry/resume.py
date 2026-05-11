@@ -1,6 +1,16 @@
 import os
 import cantera as ct
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+
+# Configure matplotlib for transparent SVG with theme-aware styling
+mpl.rcParams.update({
+    "figure.facecolor": "none",
+    "axes.facecolor": "none",
+    "savefig.facecolor": "none",
+    "svg.fonttype": "none",
+})
+
 import random, sys
 from adjustText import adjust_text
 
@@ -70,8 +80,7 @@ for i in range(len(mechanism_names)):
 # Labels and title
 plt.xlabel('Number of Species')
 plt.ylabel('Number of Reactions')
-plt.title('Species vs Reactions for Different Mechanisms')
-plt.grid(True)
+plt.grid(True, alpha=0.5)
 plt.xscale('log')
 plt.yscale('log')
 
@@ -79,5 +88,5 @@ plt.yscale('log')
 adjust_text(texts, arrowprops=dict(arrowstyle='-', color='gray'))
 
 # Save and show
-plt.savefig('resume.png', dpi=300, bbox_inches='tight')
+plt.savefig('resume.svg', dpi=300, bbox_inches='tight', transparent=True)
 plt.show()
