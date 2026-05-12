@@ -12,7 +12,6 @@ module ic_builder_mod
   subroutine build_IC(phase,sini,blocks)
     use phase_mod,                 only: phase_t
     use io_phase_mod,              only: read_idealgas_properties, read_dp_properties, read_realfluid_properties
-    use ic_interpolation_cons_mod, only: set_conservative_receiver_blocks
     use strings,                   only: parse
     use ir_precision,              only: str
     implicit none
@@ -28,8 +27,6 @@ module ic_builder_mod
     character(len=4)              :: zonedirection
     real(R8)                      :: zonerange(6)
     character(len=20)             :: wholestring, args(3), phase_name
-
-    call set_conservative_receiver_blocks(blocks)
 
     do b = 1, size(blocks)
       section_name = 'ICB-Block'//str(.true.,b)

@@ -28,7 +28,6 @@ Full reference for all strategies recognised by ICB. See `src/hydra-tools/ICB/` 
 | Strategy | Code | Phase | When to use |
 |----------|------|-------|-------------|
 | Interpolate | `interpolate` | Any | Mesh refinement studies, p-adaptive restarts, transferring results between grid generations. |
-| Conservative interpolate | `interpolate-conservative` | Any | When local conservation (mass, momentum, energy) must be preserved across the interpolation. |
 
 ## Restart / Import
 

@@ -259,7 +259,7 @@ contains
         psup = p0 * (1.0d0 + 0.5d0*(gam-1.0d0)*M_sup**2)**(-gam/(gam-1.0d0)) / 1.0d5
 
         Gamma_v = sqrt(gam) * (2.0d0/(gam+1.0d0))**((gam+1.0d0)/(2.0d0*(gam-1.0d0)))
-        rt = p0 * Gamma_v / sqrt(Rgas * T0)
+        rt = p0 * Gamma_v / sqrt(Rgas * T0) / Ae_At
 
       else
 

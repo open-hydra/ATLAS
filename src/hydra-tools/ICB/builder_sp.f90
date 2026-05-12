@@ -12,7 +12,6 @@ contains
     use global_mod,                    only: llen
     use ic_block_mod
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock
-    use ic_interpolation_cons_mod
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, interpolate_from_file
     use config_mod,                   only: config_sp_t, config_field_source_t, &
                                             sync_interpolation_config
@@ -103,8 +102,8 @@ contains
 
     case default
 
-      call load_zone_field(T, sp_cfg%T, .false.)
-      call load_zone_field(qvol, sp_cfg%qvol, .true.)
+      call load_zone_field(T, sp_cfg%T)
+      call load_zone_field(qvol, sp_cfg%qvol)
 
     end select
 
@@ -176,10 +175,9 @@ contains
       enddo
     end subroutine unwrap_src
 
-    subroutine load_zone_field(field, field_cfg, conservative)
+    subroutine load_zone_field(field, field_cfg)
       real(R8), intent(inout) :: field(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
       type(config_field_source_t), intent(in) :: field_cfg
-      logical, intent(in) :: conservative
 
       if (field_cfg%has_value) then
         field = field_cfg%value
@@ -191,8 +189,6 @@ contains
 
       if (field_cfg%has_direction) then
         call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field)
-      elseif (conservative) then
-        call interpolate_conservative(field, blk, field_cfg%file)
       else
         call interpolate_from_file(field, blk, field_cfg%file)
       endif
