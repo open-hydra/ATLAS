@@ -107,7 +107,7 @@ set (CMAKE_Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/modules")
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 
 # Compiling
-add_subdirectory(src/hydra-tools)
+add_subdirectory(src)
 
 # Testing
 enable_testing()

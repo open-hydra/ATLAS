@@ -15,7 +15,7 @@ import numpy as np
 
 from config.models import ZeroDConfig
 from simulations.base import AbstractSimulation
-from utils.phase_tools import add_species, setup_mixture
+from utils.phase_tools import add_species
 from utils.units import convert2si
 
 _ODE_RTOL = 1.0e-7
@@ -59,9 +59,9 @@ class ZeroDReactorBase(AbstractSimulation):
         """Instantiate the right reactor + network for the configured type."""
         cfg: ZeroDConfig = self.config
         if cfg.reactor.reactor_type == "HP":
-            r = ct.IdealGasConstPressureReactor(contents=gas, name="Batch Reactor")
+            r = ct.IdealGasConstPressureReactor(gas, name="Batch Reactor")
         else:
-            r = ct.IdealGasReactor(contents=gas, name="Batch Reactor")
+            r = ct.IdealGasReactor(gas, name="Batch Reactor")
         net = ct.ReactorNet([r])
         net.rtol = _ODE_RTOL
         net.atol = _ODE_ATOL

@@ -13,11 +13,13 @@ function print_usage {
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
   echo "   ATLAS ICB"
-  echo "   ATLAS DOCS"
   echo
   echo "Other tools:"
   echo "   ATLAS CEA"
   echo "   ATLAS KAnT"
+  echo
+  echo "Repo documentation:"
+  echo "   ATLAS DOCS"
   echo
   echo "Options:"
   echo "   --input     | -i <file>   Input file (default: input.ini)"
@@ -105,9 +107,9 @@ else
       fi
       conda activate ct-env
       if [[ $program == 'GPB' ]]; then
-        python3 -B $ATLASDIR/src/hydra-tools/$program $P $W
+        python3 -B $ATLASDIR/src/$program $P $W
       else
-        python3 -B $ATLASDIR/src/$program $P
+        python3 -B $ATLASDIR/database/$program $P
       fi
       conda deactivate
     else
