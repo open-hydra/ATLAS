@@ -1,0 +1,10 @@
+maintainers:
+  - name: Marco Grossi
+    role: Project Lead
+
+alumni:
+  - Chris Taylor
+
+exclude:
+  - dependabot[bot]
+  - github-actions[bot]
