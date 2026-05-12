@@ -8,19 +8,19 @@ if [[ -z "${ATLASDIR:-}" ]]; then
 fi
 
 function print_usage {
-  echo "Bash srcipt to run ATLAS programs"
-  echo "CFD pre-processing tools:"
+  echo "Bash script to run ATLAS programs"
+  echo "Hydra pre-processing tools:"
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
   echo "   ATLAS ICB"
   echo "   ATLAS DOCS"
   echo
-  echo "General tools:"
+  echo "Other tools:"
   echo "   ATLAS CEA"
   echo "   ATLAS KAnT"
   echo
   echo "Options:"
-  echo "   --write-config-doc     Generate input documentation for selected tools"
+  echo "   --input     | -i <file>   Input file (default: input.ini)"
   exit 1
 }
 
@@ -60,13 +60,13 @@ while test $# -gt 0; do
       ;;
 
     -? | --help )
-      usage
+      print_usage
       exit
       ;;
 
     -* )
       echo "Unrecognized option: $1" >&2
-      usage
+      print_usage
       exit $E_BAD_OPTION
       ;;
 

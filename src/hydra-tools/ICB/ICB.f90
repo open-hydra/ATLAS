@@ -24,6 +24,7 @@ program ICB
   type(file_ini)               :: sourceini
   integer                      :: b
   logical                      :: write_config_doc
+  character(len=256)           :: input_file
 
   write(*,*)
   write(*,*) ' ATLAS - Initial Conditions Builder'
@@ -56,7 +57,8 @@ program ICB
   write(*,*)' Done!'
 
   ! INI handling
-  call build_INI(prog='ICB',nb=size(block),inisource=sourceini,ICformat=ICformat)
+  call build_INI(prog='ICB',nb=size(block),inisource=sourceini,ICformat=ICformat,&
+               input_file=trim(input_file))
 
   ! Phase properties import
   write(*,*) ' Phase properties import'
@@ -80,6 +82,7 @@ program ICB
 
     verbose = .false.
     write_config_doc = .false.
+    input_file = 'input.ini'
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
@@ -89,6 +92,8 @@ program ICB
         verbose = .true.
       elseif (arg == '--write-config-doc') then
         write_config_doc = .true.
+      elseif (arg == '-i' .or. arg == '--input') then
+        if (i < arg_count) call GET_COMMAND_ARGUMENT(i+1, input_file)
       end if
     end do
 

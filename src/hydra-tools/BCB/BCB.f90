@@ -25,6 +25,7 @@ program BCB
   integer                     :: b, m, MG_levels
   logical                     :: force_connect, chimeraon
   logical                     :: write_config_doc
+  character(len=256)          :: input_file
 
   write(*,*)
   write(*,*) ' ATLAS - Boundary Conditions Builder'
@@ -33,8 +34,8 @@ program BCB
   call command_line_argument()
 
   if (write_config_doc) then
-    call write_bcb_registry_markdown('bcb-input.md')
-    write(*,*) ' BCB input documentation written to bcb-input.md'
+    call write_bcb_registry_markdown()
+    write(*,*) ' BCB input documentation succesfully written'
     stop
   endif
 
@@ -44,7 +45,8 @@ program BCB
   write(*,*)' Done!'
   
   ! INI handling
-  call build_INI(prog='BCB',nb=size(fine_orion%block),inisource=sourceini,MG_levels=MG_levels,force_connect=force_connect,chimeraon=chimeraon)
+  call build_INI(prog='BCB',nb=size(fine_orion%block),inisource=sourceini,MG_levels=MG_levels,&
+               force_connect=force_connect,chimeraon=chimeraon,input_file=trim(input_file))
 
   ! Phase properties import
   call read_phase(phase)
@@ -113,6 +115,7 @@ contains
 
     verbose = .false.
     write_config_doc = .false.
+    input_file = 'input.ini'
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
@@ -122,6 +125,8 @@ contains
         verbose = .true.
       elseif (arg == '--write-config-doc') then
         write_config_doc = .true.
+      elseif (arg == '-i' .or. arg == '--input') then
+        if (i < arg_count) call GET_COMMAND_ARGUMENT(i+1, input_file)
       end if
     end do
 
