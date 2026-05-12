@@ -32,3 +32,40 @@ set_tests_properties(IG-nozzle3D PROPERTIES
     ENVIRONMENT "${_MOSE_TEST_ENV}"
 )
 
+
+# ---- BCB : IG-inflow-nozzle -------------
+add_test(
+    NAME    IG-inflow-nozzle
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-nozzle"
+)
+set_tests_properties(IG-inflow-nozzle PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_MOSE_TEST_ENV}"
+)
+
+
+# ---- BCB : IG-multipatch-file -------------
+add_test(
+    NAME    IG-multipatch-file
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-file"
+)
+set_tests_properties(IG-multipatch-file PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_MOSE_TEST_ENV}"
+)
+
+# ---- BCB : IG-multipatch-1D (face1 multipatch IDs) -------------
+add_test(
+    NAME    IG-multipatch-1D
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-1D"
+)
+set_tests_properties(IG-multipatch-1D PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_MOSE_TEST_ENV}"
+)
