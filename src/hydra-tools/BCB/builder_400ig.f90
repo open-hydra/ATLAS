@@ -1,7 +1,10 @@
 submodule (bc_mod) ig_inflow_outflow_mod
-  use bcb_config_mod, only: bcb_ig_boundary_config_t, load_bcb_ig_boundary_config
-  use phase_mod, only: phase_t, species_t, define_composition, T02T, p02p
+  use bcb_config_mod,         only: bcb_ig_boundary_config_t, load_bcb_ig_boundary_config, bcb_unwrapped_config_t, load_bcb_unwrapped_config
+  use phase_mod,              only: phase_t, species_t, define_composition, T02T, p02p
+  use unwrapped_to_3D_mod,    only: map_unwrapped_to_3D
   implicit none
+
+  character(len=128) :: mod_linefile='null'
 
 contains
 
@@ -64,8 +67,16 @@ contains
     else
       call standard
     endif
+  
 
-    if (self % definition=='inlet') then
+    if (self % definition=='inlet' .and. self % ig_id /= 410) then
+
+      ! Inflow direction
+      self%ig_properties(dim) = alpha
+      self%ig_properties(dim+1) = beta
+
+      ! Relaxation factor
+      self%ig_properties(dim+2) = rel_fac
 
       ! Mass fractions
       self % ig_properties(dim+2+1:dim+2+self % ig_species % n) = self % ig_species % massf
@@ -155,6 +166,8 @@ contains
 
       ! Full state specification with time-varying properties
       elseif ( time_file/='none') then
+        ! Load and apply unwrapped mapping if configured
+        call apply_unwrapped_to_3D(sourceini, time_file, section)
         self % ig_id = 410
         self % ig_n = 2
         self % time_varying = .true.
@@ -172,18 +185,6 @@ contains
         write(*,*) '        Please check input file and documentation.'
         stop
 
-      endif
-
-      
-      if (self%definition=='inlet') then
-        ! Inflow direction
-        self%ig_properties(dim) = alpha
-        self%ig_properties(dim+1) = beta
-        ! Relaxation factor
-        self%ig_properties(dim+2) = rel_fac
-      else
-        ! Relaxation factor
-        self%ig_properties(dim+1) = rel_fac
       endif
 
     end subroutine standard
@@ -275,9 +276,8 @@ contains
 
       self%ig_id = 420
       dim = 5
-      self % ig_n = dim + 2 + self % ig_species % n + nrans
-      allocate(self % ig_properties(1:self % ig_n))
-      self % ig_properties(2:6) = [T0, p0, psub, psup, rt]
+      call setup_bc_inlet(ip0=0)
+      self % ig_properties(1:5) = [T0, p0, psub, psup, rt]
 
     end subroutine nozzle
 
@@ -316,6 +316,32 @@ contains
     enddo
   end function T02h0
 
+  subroutine apply_unwrapped_to_3D(sourceini, outfile, section)
+    implicit none
+    type(file_ini), intent(in) :: sourceini
+    character(len=*), intent(in) :: outfile
+    character(len=*), intent(in) :: section
+    ! Local variables
+    type(bcb_unwrapped_config_t) :: local_cfg
+
+    ! Load complete configuration
+    call load_bcb_unwrapped_config(sourceini, section, local_cfg)
+
+    if (local_cfg%linefile==mod_linefile) then
+      return
+    else
+      mod_linefile = local_cfg%linefile
+    endif
+
+    if (.not. local_cfg%has_center) then
+      write(*,*) '[ERROR] Missing center in input (x y z)'
+      stop
+    endif
+
+    ! Execute unwrapped to 3D mapping
+    call map_unwrapped_to_3D(local_cfg%linefile, outfile, local_cfg%face, local_cfg%strip_j_face, local_cfg%center)
+
+  end subroutine apply_unwrapped_to_3D
 
       ! if (present(SRMswitch)) then
       !   m = size(self_properties)

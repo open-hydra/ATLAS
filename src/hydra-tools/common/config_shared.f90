@@ -49,28 +49,36 @@ module config_shared_mod
 
 contains
 
-  subroutine load_atlas_parameters(prog, cfg)
+  subroutine load_atlas_parameters(prog, cfg, input_file)
     implicit none
-    character(*), intent(in)         :: prog
+    character(*), intent(in)              :: prog
     type(atlas_parameters_t), intent(out) :: cfg
+    character(*), intent(in), optional    :: input_file
 
     type(file_ini) :: fini
     character(len=32) :: file_option
+    character(len=llen) :: ini_filename
     integer :: error
 
-    cfg%input_file = 'input.ini'
+    if (present(input_file)) then
+      ini_filename = input_file
+    else
+      ini_filename = 'input.ini'
+    end if
+
+    cfg%input_file = trim(ini_filename)
     cfg%ic_format = 'tec'
     cfg%mg_levels = 1
     cfg%bc_force_connect = .true.
     cfg%bc_chimera = .false.
 
-    call fini%load(filename='input.ini')
+    call fini%load(filename=trim(ini_filename))
 
     file_option = atlas_input_option_name(prog)
     if (len_trim(file_option) > 0) then
       call fini%get(section_name='ATLAS-Parameters', option_name=trim(file_option), &
                     val=cfg%input_file, error=error)
-      if (error /= 0) cfg%input_file = 'input.ini'
+      if (error /= 0) cfg%input_file = trim(ini_filename)
     endif
 
     call fini%get(section_name='ATLAS-Parameters', option_name='MG-levels', &
@@ -145,8 +153,7 @@ contains
     if (error /= 0) cfg%kappa = 0.0_R8
     call zoneini%get(section_name=section_id, option_name='omega', val=cfg%omega, error=error)
     if (error /= 0) cfg%omega = 0.0_R8
-    call zoneini%get(section_name=section_id, option_name='rhoRij', val=cfg%rhoRij, &
-                     error=error)
+    call zoneini%get(section_name=section_id, option_name='rhoRij', val=cfg%rhoRij, error=error)
     if (error /= 0) cfg%rhoRij = 0.0_R8
 
     call zoneini%get(section_name=section_id, option_name='nrans', val=cfg%nrans, error=error)
@@ -238,7 +245,7 @@ contains
     call registry%add(section, 'eq-CEA-section', composition_cfg%eq_cea_section, '1', &
                       'CEA section index used when eq-CEA-file is provided.', &
                       '>=1', .false.)
-    call registry%add(section, 'y<species>', composition_cfg%y_species, '0.0', &
+    call registry%add(section, 'yspecies', composition_cfg%y_species, '0.0', &
                       'Mass fraction assigned to a species name suffix.', &
                       '>=0', .false.)
   end subroutine add_composition_registry_entries

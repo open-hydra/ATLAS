@@ -10,8 +10,7 @@ contains
   subroutine build_BC(phase,sini,blocks)
     use ir_precision
     use strings,             only: parse
-    use bcb_config_mod,      only: bcb_block_config_t, bcb_face_setup_t, &
-                                   load_bcb_block_config, load_bcb_face_setup
+    use bcb_config_mod,      only: bcb_block_config_t, bcb_face_setup_t, load_bcb_block_config, load_bcb_face_setup
     use finer,               only: file_ini
     use phase_mod,           only: phase_t
     use grid_mod,            only: mesh_cfg
@@ -140,6 +139,7 @@ contains
         ! Face-related INI source
         call faceini%free
         call faceini%add(section_name='face')
+        call faceini%add(section_name='face', option_name='face', val=ff)
         do while (sini%loop(section_name=trim(blk%face(ff)%bc%name), option_pairs=option_pairs))
           call faceini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
         enddo
@@ -163,7 +163,7 @@ contains
               call patchini%add(section_name='face', option_name='direction', val=patchdirection)
               call patchini%add(section_name='face', option_name='range', val=patchrange)
               do m = 1, size(blk%associated_phase)
-                call build_face(b,ff,blk%face(ff),patchini,blk%associated_phase(m))
+                call build_face(b,ff,blk%face(ff),patchini,blk%associated_phase(m),sini)
               enddo
             enddo
           endif
@@ -174,7 +174,7 @@ contains
           if (error==0) then
             write(*,*)' Face n. = ', ff, ' -> ', trim(blk%face(ff)%bc%name), ' = single patch with varying properties'
             do m = 1, size(blk%associated_phase)
-              call build_face(b,ff,blk%face(ff),faceini,blk%associated_phase(m))
+              call build_face(b,ff,blk%face(ff),faceini,blk%associated_phase(m),sini)
             enddo
           else
             write(*,*)' Face n. = ', ff, ' -> ', trim(blk%face(ff)%bc%name), ' = single patch'

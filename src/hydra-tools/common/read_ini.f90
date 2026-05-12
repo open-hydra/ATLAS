@@ -6,13 +6,11 @@ module io_ini_mod
 
   public:: build_INI
 
-  integer :: error
-
   character(len=256), parameter :: par_section = 'ATLAS-Parameters'
 
 contains
 
-  subroutine build_INI(prog,nb,inisource,ICformat,MG_levels,chimeraon,force_connect)
+  subroutine build_INI(prog,nb,inisource,ICformat,MG_levels,chimeraon,force_connect,input_file)
     implicit none
     character(len=3), intent(in)                :: prog
     integer, intent(in)                         :: nb
@@ -20,10 +18,15 @@ contains
     integer, intent(inout), optional            :: MG_levels
     character(len=*), intent(inout), optional   :: ICformat
     logical, intent(inout), optional            :: chimeraon, force_connect
+    character(len=*), intent(in), optional      :: input_file
     type(atlas_parameters_t)                    :: atlas_cfg
     type(file_ini)                              :: fini
 
-    call load_atlas_parameters(prog, atlas_cfg)
+    if (present(input_file)) then
+      call load_atlas_parameters(prog, atlas_cfg, input_file)
+    else
+      call load_atlas_parameters(prog, atlas_cfg)
+    end if
 
     if (present(MG_levels)) MG_levels = atlas_cfg%mg_levels
     if (present(ICformat)) ICformat = atlas_cfg%ic_format

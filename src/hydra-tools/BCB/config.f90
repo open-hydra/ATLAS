@@ -40,6 +40,21 @@ module bcb_config_mod
     type(bcb_face_patch_t), allocatable :: patches(:)
   end type bcb_face_setup_t
 
+  type, public :: bcb_face_runtime_config_t
+    character(len=50) :: name = ''
+    character(len=20) :: definition = ''
+    logical           :: has_direction = .false.
+    character(len=7)  :: direction = ''
+    logical           :: has_range = .false.
+    real(R8)          :: range(4) = 0.0_R8
+    logical           :: has_range_file = .false.
+    character(len=32) :: range_file = ''
+    logical           :: has_inner_patch = .false.
+    character(len=50) :: inner_patch = ''
+    logical           :: has_outer_patch = .false.
+    character(len=50) :: outer_patch = ''
+  end type bcb_face_runtime_config_t
+
   type, public :: bcb_periodic_config_t
     integer :: blocks(2) = 0
     integer :: faces(2) = 0
@@ -137,8 +152,18 @@ module bcb_config_mod
     type(bcb_dp_material_config_t), allocatable :: materials(:)
   end type bcb_dp_boundary_config_t
 
+  type, public :: bcb_unwrapped_config_t
+    character(len=128) :: linefile = ''
+    real(R8)           :: center(3) = 0.0_R8
+    integer            :: strip_j_face = 1
+    integer            :: face = 0
+    logical            :: has_linefile = .false.
+    logical            :: has_center = .false.
+  end type bcb_unwrapped_config_t
+
   public :: load_bcb_block_config
   public :: load_bcb_face_setup
+  public :: load_bcb_face_runtime_config
   public :: load_bcb_periodic_config
   public :: load_bcb_manifold_config
   public :: load_bcb_wall_fluid_config
@@ -146,6 +171,7 @@ module bcb_config_mod
   public :: load_bcb_ig_boundary_config
   public :: load_bcb_srm_config
   public :: load_bcb_dp_boundary_config
+  public :: load_bcb_unwrapped_config
   public :: write_bcb_registry_markdown
 
 contains
@@ -184,6 +210,7 @@ contains
     character(len=:), allocatable :: option_pairs(:)
     character(len=4) :: ind
     integer :: error, patch_error, patch_count, p
+    logical :: has_range_file, has_inner_patch, has_outer_patch
 
     cfg%name = bc_name
     cfg%definition = ''
@@ -191,22 +218,27 @@ contains
     cfg%has_direction = .false.
     cfg%direction = ''
     cfg%patch_count = 0
+    has_range_file = .false.
+    has_inner_patch = .false.
+    has_outer_patch = .false.
     if (allocated(cfg%patches)) deallocate(cfg%patches)
 
     do while (sini%loop(section_name=trim(bc_name), option_pairs=option_pairs))
       if (index(option_pairs(1), 'patch') == 1) cfg%multipatch = .true.
+      if (trim(option_pairs(1)) == 'range-file') has_range_file = .true.
+      if (trim(option_pairs(1)) == 'inner-patch') has_inner_patch = .true.
+      if (trim(option_pairs(1)) == 'outer-patch') has_outer_patch = .true.
     enddo
 
-    call sini%get(section_name=trim(bc_name), option_name='type', val=cfg%definition, &
-                  error=error)
+    call sini%get(section_name=trim(bc_name), option_name='type', val=cfg%definition, error=error)
     if (error == 0) then
       call check_assignment_with_input(trim(cfg%definition), cfg%definition)
-    elseif (.not. cfg%multipatch) then
+    elseif (.not. cfg%multipatch .and. .not. (has_range_file .and. &
+      has_inner_patch .and. has_outer_patch)) then
       call check_assignment_no_input(trim(cfg%name), cfg%definition)
     endif
 
-    call sini%get(section_name=trim(bc_name), option_name='direction', val=cfg%direction, &
-                  error=error)
+    call sini%get(section_name=trim(bc_name), option_name='direction', val=cfg%direction, error=error)
     cfg%has_direction = error == 0
 
     if (.not. cfg%multipatch) return
@@ -216,8 +248,7 @@ contains
     do
       patch_count = patch_count + 1
       write(ind, '(I4)') patch_count
-      call sini%get(section_name=trim(bc_name), option_name='patch'//trim(adjustl(ind)), &
-                    val=cfg%name, error=patch_error)
+      call sini%get(section_name=trim(bc_name), option_name='patch'//trim(adjustl(ind)), val=cfg%name, error=patch_error)
       if (patch_error /= 0) exit
     enddo
 
@@ -227,10 +258,8 @@ contains
     allocate(cfg%patches(1:cfg%patch_count))
     do p = 1, cfg%patch_count
       write(ind, '(I4)') p
-      call sini%get(section_name=trim(bc_name), option_name='patch'//trim(adjustl(ind)), &
-                    val=cfg%patches(p)%name, error=error)
-      call sini%get(section_name=trim(bc_name), option_name='range'//trim(adjustl(ind)), &
-                    val=cfg%patches(p)%range, error=error)
+      call sini%get(section_name=trim(bc_name), option_name='patch'//trim(adjustl(ind)), val=cfg%patches(p)%name, error=error)
+      call sini%get(section_name=trim(bc_name), option_name='range'//trim(adjustl(ind)), val=cfg%patches(p)%range, error=error)
       if (error /= 0) cfg%patches(p)%range = 0.0_R8
     enddo
 
@@ -253,6 +282,64 @@ contains
     call sourceini%get(section_name=section, option_name='faces', val=cfg%faces, error=error)
     cfg%has_connection = (error == 0)
   end subroutine load_bcb_periodic_config
+
+  subroutine load_bcb_face_runtime_config(sourceini, section, cfg)
+    implicit none
+    type(file_ini), intent(in)               :: sourceini
+    character(*), intent(in)                 :: section
+    type(bcb_face_runtime_config_t), intent(out) :: cfg
+
+    integer :: error
+    logical :: file_named_multipatch
+
+    cfg%name = ''
+    cfg%definition = ''
+    cfg%has_direction = .false.
+    cfg%direction = ''
+    cfg%has_range = .false.
+    cfg%range = 0.0_R8
+    cfg%has_range_file = .false.
+    cfg%range_file = ''
+    cfg%has_inner_patch = .false.
+    cfg%inner_patch = ''
+    cfg%has_outer_patch = .false.
+    cfg%outer_patch = ''
+
+    call sourceini%get(section_name=section, option_name='name', val=cfg%name, &
+      error=error)
+
+    call sourceini%get(section_name=section, option_name='direction', &
+      val=cfg%direction, error=error)
+    cfg%has_direction = (error == 0)
+
+    call sourceini%get(section_name=section, option_name='range', val=cfg%range, &
+      error=error)
+    cfg%has_range = (error == 0)
+
+    call sourceini%get(section_name=section, option_name='range-file', &
+      val=cfg%range_file, error=error)
+    cfg%has_range_file = (error == 0)
+
+    call sourceini%get(section_name=section, option_name='inner-patch', &
+      val=cfg%inner_patch, error=error)
+    cfg%has_inner_patch = (error == 0)
+
+    call sourceini%get(section_name=section, option_name='outer-patch', &
+      val=cfg%outer_patch, error=error)
+    cfg%has_outer_patch = (error == 0)
+
+    file_named_multipatch = cfg%has_range_file .and. cfg%has_inner_patch .and. &
+      cfg%has_outer_patch
+
+    call sourceini%get(section_name=section, option_name='type', &
+      val=cfg%definition, error=error)
+    if (error == 0) then
+      call check_assignment_with_input(trim(cfg%definition), cfg%definition)
+    elseif (.not. file_named_multipatch) then
+      call check_assignment_no_input(trim(cfg%name), cfg%definition)
+    endif
+
+  end subroutine load_bcb_face_runtime_config
 
   subroutine load_bcb_manifold_config(sourceini, section, cfg)
     implicit none
@@ -308,11 +395,11 @@ contains
 
     integer :: error
 
-    call sourceini%get(section_name=section, option_name='q-timefile', val=cfg%q_timefile, error=error)
+    call sourceini%get(section_name=section, option_name='q-time-file', val=cfg%q_timefile, error=error)
     cfg%has_q_timefile = error == 0
     if (.not. cfg%has_q_timefile) cfg%q_timefile = 'none'
 
-    call sourceini%get(section_name=section, option_name='T-timefile', val=cfg%T_timefile, error=error)
+    call sourceini%get(section_name=section, option_name='T-time-file', val=cfg%T_timefile, error=error)
     cfg%has_T_timefile = error == 0
     if (.not. cfg%has_T_timefile) cfg%T_timefile = 'none'
 
@@ -486,7 +573,32 @@ contains
     enddo
   end subroutine load_bcb_dp_boundary_config
 
+  subroutine load_bcb_unwrapped_config(sourceini, section, cfg)
+    implicit none
+    type(file_ini), intent(in)          :: sourceini
+    character(*), intent(in)            :: section
+    type(bcb_unwrapped_config_t), intent(out) :: cfg
+
+    integer :: error
+
+    cfg%linefile = 'null'
+    cfg%center = 0.0_R8
+    cfg%strip_j_face = 1
+    cfg%has_linefile = .false.
+    cfg%has_center = .false.
+
+    call sourceini%get(section_name=section, option_name='face', val=cfg%face, error=error)
+    call sourceini%get(section_name=section, option_name='line-file', val=cfg%linefile, error=error)
+    cfg%has_linefile = error == 0
+    call sourceini%get(section_name=section, option_name='center', val=cfg%center, error=error)
+    cfg%has_center = error == 0
+    call sourceini%get(section_name=section, option_name='strip-j-face', val=cfg%strip_j_face, error=error)
+    if (error /= 0) cfg%strip_j_face = 1
+
+  end subroutine load_bcb_unwrapped_config
+
   subroutine write_bcb_registry_markdown(filename)
+    use ir_precision
     implicit none
     character(*), intent(in), optional :: filename
 
@@ -548,41 +660,27 @@ contains
 
     call add_atlas_registry_entries(bcb_registry, 'BCB', atlas_cfg)
 
-    call bcb_registry%add('BCB-Block*', 'phase', phase_name, '', &
-                          'Space-separated phase names. Blank means all phases.', &
-                          '', .false.)
+    call bcb_registry%add('BCB-Block*', 'phase', phase_name, '','Space-separated phase names. Blank means all phases.', '', .false.)
     do ff = 1, max_faces
-      call bcb_registry%add('BCB-Block*', 'face'//trim(adjustl(face_index(ff))), &
+      call bcb_registry%add('BCB-Block*', 'face'//trim(str(.true.,ff)), &
                             face_name, '', 'Boundary section name assigned to face '// &
-                            trim(adjustl(face_index(ff)))//'.', '', .false.)
+                            trim(str(.true.,ff))//'.', '', .false.)
     enddo
 
-    call bcb_registry%add('BCB-Boundary*', 'type', bc_type, MARKER_NULL, &
-                          'Boundary-condition type for the named section.', &
-                          boundary_type_list(), .false.)
-    call bcb_registry%add('BCB-Boundary*', 'direction', direction, '', &
-                          'Patch directions using x,y,z,r,t,i,j,k.', '', .false.)
-    call bcb_registry%add('BCB-Boundary*', 'patch<n>', patch_name, '', &
-                          'Named sub-patch section used by multipatch boundaries.', &
-                          '', .false.)
-    call bcb_registry%add('BCB-Boundary*', 'range<n>', patch_range, '0.0', &
-                          'Sub-patch limits associated with patch<n>.', '', .false.)
-    call bcb_registry%add('BCB-Boundary*', 'blocks', periodic_blocks, '0', &
-                          'Periodic source and destination block indices.', '', .false.)
-    call bcb_registry%add('BCB-Boundary*', 'faces', periodic_faces, '0', &
-                          'Periodic source and destination face indices.', '', .false.)
-    call bcb_registry%add('BCB-Boundary*', 'block', manifold_block, '0', &
-                          'Connected block index for manifold boundaries.', '', .false.)
-    call bcb_registry%add('BCB-Boundary*', 'face', manifold_face, '0', &
-                          'Connected face index for manifold boundaries.', '', .false.)
-    call bcb_registry%add('BCB-Boundary*', 'file-direction', file_direction, '', &
-                          'Coordinate or index directions used by varying BC files.', &
-                          '', .false.)
+    call bcb_registry%add('bc-section', 'type', bc_type, MARKER_NULL,'Boundary-condition type for the named section.', boundary_type_list(),.false.)
+    call bcb_registry%add('bc-section', 'direction', direction, '', 'Patch directions using x,y,z,r,t,i,j,k.', '', .false.)
+    call bcb_registry%add('bc-section', 'patch<n>', patch_name, '', 'Named sub-patch section used by multipatch boundaries.', '', .false.)
+    call bcb_registry%add('bc-section', 'range<n>', patch_range, '0.0', 'Sub-patch limits associated with patch<n>.', '', .false.)
+    call bcb_registry%add('bc-section', 'blocks', periodic_blocks, '0', 'Periodic source and destination block indices.', '', .false.)
+    call bcb_registry%add('bc-section', 'faces', periodic_faces, '0', 'Periodic source and destination face indices.', '', .false.)
+    call bcb_registry%add('bc-section', 'block', manifold_block, '0', 'Connected block index for manifold.', '', .false.)
+    call bcb_registry%add('bc-section', 'face', manifold_face, '0', 'Connected face index for manifold.', '', .false.)
+    call bcb_registry%add('bc-section', 'file-direction', file_direction, '','Coordinate or index directions used by varying BC files.', '', .false.)
 
-    call add_composition_registry_entries(bcb_registry, 'BCB-Composition', composition_cfg)
+    call add_composition_registry_entries(bcb_registry, 'bc-section', composition_cfg)
 
-    call add_velocity_registry_entries(bcb_registry, 'BCB-IG', velocity_cfg)
-    call add_turbulence_registry_entries(bcb_registry, 'BCB-IG', turbulence_cfg)
+    call add_velocity_registry_entries(bcb_registry, 'bc-section', velocity_cfg)
+    call add_turbulence_registry_entries(bcb_registry, 'bc-section', turbulence_cfg)
     call add_ig_entries()
     call add_wall_entries()
     call add_dp_entries()
@@ -592,99 +690,94 @@ contains
     if (present(filename)) then
       fileout = filename
     else
-      fileout = 'bcb-input.md'
+      fileout = 'docs/user-guide/bcb/input-reference.md'
     endif
 
-    call bcb_registry%generate_markdown(trim(fileout), 'ATLAS BCB Input Parameters')
+    call bcb_registry%generate_markdown(trim(fileout), 'BCB Input Parameters')
 
   contains
 
     subroutine add_ig_entries()
-      call bcb_registry%add('BCB-IG', 'mach', ig_cfg%mach, '0.0','Ideal-gas Mach number.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'p0', ig_cfg%p0, '0.0', 'Ideal-gas stagnation pressure.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'T0', ig_cfg%T0, '0.0', 'Ideal-gas stagnation temperature.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'h0', ig_cfg%h0, '0.0', 'Ideal-gas stagnation enthalpy.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'T', ig_cfg%T, '0.0', 'Ideal-gas static temperature.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'g', ig_cfg%g, '0.0', 'Mass flux for inlet boundaries.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'p', ig_cfg%p, '0.0', 'Static pressure for outlet or far-field boundaries.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'p0-time-file', ig_cfg%p0_time_file, 'none', 'Time-series file for total pressure.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'p-time-file', ig_cfg%p_time_file, 'none', 'Time-series file for static pressure.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'time-file', time_file, 'none', 'Time-series file of full boundary state.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'periodic', periodic, 'F', 'Treat a time-file series as periodic.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'rf', relaxation_factor, '1.0', 'Boundary relaxation factor.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'Ae_At', nozzle_scalar, '0.0', 'Nozzle exit-to-throat area ratio.', '>=1', .false.)
-      call bcb_registry%add('BCB-IG', 'rt', nozzle_scalar, '0.0', 'Nozzle throat loading parameter.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'psub', nozzle_scalar, '0.0', 'Subsonic exit pressure used with rt.', '', .false.)
-      call bcb_registry%add('BCB-IG', 'psup', nozzle_scalar, '0.0', 'Supersonic exit pressure used with rt.', '', .false.)
+      call bcb_registry%add('bc-section', 'mach', ig_cfg%mach, '0.0','Ideal-gas Mach number.', '', .false.)
+      call bcb_registry%add('bc-section', 'p0', ig_cfg%p0, '0.0', 'Ideal-gas stagnation pressure.', '', .false.)
+      call bcb_registry%add('bc-section', 'T0', ig_cfg%T0, '0.0', 'Ideal-gas stagnation temperature.', '', .false.)
+      call bcb_registry%add('bc-section', 'h0', ig_cfg%h0, '0.0', 'Ideal-gas stagnation enthalpy.', '', .false.)
+      call bcb_registry%add('bc-section', 'T', ig_cfg%T, '0.0', 'Ideal-gas static temperature.', '', .false.)
+      call bcb_registry%add('bc-section', 'g', ig_cfg%g, '0.0', 'Mass flux for inlet boundaries.', '', .false.)
+      call bcb_registry%add('bc-section', 'p', ig_cfg%p, '0.0', 'Static pressure for outlet or far-field boundaries.', '', .false.)
+      call bcb_registry%add('bc-section', 'p0-time-file', ig_cfg%p0_time_file, 'none', 'Time-series file for total pressure.', '', .false.)
+      call bcb_registry%add('bc-section', 'p-time-file', ig_cfg%p_time_file, 'none', 'Time-series file for static pressure.', '', .false.)
+      call bcb_registry%add('bc-section', 'time-file', time_file, 'none', 'Time-series file of full boundary state.', '', .false.)
+      call bcb_registry%add('bc-section', 'periodic', periodic, 'F', 'Treat a time-file series as periodic.', '', .false.)
+      call bcb_registry%add('bc-section', 'rf', relaxation_factor, '1.0', 'Boundary relaxation factor.', '', .false.)
+      call bcb_registry%add('bc-section', 'Ae_At', nozzle_scalar, '0.0', 'Nozzle exit-to-throat area ratio.', '>=1', .false.)
+      call bcb_registry%add('bc-section', 'rt', nozzle_scalar, '0.0', 'Nozzle throat loading parameter.', '', .false.)
+      call bcb_registry%add('bc-section', 'psub', nozzle_scalar, '0.0', 'Subsonic exit pressure used with rt.', '', .false.)
+      call bcb_registry%add('bc-section', 'psup', nozzle_scalar, '0.0', 'Supersonic exit pressure used with rt.', '', .false.)
     end subroutine add_ig_entries
 
     subroutine add_wall_entries()
-      call bcb_registry%add('BCB-Wall-Fluid', 'q', wall_fluid_cfg%q, '0.0', 'Prescribed wall heat flux.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Fluid', 'T', wall_fluid_cfg%T, '0.0', 'Prescribed wall temperature.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Fluid', 'ks', wall_fluid_cfg%ks, '0.0', 'Wall roughness height.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Fluid', 'qrad', wall_fluid_cfg%qrad, '0.0', 'Radiative heat flux.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Fluid', 'eps', wall_fluid_cfg%eps, '0.0', 'Wall emissivity.', '', .false.)
+      call bcb_registry%add('bc-section', 'q', wall_fluid_cfg%q, '0.0', 'Prescribed wall heat flux.', '', .false.)
+      call bcb_registry%add('bc-section', 'T', wall_fluid_cfg%T, '0.0', 'Prescribed wall temperature.', '', .false.)
+      call bcb_registry%add('bc-section', 'ks', wall_fluid_cfg%ks, '0.0', 'Wall roughness height.', '', .false.)
+      call bcb_registry%add('bc-section', 'qrad', wall_fluid_cfg%qrad, '0.0', 'Radiative heat flux.', '', .false.)
+      call bcb_registry%add('bc-section', 'eps', wall_fluid_cfg%eps, '0.0', 'Wall emissivity.', '', .false.)
 
-      call bcb_registry%add('BCB-Wall-Solid', 'q', wall_solid_cfg%q, '0.0', 'Prescribed wall heat flux.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'T', wall_solid_cfg%T, '0.0', 'Prescribed wall temperature.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'qrad', wall_solid_cfg%qrad, '0.0', 'Radiative heat flux.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'hconv', wall_solid_cfg%hconv, '0.0', 'Convective heat-transfer coefficient.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'Tref', wall_solid_cfg%Tref, '0.0', 'Reference temperature for convection.', '', .false.)
-      call bcb_registry%add('BCB-Wall-Solid', 'eps', wall_solid_cfg%eps, '0.0', 'Wall emissivity.', '', .false.)
+      call bcb_registry%add('bc-section', 'q', wall_solid_cfg%q, '0.0', 'Prescribed wall heat flux.', '', .false.)
+      call bcb_registry%add('bc-section', 'T', wall_solid_cfg%T, '0.0', 'Prescribed wall temperature.', '', .false.)
+      call bcb_registry%add('bc-section', 'q-time-file', wall_solid_cfg%q_timefile, 'none', 'Time-series file for wall heat flux.','', .false.)
+      call bcb_registry%add('bc-section', 'T-time-file', wall_solid_cfg%T_timefile, 'none', 'Time-series file for wall temperature.', '', .false.)
+      call bcb_registry%add('bc-section', 'qrad', wall_solid_cfg%qrad, '0.0', 'Radiative heat flux.', '', .false.)
+      call bcb_registry%add('bc-section', 'hconv', wall_solid_cfg%hconv, '0.0', 'Convective heat-transfer coefficient.', '', .false.)
+      call bcb_registry%add('bc-section', 'Tref', wall_solid_cfg%Tref, '0.0', 'Reference temperature for convection.', '', .false.)
+      call bcb_registry%add('bc-section', 'eps', wall_solid_cfg%eps, '0.0', 'Wall emissivity.', '', .false.)
     end subroutine add_wall_entries
 
     subroutine add_dp_entries()
-      call bcb_registry%add('BCB-DP', 'krho', dp_scalar, '0.0', 'Density ratios for dispersed populations.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'kV', dp_scalar, '1.0', 'Velocity scaling factors for dispersed populations.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'kT', dp_scalar, '1.0', 'Temperature scaling factors for dispersed populations.','', .false.)
-      call bcb_registry%add('BCB-DP', 'gp', dp_scalar, '0.0', 'Mass flux per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'up', dp_scalar, '0.0', 'x-velocity component per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'vp', dp_scalar, '0.0', 'y-velocity component per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'wp', dp_scalar, '0.0', 'z-velocity component per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'Vp', dp_scalar, '0.0', 'Velocity magnitude per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'Tp', dp_scalar, '0.0', 'Temperature per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'rp', dp_scalar, '0.0', 'Particle radii per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'dp', dp_scalar, '0.0', 'Particle diameters per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'sigmap', dp_scalar, '0.0', 'Particle dispersion widths.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'alphap', dp_scalar, '0.0', 'Primary injection angle per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'betap', dp_scalar, '0.0', 'Secondary injection angle per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'rRes', dp_scalar, '0.0', 'Residual radius per dispersed population.', '', .false.)
-      call bcb_registry%add('BCB-DP', 'Tsat', dp_scalar, '0.0', 'Saturation temperature per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'krho', dp_scalar, '0.0', 'Density ratios for dispersed populations.', '', .false.)
+      call bcb_registry%add('bc-section', 'kV', dp_scalar, '1.0', 'Velocity scaling factors for dispersed populations.', '', .false.)
+      call bcb_registry%add('bc-section', 'kT', dp_scalar, '1.0', 'Temperature scaling factors for dispersed populations.','', .false.)
+      call bcb_registry%add('bc-section', 'gp', dp_scalar, '0.0', 'Mass flux per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'up', dp_scalar, '0.0', 'x-velocity component per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'vp', dp_scalar, '0.0', 'y-velocity component per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'wp', dp_scalar, '0.0', 'z-velocity component per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'Vp', dp_scalar, '0.0', 'Velocity magnitude per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'Tp', dp_scalar, '0.0', 'Temperature per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'rp', dp_scalar, '0.0', 'Particle radii per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'dp', dp_scalar, '0.0', 'Particle diameters per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'sigmap', dp_scalar, '0.0', 'Particle dispersion widths.', '', .false.)
+      call bcb_registry%add('bc-section', 'alphap', dp_scalar, '0.0', 'Primary injection angle per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'betap', dp_scalar, '0.0', 'Secondary injection angle per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'rRes', dp_scalar, '0.0', 'Residual radius per dispersed population.', '', .false.)
+      call bcb_registry%add('bc-section', 'Tsat', dp_scalar, '0.0', 'Saturation temperature per dispersed population.', '', .false.)
     end subroutine add_dp_entries
 
     subroutine add_srm_entries()
-      call add_turbulence_registry_entries(bcb_registry, 'BCB-SRM', srm_cfg%turbulence)
-      call bcb_registry%add('BCB-SRM', 'a', srm_cfg%a, '0.0', 'Burn-rate pre-exponential coefficient.', '', .false.)
-      call bcb_registry%add('BCB-SRM', 'n', srm_cfg%n, '0.0', 'Burn-rate pressure exponent.', '', .false.)
-      call bcb_registry%add('BCB-SRM', 'pRef', srm_cfg%pRef, '1.0', 'Reference pressure for the burn law.', '', .false.)
-      call bcb_registry%add('BCB-SRM', 'rhoGrain', srm_cfg%rhoGrain, '0.0', 'Solid propellant density.', '', .false.)
-      call bcb_registry%add('BCB-SRM', 'SF', srm_cfg%SF, '1.0',  'Scale factor for the grain propellant.', '', .false.)
+      call add_turbulence_registry_entries(bcb_registry, 'bc-section', srm_cfg%turbulence)
+      call bcb_registry%add('bc-section', 'a', srm_cfg%a, '0.0', 'Burn-rate pre-exponential coefficient.', '', .false.)
+      call bcb_registry%add('bc-section', 'n', srm_cfg%n, '0.0', 'Burn-rate pressure exponent.', '', .false.)
+      call bcb_registry%add('bc-section', 'pRef', srm_cfg%pRef, '1.0', 'Reference pressure for the burn law.', '', .false.)
+      call bcb_registry%add('bc-section', 'rhoGrain', srm_cfg%rhoGrain, '0.0', 'Solid propellant density.', '', .false.)
+      call bcb_registry%add('bc-section', 'SF', srm_cfg%SF, '1.0',  'Scale factor for the grain propellant.', '', .false.)
     end subroutine add_srm_entries
 
     subroutine add_variable_file_entries()
       integer :: i
 
       do i = 1, n_variable_file_keys
-        call bcb_registry%add('BCB-Variable-BC', trim(variable_file_keys(i))//'-file', &
+        call bcb_registry%add('bc-section', trim(variable_file_keys(i))//'-file', &
                               patch_name, '', 'ASCII file providing varying values for '// &
                               trim(variable_file_keys(i))//'.', '', .false.)
       enddo
     end subroutine add_variable_file_entries
 
-    function face_index(ff) result(index_string)
-      integer, intent(in) :: ff
-      character(len=4)    :: index_string
-
-      write(index_string, '(I4)') ff
-    end function face_index
-
     function boundary_type_list() result(allowed)
       character(len=160) :: allowed
 
-      allowed = trim(MARKER_NULL)//','//trim(MARKER_AXIS)//','//trim(MARKER_EXTRA)//','// &
-                trim(MARKER_CONN)//','//trim(MARKER_Chim)//','//trim(MARKER_SYM)//','// &
-                trim(MARKER_PER)//','//trim(MARKER_WALL)//','//trim(MARKER_INLET)//','// &
-                trim(MARKER_OUTLET)//','//trim(MARKER_MANIFOLD)//','//trim(MARKER_SRM)
+      allowed = trim(MARKER_NULL)//'<br>'//trim(MARKER_AXIS)//'<br>'//trim(MARKER_EXTRA)//'<br>'// &
+                trim(MARKER_CONN)//'<br>'//trim(MARKER_Chim)//'<br>'//trim(MARKER_SYM)//'<br>'// &
+                trim(MARKER_PER)//'<br>'//trim(MARKER_WALL)//'<br>'//trim(MARKER_INLET)//'<br>'// &
+                trim(MARKER_OUTLET)//'<br>'//trim(MARKER_MANIFOLD)//'<br>'//trim(MARKER_SRM)
     end function boundary_type_list
 
   end subroutine write_bcb_registry_markdown
