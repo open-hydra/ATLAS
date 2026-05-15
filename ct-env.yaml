@@ -4,6 +4,7 @@ channels:
 - conda-forge
 dependencies:
 - python  # Cantera supports Python 3.8 and up
+- numpy <2
 - cantera
 - coolprop
 - ipython  # optional (needed for nicer interactive command line)
@@ -12,10 +13,9 @@ dependencies:
 - python-graphviz  # optional (needed for reaction path diagrams)
 - pandas  # optional (needed for pandas interface)
 - pint  # optional (needed for units)
-- meson # needed for NewCEA
-- ninja # needed for NewCEA
+- ninja # used by cea Python builds
 - pip
 - pip:
     - -e lib/PiNeR
-    - -e lib/NewCEA
+    - -e lib/cea
     - -e lib/ORION

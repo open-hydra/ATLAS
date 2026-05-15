@@ -20,7 +20,7 @@ list(PREPEND ICB_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/ICB/config.f90"
 )
 add_executable(ICB ${ICB_SOURCES} ${COMMON_SOURCES})
-target_link_libraries(ICB PRIVATE FiNeR::FiNeR NewCEA ORION)
+target_link_libraries(ICB PRIVATE FiNeR::FiNeR ${ATLAS_CEA_TARGET} ORION)
 target_include_directories(ICB PRIVATE
     $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
 )
@@ -38,7 +38,7 @@ list(PREPEND BCB_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/BCB/types_bc.f90"
 )
 add_executable(BCB ${BCB_SOURCES} ${COMMON_SOURCES})
-target_link_libraries(BCB PRIVATE FiNeR::FiNeR NewCEA ORION)
+target_link_libraries(BCB PRIVATE FiNeR::FiNeR ${ATLAS_CEA_TARGET} ORION)
 target_include_directories(BCB PRIVATE
     $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
 )
@@ -46,7 +46,7 @@ target_include_directories(BCB PRIVATE
 # STB executable: STB/ + common
 file(GLOB STB_SOURCES "STB/*.f90")
 add_executable(STB ${STB_SOURCES} ${COMMON_SOURCES})
-target_link_libraries(STB PRIVATE FiNeR::FiNeR NewCEA ORION)
+target_link_libraries(STB PRIVATE FiNeR::FiNeR ${ATLAS_CEA_TARGET} ORION)
 target_include_directories(STB PRIVATE
     $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
 )
