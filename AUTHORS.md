@@ -1,19 +1,17 @@
 # Authors
 
-## Core Maintainers
+## Original Authors
 
-- Marco Grossi — Project Lead
+- Marco Grossi
+- Vincenzo Barbato
+- Alessandro Montanari
+- Giacomo Passarani
+- Marco Fabiani
+- Gianluca Cocirla
+- Alex Falco
+- Alessio Sereno
 
 ## Contributors
 
-- Alessandro Montanari
-- Alessio Sereno
-- AlexFalco5
-- Giacomo Passarani
-- GianlucaCocirla
-- Vincenzo Barbato
-- marcofabianipc3
+Automatically sourced from git history.
 
-## Alumni
-
-- Chris Taylor

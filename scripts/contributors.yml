@@ -1,9 +1,12 @@
-maintainers:
+original_authors:
   - name: Marco Grossi
-    role: Project Lead
-
-alumni:
-  - Chris Taylor
+  - name: Vincenzo Barbato
+  - name: Alessandro Montanari
+  - name: Giacomo Passarani
+  - name: Marco Fabiani
+  - name: Gianluca Cocirla
+  - name: Alex Falco
+  - name: Alessio Sereno
 
 exclude:
   - dependabot[bot]
