@@ -1,17 +1,18 @@
- problem case=Prop rocket eq
-
-
-     p(bar)= 5.00
-
-
- reac
-      name= A   wt%=67.000              H  4.0000  O  4.0000  N  1.0000  CL 1.0000  h,cal= -70690.0
-      name= B   wt%=20.000                                               AL 1.0000  h,cal=      0.0
-      name= C   wt%=13.000   C  7.2913  H 11.0192  O  0.0823                        h,cal=    500.0
-
-#A = Ammonium Perchlorate
-#B = Aluminum
-#C = HTPB RV4
-
- output si massf trans
+ problem   case=MM3SS
+ rocket  equilibrium  nfz=1  tcest,k=3800
+ p,bar=30.543
+ sup,ae/at=   24.7999992
+ react
+ fuel=AL(cr) wt=15  t,k=298.15
+ oxid=NH4CLO4(I) wt=73  t,k=298.15
+ fuel=CTPB  wt=12  t,k=298.15
+ h,j/mol=-4250000  C 579.00 H 984.00 O 22.00 N 5.00
+ only
+ AL             ALCL            ALCL2           ALCL3           ALO
+ ALOCL  ALOH            CO              CO2     O2
+ CL             CL2             H               HCL             H2
+ H2O            NO              N2              O               OH
+ AL2O3(L)
+ output
+ siunits massf transport
  end

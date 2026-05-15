@@ -31,7 +31,7 @@ jobs:
         run: |
           chmod +x ./install.sh
           # Use GNU compilers, do not create Conda env in CI
-          ./install.sh build --compilers=gnu --no-conda
+          ./install.sh build --compilers=gnu
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure --timeout 300
