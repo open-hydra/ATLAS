@@ -2,15 +2,6 @@
 
 cmake_minimum_required(VERSION 3.23)
 
-# Force the compiler depending on the host name
-# cmake_host_system_information(RESULT host QUERY HOSTNAME)
-# message("-- Host name detected: " ${host})
-# if(${host} STREQUAL frontend)
-#   set(CMAKE_Fortran_COMPILER "ifort")
-# else()
-#   set(CMAKE_Fortran_COMPILER "gfortran")
-# endif()
-
 project (ATLAS LANGUAGES Fortran CXX)
 
 set(CMAKE_VERBOSE_MAKEFILE FALSE)
@@ -76,7 +67,10 @@ set(ATLAS_CEA_SOURCE_DIR "")
 
 macro(ensure_cea_data_link)
   if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/data")
-    file(CREATE_LINK "${ATLAS_CEA_SOURCE_DIR}/data" "${CEA_PATH}/data" SYMBOLIC)
+    message(STATUS "CEA data directory not found in ATLAS source; attempting to link from CEA source")
+    message(STATUS "CEA source directory: ${ATLAS_CEA_SOURCE_DIR}")
+    message(STATUS "CEA data directory: ${CEA_PATH}/data")
+    file(CREATE_LINK "${ATLAS_CEA_SOURCE_DIR}/data" "${CMAKE_CURRENT_SOURCE_DIR}/data" SYMBOLIC)
     message(STATUS "Linked ATLAS data -> CEA data for compatibility")
   endif()
 endmacro()
