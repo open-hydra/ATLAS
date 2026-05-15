@@ -4,9 +4,9 @@
 [submodule "lib/ORION"]
 	path = lib/ORION
 	url = https://github.com/MarcoGrossi92/ORION.git
-[submodule "lib/NewCEA"]
-	path = lib/NewCEA
-	url = https://github.com/MarcoGrossi92/NewCEA.git
 [submodule "lib/PiNeR"]
 	path = lib/PiNeR
 	url = https://github.com/MarcoGrossi92/PiNeR.git
+[submodule "lib/cea"]
+	path = lib/cea
+	url = https://github.com/nasa/cea.git
