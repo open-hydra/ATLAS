@@ -3,8 +3,8 @@ from . import chemistry as IG_chemistry
 from . import transport as IG_transport
 from . import thermo as IG_thermo
 from . import io as IG_IO
+from .cea_compat import CEA
 from ini import *
-from NewCEA import CEA
 import os, sys, re
 from config import setup_cantera_dirs, CEA_TRANS_FILE
 
