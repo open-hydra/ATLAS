@@ -4,7 +4,11 @@
 module area_variation_mod
   use, intrinsic :: iso_fortran_env, only: R8 => real64
   use finer,      only: file_ini
+  use io_ascii_table_mod, only: read_ascii_table
+  use math_utils_mod, only: interp_1d
+  use direction_mod, only: parse_direction
   use grid_mod,   only: block_type
+  use config_stb_mod, only: config_area_variation_t, load_area_variation_config
   use global_mod
   implicit none
   private
@@ -14,11 +18,6 @@ module area_variation_mod
   real(R8), parameter :: TWOPI = 2.0_R8 * PI
 
   character(len=18), parameter :: outpath = 'fromATLAStoSolver/'
-
-  integer, parameter :: NDIR = 4
-  character(len=20), parameter :: DIR_KEYS(NDIR) = &
-    [character(len=20) :: 'x-areavariation','y-areavariation', &
-                          'r-areavariation','theta-areavariation']
 
 contains
 
@@ -36,7 +35,7 @@ contains
 
     do b = 1, size(blocks)
       write(bstr, '(I0)') b
-      section_name = 'BCB-Block'//trim(bstr)
+      section_name = 'STB-Block'//trim(bstr)
       call area_variation_for_block(blocks(b), sini, section_name, b)
     end do
   end subroutine build_area_variation
@@ -50,33 +49,37 @@ contains
     character(len=*),  intent(in) :: section_name
     integer,           intent(in) :: block_id
 
-    character(len=llen) :: area_file, outfile
-    integer :: ierr, idir, ni, nj
+    character(len=llen) :: outfile
+    integer :: ierr, ni, nj
 
     real(R8), allocatable :: xin(:), ain(:), aout(:,:), coord(:,:)
+    type(config_area_variation_t) :: cfg
 
-    ! Try each direction key; take the first one found
-    do idir = 1, NDIR
-      call sini%get(section_name=section_name, option_name=trim(DIR_KEYS(idir)), val=area_file, error=ierr)
-      if (ierr == 0 .and. len_trim(area_file) > 0) exit
-    end do
-    if (ierr /= 0 .or. len_trim(area_file) == 0) return
+    call load_area_variation_config(section_name, sini, cfg)
+    if (.not. cfg%has_profile) return
+
+    ! Read (coord, A) pairs from shared ASCII utility
+    call read_ascii_table(cfg%file, xin, ain, ierr)
+    if (ierr /= 0) then
+      write(*,*) '[ERROR] Cannot read area variation file: ', trim(cfg%file)
+      stop
+    endif
 
     ni = block%dim(1); nj = block%dim(2)
 
-    ! 1) read (coord, A) pairs from ASCII
-    call read_area_profile(area_file, xin, ain)
-    if (idir == NDIR) xin(:) = xin(:) * PI / 180.0_R8   ! theta: deg -> rad
+    ! theta profiles are provided in degrees; internal coordinates use radians
+    if (trim(cfg%direction) == 't') xin(:) = xin(:) * PI / 180.0_R8
     call sort_pair_by_x(xin, ain)
 
-    ! 2) build coordinate array for the chosen direction
-    coord = get_direction_coord(block%node(0:ni,0:nj,0)%c(1), block%node(0:ni,0:nj,0)%c(2), DIR_KEYS(idir))
+    ! Build coordinate array for selected direction
+    coord = get_direction_coord(block%node(0:ni,0:nj,0)%c(1), &
+                                block%node(0:ni,0:nj,0)%c(2), cfg%direction)
 
-    ! 3) interpolate with clamped extrapolation at ends
+    ! Interpolate with clamped extrapolation at ends
     allocate(aout(0:ni,0:nj))
-    call interp1_linear(xin, ain, coord, aout)
+    call interpolate_area(xin, ain, coord, aout)
 
-    ! 4) write output
+    ! Write output
     write(outfile, '(A,"/block",I0,"_area.dat")') trim(outpath), block_id
     call write_area(outfile, aout)
 
@@ -91,62 +94,27 @@ contains
     real(R8), intent(in) :: xn(:,:), yn(:,:)
     character(len=*), intent(in) :: dir_key
     real(R8) :: coord(size(xn,1), size(xn,2))
+    integer, allocatable :: dir(:)
+    integer :: ndir
+    logical :: index_based
 
-    select case(trim(adjustl(dir_key)))
-    case('x-areavariation');     coord = xn
-    case('y-areavariation');     coord = yn
-    case('r-areavariation');     coord = sqrt(xn**2 + yn**2)
-    case('theta-areavariation'); coord = modulo(atan2(yn, xn), TWOPI)
+    call parse_direction(dir_key, dir, ndir, index_based)
+
+    if (size(dir) < 1) then
+      error stop '[area_variation] invalid direction key'
+    endif
+
+    select case(dir(1))
+    case(1); coord = xn
+    case(2); coord = yn
+    case(4); coord = sqrt(xn**2 + yn**2)
+    case(5); coord = modulo(atan2(yn, xn), TWOPI)
     case default
       error stop '[area_variation] invalid direction key'
     end select
+
+    if (allocated(dir)) deallocate(dir)
   end function get_direction_coord
-
-
-  !----------------------------------------
-  ! Read (coordinate, area) pairs from ASCII file (skip # and ! comments)
-  subroutine read_area_profile(filename, x, a)
-    character(len=*), intent(in) :: filename
-    real(R8), allocatable, intent(out) :: x(:), a(:)
-
-    integer :: u, ios, n
-    character(len=10*llen) :: line
-    real(R8) :: tx, ta
-
-    ! First pass: count valid rows
-    n = 0
-    open(newunit=u, file=trim(filename), status='old', action='read', iostat=ios)
-    if (ios /= 0) stop "[ERROR] Cannot open area file: "//trim(filename)
-    do
-      read(u, '(A)', iostat=ios) line
-      if (ios /= 0) exit
-      if (len_trim(line) == 0) cycle
-      if (line(1:1) == '#' .or. line(1:1) == '!') cycle
-      read(line, *, iostat=ios) tx, ta
-      if (ios == 0) n = n + 1
-    end do
-    close(u)
-
-    if (n <= 0) stop "[ERROR] Area file empty or invalid: "//trim(filename)
-
-    ! Second pass: read data
-    allocate(x(n), a(n))
-    open(newunit=u, file=trim(filename), status='old', action='read', iostat=ios)
-    if (ios /= 0) stop "[ERROR] Cannot re-open area file: "//trim(filename)
-    n = 0
-    do
-      read(u, '(A)', iostat=ios) line
-      if (ios /= 0) exit
-      if (len_trim(line) == 0) cycle
-      if (line(1:1) == '#' .or. line(1:1) == '!') cycle
-      read(line, *, iostat=ios) tx, ta
-      if (ios /= 0) cycle
-      n = n + 1
-      x(n) = tx
-      a(n) = ta
-    end do
-    close(u)
-  end subroutine read_area_profile
 
 
   !----------------------------------------
@@ -168,43 +136,32 @@ contains
 
 
   !----------------------------------------
-  ! Linear interpolation with end-clamping (xin must be sorted)
-  subroutine interp1_linear(xin, yin, xout, yout)
-    real(R8), intent(in)  :: xin(:), yin(:), xout(:,:)
-    real(R8), intent(out) :: yout(:,:)
-    integer :: i, j, k, n
-    real(R8) :: t
+  ! 1-D interpolation using shared utility with end-clamping
+  subroutine interpolate_area(xin, ain, coord, aout)
+    real(R8), intent(in)  :: xin(:), ain(:), coord(:,:)
+    real(R8), intent(out) :: aout(:,:)
+    integer :: i, j
+    real(R8) :: interp_val
+    logical :: found
 
-    n = size(xin)
-    if (n < 2) then
-      if (n == 1) then
-        yout = yin(1)
-      else
-        yout = 0.0_R8
-      end if
+    if (size(xin) == 0) then
+      aout = 0.0_R8
       return
-    end if
+    endif
 
-    !$omp parallel do collapse(2) private(i,k,j,t)
-    do k = 1, size(xout, dim=2)
-      do i = 1, size(xout, dim=1)
-        if (xout(i,k) <= xin(1)) then
-          yout(i,k) = yin(1)
-        else if (xout(i,k) >= xin(n)) then
-          yout(i,k) = yin(n)
+    do j = 1, size(coord, dim=2)
+      do i = 1, size(coord, dim=1)
+        found = interp_1d(coord(i,j), xin, ain, size(xin), interp_val)
+        if (found) then
+          aout(i,j) = interp_val
+        else if (coord(i,j) <= xin(1)) then
+          aout(i,j) = ain(1)
         else
-          j = maxloc(xin, dim=1, mask=(xin <= xout(i,k)))
-          if (xin(j+1) == xin(j)) then
-            yout(i,k) = yin(j)
-          else
-            t = (xout(i,k) - xin(j)) / (xin(j+1) - xin(j))
-            yout(i,k) = (1.0_R8 - t)*yin(j) + t*yin(j+1)
-          end if
-        end if
-      end do
-    end do
-    !$omp end parallel do
-  end subroutine interp1_linear
+          aout(i,j) = ain(size(ain))
+        endif
+      enddo
+    enddo
+  end subroutine interpolate_area
 
 
   !----------------------------------------
