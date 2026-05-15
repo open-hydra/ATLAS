@@ -31,7 +31,6 @@ contains
     integer                       :: imin, imax, jmin, jmax, kmin, kmax
     real(R8)                      :: here(3)
     ! Support fields
-    real(R8)                      :: qvol(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
     real(R8)                      :: T   (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
     real(R8)                      :: mID_field(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
     ! Full interpolation specific parameters
@@ -44,10 +43,8 @@ contains
 
     if (.not.allocated(blk%sp%temperature)) allocate(blk%sp%temperature(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
     if (.not.allocated(blk%sp%mID)) allocate(blk%sp%mID(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
-    if (.not.allocated(blk%sp%qvol)) allocate(blk%sp%qvol(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
 
     T = 0.0_R8
-    qvol = 0.0_R8
     mID_field = 1.0_R8
 
     !! Determine material ID (scalar → broadcast to support array)
@@ -76,11 +73,6 @@ contains
       call apply_interp_map(map, T, src_field)
       call unwrap_src(src_field)
 
-      ! qvol
-      call wrap_src(oldblock, src_field, 'qvol')
-      call apply_interp_map(map, qvol, src_field)
-      call unwrap_src(src_field)
-
       ! mID (nearest-neighbor only: use stencil point 1)
       !$omp parallel do collapse(3) schedule(static) &
       !$omp& private(i,j,k,sb,si,sj,sk)
@@ -103,7 +95,6 @@ contains
     case default
 
       call load_zone_field(T, sp_cfg%T)
-      call load_zone_field(qvol, sp_cfg%qvol)
 
     end select
 
@@ -121,7 +112,6 @@ contains
               here(3)>=range(5) .and. here(3)<=range(6)) then
             blk%sp%temperature(i,j,k) = T(i,j,k)
             blk%sp%mID(i,j,k) = mID_field(i,j,k)
-            blk%sp%qvol(i,j,k) = qvol(i,j,k)
           endif
       enddo; enddo; enddo
       !$omp end parallel
@@ -144,7 +134,6 @@ contains
             k>=kmin .and. k<=kmax) then
           blk%sp%temperature(i,j,k) = T(i,j,k)
           blk%sp%mID(i,j,k) = mID_field(i,j,k)
-          blk%sp%qvol(i,j,k) = qvol(i,j,k)
         endif
       enddo; enddo; enddo
       !$omp end parallel
@@ -162,7 +151,6 @@ contains
         allocate(sf(b)%var(blocks(b)%dim(1), blocks(b)%dim(2), blocks(b)%dim(3)))
         select case (field_name)
         case ('temperature'); sf(b)%var = blocks(b)%sp%temperature
-        case ('qvol');        sf(b)%var = blocks(b)%sp%qvol
         end select
       enddo
     end subroutine wrap_src

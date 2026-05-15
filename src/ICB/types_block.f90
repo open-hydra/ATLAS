@@ -35,7 +35,6 @@ module ic_block_mod
 
   type, public :: IC_block_sp
     real(8), dimension(:,:,:), allocatable     :: mID
-    real(8), dimension(:,:,:), allocatable     :: qvol
     real(8), dimension(:,:,:), allocatable     :: temperature
   end type IC_block_sp
 
@@ -73,7 +72,6 @@ contains
     allocate(self%ig%kl(1:ii,1:jj,1:kk))
     allocate(self%ig%temperature(1:ii,1:jj,1:kk))
     allocate(self%sp%mID(1:ii,1:jj,1:kk))
-    allocate(self%sp%qvol(1:ii,1:jj,1:kk))
     allocate(self%rf%temperature(1:ii,1:jj,1:kk))
   end subroutine allocate
 

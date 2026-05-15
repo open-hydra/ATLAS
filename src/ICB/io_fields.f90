@@ -103,7 +103,6 @@ contains
         if (size(IOfield%block(b)%vars)>0) then
           blk(b)%ig%temperature(1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(1,:,:,:)
           blk(b)%sp%mID(1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(2,:,:,:)
-          blk(b)%sp%qvol(1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(3,:,:,:)
         endif
       end do
 
@@ -254,7 +253,7 @@ contains
             enddo
           enddo
         case('SP')
-          varnames = trim(varnames)//"T matID qvol"
+          varnames = trim(varnames)//"T matID"
         case('RF')
           if (mesh_cfg%meshType == -2) then
             varnames = trim(varnames)//' "p" "u" "v" "h"'
@@ -351,7 +350,6 @@ contains
           allocate(orion%block(cnt)%vars(3,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
           orion%block(cnt)%vars(1,:,:,:) = blk(b)%sp%temperature
           orion%block(cnt)%vars(2,:,:,:) = blk(b)%sp%mID
-          orion%block(cnt)%vars(3,:,:,:) = blk(b)%sp%qvol
 
         case('RF')
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-RF'

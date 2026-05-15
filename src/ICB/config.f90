@@ -65,7 +65,6 @@ module config_mod
 
   type, public :: config_sp_t
     type(config_field_source_t) :: T
-    type(config_field_source_t) :: qvol
     type(config_interpolation_t):: interpolation
     character(len=16)           :: material = ''
   end type config_sp_t
@@ -131,13 +130,11 @@ contains
     call load_interpolation_config(zoneini, cfg%interpolation)
 
     cfg%nozzle_direction = 'dx'
-    call zoneini%get(section_name='zone', option_name='nozzle-direction', &
-                     val=cfg%nozzle_direction, error=error)
+    call zoneini%get(section_name='zone', option_name='nozzle-direction', val=cfg%nozzle_direction, error=error)
     if (error /= 0) cfg%nozzle_direction = 'dx'
 
     cfg%nozzle_threshold = huge(1.0_R8)
-    call zoneini%get(section_name='zone', option_name='nozzle-threshold', &
-                     val=cfg%nozzle_threshold, error=error)
+    call zoneini%get(section_name='zone', option_name='nozzle-threshold', val=cfg%nozzle_threshold, error=error)
     if (error /= 0) cfg%nozzle_threshold = huge(1.0_R8)
   end subroutine load_ig_config
 
@@ -162,12 +159,10 @@ contains
     integer :: error
 
     call load_field_source(zoneini, 'T', cfg%T)
-    call load_field_source(zoneini, 'qvol', cfg%qvol)
     call load_interpolation_config(zoneini, cfg%interpolation)
 
     cfg%material = ''
-    call zoneini%get(section_name='zone', option_name='material', val=cfg%material, &
-                     error=error)
+    call zoneini%get(section_name='zone', option_name='material', val=cfg%material, error=error)
   end subroutine load_sp_config
 
   subroutine load_dp_config(zoneini, nnn, cfg)
@@ -230,22 +225,19 @@ contains
     cfg%file = ''
     cfg%direction = ''
 
-    call zoneini%get(section_name='zone', option_name=trim(base_name), val=cfg%value, &
-                     error=error)
+    call zoneini%get(section_name='zone', option_name=trim(base_name), val=cfg%value, error=error)
     if (error == 0) then
       cfg%has_value = .true.
       return
     endif
 
     file_option = trim(base_name) // '-file'
-    call zoneini%get(section_name='zone', option_name=trim(file_option), val=cfg%file, &
-                     error=error)
+    call zoneini%get(section_name='zone', option_name=trim(file_option), val=cfg%file, error=error)
     if (error /= 0) return
 
     cfg%has_file = .true.
     dir_option = trim(base_name) // '-direction'
-    call zoneini%get(section_name='zone', option_name=trim(dir_option), val=cfg%direction, &
-                     error=error)
+    call zoneini%get(section_name='zone', option_name=trim(dir_option), val=cfg%direction, error=error)
     cfg%has_direction = error == 0
   end subroutine load_field_source
 
@@ -267,21 +259,17 @@ contains
     cfg%old_solution = ''
     cfg%old_species = ''
 
-    call zoneini%get(section_name='zone', option_name='old-species', val=cfg%old_species, &
-                     error=error)
+    call zoneini%get(section_name='zone', option_name='old-species', val=cfg%old_species, error=error)
     if (error /= 0) cfg%old_species = ''
 
-    call zoneini%get(section_name='zone', option_name='old-solution', &
-                     val=cfg%old_solution, error=error)
+    call zoneini%get(section_name='zone', option_name='old-solution', val=cfg%old_solution, error=error)
     cfg%enabled = error == 0
     if (.not. cfg%enabled) cfg%old_solution = ''
 
-    call zoneini%get(section_name='zone', option_name='old-block-id', &
-                     val=cfg%old_block_id, error=error)
+    call zoneini%get(section_name='zone', option_name='old-block-id', val=cfg%old_block_id, error=error)
     if (error /= 0) cfg%old_block_id = 0
 
-    call zoneini%get(section_name='zone', option_name='interpolation-law', val=cfg%law, &
-                     error=error)
+    call zoneini%get(section_name='zone', option_name='interpolation-law', val=cfg%law, error=error)
     if (error /= 0) cfg%law = 'outlaw'
 
     if (cfg%law == 'extrude') then
@@ -347,11 +335,8 @@ contains
     call add_velocity_registry_entries(icb_registry, 'ICB-IG', ig_cfg%velocity)
     call add_turbulence_registry_entries(icb_registry, 'ICB-IG', ig_cfg%turbulence)
     call add_interpolation_entries('ICB-IG', ig_cfg%interpolation, .true.)
-    call icb_registry%add('ICB-IG', 'nozzle-direction', ig_cfg%nozzle_direction, 'dx', &
-                          'Nozzle marching direction.', 'dx,sx', .false.)
-    call icb_registry%add('ICB-IG', 'nozzle-threshold', ig_cfg%nozzle_threshold, &
-                          '0.0', 'Coordinate threshold separating plenum and nozzle.', &
-                          '', .false.)
+    call icb_registry%add('ICB-IG', 'nozzle-direction', ig_cfg%nozzle_direction, 'dx', 'Nozzle marching direction.', 'dx,sx', .false.)
+    call icb_registry%add('ICB-IG', 'nozzle-threshold', ig_cfg%nozzle_threshold, '0.0', 'Coordinate threshold separating plenum and nozzle.', '', .false.)
 
     call add_field_source_entries('ICB-RF', 'p', rf_cfg%p, 'Real-fluid pressure.')
     call add_field_source_entries('ICB-RF', 'T', rf_cfg%T, 'Real-fluid temperature.')
@@ -362,25 +347,15 @@ contains
     call add_interpolation_entries('ICB-RF', rf_cfg%interpolation, .false.)
 
     call add_field_source_entries('ICB-SP', 'T', sp_cfg%T, 'Solid temperature.')
-    call add_field_source_entries('ICB-SP', 'qvol', sp_cfg%qvol, 'Volumetric heat source.')
-    call icb_registry%add('ICB-SP', 'material', sp_cfg%material, '', &
-                          'Solid material name from the phase database.', '', .false.)
+    call icb_registry%add('ICB-SP', 'material', sp_cfg%material, '', 'Solid material name from the phase database.', '', .false.)
     call add_interpolation_entries('ICB-SP', sp_cfg%interpolation, .false.)
 
-    call icb_registry%add('ICB-DP', 'krho', dp_krho, '0.0', &
-                          'Per-population density ratios relative to IG density.', '', .false.)
-    call icb_registry%add('ICB-DP', 'kT', dp_kT, '1.0', &
-                          'Per-population temperature ratios.', '', .false.)
-    call icb_registry%add('ICB-DP', 'Pp', dp_Pp, '0.0', &
-                          'Per-population pseudo-pressure values.', '', .false.)
-    call icb_registry%add('ICB-DP', 'dp', dp_rp, '0.0', &
-                          'Per-population particle diameters.', '', .false.)
-    call icb_registry%add('ICB-DP', 'rp', dp_rp, '0.0', &
-                          'Per-population particle radii. Use as an alternative to dp.', &
-                          '', .false.)
-    call icb_registry%add('ICB-DP', 'neuler', dp_neuler, '0', &
-                          'Eulerian model selector for dispersed phase support fields.', &
-                          '', .false.)
+    call icb_registry%add('ICB-DP', 'krho', dp_krho, '0.0', 'Per-population density ratios relative to IG density.', '', .false.)
+    call icb_registry%add('ICB-DP', 'kT', dp_kT, '1.0', 'Per-population temperature ratios.', '', .false.)
+    call icb_registry%add('ICB-DP', 'Pp', dp_Pp, '0.0', 'Per-population pseudo-pressure values.', '', .false.)
+    call icb_registry%add('ICB-DP', 'dp', dp_rp, '0.0', 'Per-population particle diameters.', '', .false.)
+    call icb_registry%add('ICB-DP', 'rp', dp_rp, '0.0', 'Per-population particle radii. Use as an alternative to dp.', '', .false.)
+    call icb_registry%add('ICB-DP', 'neuler', dp_neuler, '0', 'Eulerian model selector for dispersed phase support fields.', '', .false.)
     call add_interpolation_entries('ICB-DP', dp_interp_cfg, .false.)
 
     if (present(filename)) then
@@ -394,20 +369,12 @@ contains
   contains
 
     subroutine add_block_entries()
-      call icb_registry%add('ICB-Block*', 'phase', phase_name, '', &
-                            'Space-separated phase names. Blank means all phases.', &
-                            '', .false.)
-      call icb_registry%add('ICB-Block*', 'type', block_type, 'homogeneous', &
-                            'Block initialization type.', '', .false.)
-      call icb_registry%add('ICB-Block*', 'direction', direction, '', &
-                            'Range directions using x,y,z,r,t,i,j,k.', '', .false.)
-      call icb_registry%add('ICB-Block*', 'range', block_range, '0.0', &
-                            'Range limits for the selected directions.', '', .false.)
-      call icb_registry%add('ICB-Block*', 'zone<n>', zone_name, '', &
-                            'Referenced auxiliary zone section for multizone setup.', &
-                            '', .false.)
-      call icb_registry%add('ICB-Block*', 'range<n>', zone_range, '0.0', &
-                            'Range associated with zone<n>.', '', .false.)
+      call icb_registry%add('ICB-Block*', 'phase', phase_name, '', 'Space-separated phase names. Blank means all phases.', '', .false.)
+      call icb_registry%add('ICB-Block*', 'type', block_type, 'homogeneous', 'Block initialization type.', '', .false.)
+      call icb_registry%add('ICB-Block*', 'direction', direction, '', 'Range directions using x,y,z,r,t,i,j,k.', '', .false.)
+      call icb_registry%add('ICB-Block*', 'range', block_range, '0.0', 'Range limits for the selected directions.', '', .false.)
+      call icb_registry%add('ICB-Block*', 'zone<n>', zone_name, '', 'Referenced auxiliary zone section for multizone setup.', '', .false.)
+      call icb_registry%add('ICB-Block*', 'range<n>', zone_range, '0.0', 'Range associated with zone<n>.', '', .false.)
     end subroutine add_block_entries
 
     subroutine add_field_source_entries(section, base_name, field_cfg, description)
@@ -418,14 +385,9 @@ contains
       file_key = trim(base_name)//'-file'
       dir_key = trim(base_name)//'-direction'
 
-      call icb_registry%add(section, trim(base_name), field_cfg%value, '0.0', &
-                            trim(description), '', .false.)
-      call icb_registry%add(section, trim(file_key), field_cfg%file, '', &
-                            'File-backed input for '//trim(base_name)//'.', &
-                            '', .false.)
-      call icb_registry%add(section, trim(dir_key), field_cfg%direction, '', &
-                            'Direction for 1D '//trim(base_name)//' profiles.', &
-                            'x,y,z,r,t', .false.)
+      call icb_registry%add(section, trim(base_name), field_cfg%value, '0.0', trim(description), '', .false.)
+      call icb_registry%add(section, trim(file_key), field_cfg%file, '', 'File-backed input for '//trim(base_name)//'.', '', .false.)
+      call icb_registry%add(section, trim(dir_key), field_cfg%direction, '', 'Direction for 1D '//trim(base_name)//' profiles.', 'x,y,z,r,t', .false.)
     end subroutine add_field_source_entries
 
     subroutine add_interpolation_entries(section, interp_cfg, include_old_species)
@@ -433,24 +395,14 @@ contains
       type(config_interpolation_t), target, intent(inout) :: interp_cfg
       logical, intent(in) :: include_old_species
 
-      call icb_registry%add(section, 'old-solution', interp_cfg%old_solution, '', &
-                            'Previous solution file used for interpolation.', &
-                            '', .false.)
-      call icb_registry%add(section, 'old-block-id', interp_cfg%old_block_id, '0', &
-                            'Source block index for interpolation. Zero means auto.', &
-                            '>=0', .false.)
-      call icb_registry%add(section, 'interpolation-law', interp_cfg%law, 'outlaw', &
-                            'Interpolation mapping law.', '', .false.)
-      call icb_registry%add(section, 'theta', interp_cfg%theta, '90.0', &
-                            'Extrusion angle used by the extrude law.', '', .false.)
-      call icb_registry%add(section, 'nz', interp_cfg%nz, '4', &
-                            'Number of extrusion layers used by the extrude law.', &
-                            '>=1', .false.)
+      call icb_registry%add(section, 'old-solution', interp_cfg%old_solution, '', 'Previous solution file used for interpolation.', '', .false.)
+      call icb_registry%add(section, 'old-block-id', interp_cfg%old_block_id, '0', 'Source block index for interpolation. Zero means auto.', '>=0', .false.)
+      call icb_registry%add(section, 'interpolation-law', interp_cfg%law, 'outlaw', 'Interpolation mapping law.', '', .false.)
+      call icb_registry%add(section, 'theta', interp_cfg%theta, '90.0', 'Extrusion angle used by the extrude law.', '', .false.)
+      call icb_registry%add(section, 'nz', interp_cfg%nz, '4', 'Number of extrusion layers used by the extrude law.', '>=1', .false.)
 
       if (include_old_species) then
-        call icb_registry%add(section, 'old-species', interp_cfg%old_species, '', &
-                              'Legacy species file prefix used during IG interpolation.', &
-                              '', .false.)
+        call icb_registry%add(section, 'old-species', interp_cfg%old_species, '', 'Legacy species file prefix used during IG interpolation.', '', .false.)
       endif
     end subroutine add_interpolation_entries
 

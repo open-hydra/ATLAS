@@ -77,7 +77,6 @@ contains
           do k = 1, oldblock(b)%dim(3)
             oldblock(b)%sp%temperature(:,:,k) = oldblock(b)%sp%temperature(:,:,1)
             oldblock(b)%sp%mID(:,:,k) = oldblock(b)%sp%mID(:,:,1)
-            oldblock(b)%sp%qvol(:,:,k) = oldblock(b)%sp%qvol(:,:,1)
           enddo
         enddo
 
