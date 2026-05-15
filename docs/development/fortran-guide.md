@@ -12,16 +12,18 @@ ATLAS Fortran tools (BCB, ICB, STB) target the **Fortran 2008** standard and are
 
 ```bash
 cd /path/to/ATLAS
-cmake --preset default        # configure
-cmake --build build           # compile all Fortran targets
+mkdir build
+cd build
+cmake --preset default        # configure with default preset
+cmake --build .               # compile all Fortran targets
 ```
 
 Built executables are placed in `bin/`:
 
 ```
-bin/BCB
-bin/ICB
-bin/STB
+bin/BCB    — Boundary Condition Builder
+bin/ICB    — Initial Condition Builder
+bin/STB    — Source Terms Builder
 ```
 
 ## Source Layout
@@ -55,10 +57,44 @@ src/hydra-tools/
 ## Module Conventions
 
 - Each logical unit lives in its own `.f90` file as a **module** or **submodule**.
-- Modules are named `<name>_mod` (e.g. `bc_mod`, `config_mod`).
-- Submodules follow `<parent_mod>:<submod_name>`.
+- Modules are named `<name>_mod` (e.g., `bc_mod`, `config_mod`).
+- Submodules follow the pattern `parent_mod::<child_mod_name>` and are defined in separate files or the parent module file.
 - All `USE` statements include `ONLY` to make dependencies explicit.
-- Derived types are defined in `types_*.f90` files; builders operate on them.
+- Derived types are defined in dedicated `types_*.f90` files; builder modules operate on them.
+- Interface blocks use `INTENT` for all dummy arguments.
+- Error handling uses `error stop` with descriptive messages for fatal errors.
+
+### Example Module Structure
+
+```fortran
+module bc_mod
+  !> Boundary condition data types and operations
+  use iso_fortran_env, only: wp => real64
+  use finer, only: file_ini
+  
+  implicit none
+  private
+  
+  ! Public interface
+  public :: bc_type, bc_type_from_ini
+  
+  !> BC data type
+  type, public :: bc_type
+    integer :: id
+    character(len=256) :: name
+    real(wp), allocatable :: data(:,:,:)
+  end type bc_type
+  
+contains
+  
+  subroutine bc_type_from_ini(ini, bc)
+    type(file_ini), intent(in) :: ini
+    type(bc_type), intent(out) :: bc
+    ! Implementation...
+  end subroutine bc_type_from_ini
+  
+end module bc_mod
+```
 
 ## Code Style
 

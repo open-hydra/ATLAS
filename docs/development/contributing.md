@@ -4,7 +4,13 @@ Contribute to ATLAS development!
 
 ## Code of Conduct
 
-TODO: Add or reference code of conduct
+ATLAS currently follows standard open-source collaboration expectations:
+
+- Be respectful and constructive in reviews and discussions
+- Assume good intent and focus feedback on code and behavior
+- Avoid discriminatory, harassing, or hostile language
+
+Until a dedicated `CODE_OF_CONDUCT.md` is added, treat GitHub community standards as the baseline for project interactions.
 - Be respectful
 - Be inclusive
 - Help others
@@ -74,11 +80,27 @@ TODO: Add or reference code of conduct
 
 ### PR Guidelines
 
-- Keep PRs focused on single feature/fix
-- Include tests for new functionality
-- Update relevant documentation
-- Follow [Code Style Guide](./code-style)
-- Ensure CI/CD passes
+- **Keep PRs focused**: One feature or bug fix per PR
+- **Include tests**: New functionality must have tests  
+- **Update docs**: If changing user-facing APIs, update [docs/development](./index)
+- **Follow code style**: See [Code Style Guide](./code-style)
+- **Ensure CI passes**: All GitHub Actions checks must pass
+- **Meaningful commits**: Commit messages describe *what* and *why*
+- **Reference issues**: Use `Fixes #123` in PR description if applicable
+- **Declare SemVer impact**: Add `SemVer impact: PATCH|MINOR|MAJOR` with one-line rationale
+
+### PR Checklist
+
+Use this before submitting:
+
+- [ ] Tests pass: `cd build && ctest --output-on-failure`
+- [ ] New tests added for new functionality
+- [ ] Code follows [Code Style Guide](./code-style)
+- [ ] Documentation updated (if needed)
+- [ ] Commit messages are clear
+- [ ] SemVer impact is declared in PR description
+- [ ] No unrelated changes included
+- [ ] Branch is up-to-date with `main`
 
 ## Issue Tracking
 
@@ -125,7 +147,11 @@ Include:
 
 ## Testing Your Changes
 
-TODO: Document testing requirements
+Minimum expectations before opening a PR:
+
+- Build succeeds locally from a clean or updated build tree
+- Relevant regression tests pass for touched areas
+- Documentation changes are included when behavior or interfaces change
 
 ```bash
 # Run full test suite
@@ -136,7 +162,7 @@ ctest --output-on-failure
 ctest -R TestName --output-on-failure
 
 # Build and test
-make && !ctest
+cmake --build . && ctest --output-on-failure
 ```
 
 ## Documentation
@@ -151,11 +177,11 @@ make && !ctest
 ### How to Update Docs
 
 1. Edit relevant `.md` files in `docs/`
-2. Follow [VitePress format](https://vitepress.dev/)
+2. Follow MkDocs + Material markdown conventions already used in the docs
 3. Test locally:
    ```bash
-   cd docs
-   npx vitepress build
+   mkdocs build
+   mkdocs serve
    ```
 
 ## Development Resources
@@ -164,6 +190,7 @@ make && !ctest
 - **Build Guide**: [Build Instructions](./build)
 - **Architecture**: [Project Structure](./structure)
 - **Testing**: [Testing Guide](./testing)
+- **Versioning**: [Semantic Versioning Guide](./versioning)
 
 ## Questions?
 
@@ -175,9 +202,9 @@ make && !ctest
 ## Attribution
 
 Contributors are recognized in:
-- `LICENSE` or `CONTRIBUTORS` file
 - GitHub contributor graph
-- TODO: Other attribution methods
+- `AUTHORS.md` updates when applicable
+- Release notes and changelog entries for notable features/fixes
 
 ---
 

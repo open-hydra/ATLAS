@@ -5,172 +5,194 @@
 
 <style>.md-header { position: initial; }</style>
 
-<div class="mose-home">
+<div class="code-home">
 
-  <section class="mose-hero">
-    <div class="mose-hero__grid"></div>
-    <div class="mose-hero__glow mose-hero__glow--a"></div>
-    <div class="mose-hero__glow mose-hero__glow--b"></div>
-    <div class="mose-hero__wrap">
+  <section class="code-hero">
+    <div class="code-hero__grid"></div>
+    <div class="code-hero__glow code-hero__glow--a"></div>
+    <div class="code-hero__glow code-hero__glow--b"></div>
+    <div class="code-hero__wrap">
 
-      <span class="mose-badge">
-        <span class="mose-badge__dot"></span>
+      <span class="code-badge">
+        <span class="code-badge__dot"></span>
         Hydra CFD Suite
       </span>
 
-      <h1 class="mose-hero__h1">ATLAS</h1>
-      <p class="mose-hero__sub">Hydra pre-processing toolchain</p>
-      <p class="mose-hero__body">
-        Open-source pre-processing stack for multi-phase and reactive simulations.
-        Generate thermodynamic and transport tables, boundary conditions, initial fields,
-        and setup data for Hydra runs.
+      <h1 class="code-hero__h1">ATLAS</h1>
+      <p class="code-hero__sub">Hydra pre-processing toolchain</p>
+      <p class="code-hero__body">
+        Open-source pre-processing stack for multi-physics simulations.
+        Generate thermodynamic and transport tables, boundary conditions and initial fields
+        for the Hydra solvers.
       </p>
 
-      <div class="mose-hero__btns">
-        <a href="{{ 'getting-started/' | url }}" class="mose-btn mose-btn--primary">
+      <div class="code-hero__btns">
+        <a href="{{ 'getting-started/' | url }}" class="code-btn code-btn--primary">
           Get Started &nbsp;&rarr;
         </a>
-        <a href="{{ 'overview/' | url }}" class="mose-btn mose-btn--ghost">
+        <a href="{{ 'overview/' | url }}" class="code-btn code-btn--ghost">
           Overview
         </a>
       </div>
 
-      <div class="mose-hero__pills">
-        <div class="mose-pill"><strong>5</strong>&nbsp;Core Tools</div>
-        <div class="mose-pill"><strong>Fortran</strong>&nbsp;+ Python</div>
-        <div class="mose-pill"><strong>CMake</strong>&nbsp;Build</div>
-        <div class="mose-pill"><strong>Hydra</strong>&nbsp;Ready</div>
+      <div class="code-hero__pills">
+        <div class="code-pill">Multi-Objective Tools</div>
+        <div class="code-pill">Fortran + Python</div>
+        <div class="code-pill"><strong>CMake</strong>&nbsp;Build</div>
       </div>
 
     </div>
   </section>
 
-  <section class="mose-features">
-    <div class="mose-container">
-      <div class="mose-section-hd">
-        <h2>Everything needed before solver runtime</h2>
-        <p>ATLAS prepares physically consistent inputs and tables for Hydra simulations</p>
+  <section class="code-features">
+    <div class="code-container">
+      <div class="code-section-hd">
+        <h2>Everything you need before solver runtime</h2>
+        <p>ATLAS assembles consistent phase definitions, mesh fields, and boundary conditions for Hydra workflows</p>
       </div>
-      <div class="mose-grid">
+      <div class="code-grid">
 
-        <article class="mose-card mose-card--indigo">
-          <div class="mose-card__icon">
+        <article class="code-card code-card--indigo">
+          <div class="code-card__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12h18"/><path d="M12 3v18"/>
+              <path d="M7 5h10"/><path d="M9 5v4"/><path d="M15 5v4"/><path d="M8 9h8"/><path d="M6 19h12"/><path d="M8 9l-2 10"/><path d="M16 9l2 10"/>
             </svg>
           </div>
-          <h3>GPB</h3>
-          <p>General Phase Builder for ideal gas, condensed, solid, and real-fluid phases with transport and thermo tables.</p>
+          <h3>Thermodynamic Phases</h3>
+          <p>Define gas, liquid, and solid phases with consistent property models.</p>
         </article>
 
-        <article class="mose-card mose-card--violet">
-          <div class="mose-card__icon">
+        <article class="code-card code-card--violet">
+          <div class="code-card__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/>
+              <rect x="5" y="5" width="14" height="14" rx="2"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="M12 2v3"/><path d="M12 19v3"/>
             </svg>
           </div>
-          <h3>BCB</h3>
-          <p>Boundary Condition Builder that writes boundary blocks for inlets, outlets, walls, and advanced user-defined setups.</p>
+          <h3>Boundary Toolkit</h3>
+          <p>Configure inlets, outlets, walls, and multi-patch boundaries for complex simulation domains.</p>
         </article>
 
-        <article class="mose-card mose-card--orange">
-          <div class="mose-card__icon">
+        <article class="code-card code-card--orange">
+          <div class="code-card__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19l7-7 4 4 5-5"/><path d="M4 5v14h14"/>
+              <circle cx="12" cy="12" r="7"/><path d="M12 9v6"/><path d="M9 12h6"/><path d="M4 20l3-3"/>
             </svg>
           </div>
-          <h3>ICB</h3>
-          <p>Initial Condition Builder with support for direct specification, interpolation strategies, and restart-friendly workflows.</p>
+          <h3>Field Initialization</h3>
+          <p>Initialize flow and species fields from constants, profiles, or interpolation pipelines.</p>
         </article>
 
-        <article class="mose-card mose-card--teal">
-          <div class="mose-card__icon">
+        <article class="code-card code-card--teal">
+          <div class="code-card__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 20h18"/><path d="M4 16c3 0 3-8 6-8s3 8 6 8 3-8 5-8"/>
+              <circle cx="6" cy="8" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="12" cy="16" r="2"/><path d="M8 8h8"/><path d="M7.5 9.5l3 5"/><path d="M16.5 9.5l-3 5"/>
             </svg>
           </div>
-          <h3>STB</h3>
-          <p>Setup Tool Builder for geometry and area-law preprocessing used by Hydra initialization and runtime setup.</p>
+          <h3>Kinetics Engine</h3>
+          <p>Load, validate, and inspect reaction mechanisms with dedicated thermo-chemical analysis tools.</p>
         </article>
 
-        <article class="mose-card mose-card--green">
-          <div class="mose-card__icon">
+        <article class="code-card code-card--green">
+          <div class="code-card__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/>
+              <ellipse cx="12" cy="6" rx="6" ry="2.5"/><path d="M6 6v6c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V6"/><path d="M6 12v6c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-6"/>
             </svg>
           </div>
-          <h3>KAnT</h3>
-          <p>Kinetics and Thermodynamics post-processing utility for 0-D studies and validation-ready thermo-chemical analysis.</p>
+          <h3>Data Libraries</h3>
+          <p>Standardize and customize thermodynamic and transport databases for application-specific modeling.</p>
         </article>
 
-        <article class="mose-card mose-card--pink">
-          <div class="mose-card__icon">
+        <article class="code-card code-card--pink">
+          <div class="code-card__icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/>
+              <path d="M3 12h7"/><path d="M14 6h7"/><path d="M14 18h7"/><path d="M10 12l4-6"/><path d="M10 12l4 6"/><circle cx="10" cy="12" r="1.5"/>
             </svg>
           </div>
-          <h3>Multi-language Stack</h3>
-          <p>Fortran tools and Python packages share a unified CMake workflow, making integration and CI straightforward.</p>
+          <h3>Parallel Execution</h3>
+          <p>OpenMP-accelerated preprocessing for large meshes and high-throughput case generation.</p>
         </article>
 
       </div>
     </div>
   </section>
 
-  <section class="mose-qs">
-    <div class="mose-container mose-qs__inner">
+  <section class="code-qs">
+    <div class="code-container code-qs__inner">
 
-      <div class="mose-qs__text">
+      <div class="code-qs__text">
         <h2>Up and running in minutes</h2>
         <p>Install ATLAS, build the toolchain, and generate your first pre-processing artifacts for Hydra.</p>
-        <div class="mose-qs__links">
-          <a href="{{ 'getting-started/installation/' | url }}" class="mose-btn mose-btn--primary">
+        <div class="code-qs__links">
+          <a href="{{ 'getting-started/installation/' | url }}" class="code-btn code-btn--primary">
             Installation guide &rarr;
           </a>
-          <a href="{{ 'getting-started/quick-start/' | url }}" class="mose-btn mose-btn--secondary">
+          <a href="{{ 'getting-started/quick-start/' | url }}" class="code-btn code-btn--secondary">
             Quick start
           </a>
         </div>
       </div>
 
-      <div class="mose-qs__code">
-        <div class="mose-term">
-          <div class="mose-term__bar">
-            <span class="mose-term__dot mose-term__dot--r"></span>
-            <span class="mose-term__dot mose-term__dot--y"></span>
-            <span class="mose-term__dot mose-term__dot--g"></span>
-            <span class="mose-term__label">terminal</span>
+      <div class="code-qs__code">
+        <div class="code-term">
+          <div class="code-term__bar">
+            <span class="code-term__dot code-term__dot--r"></span>
+            <span class="code-term__dot code-term__dot--y"></span>
+            <span class="code-term__dot code-term__dot--g"></span>
+            <span class="code-term__label">terminal</span>
           </div>
-          <pre class="mose-term__body"><code><span class="tc"># Clone and build</span>
+          <pre class="code-term__body"><code><span class="tc"># Clone and build</span>
 <span class="tp">$</span> git clone https://github.com/open-hydra/ATLAS.git
 <span class="tp">$</span> cd ATLAS &amp;&amp; ./install.sh
 
 <span class="tc"># Generate phase tables (example)</span>
-<span class="tp">$</span> python -m GPB --input-file gpb.ini</code></pre>
+<span class="tp">$</span> ATLAS GPB --input input.ini</code></pre>
         </div>
       </div>
 
     </div>
   </section>
 
-  <section class="mose-eco">
-    <div class="mose-container">
-      <div class="mose-section-hd">
+  <section class="code-eco">
+    <div class="code-container">
+      <div class="code-section-hd">
         <h2>The Hydra CFD Suite</h2>
         <p>ATLAS is the pre-processing layer that feeds Hydra-ready data to the runtime solver stack</p>
       </div>
-      <div class="mose-eco__flow">
-        <div class="mose-eco__node mose-eco__node--active">
-          <span class="mose-eco__node-tag">You are here</span>
-          <span class="mose-eco__node-name">ATLAS</span>
-          <span class="mose-eco__node-role">Pre-processor</span>
-          <span class="mose-eco__node-desc">Phase properties, BC/IC builders, and setup generation</span>
+      <div class="code-eco__flow code-eco__flow--graph">
+        <div class="code-eco__node code-eco__node--active">
+          <span class="code-eco__node-tag">You are here</span>
+          <span class="code-eco__node-name">ATLAS</span>
+          <span class="code-eco__node-role">Pre-processor</span>
+          <span class="code-eco__node-desc">Phase properties and BC/IC builders</span>
         </div>
-        <div class="mose-eco__arrow">&#8594;</div>
-        <a href="https://github.com/open-hydra/MOSE" target="_blank" rel="noopener" class="mose-eco__node">
-          <span class="mose-eco__node-name">MOSE</span>
-          <span class="mose-eco__node-role">Solver</span>
-          <span class="mose-eco__node-desc">Compressible multi-physics runtime solver</span>
+
+        <div class="code-eco__branch" aria-hidden="true">
+          <span class="code-eco__arrow code-eco__arrow--diag">&#8599;</span>
+          <span class="code-eco__arrow code-eco__arrow--diag">&#8600;</span>
+        </div>
+
+        <div class="code-eco__parallel">
+          <a href="https://github.com/open-hydra/code" target="_blank" rel="noopener" class="code-eco__node">
+            <span class="code-eco__node-name">code</span>
+            <span class="code-eco__node-role">Solver/Library</span>
+            <span class="code-eco__node-desc">Compressible ideal-gas CFD solver</span>
+          </a>
+          <a href="https://github.com/open-hydra/FUSS" target="_blank" rel="noopener" class="code-eco__node">
+            <span class="code-eco__node-name">FUSS</span>
+            <span class="code-eco__node-role">Solver/Library</span>
+            <span class="code-eco__node-desc">Solid heat conduction solver</span>
+          </a>
+        </div>
+
+        <div class="code-eco__branch" aria-hidden="true">
+          <span class="code-eco__arrow code-eco__arrow--diag">&#8600;</span>
+          <span class="code-eco__arrow code-eco__arrow--diag">&#8599;</span>
+        </div>
+
+        <a href="https://github.com/open-hydra" target="_blank" rel="noopener" class="code-eco__node">
+          <span class="code-eco__node-name">Hydra</span>
+          <span class="code-eco__node-role">Solver</span>
+          <span class="code-eco__node-desc">Integrated solver for fully-coupled simulations</span>
         </a>
       </div>
     </div>

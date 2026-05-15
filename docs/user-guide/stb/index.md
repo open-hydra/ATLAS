@@ -1,62 +1,63 @@
-# STB — Setup Tool Builder
+# STB — Source Terms Builder
 
-STB computes geometric data required by Hydra for variable-area configurations such as nozzles and ducts.
+STB writes source-term fields and auxiliary area-variation data for Hydra blocks. The selected setup controls whether STB builds a uniform field, a mapped 1-D profile, or optional geometry area tables.
+
+!!! tip "STB in the ATLAS workflow"
+       STB is optional in many cases, but required when source terms (for example `qvol`) or area-variation maps are needed by the target Hydra setup.
 
 ---
 
-## What STB Can Produce
+## STB Strategies
 
 <div class="grid cards" markdown>
 
--   :material-ruler-square: **Area Schedule**
+-   :material-fire: **Source Terms**
 
-    ---
+       ---
 
-    Compute the cross-sectional area distribution $A(x)$ from a contour or point set. Output is used by Hydra's quasi-1-D variable-area option.
+       Assign source values in each block. At present, it supports volumetric heat sources.
 
-    **Inputs:** axial station coordinates and corresponding cross-sectional areas or contour points.
+-   :material-ruler-square-compass: **Area Variation Map**
 
-    **Output:** area variation file read by Hydra at runtime.
+       ---
 
-    **When to use:** any converging–diverging nozzle, duct with varying cross-section, or thrust chamber geometry.
-
--   :material-chart-areaspline: **Cross-Section Profile**
-
-    ---
-
-    Tabulate the area at each axial station from a geometric description of the contour.
-
-    **When to use:** nozzle design validation, checking that the area ratio matches design intent before a run.
+       Build area tables for the Q2D solver.
 
 </div>
 
 ---
 
-## Typical Workflow
+## Summary
 
-```
-STB reads: axial stations + area or contour points
-       ↓
-Produces: area schedule file (read by Hydra)
-       ↓
-ICB uses: area schedule as input for De Laval nozzle initialization
-       ↓
-Hydra uses: area variation at runtime for 3-D body-force term
-```
-
-STB output is required whenever the ICB `nozzle` strategy is used.
+| Strategy | Scope | Key input |
+|----------|-------|-----------|
+| Uniform source | Any STB block | `qvol` |
+| 1-D source profile | Any STB block | `qvol-file`, `direction` |
+| Area variation map | Optional per block | `<dir>-areavariation` in `BCB-BlockN` |
 
 ---
 
-## Usage
+## Workflow
+
+0. Provide mesh and STB input file(s).
+1. Open a file and save it with an `.ini` extension (for example `input.ini`).
+2. For each mesh block, define an `STB-BlockN` section with either `qvol` or `qvol-file` + `direction`.
+3. Optionally add area-profile keys (`x-areavariation`, `y-areavariation`, `r-areavariation`, `theta-areavariation`) in `BCB-BlockN` sections.
+4. Run STB with the STB INI file as input.
 
 ```bash
-./STB -input stb.ini
+ATLAS STB --input input.ini
 ```
 
-## Configuration
+Generated files are written to `fromATLAStoSolver/`.
+
+## References
 
 - [Input Reference](./input-reference) — INI keys and supported parameters
 - [Output Files](./output) — Files written for Hydra
 
 See the [tutorials](/tutorials/stb/) for worked examples.
+
+## Next
+
+- [Input Reference](./input-reference.md)

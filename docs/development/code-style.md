@@ -150,6 +150,29 @@ pure function calculate_value(x) result(res)
   res = x * x + 2.0_wp * x + 1.0_wp
 end function calculate_value
 
+! Subroutine with multiple arguments
+subroutine process_array(input_array, output_array, n, status)
+  real(wp), intent(in) :: input_array(:)
+  real(wp), intent(out) :: output_array(:)
+  integer, intent(in) :: n
+  integer, intent(out) :: status
+  
+  integer :: i
+  
+  if (size(input_array) < n) then
+    status = 1  ! Error
+    return
+  end if
+  
+  do i = 1, n
+    output_array(i) = input_array(i) * 2.0_wp
+  end do
+  
+  status = 0  ! Success
+end subroutine process_array
+```
+end function calculate_value
+
 ! Subroutine with documentation
 subroutine initialize(domain, status)
   !
@@ -300,11 +323,23 @@ subroutine compute_something(input_a, input_b, output_c, status)
 
 ## Tools and Automation
 
-TODO: Document code formatting tools
+ATLAS currently relies primarily on review-driven style enforcement rather than a mandatory formatter.
 
-- **Formatter**: [formatter name if applicable]
-- **Linter**: [linter name if applicable]
-- **Editor Settings**: `.editorconfig` [provide if exists]
+- **Formatter**: No repository-wide enforced formatter at this time
+- **Linter**: No dedicated lint pipeline for Fortran/Python style in this repository
+- **Editor Settings**: No top-level `.editorconfig` is provided
+
+Recommended local checks before commit:
+
+```bash
+# Rebuild with warnings visible
+cmake --build build
+
+# Run regression tests
+ctest --test-dir build --output-on-failure
+```
+
+If you use personal formatting tools locally, keep diffs focused and avoid large style-only rewrites.
 
 ---
 

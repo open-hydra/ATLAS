@@ -31,8 +31,8 @@
 | range<n> | 0.0 |  |  no | Sub-patch limits associated with patch<n>. |
 | blocks | 0 |  |  no | Periodic source and destination block indices. |
 | faces | 0 |  |  no | Periodic source and destination face indices. |
-| block | 0 |  |  no | Connected block index for manifold boundaries. |
-| face | 0 |  |  no | Connected face index for manifold boundaries. |
+| block | 0 |  |  no | Connected block index for manifold. |
+| face | 0 |  |  no | Connected face index for manifold. |
 | file-direction |  |  |  no | Coordinate or index directions used by varying BC files. |
 | eq-OG | F |  |  no | Enable CEA oxidizer-fuel equilibrium mode. |
 | eq-CEA-file |  |  |  no | CEA input file used to derive equilibrium composition. |

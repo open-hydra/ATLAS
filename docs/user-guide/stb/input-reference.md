@@ -1,31 +1,14 @@
-# STB Input Reference
+# ATLAS STB Input Parameters
 
-::: warning Work in progress
-This page is being populated. See `src/hydra-tools/STB/STB.f90` for the current parameter set.
-:::
 
-## File Format
+## STB-Block*
 
-STB reads a standard INI file.
-
-## Parameters
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `geometry-file` | string | — | File containing the area distribution or contour points |
-| `output-file` | string | `area.bin` | Output file for Hydra |
-| `n-points` | integer | — | Number of axial stations |
-| `area-inlet` | real | — | Inlet cross-sectional area (m²) |
-| `area-throat` | real | — | Throat cross-sectional area (m²) |
-| `area-outlet` | real | — | Outlet cross-sectional area (m²) |
-
-::: details Example
-
-```ini
-[geometry]
-geometry-file = contour.dat
-output-file   = area_schedule.bin
-n-points      = 200
-```
-
-:::
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| direction |  | x,y,z,r,t |  no | Direction for 1D profiles: x,y,z,r,t or combinations. |
+| x-areavariation |  |  |  no | Area profile file for x-directed variation. |
+| y-areavariation |  |  |  no | Area profile file for y-directed variation. |
+| r-areavariation |  |  |  no | Area profile file for radial variation. |
+| theta-areavariation |  |  |  no | Area profile file for azimuthal variation (degrees in file). |
+| qvol | 0.0 |  |  no | Uniform Volumetric heat source value. |
+| qvol-file |  |  |  no | File path for 1D profile or 3D field input. |

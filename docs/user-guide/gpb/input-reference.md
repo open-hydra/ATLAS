@@ -1,108 +1,76 @@
-# GPB Input Reference
+# ATLAS GPB Input Parameters
 
-Full list of INI keys recognised by GPB, grouped by phase type.
 
-## Common Keys (all phase types)
+## GPB
 
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `name` | string | section name | Phase name used in the output filename |
-| `type` | string | `ideal-gas` | Phase type (see [index](./)) |
-| `Tmin` | real | `1.0` | Lower temperature bound for property tables (K) |
-| `Tmax` | real | `5000.0` | Upper temperature bound for property tables (K) |
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| input-file | input.ini |  | no | Input INI file consumed by GPB. |
 
----
+## GPB-Phase*
 
-## Ideal-Gas / Heavy-Gas Keys
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| type | ideal-gas | ideal-gas,heavy-gas,condensed-dispersed,solid,real-fluid | no | Phase model selector for the current section. |
+| name |  |  | no | Prefix for generated output files. |
+| Tmin | 1 | >0 | no | Minimum tabulation temperature [K]. |
+| Tmax | 5000 | >0 | no | Maximum tabulation temperature [K]. |
 
-### Model Selectors
+## GPB-IdealGas
 
-| Key | Choices | Description |
-|-----|---------|-------------|
-| `thermo` | `NASA9`, `CEA`, `cantera`, `fixed` | Thermodynamic data source |
-| `transport` | `CEA`, `cantera`, `sutherland`, `fixed` | Transport data source |
-| `reactions` | mechanism name / `none` | Reaction mechanism name (Cantera `.yaml`) |
-| `phase` | Cantera phase name | Phase name inside the Cantera mechanism file |
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| phase |  |  | no | Existing Cantera phase file stem (without .yaml). |
+| thermo |  | NASA7,NASA9,Burcat | no | Thermodynamic species database selector. |
+| transport |  | CEA,cantera | no | Transport model source. |
+| reactions |  |  | no | Reaction mechanism file stem (without .yaml). |
+| inerts-mixing | False | True,False | no | Mix equilibrium species into a single mixture phase. |
+| species |  |  | no | Manual inert species list. |
+| add-species |  |  | no | Alternative key for manual inert species list. |
+| mixture |  |  | no | Custom mixture composition string/dictionary. |
+| mixture-name | mix |  | no | Output name for custom mixture. |
+| cp |  |  | no | Constant-pressure specific heat array for fixed-gas species. |
+| cv |  |  | no | Constant-volume specific heat array for fixed-gas species. |
+| gamma |  |  | no | Specific-heat ratio array for fixed-gas species. |
+| R |  |  | no | Specific gas constant array for fixed-gas species. |
+| mw |  |  | no | Molecular weight array for fixed-gas species. |
+| mil |  |  | no | Dynamic viscosity array for fixed-gas species. |
+| kl |  |  | no | Thermal conductivity array for fixed-gas species. |
+| Pr |  |  | no | Prandtl number array for fixed-gas species. |
 
-### Species
+## GPB-Equilibrium
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `species` | space-separated list | Species to include (e.g. `N2 O2 H2O`) |
-| `add-species` | space-separated list | Additional inert species to append |
-| `inerts-mixing` | bool | Apply mixture rules to inert species |
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| CEA-file |  |  | no | CEA input file stem (.inp extension optional). |
+| CEA-section | 1 | >=1 | no | Section index inside CEA output. |
+| eq-pressure |  |  | no | Cantera equilibrium pressure as [value, unit]. |
+| eq-fuel |  |  | no | Cantera equilibrium fuel composition entry. |
+| eq-oxidizer |  |  | no | Cantera equilibrium oxidizer composition entry. |
+| eq-of |  | >0 | no | Cantera equilibrium oxidizer-to-fuel ratio. |
+| eq-fuel-T | 100.0 |  | no | Fuel inlet temperature for equilibrium setup [K]. |
+| eq-oxidizer-T | 90.170 |  | no | Oxidizer inlet temperature for equilibrium setup [K]. |
 
-### Fixed-Gas Properties
+## GPB-Condensed
 
-Over-specified sets are accepted; GPB solves the algebraic system to find all remaining properties.
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| thermo | NASA9 | NASA7,NASA9,Burcat,SP-database | no | Condensed-phase thermodynamic model selector. |
+| material | ATLAS |  | no | Condensed-phase material names. |
+| groups | 1 |  | no | Group index per condensed material. |
+| cp |  |  | no | Fixed specific heat values for condensed materials. |
+| k |  |  | no | Fixed thermal conductivity values for condensed materials. |
+| rho |  |  | no | Density values for condensed materials. |
 
-| Key | Type | Description |
-|-----|------|-------------|
-| `gamma` | real (one per species) | Specific heat ratio |
-| `cp` | real (one per species) | Specific heat at constant pressure (J kg⁻¹ K⁻¹) |
-| `cv` | real (one per species) | Specific heat at constant volume (J kg⁻¹ K⁻¹) |
-| `R` | real (one per species) | Specific gas constant (J kg⁻¹ K⁻¹) |
-| `mw` | real (one per species) | Molar mass (g mol⁻¹) |
-| `mil` | real (one per species) | Dynamic viscosity (Pa s) |
-| `kl` | real (one per species) | Thermal conductivity (W m⁻¹ K⁻¹) |
-| `Pr` | real (one per species) | Prandtl number |
+## GPB-RealFluid
 
-### Mixture
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `mixture` | `{species: fraction} ...` | Mixture composition by mass fraction |
-| `mixture-name` | string | Optional label for the mixture |
-
-::: tip Mixture syntax
-```ini
-mixture = {N2: 75.4} {O2: 23.3} {Ar: 1.3}
-```
-Fractions are mass fractions in percent; they are normalised internally.
-:::
-
-### Cantera Equilibrium
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `eq-pressure` | real (with optional unit) | Equilibrium pressure, e.g. `101325` or `3000 psi` |
-| `eq-fuel` | string | Cantera fuel species (e.g. `H2`, `C3H8`) |
-| `eq-oxidizer` | string | Cantera oxidizer species (e.g. `O2`, `O2(L)`) |
-| `eq-of` | real | Oxidizer-to-fuel mass ratio |
-| `eq-fuel-T` | real | Fuel inlet temperature (K) |
-| `eq-oxidizer-T` | real | Oxidizer inlet temperature (K) |
-
-### CEA Equilibrium
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `CEA-file` | string | Path to CEA input/output file (e.g. `CEA.inp`) |
-| `CEA-section` | string | Section name within the CEA file |
-
----
-
-## Condensed / Solid Keys
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `material` | string | Material name from ATLAS database (e.g. `AL2O3(L)`, `UC`) |
-| `groups` | space-separated list | Condensed phase group names |
-| `thermo` | `Burcat`, `SP-database`, `fixed` | Thermodynamic data source |
-| `rho` | real | Density (kg m⁻³) |
-| `cp` | real | Specific heat (J kg⁻¹ K⁻¹) — used when `thermo = fixed` |
-| `k` | real | Thermal conductivity (W m⁻¹ K⁻¹) |
-
----
-
-## Real-Fluid Keys
-
-| Key | Type | Default | Description |
-|-----|------|---------|-------------|
-| `fluid` | string | **required** | CoolProp / NIST fluid name (e.g. `CO2`, `Water`) |
-| `pmin` | real | — | Minimum pressure for lookup table (Pa) |
-| `pmax` | real | — | Maximum pressure for lookup table (Pa) |
-| `Tmin` | real | `1.0` | Minimum temperature (K) |
-| `Tmax` | real | `5000.0` | Maximum temperature (K) |
-| `NP` | integer | `200` | Number of pressure grid points |
-| `NH` | integer | `200` | Number of enthalpy grid points |
-| `model` | `coolprop`, `redlich-kwong`, `peng-robinson` | `coolprop` | EOS backend |
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| fluid |  |  | yes | Fluid name accepted by selected real-fluid model. |
+| pmin |  | >0 | yes | Minimum pressure bound [Pa]. |
+| pmax |  | >0 | yes | Maximum pressure bound [Pa]. |
+| Tmin |  | >0 | yes | Minimum temperature bound [K]. |
+| Tmax |  | >0 | yes | Maximum temperature bound [K]. |
+| NP | 200 | >=2 | no | Number of pressure grid points. |
+| NH | 200 | >=2 | no | Number of enthalpy grid points. |
+| model | coolprop | coolprop,redlich-kwong,peng-robinson | no | Equation-of-state model used for table generation. |

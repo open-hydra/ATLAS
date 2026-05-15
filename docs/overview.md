@@ -60,20 +60,20 @@ ATLAS groups its functionality into independent tools:
 
     [:octicons-arrow-right-24: STB User Guide](./user-guide/stb/index.md)
 
-<!-- -   :material-flask:{ .lg .middle } __KAnT — Kinetics and Thermodynamics Tester__
+-   :material-flask:{ .lg .middle } __KAnT — Kinetic Analyzer and Tester__
 
     ---
 
     **Python** &nbsp;·&nbsp; Runs 0D and 1D Cantera simulations (ignition delay, counterflow flame, chemical equilibrium) to validate chemical mechanisms and thermodynamic data before committing them to a full CFD run.
 
-    [:octicons-arrow-right-24: KAnT User Guide](./user-guide/kant/index.md) -->
+    [:octicons-arrow-right-24: KAnT User Guide](./user-guide/kant/index.md)
 
 </div>
 
 ATLAS hosts two language stacks that coexist in the same CMake build tree:
 
-- **Fortran 2008** — BCB, ICB, STB, and all shared Fortran libraries (ORION, NewCEA, FiNeR)
-- **Python 3** — GPB and all shared Python libraries (PiNeR, Cantera, CoolProp)
+- **Fortran 2008** — BCB, ICB, STB, and all shared Fortran libraries (CEA, ORION, FiNeR)
+- **Python 3** — GPB and all shared Python libraries (Cantera, CEA, CoolProp, PiNeR)
 
 ---
 
@@ -85,7 +85,7 @@ ATLAS hosts two language stacks that coexist in the same CMake build tree:
 |---------|------|--------|
 | [Cantera](https://github.com/Cantera/cantera) | Thermodynamic & chemical kinetics evaluation (GPB, KAnT) | conda / pip |
 | [CoolProp](http://www.coolprop.org) | Real-fluid equations of state (GPB real-fluid phase) | conda / pip |
-| [NewCEA](https://github.com/MarcoGrossi92/NewCEA) | NASA CEA chemical equilibrium interface (GPB) | Bundled submodule |
+| [CEA](https://github.com/nasa/cea) | NASA CEA chemical equilibrium solver (GPB, BCB, ICB) | Bundled submodule |
 | [ORION](https://github.com/MarcoGrossi92/ORION) | Multi-format I/O — Tecplot, VTK, Plot3D (BCB, ICB, STB) | Bundled submodule |
 | [FiNeR](https://github.com/szaghi/FiNeR) | Fortran INI configuration file parser (BCB, ICB, STB) | Bundled submodule |
 | [PiNeR](https://github.com/MarcoGrossi92/PiNeR) | Python INI configuration file parser (GPB, KAnT) | conda / pip |

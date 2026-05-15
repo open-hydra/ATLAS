@@ -22,14 +22,14 @@ FiNeR is a pure Fortran 2003+ OOP library for reading and writing INI configurat
 
 ORION provides built-in functions to read files in different formats. ATLAS uses ORION in its Fortran-based tools to import thermodynamic, transport, and chemistry tabulated data.
 
-### NewCEA
+### NASA CEA
 
 **Python/Fortran interface to NASA CEA**
 
-- **Repository:** [github.com/MarcoGrossi92/NewCEA](https://github.com/MarcoGrossi92/NewCEA)
-- **License:** GPL v3.0
+- **Repository:** [github.com/nasa/cea](https://github.com/nasa/cea)
+- **License:** Apache License v2.0
 
-NewCEA wraps the NASA CEA2 (Chemical Equilibrium with Applications) Fortran solver with a Python interface. ATLAS uses it in GPB to compute chemical equilibrium compositions from propellant definitions.
+NASA CEA (Chemical Equilibrium with Applications) Fortran solver with a Python interface. ATLAS uses it in different tools to compute chemical equilibrium compositions from propellant definitions.
 
 ### PiNeR
 
@@ -117,7 +117,8 @@ Material for MkDocs provides the theme used by this documentation site.
 
 ATLAS respects all licenses of its dependencies:
 
-- **GPL v3.0** — FiNeR, ORION, NewCEA
+- **GPL v3.0** — FiNeR, ORION
+- **Apache License v2.0** — NASA CEA
 - **MIT** — PiNeR, CoolProp, Material for MkDocs
 - **BSD-3-Clause** — Cantera, NumPy, Pint
 - **BSD-2-Clause** — MkDocs

@@ -118,6 +118,8 @@ nav:
       - Input Reference: user-guide/bcb/input-reference.md
     - Initial Conditions Builder:
       - Overview: user-guide/icb/index.md
+      - Required Files: user-guide/icb/required-files.md
+      - IC Setup: user-guide/icb/ic-setup.md
       - IC Strategies: user-guide/icb/ic-strategies.md
       - Output Files: user-guide/icb/output.md
       - Input Reference: user-guide/icb/input-reference.md
@@ -127,7 +129,6 @@ nav:
       - Output Files: user-guide/stb/output.md
     - KAnT:
       - Overview: user-guide/kant/index.md
-
 
   - Databases:
     - Overview: databases/index.md
@@ -169,6 +170,7 @@ nav:
     - Build System: development/build.md
     - Project Structure: development/structure.md
     - Testing: development/testing.md
+    - Versioning: development/versioning.md
     - Contributing: development/contributing.md
     - Code Style: development/code-style.md
     - Fortran Guide: development/fortran-guide.md

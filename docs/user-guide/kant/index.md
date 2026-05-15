@@ -1,6 +1,9 @@
-# KAnT — Kinetics and Thermodynamics
+# KAnT — Kinetic Analyzer and Tester
 
-KAnT runs zero-dimensional thermochemical simulations. It is designed as a validation and analysis companion to the ATLAS pre-processing suite: verify that your phase configuration produces the expected thermodynamics before running Hydra.
+KAnT runs zero-dimensional and one-dimensional chemistry analyses from an INI file. It is used to validate mechanisms, transport data, and phase settings before running a larger ATLAS workflow.
+
+!!! tip "Where KAnT fits"
+    Use KAnT to check thermodynamic and kinetic inputs in isolation. It is a fast way to catch inconsistent species definitions, unexpected ignition behavior, or transport issues before generating tables or starting a CFD run.
 
 ---
 
@@ -8,108 +11,146 @@ KAnT runs zero-dimensional thermochemical simulations. It is designed as a valid
 
 <div class="grid cards" markdown>
 
--   :material-fire: **Ignition Delay**
-
-    ---
-
-    Compute the auto-ignition delay time from a given initial mixture, temperature, and pressure. Integrates the 0-D reactor until the thermal runaway condition is met.
-
-    **What you get:** ignition delay time $\tau_{ign}$, temperature history, species evolution.
-
-    **When to use:** validate fuel/oxidiser chemistry before 3-D combustion simulations; compare against shock-tube data.
-
--   :material-fire-alert: **Ignition Delay (Experimental Comparison)**
-
-    ---
-
-    Same as ignition delay, with direct comparison against user-supplied experimental data.
-
-    **What you get:** computed vs. measured $\tau_{ign}$ over a range of temperatures or equivalence ratios.
-
-    **When to use:** mechanism validation; checking that the kinetic data used in GPB matches published experiments.
-
 -   :material-chemical-weapon: **Chemical Equilibrium**
 
     ---
 
-    Compute the equilibrium composition for a given mixture, temperature, and pressure. Does not require a reaction mechanism — uses Cantera's thermodynamic minimisation directly.
+    Compute the equilibrium state for a mixture at a specified temperature and pressure.
 
-    **What you get:** equilibrium mole/mass fractions, adiabatic flame temperature, thermodynamic properties at equilibrium.
+    **What you get:** equilibrium composition and adiabatic flame temperature.
 
-    **When to use:** sanity-check of GPB equilibrium inputs; rapid estimation of combustion product composition.
+    **When to use:** sanity-check a mechanism or compare a model against a known equilibrium limit.
 
--   :material-waves: **Counterflow Diffusion Flame**
+-   :material-fire: **Ignition Delay**
 
     ---
 
-    Simulate a steady counterflow diffusion flame between a fuel stream and an oxidiser stream at given strain rates.
+    Integrate a zero-dimensional reactor until the thermal runaway condition is reached.
 
-    **What you get:** temperature and species profiles across the flame, extinction strain rate.
+    **What you get:** ignition delay time, temperature history, and species evolution.
 
-    **When to use:** validate transport and kinetic properties for diffusion flame modelling; estimate scalar dissipation rates.
+    **When to use:** validate chemistry before 3-D combustion simulations or compare against shock-tube data.
+
+-   :material-flask: **Ignition Delay with Reference Data**
+
+    ---
+
+    Same ignition-delay calculation, with optional experimental data loaded from a reference case.
+
+    **What you get:** computed ignition delay overlaid with the selected reference dataset.
+
+    **When to use:** mechanism validation against published experiments.
 
 -   :material-clock-fast: **Time Evolution**
 
     ---
 
-    Integrate a 0-D constant-pressure or constant-volume reactor from a given initial state forward in time.
+    Integrate a zero-dimensional constant-pressure or constant-volume reactor forward in time.
 
-    **What you get:** temperature, pressure, and species history over the integration period.
+    **What you get:** temperature, pressure, and species history over the integration window.
 
-    **When to use:** characterise reactor kinetics; generate validation data for CFD post-processing; test mechanism stiffness.
+    **When to use:** characterize transient reactor kinetics or generate validation data for post-processing.
+
+-   :material-waves: **Counterflow Diffusion Flame**
+
+    ---
+
+    Solve a steady one-dimensional counterflow diffusion flame between a fuel stream and an oxidizer stream.
+
+    **What you get:** temperature and species profiles, plus extinction-related flame data.
+
+    **When to use:** validate transport and finite-rate chemistry for diffusion-flame problems.
 
 </div>
 
 ---
 
-## Summary
+## Command Line
 
-| Simulation | Key output | Mechanism needed? |
-|-----------|-----------|-------------------|
-| Ignition delay | $\tau_{ign}(T, p, \phi)$ | Yes |
-| Ignition delay + exp. | $\tau_{ign}$ vs. data | Yes |
-| Equilibrium | Species, $T_{ad}$ | No |
-| Counterflow flame | Profiles, extinction | Yes |
-| Time evolution | Species, T, p vs. t | Yes |
-
----
-
-## How KAnT Connects to GPB
-
-KAnT and GPB share the same Cantera and CEA backends. The typical validation workflow is:
-
-1. Configure phases in GPB (species, mechanism, transport)
-2. Run KAnT equilibrium or ignition-delay to verify the mechanism behaves as expected
-3. If results match, proceed with GPB table generation and Hydra runs
-4. Use KAnT post-run to compare 0-D predictions against Hydra scalar outputs
-
----
-
-## Usage
+Run KAnT from an ATLAS simulation directory:
 
 ```bash
-python -m KAnT --input-file kant.ini
+ATLAS KAnT
 ```
 
-## Package Structure
+You can also run it directly from the Python source tree:
 
-```
-src/KAnT/
-├── config/       — configuration parsing
-├── data/         — thermodynamic / kinetics data helpers
-├── output/       — result writers
-├── simulations/  — simulation drivers (one module per type)
-└── utils/        — shared utilities
+```bash
+python3 -B /path/to/KAnT [--plot] [<ini-file>]
 ```
 
-## Test Cases
+or as a module:
 
-Five reference cases are provided in `test/KAnT/`:
+```bash
+python3 -m kant
+```
 
-- `counterflow/`
-- `equilibrium/`
-- `ignition_delay/`
-- `ignition_delay_exp/`
-- `time_evolution/`
+If no input file is passed, KAnT looks for `kant.ini` first and then `input.ini` in the current directory. Passing `--plot` opens the Matplotlib figures for the computed results.
 
-See the [tutorials](/tutorials/kant/) for step-by-step walkthroughs.
+## Input File
+
+KAnT reads one or both of these sections from the INI file:
+
+- `[KAnT-Simulation0D]`
+- `[KAnT-Simulation1D]`
+
+The 0-D section enables equilibrium, ignition-delay, and time-evolution runs. The 1-D section enables the counterflow flame solver.
+
+### 0-D Configuration
+
+The main keys are:
+
+| Key | Meaning |
+|-----|---------|
+| `type` | Reactor type, such as `HP`, `LP`, or `UV` |
+| `equilibrium` | Enable the equilibrium calculation |
+| `ignition-delay` | Enable the ignition-delay calculation |
+| `time-evolution` | Enable the transient reactor calculation |
+| `case` | Reference case name from `data/reference/cases.yaml` |
+| `fuel` | Fuel stream composition |
+| `oxidizer` | Oxidizer stream composition |
+| `fuel-T` | Fuel stream temperature in K |
+| `oxidizer-T` | Oxidizer stream temperature in K |
+| `pressure` | Pressure sweep in bar |
+| `of` | Mixture-ratio sweep |
+| `temperature` | Temperature sweep in K |
+| `reactions` | Mechanism list |
+| `thermo` | Optional thermodynamic model override |
+| `tend` | Final integration time in s |
+| `nstep` | Number of output points |
+
+For `pressure`, `of`, and `temperature`, KAnT accepts either explicit arrays or sweep helpers:
+
+- `pressure-linear`, `of-linear`, `temperature-linear`
+- `pressure-exp`, `of-exp`, `temperature-exp`
+
+If `fuel` or `oxidizer` is given as a bare species name, KAnT converts it to a unit-composition stream internally.
+
+### 1-D Configuration
+
+The 1-D counterflow section uses these keys:
+
+| Key | Meaning |
+|-----|---------|
+| `fuel` | Fuel stream composition |
+| `oxidizer` | Oxidizer stream composition |
+| `fuel-T` | Fuel stream temperature in K |
+| `oxidizer-T` | Oxidizer stream temperature in K |
+| `pressure` | Operating pressure in bar |
+| `of` | Mixture ratio |
+| `mdot` | Total mass flux in kg/m^2/s |
+| `width` | Domain width in m |
+| `reactions` | Mechanism list |
+| `thermo` | Optional thermodynamic model override |
+
+## Output
+
+KAnT writes Tecplot ASCII output to `KAnT-out.dat` in the current working directory. Each simulated model is written as a separate zone in the same file.
+
+If plotting is enabled, KAnT also opens a Matplotlib window for the computed results.
+
+## Reference Cases
+
+Reference datasets for the ignition-delay examples are stored under `data/reference/`. The packaged cases are the same ones used by the tutorial page and the regression tests.
+
+See the [KAnT tutorials](../../tutorials/kant/index.md) for case-by-case walkthroughs.

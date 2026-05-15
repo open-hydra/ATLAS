@@ -32,7 +32,7 @@ Each page opens with **what the tool can do**, then covers how to configure it.
 
 	---
 
-	Generate area schedules and geometry data for variable-area duct and nozzle configurations.
+	Generate source term fields with uniform or 1-D profile distributions.
 
 	[Open STB Guide](./stb/index.md)
 

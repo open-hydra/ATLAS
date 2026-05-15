@@ -1,37 +1,113 @@
 # IC Strategies
 
-Full reference for all strategies recognised by ICB. See `src/hydra-tools/ICB/` for current implementations.
+Full reference for initialization strategies recognised by ICB.
+
+---
+
+## Supported `type` Values
+
+| `type` | Meaning | Typical phases |
+|---|---|---|
+| `homogeneous` | Uniform initialization in the selected block/range. | IG, RF, SP, DP |
+| `variable` | File-backed/profile-based assignment using `<key>-file`. | IG, RF, SP |
+| `interpolation` | Solution transfer from `old-solution` file. | IG, RF, SP, DP |
+| `nozzle` | Nozzle-based initialization model. | IG |
+
+If `type` is omitted, ICB defaults to `homogeneous`.
 
 ## Direct Assignment
 
-| Strategy | Code | Phase | When to use |
-|----------|------|-------|-------------|
-| Uniform ideal gas | `uniform-ig` | Ideal gas | Cold-start from a known reference condition (freestream, chamber, stagnation state). |
-| Uniform real fluid | `uniform-rf` | Real fluid | Cold-start for high-pressure or cryogenic flow simulations. |
-| Uniform condensed | `uniform-dp` | Condensed (dispersed) | Initial spray distribution at rest or with a known velocity. |
-| Uniform solid | `uniform-sp` | Solid | Initial wall temperature for conjugate heat transfer setups. |
+| Strategy | `type` | Phase | When to use |
+|----------|--------|-------|-------------|
+| Homogeneous ideal gas | `homogeneous` | Ideal gas | Chamber or freestream starts with constant fields. |
+| Homogeneous real fluid | `homogeneous` | Real fluid | High-pressure/cryogenic starts from one reference state. |
+| Homogeneous condensed | `homogeneous` | Condensed (dispersed) | Equilibrium or vacuum starts for dispersed populations. |
+| Homogeneous solid | `homogeneous` | Solid | Uniform initial wall/material temperature. |
+
+Example (IG homogeneous):
+
+```ini
+[ICB-Block1]
+type = homogeneous
+p = 101325.0
+T = 300.0
+u = 0.0
+v = 0.0
+w = 0.0
+```
 
 ## Profile-Based
 
-| Strategy | Code | Phase | When to use |
-|----------|------|-------|-------------|
-| 1-D profile | `profile-ig` | Ideal gas | Inlet boundary-layer or jet profiles; non-uniform freestream conditions. |
+| Strategy | `type` | Phase | When to use |
+|----------|--------|-------|-------------|
+| File-backed variable field | `variable` | IG, RF, SP | Non-uniform starts from measured/analytical profiles. |
+
+Example:
+
+```ini
+[ICB-Block1]
+type = variable
+T-file = T_profile.dat
+T-direction = x
+p = 101325.0
+```
 
 ## Nozzle Initialization
 
-| Strategy | Code | Phase | When to use |
-|----------|------|-------|-------------|
-| De Laval nozzle | `nozzle` | Ideal gas | Cold-start of a supersonic nozzle. Requires STB area schedule. Avoids starting transients. |
+| Strategy | `type` | Phase | When to use |
+|----------|--------|-------|-------------|
+| De Laval nozzle | `nozzle` | Ideal gas | Cold-start of nozzle/plenum configurations to reduce startup transients. |
+
+Example:
+
+```ini
+[ICB-Block1]
+type = nozzle
+p0 = 10.342
+T0 = 555.56
+nozzle-direction = dx
+nozzle-threshold = 0.0
+```
 
 ## Interpolation
 
-| Strategy | Code | Phase | When to use |
-|----------|------|-------|-------------|
-| Interpolate | `interpolate` | Any | Mesh refinement studies, p-adaptive restarts, transferring results between grid generations. |
+| Strategy | `type` | Phase | When to use |
+|----------|--------|-------|-------------|
+| Interpolate old solution | `interpolation` | Any | Mesh refinement studies, remeshing, or projection from previous runs. |
 
-## Restart / Import
+Example:
 
-| Strategy | Code | Phase | When to use |
-|----------|------|-------|-------------|
-| Import | `import` | Any | Load a Hydra-format solution file generated externally. |
-| Restart | `restart` | Any | Standard simulation continuation; recovering from an interrupted run. |
+```ini
+[ICB-Block1]
+type = interpolation
+old-solution = field.tec
+old-block-id = 0
+interpolation-law = outlaw
+```
+
+Optional keys:
+
+- `old-species` for ideal-gas species remapping.
+- `theta`, `nz` when using `interpolation-law = extrude`.
+
+## Multizone Combinations
+
+ICB can combine different states inside one block through `zoneN`/`rangeN` with a block-level `direction`.
+
+```ini
+[ICB-Block1]
+direction = x
+zone1 = state1
+range1 = 0.0 0.02
+zone2 = state2
+range2 = 0.02 0.10
+
+[state1]
+type = homogeneous
+p = 200000.0
+T = 500.0
+
+[state2]
+type = interpolation
+old-solution = field.tec
+```

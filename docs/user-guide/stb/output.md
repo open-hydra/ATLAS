@@ -1,16 +1,46 @@
 # STB Output Files
 
-::: warning Work in progress
-This page is being populated.
-:::
+STB writes source-term fields into `fromATLAStoSolver/` and may also write area-variation tables for blocks configured with `*-areavariation` keys.
 
-## Output
+---
 
-STB writes a single binary file (default `area.bin`) containing the discretized area schedule. The file follows the Hydra block-file convention and is passed directly to the solver via the simulation input deck.
+## File Naming
 
-## Format
+### Source-term field output (`qvol`)
 
-1. Header (number of axial stations)
-2. Array of axial positions $x_i$ (m)
-3. Array of cross-sectional areas $A_i$ (m²)
-4. Array of area derivatives $\mathrm{d}A/\mathrm{d}x|_i$
+Source output naming depends on the selected output format:
+
+| Output selection | Main file(s) |
+|------------------|--------------|
+| Tecplot ASCII (`tec`, `tec-ascii`) | `st.tec` |
+| Tecplot binary (`tec-binary`) | `st.szplt` |
+| VTK (`vtk`, `vtk-ascii`, `vtk-binary`) | `qvol.vtm` + block files in `vtk/` |
+| Combined (`all`) | Tecplot + VTK outputs |
+
+VTK block files are written under `fromATLAStoSolver/vtk/`.
+
+### Area-variation output (optional)
+
+When an area profile key is found for a block, STB writes:
+
+- `fromATLAStoSolver/block<N>_area.dat`
+
+where `<N>` is the 1-based block index.
+
+## File Content
+
+### `st.tec` / `st.szplt` / VTK files
+
+- Cell-centered field named `qvol`.
+- One dataset spanning all configured mesh blocks.
+
+### `block<N>_area.dat`
+
+- Plain-text matrix of interpolated area values mapped to block face nodes.
+- Built from input coordinate-area pairs with linear interpolation and clamped end extrapolation.
+
+## Notes
+
+- STB always creates `fromATLAStoSolver/` if it does not exist.
+- Area-variation files are optional and independent from `qvol` source-field output.
+- For `theta-areavariation`, input theta is interpreted in degrees and converted internally.

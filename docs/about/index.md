@@ -33,7 +33,7 @@ This project is licensed under the GNU General Public License v3.0. See [License
 ATLAS builds upon the work of:
 
 - **Cantera** contributors (chemical kinetics and thermodynamics)
-- **NewCEA** contributors (NASA CEA Python interface)
+- **CEA** contributors (NASA CEA)
 - **ORION** contributors (Fortran I/O library)
 - **FiNeR** contributors (Fortran INI parser)
 - **PiNeR** contributors (Python INI parser)

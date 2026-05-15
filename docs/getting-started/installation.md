@@ -41,7 +41,7 @@ The installer initializes the following submodules during build:
 |------|---------|
 | `lib/ORION` | core I/O and supporting routines |
 | `lib/third_party/FiNeR` | INI-style parsing support |
-| `lib/NewCEA` | CEA-related thermochemical tooling |
+| `lib/cea` | CEA-related thermochemical tooling |
 | `lib/PiNeR` | Python package used in ATLAS workflows |
 
 ## Build Methods
@@ -64,11 +64,8 @@ General form:
 Global options:
 
 - `-v`, `--verbose`: verbose logs
-- `-h`, `--help`: usage help
 
-The main installer commands are `build`, `compile`, `update`, and `setvars`.
-
-#### build
+The installer command is `build`.
 
 Performs a clean configure and build cycle, writes `CMakePresets.json`, sets shell variables, and optionally creates Conda env `ct-env`.
 
@@ -101,31 +98,6 @@ Options supported by `build`:
 - `--use-tecio`
 - `--no-conda`
 
-#### compile
-
-Re-configures with the generated preset and rebuilds without recreating the full build workflow.
-
-```bash
-./install.sh compile
-```
-
-#### update
-
-Synchronizes submodules.
-
-```bash
-./install.sh update
-./install.sh update --remote
-```
-
-#### setvars
-
-Writes shell setup so ATLAS commands are available in new shells.
-
-```bash
-./install.sh setvars
-```
-
 ### Build With CMake (Manual)
 
 If you prefer manual control, run the equivalent CMake commands directly.
@@ -152,10 +124,10 @@ conda env create -f ct-env.yaml
 The created environment name is `ct-env`. It includes:
 
 - Python + Cantera + CoolProp
-- Meson and Ninja (for NewCEA workflows)
+- Ninja
 - editable installs of:
   - `lib/PiNeR`
-  - `lib/NewCEA`
+  - `lib/cea`
   - `lib/ORION`
 
 ## Verification
@@ -165,14 +137,14 @@ After installation, verify core artifacts:
 ```bash
 ls -l bin/BCB bin/ICB bin/STB
 test -f CMakePresets.json && echo "CMakePresets.json present"
-test -f .setvars.sh && echo ".setvars.sh present"
+test -f scripts/setvars.sh && echo "setvars.sh present"
 conda env list | grep ct-env || true
 ```
 
 You can also confirm shell integration:
 
 ```bash
-source .setvars.sh
+source scripts/setvars.sh
 ATLAS --help
 ```
 
@@ -190,7 +162,7 @@ ATLAS --help
   - or provide explicit paths with `--include-orion` and `--include-finer`
 
 - `ATLAS` command not available in current shell:
-  - run `source .setvars.sh`
+  - run `source scripts/setvars.sh`
   - open a new terminal if your shell startup file was modified by `setvars`
 
 - `ct-env` already exists and env creation fails:
