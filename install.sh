@@ -6,6 +6,7 @@ set -u  # Treat unset variables as an error
 PROGRAM=$(basename "$0")
 readonly DIR=$(pwd)
 BUILD_DIR="$DIR/build"
+SVFILE="$DIR/scripts/setvars.sh"
 VERBOSE=false
 project=ATLAS
 
@@ -18,24 +19,17 @@ Usage:
   $PROGRAM [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 
 Global Options:
-  -h       , --help         Show this help message and exit
   -v       , --verbose      Enable verbose output
 
 Commands:
   build                     Perform a full build
-    --compilers=<name>      Set compilers suit (intel,gnu)
+    --compilers=<name>      Set compilers suite (intel,gnu)
+    --include-cea=<path>    Set external CEA path
     --include-orion=<path>  Set external ORION path
     --include-finer=<path>  Set external FiNeR path
     --use-openmp            Use OpenMP
     --use-tecio             Use TecIO
     --no-conda              Do not create Conda environment
-
-  compile                   Compile the program using the CMakePresets file
-
-  update                    Download git submodules
-    --remote                Use the latest remote commit
-
-  setvars                   Set $project paths in environment variables
 
 EOF
     exit 1
@@ -61,22 +55,22 @@ task() {
 
 
 function define_path () {
-  rm -f .setvars.sh
+  rm -f $SVFILE
 
-  echo 'export ATLASDIR='$DIR >> .setvars.sh
+  echo 'export ATLASDIR='$DIR >> $SVFILE
+  echo 'if [[ -f "$ATLASDIR/build/thermo.lib" ]]; then export CEA_DATA_DIR="$ATLASDIR/build"; fi' >> $SVFILE
   if [[ $SHELL == *"zsh"* ]]; then
-    echo 'ATLAS () { '$DIR'/ATLAS.sh $@; }' >> .setvars.sh
+    echo 'ATLAS () { '$DIR'/ATLAS.sh $@; }' >> $SVFILE
     RCFILE=$HOME/.zshrc
   elif [[ $SHELL == *"bash"* ]]; then
-    echo 'function ATLAS () { '$DIR'/ATLAS.sh $@; }' >> .setvars.sh
+    echo 'function ATLAS () { '$DIR'/ATLAS.sh $@; }' >> $SVFILE
     RCFILE=$HOME/.bashrc
   fi
   log "RC file: $RCFILE"
-  echo 'export -f ATLAS' >> .setvars.sh
-  #echo 'export PATH="$ATLASDIR/database/:$PATH"' >> .setvars.sh
+  echo 'export -f ATLAS' >> $SVFILE
   grep -v "ATLAS" $RCFILE > tmpfile && mv tmpfile $RCFILE
-  echo 'source '$DIR'/.setvars.sh' >> $RCFILE
-  source $RCFILE --force
+  echo 'source '$SVFILE'' >> $RCFILE
+  source $SVFILE
 }
 
 
@@ -100,6 +94,7 @@ function write_presets() {
       "cacheVariables": {
         "ORION_PATH": "${ORION_PATH}",
         "FINER_PATH": "${FINER_PATH}",
+        "CEA_PATH": "${CEA_PATH}",
         "CMAKE_BUILD_TYPE": "${BUILD_TYPE}",
         "CMAKE_Fortran_COMPILER": "${FC}",
         "CMAKE_CXX_COMPILER": "${CXX}",
@@ -117,6 +112,8 @@ EOF
 # Default global values
 COMMAND=""
 COMPILERS=""
+DEFAULT_CEA_PATH=$(pwd)'/lib/cea/'
+CEA_PATH=""
 ORION_PATH=$(pwd)'/lib/ORION/'
 FINER_PATH=$(pwd)'/lib/third_party/FiNeR/'
 USE_OPENMP="false"
@@ -126,21 +123,18 @@ REMOTE="false"
 BUILD_TYPE="RELEASE"
 
 # Define allowed options for each command using regular arrays
-CMD=("build" "compile" "update" "setvars")
-CMD_OPTIONS_build=("--include-orion --include-finer --compilers --use-openmp --use-tecio --no-conda")
-CMD_OPTIONS_update=("--remote")
+CMD=("build")
+CMD_OPTIONS_build=("--include-cea --include-orion --include-finer --compilers --use-openmp --use-tecio --no-conda")
 
 # Parse global options
-while getopts "hv-:" opt; do
+while getopts "v-:" opt; do
     case "$opt" in
         -)
             case "$OPTARG" in
                 verbose) VERBOSE=true ;;
-                help) usage ;;
                 *) error "Unknown global option '--$OPTARG'"; usage ;;
             esac
             ;;
-        h) usage ;;
         v) VERBOSE=true ;;
         ?) error "Unknown global option '-$OPTARG'"; usage ;;
     esac
@@ -164,6 +158,10 @@ shift
 # Parse command-specific options
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --include-cea=*)
+          [[ "$COMMAND" == "build" ]] || { error " --include-cea is only valid for 'build' command"; exit 1; }
+          CEA_PATH="${1#*=}"
+          ;;
         --include-orion=*)
             [[ "$COMMAND" == "build" ]] || { error " --include-orion is only valid for 'build' command"; exit 1; }
             ORION_PATH="${1#*=}"
@@ -192,10 +190,6 @@ while [[ $# -gt 0 ]]; do
             [[ "$COMMAND" == "build" ]] || { error " --no-conda is only valid for 'build' command"; exit 1; }
             NO_CONDA="true"
             ;;
-        --remote)
-            [[ "$COMMAND" == "update" ]] || { error " --remote is only valid for 'update' command"; exit 1; }
-            REMOTE="true"
-            ;;
         *)
             eval "opts=(\"\${CMD_OPTIONS_${COMMAND}[@]}\")"
             error "Unknown option '$1' for command '$COMMAND'. Valid options: ${opts[@]}"
@@ -210,11 +204,17 @@ done
 case "$COMMAND" in
     build)
         task "Building $project"
+
+        if [[ -z "$CEA_PATH" && -f "$DEFAULT_CEA_PATH/CMakeLists.txt" ]]; then
+          CEA_PATH="$DEFAULT_CEA_PATH"
+        fi
         
         task "Cloning submodules"
+        if [[ $CEA_PATH == "$DEFAULT_CEA_PATH" ]] && grep -q 'path = lib/cea' .gitmodules 2>/dev/null; then
+          git submodule update --init lib/cea
+        fi
         [[ $ORION_PATH == $(pwd)'/lib/ORION/' ]] && git submodule update --init lib/ORION
         [[ $FINER_PATH == $(pwd)'/lib/third_party/FiNeR/' ]] && git submodule update --init --recursive lib/third_party/FiNeR
-        git submodule update --init lib/NewCEA
         git submodule update --init lib/PiNeR
 
         task "Configuring and building $project"
@@ -229,6 +229,7 @@ case "$COMMAND" in
         fi
         log "Build dir: $BUILD_DIR"
         log "Build type: $BUILD_TYPE"
+        log "CEA path: $CEA_PATH"
         log "ORION path: $ORION_PATH"
         log "FINER path: $FINER_PATH"
         log "Use TecIO: $USE_TECIO"
@@ -239,7 +240,11 @@ case "$COMMAND" in
           log "Compilers: FC=$FC, CXX=$CXX"
         fi
         rm -rf $BUILD_DIR
-        cmake -B $BUILD_DIR -DORION_PATH=$ORION_PATH -DFINER_PATH=$FINER_PATH -DUSE_TECIO=$USE_TECIO -DUSE_OPENMP=$USE_OPENMP -DCMAKE_BUILD_TYPE=$BUILD_TYPE || exit 1
+        CMAKE_ARGS=(-B "$BUILD_DIR" -DORION_PATH="$ORION_PATH" -DFINER_PATH="$FINER_PATH" -DUSE_TECIO="$USE_TECIO" -DUSE_OPENMP="$USE_OPENMP" -DCMAKE_BUILD_TYPE="$BUILD_TYPE")
+        if [[ -n "$CEA_PATH" ]]; then
+          CMAKE_ARGS+=( -DCEA_PATH="$CEA_PATH" )
+        fi
+        cmake "${CMAKE_ARGS[@]}" || exit 1
         cmake --build $BUILD_DIR || exit 1
         log "[OK] Compilation successful"
 
@@ -248,12 +253,9 @@ case "$COMMAND" in
         log "[OK] CMakePresets.json created"
 
         task "Defining environment variables"
-        cd lib/NewCEA
-        ./install.sh setvars
-        log "[OK] NewCEA environment variables defined"
         cd $DIR
         define_path
-        log "[OK] ATLAS environment variables defined"
+        log "[OK] ATLAS and CEA environment variables defined"
 
         if [[ "$NO_CONDA" == "false" ]]; then
           task "Create Conda environment"
@@ -266,28 +268,6 @@ case "$COMMAND" in
           log "[OK] Conda environment created"
         fi
 
-        ;;
-    compile)
-        task "Compiling $project using CMakePresets"
-        cmake --preset default || exit 1
-        cmake --build $BUILD_DIR || exit 1
-        log "[OK] Compilation successful"
-        ;;
-    update)
-        task "Updating git submodules"
-        if [[ "$REMOTE" == "true" ]]; then
-          log "Updating submodules to latest remote commit"
-          git submodule update --init --remote
-        else
-          log "Updating submodules to current commit"
-          git submodule update --init
-        fi
-        log "[OK] Submodules updated"
-        ;;
-    setvars)
-        task "Setting $project environment variables"
-        define_path
-        log "[OK] Environment variables defined"
         ;;
     *)
         error "Unknown command '$COMMAND'"
