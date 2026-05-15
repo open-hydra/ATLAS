@@ -12,7 +12,7 @@
  ALOCL  ALOH            CO              CO2     O2
  CL             CL2             H               HCL             H2
  H2O            NO              N2              O               OH
- ALO2H  AL2O3(L)
+ AL2O3(L)
  output
  siunits massf transport
  end
