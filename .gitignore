@@ -3,10 +3,11 @@ fromATLAStoSolver
 
 # database
 database/Tec-eqn/*.eqn
+data
 
 # Build
 build
-.setvars.sh
+scripts/setvars.sh
 CMakePresets.json
 
 # Executables

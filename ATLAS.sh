@@ -13,6 +13,7 @@ function print_usage {
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
   echo "   ATLAS ICB"
+  echo "   ATLAS STB"
   echo
   echo "Other tools:"
   echo "   ATLAS CEA"
@@ -79,12 +80,7 @@ while test $# -gt 0; do
 done
 
 if [[ $1 == CEA ]]; then
-  cp $2.inp CEAfile.inp
-  echo CEAfile >> fileInput
-  $NewCEADIR/bin/FCEA2 < fileInput
-  rm fileInput CEAfile.inp
-  mv CEAfile.out $2.out
-  mv CEAfile.plt $2.plt 2>/dev/null
+  $ATLASDIR/build/lib/cea/source/cea $2
 else
   ls *phase.txt > filelist.txt 2>/dev/null
   for program in $@; do
@@ -95,10 +91,11 @@ else
           eval "$(conda shell.bash hook)"
       fi
       conda activate ct-env
-      python3 -B $ATLASDIR/src/hydra-tools/GPB --write-config-doc
+      python3 -B $ATLASDIR/src/GPB --write-config-doc
       conda deactivate
       $ATLASDIR/bin/BCB --write-config-doc
       $ATLASDIR/bin/ICB --write-config-doc
+      $ATLASDIR/bin/STB --write-config-doc
     elif [[ $program == 'GPB' || $program == 'KAnT' ]]; then
       if [ -n "$ZSH_VERSION" ]; then
           eval "$(conda shell.zsh hook)"
