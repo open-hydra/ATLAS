@@ -27,11 +27,23 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-activate-base: false
+          activate-environment: ct-env
+          use-mamba: true
+
       - name: Build with install.sh
         run: |
           chmod +x ./install.sh
-          # Use GNU compilers, do not create Conda env in CI
+          # Use GNU compilers and create ct-env for GPB/KAnT tests.
           ./install.sh build --compilers=gnu
+
+      - name: Sanity check GPB Python deps
+        shell: bash -l {0}
+        run: |
+          python -c "import numpy, cantera, PiNeR; print('numpy', numpy.__version__); print('cantera', cantera.__version__)"
 
       - name: Run tests
         run: ctest --test-dir build --output-on-failure --timeout 300
