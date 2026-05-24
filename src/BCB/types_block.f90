@@ -6,10 +6,9 @@ module bc_block_mod
   use geometry_mod, only: CalculateArea, CalculateNormal
   implicit none
   private
-  public :: BC_block, obj_boundary_cellface, obj_face
   public :: import_nodes, build_geometry
 
-  type, extends(vector_nD_type) :: obj_boundary_cellface
+  type, extends(vector_nD_type), public :: obj_boundary_cellface
     type(bc_t)            :: bc
     real(8), dimension(3) :: normal
     real(8)               :: area

@@ -112,8 +112,7 @@ EOF
 # Default global values
 COMMAND=""
 COMPILERS=""
-DEFAULT_CEA_PATH=$(pwd)'/lib/cea/'
-CEA_PATH=""
+CEA_PATH=$(pwd)'/lib/cea/'
 ORION_PATH=$(pwd)'/lib/ORION/'
 FINER_PATH=$(pwd)'/lib/third_party/FiNeR/'
 USE_OPENMP="false"
@@ -204,15 +203,9 @@ done
 case "$COMMAND" in
     build)
         task "Building $project"
-
-        if [[ -z "$CEA_PATH" && -f "$DEFAULT_CEA_PATH/CMakeLists.txt" ]]; then
-          CEA_PATH="$DEFAULT_CEA_PATH"
-        fi
         
         task "Cloning submodules"
-        if [[ $CEA_PATH == "$DEFAULT_CEA_PATH" ]] && grep -q 'path = lib/cea' .gitmodules 2>/dev/null; then
-          git submodule update --init lib/cea
-        fi
+        [[ $CEA_PATH == $(pwd)'/lib/cea' ]] && git submodule update --init lib/cea
         [[ $ORION_PATH == $(pwd)'/lib/ORION/' ]] && git submodule update --init lib/ORION
         [[ $FINER_PATH == $(pwd)'/lib/third_party/FiNeR/' ]] && git submodule update --init --recursive lib/third_party/FiNeR
         git submodule update --init lib/PiNeR
