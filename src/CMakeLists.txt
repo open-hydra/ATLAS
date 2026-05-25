@@ -60,6 +60,12 @@ target_include_directories(STB PRIVATE
     $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
 )
 
+if (TARGET cea_abort_support)
+  target_link_libraries(ICB PRIVATE cea_abort_support)
+  target_link_libraries(BCB PRIVATE cea_abort_support)
+  target_link_libraries(STB PRIVATE cea_abort_support)
+endif()
+
 if(USE_OPENMP)
   find_package(OpenMP REQUIRED COMPONENTS Fortran)
   target_link_libraries(ICB PRIVATE OpenMP::OpenMP_Fortran)

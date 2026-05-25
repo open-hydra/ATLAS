@@ -76,9 +76,8 @@ macro(ensure_cea_data_link)
 endmacro()
 
 if (NOT TARGET cea_core)
-  if (NOT DEFINED CEA_ENABLE_BIND_C)
-    set(CEA_ENABLE_BIND_C OFF CACHE BOOL "Enable C language bindings" FORCE)
-  endif()
+  # Newer CEA/fbasics requires C abort-support symbols at link time.
+  set(CEA_ENABLE_BIND_C ON CACHE BOOL "Enable C language bindings" FORCE)
   if (NOT DEFINED CEA_ENABLE_BIND_CXX)
     set(CEA_ENABLE_BIND_CXX OFF CACHE BOOL "Enable C++ language bindings" FORCE)
   endif()
