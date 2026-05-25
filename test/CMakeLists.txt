@@ -6,6 +6,7 @@
 set(_TEST_ENV
     "OMP_NUM_THREADS=1"
     "KMP_STACKSIZE=100M"
+    "ATLASDIR=${CMAKE_SOURCE_DIR}"
 )
 
 # ---- GPB : ceafile-reactive-OG -------------

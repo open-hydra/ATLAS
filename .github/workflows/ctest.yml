@@ -46,4 +46,6 @@ jobs:
           python -c "import numpy, cantera, PiNeR; print('numpy', numpy.__version__); print('cantera', cantera.__version__)"
 
       - name: Run tests
+        env:
+          ATLASDIR: ${{ github.workspace }}
         run: ctest --test-dir build --output-on-failure --timeout 300
