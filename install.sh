@@ -205,7 +205,7 @@ case "$COMMAND" in
         task "Building $project"
         
         task "Cloning submodules"
-        [[ $CEA_PATH == $(pwd)'/lib/cea' ]] && git submodule update --init lib/cea
+        [[ $CEA_PATH == $(pwd)'/lib/cea/' ]] && git submodule update --init lib/cea
         [[ $ORION_PATH == $(pwd)'/lib/ORION/' ]] && git submodule update --init lib/ORION
         [[ $FINER_PATH == $(pwd)'/lib/third_party/FiNeR/' ]] && git submodule update --init --recursive lib/third_party/FiNeR
         git submodule update --init lib/PiNeR
