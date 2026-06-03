@@ -15,3 +15,4 @@
 
 Automatically sourced from git history.
 
+- AndreaGiacomi
