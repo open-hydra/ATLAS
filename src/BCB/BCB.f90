@@ -93,7 +93,7 @@ program BCB
     ! BC writing
     do b = 1, size(phase)
       select case(phase(b)%type)
-      case('IG')
+      case('IG', 'RF')
         call write_ig_bc(phase(b)%name,blk,m)
       case('DP')
         call write_dp_bc(phase(b)%name,blk)

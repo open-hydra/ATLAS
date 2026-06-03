@@ -8,7 +8,7 @@ def write_phase(name, fluid):
     """Write the real-gas phase descriptor file."""
     filename = outpath + name + "phase.txt"
     with open(filename, 'w') as f:
-        f.write("real-gas phase\n")
+        f.write("real-fluid phase\n")
         f.write(f"{fluid}\n")
 
 
@@ -34,6 +34,8 @@ def write_transport(name, NP, NH, rows):
         f.write("TITLE = \"Transport Properties\"\n")
         f.write('VARIABLES = "Pressure", "Enthalpy", '
                 '"Viscosity", "Conductivity"\n')
-        f.write(f"ZONE T=real-gas, I={NP}, J={NH}, K=1, VARLOCATION=([1-4]=NODAL)\n")
-        for row in rows:
-            f.write(" ".join(f"{v}" for v in row) + "\n")
+        f.write(f"ZONE T=real-gas, I={NP}, J={NH}, K=1, DATAPACKING=BLOCK, VARLOCATION=([1-4]=NODAL)\n")
+        n_vars = len(rows[0])
+        for col in range(n_vars):
+            for row in rows:
+                f.write(f"{row[col]}\n")

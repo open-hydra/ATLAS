@@ -358,19 +358,19 @@ contains
             orion%block(cnt)%vars(1,:,:,:) = blk(b)%rf%pressure
             orion%block(cnt)%vars(2,:,:,:) = blk(b)%rf%velocity(1,:,:,:)
             orion%block(cnt)%vars(3,:,:,:) = blk(b)%rf%enthalpy
-            if (blk(b)%nrans>0) orion%block(cnt)%vars(5:4+blk(b)%nrans,:,:,:) = blk(b)%rf%turbprop
+            if (blk(b)%nrans>0) orion%block(cnt)%vars(4:3+blk(b)%nrans,:,:,:) = blk(b)%rf%turbprop
           elseif (mesh_cfg%meshType == -2) then
             allocate(orion%block(cnt)%vars(1:4+blk(b)%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
             orion%block(cnt)%vars(1,:,:,:)   = blk(b)%rf%pressure
             orion%block(cnt)%vars(2:3,:,:,:) = blk(b)%rf%velocity(1:2,:,:,:)
             orion%block(cnt)%vars(4,:,:,:)   = blk(b)%rf%enthalpy
-            if (blk(b)%nrans>0) orion%block(cnt)%vars(6:5+blk(b)%nrans,:,:,:) = blk(b)%rf%turbprop
+            if (blk(b)%nrans>0) orion%block(cnt)%vars(5:4+blk(b)%nrans,:,:,:) = blk(b)%rf%turbprop
           else
             allocate(orion%block(cnt)%vars(1:5+blk(b)%nrans,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
             orion%block(cnt)%vars(1,:,:,:)   = blk(b)%rf%pressure
             orion%block(cnt)%vars(2:4,:,:,:) = blk(b)%rf%velocity
             orion%block(cnt)%vars(5,:,:,:)   = blk(b)%rf%enthalpy
-            if (blk(b)%nrans>0) orion%block(cnt)%vars(7:6+blk(b)%nrans,:,:,:) = blk(b)%rf%turbprop
+            if (blk(b)%nrans>0) orion%block(cnt)%vars(6:5+blk(b)%nrans,:,:,:) = blk(b)%rf%turbprop
           endif
 
         end select
