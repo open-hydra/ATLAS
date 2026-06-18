@@ -53,6 +53,8 @@ contains
     call define_composition(sourceini, self%ig_species, CEAT0, CEAp0, CEAh0)
 
     if (p0==0_R8 .and. g==0_R8) p0 = CEAp0
+    if (g/=0_R8 .and. psub/=0_R8 .and. psup/=0_R8) p0 = CEAp0
+    if (Ae_At/=0_R8) p0 = CEAp0
     if (T0==0_R8 .and. T==0_R8) T0 = CEAT0
 
     if (h0/=0_R8 .and. self%ig_species%n==1) then
