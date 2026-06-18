@@ -1,7 +1,6 @@
  problem   case=MM3SS
- rocket  equilibrium  nfz=1  tcest(k)=3800
+ rocket  equilibrium
  p,bar=30.543
- sup,ae/at=   24.7999992
  react
  fuel=AL(cr) wt=15  t,k=298.15
  oxid=NH4CLO4(I) wt=73  t,k=298.15
