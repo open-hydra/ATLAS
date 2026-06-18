@@ -11,7 +11,7 @@ contains
   module procedure build_inflow_outflow_ig
     implicit none
     type(bcb_ig_boundary_config_t) :: cfg
-    real(R8) :: p0, T0, h0, mach, T, g, alpha, beta, p, rel_fac, Ae_At, rt, psup, psub
+    real(R8) :: p0, T0, h0, mach, T, g, un, alpha, beta, p, rel_fac, Ae_At, rt, psup, psub
     real(R8) :: mit, kappa, omega, rhoRij
     integer  :: dim, start, nrans
     real(R8) :: ceah0, ceaT0, ceap0
@@ -30,12 +30,12 @@ contains
     h0           = cfg%h0
     T            = cfg%T
     g            = cfg%g
+    un           = cfg%velocity%un
     alpha        = cfg%velocity%alpha
     beta         = cfg%velocity%beta
     p            = cfg%p
     rel_fac      = cfg%rel_fac
     Ae_At        = cfg%Ae_At
-    rt           = cfg%rt
     psub         = cfg%psub
     psup         = cfg%psup
     p0_time_file = cfg%p0_time_file
@@ -62,7 +62,7 @@ contains
     endif
 
     ! Dispatch
-    if ( Ae_At + rt /= 0_R8) then
+    if ( Ae_At /= 0_R8 .or. (g /= 0_R8 .and. psup /= 0_R8 .and. psub /= 0_R8) ) then
       call nozzle
     else
       call standard
@@ -97,6 +97,11 @@ contains
 
       endif
 
+    elseif (self % definition=='outlet') then
+
+      ! Relaxation factor
+      self%ig_properties(2) = rel_fac
+
     endif
 
   contains
@@ -113,11 +118,15 @@ contains
 
       ! Inflow | p0(t), T0
       elseif (p0_time_file/='none' .and. self%definition=='inlet') then
+        if (T0==0_R8) then
+          write(*,*) '[ERROR] T0 must be specified when using p0-time-file'
+          stop
+        endif
         self % ig_id = 402
         self % time_varying = .true.
         dim = 3
-        call setup_bc_inlet(ip0=1)
-        self % ig_properties(2) = T0
+        call setup_bc_inlet(ip0=2)
+        self % ig_properties(1) = T0
 
       ! Subsonic inflow | g, T0
       elseif ( g/=0_R8     .and. T0/=0_R8 .and. self%definition=='inlet') then
@@ -163,6 +172,13 @@ contains
         dim = 4
         call setup_bc_inlet(ip0=2)
         self % ig_properties(1:3) = [T0, p0, p]
+
+      ! Subsonic inflow | un, T
+      elseif (un/=0._R8 .and. T/=0._R8 .and. self%definition=='inlet') then
+        self % ig_id = 408
+        dim = 3
+        call setup_bc_inlet(ip0=0)
+        self % ig_properties(1:2) = [T, un]
 
       ! Full state specification with time-varying properties
       elseif ( time_file/='none') then
@@ -255,29 +271,18 @@ contains
           M_sup = 1.0d0
         endif
 
-        psub = p0 * (1.0d0 + 0.5d0*(gam-1.0d0)*M_sub**2)**(-gam/(gam-1.0d0)) / 1.0d5
-        psup = p0 * (1.0d0 + 0.5d0*(gam-1.0d0)*M_sup**2)**(-gam/(gam-1.0d0)) / 1.0d5
+        psub = p0 * (1.0d0 + 0.5d0*(gam-1.0d0)*M_sub**2)**(-gam/(gam-1.0d0))
+        psup = p0 * (1.0d0 + 0.5d0*(gam-1.0d0)*M_sup**2)**(-gam/(gam-1.0d0))
 
         Gamma_v = sqrt(gam) * (2.0d0/(gam+1.0d0))**((gam+1.0d0)/(2.0d0*(gam-1.0d0)))
-        rt = p0 * Gamma_v / sqrt(Rgas * T0) / Ae_At
-
-      else
-
-        if (psub==0._R8) then
-          write(*,*) '[ERROR] psub is necessary when rt assigned'
-          stop
-        endif
-        if (psup==0._R8) then
-          write(*,*) '[ERROR] psup is necessary when rt assigned'
-          stop
-        endif
+        g = p0 * Gamma_v / sqrt(Rgas * T0) / Ae_At
 
       endif
 
       self%ig_id = 420
       dim = 5
       call setup_bc_inlet(ip0=0)
-      self % ig_properties(1:5) = [T0, p0, psub, psup, rt]
+      self % ig_properties(1:5) = [T0, p0, psub, psup, g]
 
     end subroutine nozzle
 

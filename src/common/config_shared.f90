@@ -18,6 +18,7 @@ module config_shared_mod
   type, public :: config_velocity_t
     real(R8) :: alpha = 0.0_R8
     real(R8) :: beta = 0.0_R8
+    real(R8) :: un = 0.0_R8
     real(R8) :: u = 0.0_R8
     real(R8) :: v = 0.0_R8
     real(R8) :: w = 0.0_R8
@@ -115,11 +116,14 @@ contains
     cfg%u = 0.0_R8
     cfg%v = 0.0_R8
     cfg%w = 0.0_R8
+    cfg%un = 0.0_R8
 
     call zoneini%get(section_name=section_id, option_name='alpha', val=cfg%alpha, error=error)
     if (error /= 0) cfg%alpha = huge(0.0_R8)
     call zoneini%get(section_name=section_id, option_name='beta', val=cfg%beta, error=error)
     if (error /= 0) cfg%beta = huge(0.0_R8)
+    call zoneini%get(section_name=section_id, option_name='un', val=cfg%un, error=error)
+    if (error /= 0) cfg%un = 0.0_R8
     call zoneini%get(section_name=section_id, option_name='u', val=cfg%u, error=error)
     if (error /= 0) cfg%u = 0.0_R8
     call zoneini%get(section_name=section_id, option_name='v', val=cfg%v, error=error)
@@ -211,6 +215,8 @@ contains
                       'Prescribed y-velocity component.', '', .false.)
     call registry%add(section, 'w', velocity_cfg%w, '0.0', &
                       'Prescribed z-velocity component.', '', .false.)
+    call registry%add(section, 'un', velocity_cfg%un, '0.0', &
+                      'Prescribed normal velocity component.', '', .false.)
   end subroutine add_velocity_registry_entries
 
   subroutine add_turbulence_registry_entries(registry, section, turbulence_cfg)

@@ -69,7 +69,7 @@ contains
     real(R8) :: ytot
     logical  :: eq_og
 
-    species%massf = 0.0d0
+    species%massf = 1.d-20
 
     call sini%get_sections_list(section_name)
     eq_og = .false.

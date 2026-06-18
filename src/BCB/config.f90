@@ -108,7 +108,6 @@ module bcb_config_mod
     real(R8) :: p = 0.0_R8
     real(R8) :: rel_fac = 1.0_R8
     real(R8) :: Ae_At = 0.0_R8
-    real(R8) :: rt = 0.0_R8
     real(R8) :: psup = 0.0_R8
     real(R8) :: psub = 0.0_R8
     character(len=32) :: p0_time_file = 'none'
@@ -465,8 +464,6 @@ contains
 
     call sourceini%get(section_name=section, option_name='Ae_At', val=cfg%Ae_At, error=error)
     if (error /= 0) cfg%Ae_At = 0.0_R8
-    call sourceini%get(section_name=section, option_name='rt', val=cfg%rt, error=error)
-    if (error /= 0) cfg%rt = 0.0_R8
     call sourceini%get(section_name=section, option_name='psub', val=cfg%psub, error=error)
     if (error /= 0) cfg%psub = 0.0_R8
     call sourceini%get(section_name=section, option_name='psup', val=cfg%psup, error=error)
