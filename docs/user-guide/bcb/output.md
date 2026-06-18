@@ -181,16 +181,17 @@ Example (`id = 302`, prescribed wall temperature):
 | ID | Payload fields (in order) |
 |----|--------------------------|
 | `401` | `T0, p0, alpha, beta, rf, massf(1:ns) [, turb…]` |
-| `402` | `<p0_time_file>, T0, alpha, beta, rf, massf(1:ns) [, turb…]` |
+| `402` | `T0, <p0_time_file>, alpha, beta, rf, massf(1:ns) [, turb…]` |
 | `403` | `T0, g, alpha, beta, rf, massf(1:ns) [, turb…]` |
 | `404` | `T, g, alpha, beta, rf, massf(1:ns) [, turb…]` |
 | `405` | `mach, T, p, alpha, beta, rf, massf(1:ns) [, turb…]` |
 | `406` | `p, rf` |
 | `407` | `T0, p0, p, alpha, beta, rf, massf(1:ns) [, turb…]` |
+| `408` | `T, un, alpha, beta, rf, massf(1:ns) [, turb…]` |
 | `410` | `<time_file>, 'periodic'` |
-| `420` | `T0, p0, psub, psup, rt, alpha, beta, rf, massf(1:ns) [, turb…]` |
+| `420` | `T0, p0, psub, psup, g, alpha, beta, rf, massf(1:ns) [, turb…]` |
 
-`p0`, `T0` = total pressure/temperature; `p`, `T` = static pressure/temperature; `g` = mass flux [kg m⁻² s⁻¹]; `mach` = Mach number; `alpha`, `beta` = inflow direction angles (`normal,` sentinel when free-stream normal); `rf` = relaxation factor; `massf(1:ns)` = injected species mass fractions; `psub`/`psup` = subsonic/supersonic injector nozzle pressures; `rt` = injector nozzle throat.
+`p0`, `T0` = total pressure/temperature; `p`, `T` = static pressure/temperature; `g` = mass flux [kg m⁻² s⁻¹]; `un` = normal velocity [m s⁻¹]; `mach` = Mach number; `alpha`, `beta` = inflow direction angles (`normal,` sentinel when free-stream normal); `rf` = relaxation factor; `massf(1:ns)` = injected species mass fractions; `psub`/`psup` = subsonic/supersonic injector nozzle pressures.
 
 !!! tip "Time-file option"
     For time-varying inlet conditions, the payload line contains the time-file name string instead of numeric values.
