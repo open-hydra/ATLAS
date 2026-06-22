@@ -24,10 +24,10 @@ contains
     !! Local
     integer                       :: i, j, k
     ! Support fields
-    real(R8)  :: p  (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
-    real(R8)  :: T  (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
-    real(R8)  :: h  (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
-    real(R8)  :: vel(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
+    real(R8), allocatable  :: p  (:,:,:)
+    real(R8), allocatable  :: T  (:,:,:)
+    real(R8), allocatable  :: h  (:,:,:)
+    real(R8), allocatable  :: vel(:,:,:)
     ! Velocity direction parameters
     real(R8)                      :: alpha, beta, ux, uy, uz
     ! Turbulence parameters
@@ -41,6 +41,11 @@ contains
     type(interp_map_t)            :: map
     type(var_block), allocatable  :: src_field(:)
     integer                       :: cnt, bb
+
+    allocate(p(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+    allocate(h(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+    allocate(T(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+    allocate(vel(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
 
     is_variable = .false.
     call load_zone_field(p, rf_cfg%p, 1.d0)
