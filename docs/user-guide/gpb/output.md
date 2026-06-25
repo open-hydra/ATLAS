@@ -64,6 +64,16 @@ Variables:
 2. `Viscosity`
 3. `Conductivity`
 
+
+### `<prefix>diffusion.dat`
+
+Tecplot point format with binary diffusion coefficients for every unique species pair.
+
+Variables:
+
+1. `Temperature`
+2. `Binary coefficient ij`
+
 ### `<prefix>composition.txt` (reactive/equilibrium data)
 
 Species composition file for equilibrium simulations.

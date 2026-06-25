@@ -333,6 +333,11 @@ def build(inifile,section):
         else:
             IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group)
 
+        # Binary diffusion coefficients (multicomponent diffusion model, optional output).
+        # Only meaningful for kinetic-theory transport; CEA/constant models have no pair data.
+        if transport_model not in ('CEA', 'constant'):
+            IG_transport.compute_binary_diffusion(name, T1, T2, species_group)
+
     # ---------------------------------------------------
     # Build chemistry properties
     # ---------------------------------------------------

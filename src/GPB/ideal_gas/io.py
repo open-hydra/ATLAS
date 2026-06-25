@@ -85,6 +85,39 @@ def write_transport_properties(name, T_low, T_max, species_names, viscosity, con
                 f.write(f"{T} {viscosity[species_name][i]:.12f} {conductivity[species_name][i]:.12f} \n")
 
 
+def write_diffusion_properties(name, T_low, T_max, species_names, Dij, pref):
+    """
+    Write binary diffusion coefficients D_ij(T) for every unique species pair.
+
+    One Tecplot zone per pair, in upper-triangular order
+    (1,2),(1,3),...,(1,ns),(2,3),...  matching the species order in phase.txt.
+    `Dij` is a (npair, n_temperatures) array with npair = ns*(ns-1)/2; values in m^2/s.
+    Consumed by FLINT's read_idealgas_diffusion (multicomponent diffusion model).
+
+    Binary diffusivities scale as D ~ 1/p, so the table is built at the reference
+    pressure `pref` [Pa], embedded in the TITLE as "(Pref=<value> Pa)" and rescaled
+    by Pref/p at runtime by the solver.
+    """
+    filename = outpath + name + "diffusion.dat"
+
+    # Define temperature range (same grid as thermo.dat / transport.dat)
+    temperatures = np.linspace(T_low, T_max, T_max - T_low + 1)
+    ns = len(species_names)
+
+    with open(filename, 'w') as f:
+        f.write(f"TITLE = \"Binary Diffusion Coefficients (Pref={pref:.6f} Pa)\"\n")
+        f.write("VARIABLES = \"Temperature\", \"Dij\"\n")
+
+        p = 0
+        for i in range(ns):
+            for j in range(i + 1, ns):
+                f.write(f"ZONE T=\"{species_names[i]}-{species_names[j]}\"\n")
+                f.write(f"I={len(temperatures)}, F=POINT\n")
+                for ti, T in enumerate(temperatures):
+                    f.write(f"{T} {Dij[p, ti]:.12E}\n")
+                p += 1
+
+
 def write_chemistry_info (name, phase, further_sp):
 
     filename_ = outpath + name + 'chemistry-info.txt'
