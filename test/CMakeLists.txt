@@ -95,6 +95,18 @@ set_tests_properties(IG-inflow-ceafile-inertmix PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-chimera (overset overlap connections) -------------
+add_test(
+    NAME    IG-chimera
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-chimera"
+)
+set_tests_properties(IG-chimera PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable
