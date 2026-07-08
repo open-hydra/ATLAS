@@ -4,7 +4,7 @@ module intersection_mod
   ! check point-in-hexahedron, compute volumes and basic vector ops.
   implicit none
   private
-  public :: IntersectionVolumes 
+  public :: convexHullVolume
   public :: intersection_type, HexahedronIntesectingPoints, pointInsideHexahedron, &
     intersectQuadrangles, clipLineToQuadrangle, intersectLines3D, isPointInQuadrangle, &
     linePlaneIntersection, FaceSelection, HexahedronVolume, TetrahedronVolume, &
@@ -24,36 +24,145 @@ module intersection_mod
 
 contains
 
-  ! Fortran interface to Python script for computing intersection volumes
-  subroutine IntersectionVolumes(python_path,ni,intersection)
+  ! Volume of the convex hull of an arbitrary 3D point cloud (incremental
+  ! beneath-beyond hull). Returns 0 for degenerate input (fewer than 4 points,
+  ! or all points collinear/coplanar), matching scipy.spatial.ConvexHull.
+  !
+  ! The initial simplex is seeded from extreme points (maximum-separation pair,
+  ! farthest-from-line, farthest-from-plane) so it is well conditioned even for
+  ! thin/sliver clouds, and visibility uses a tolerance relative to that seed
+  ! simplex. This makes the volume robust on the near-degenerate intersections
+  ! that arise between overlapping chimera cells.
+  subroutine convexHullVolume(pts, n, vol)
     implicit none
-    character(len=*), intent(in)                        :: python_path
-    integer, intent(in)                                 :: ni
-    type(intersection_type), allocatable, intent(inout) :: intersection(:)
-    integer :: unitfile1, ios, i
+    integer, intent(in)  :: n
+    real(8), intent(in)  :: pts(3,n)
+    real(8), intent(out) :: vol
 
-    !% Allocate and store intersections info
-    allocate(intersection(1:ni))
-    open(newunit=unitfile1,file='couples.txt',iostat=ios)
-    if ( ios /= 0 ) stop "Error opening couples.txt"
-    do i = 1, ni
-        read(unitfile1,*) intersection(i)%receiverID, intersection(i)%donorID
-        read(unitfile1,*) intersection(i)%nodeinside
-    enddo
-    close(unitfile1)
+    integer :: faces(3, 4*max(n,4))
+    integer :: newf(3, 4*max(n,4))
+    logical :: visible(4*max(n,4))
+    integer :: edges(2, 12*max(n,4))
+    integer :: nf, nnew, ne
+    integer :: i, i1, i2, i3, i4, p, a, b, e, f
+    real(8) :: c(3), scale, dmax, dd, vmax, tolv, nrm(3), v0(3), d
+    logical :: found_reverse
 
-    !% Compute the convex hull (intersection) volume with a python script and import the values
-    call execute_command_line('python3 -B  '//trim(python_path))
-    open(newunit=unitfile1,file='volumes.txt',iostat=ios)
-    if ( ios /= 0 ) stop "Error opening volumes.txt"
-    do i = 1, ni
-        read(unitfile1,*,iostat=ios) intersection(i)%inter_volume
-        intersection(i)%inter_volume = intersection(i)%inter_volume/(fs**3)
-        if (ios/=0) stop "Error reading volumes.txt"
-    enddo
-    close(unitfile1)
+    vol = 0.d0
+    if (n < 4) return
 
-  end subroutine IntersectionVolumes
+    scale = 0.d0
+    do i = 1, n
+      scale = max(scale, abs(pts(1,i)), abs(pts(2,i)), abs(pts(3,i)))
+    end do
+    if (scale <= 0.d0) return
+
+    ! --- Extreme-point seeding of a well-conditioned initial tetrahedron -----
+    i1 = 1
+    do i = 2, n
+      if (pts(1,i) < pts(1,i1)) i1 = i
+    end do
+    i2 = 0; dmax = -1.d0
+    do i = 1, n
+      dd = norm(pts(:,i)-pts(:,i1)); if (dd > dmax) then; dmax = dd; i2 = i; end if
+    end do
+    if (dmax <= 1.d-12*scale) return                       ! all coincident
+    i3 = 0; dmax = -1.d0
+    do i = 1, n
+      dd = norm(cross_product(pts(:,i2)-pts(:,i1), pts(:,i)-pts(:,i1)))
+      if (dd > dmax) then; dmax = dd; i3 = i; end if
+    end do
+    if (dmax <= 1.d-12*scale*scale) return                 ! collinear
+    nrm = cross_product(pts(:,i2)-pts(:,i1), pts(:,i3)-pts(:,i1))
+    i4 = 0; vmax = -1.d0
+    do i = 1, n
+      dd = abs(dot_product(nrm, pts(:,i)-pts(:,i1)))
+      if (dd > vmax) then; vmax = dd; i4 = i; end if
+    end do
+    if (vmax <= 1.d-15*scale*scale*scale) return           ! coplanar -> vol 0
+
+    c = 0.25d0*(pts(:,i1)+pts(:,i2)+pts(:,i3)+pts(:,i4))
+    nf = 0
+    call add_oriented(faces, nf, i1, i2, i3, pts, c)
+    call add_oriented(faces, nf, i1, i2, i4, pts, c)
+    call add_oriented(faces, nf, i1, i3, i4, pts, c)
+    call add_oriented(faces, nf, i2, i3, i4, pts, c)
+
+    ! Visibility tolerance relative to the seed simplex "thickness"
+    tolv = 1.d-10 * vmax
+
+    ! --- Incrementally add the remaining points ------------------------------
+    do p = 1, n
+      if (p==i1 .or. p==i2 .or. p==i3 .or. p==i4) cycle
+
+      ne = 0
+      do f = 1, nf
+        v0  = pts(:, faces(1,f))
+        nrm = cross_product(pts(:,faces(2,f))-v0, pts(:,faces(3,f))-v0)
+        d   = dot_product(nrm, pts(:,p)-v0)
+        visible(f) = (d > tolv)
+        if (visible(f)) then
+          edges(:, ne+1) = [faces(1,f), faces(2,f)]
+          edges(:, ne+2) = [faces(2,f), faces(3,f)]
+          edges(:, ne+3) = [faces(3,f), faces(1,f)]
+          ne = ne + 3
+        end if
+      end do
+      if (ne == 0) cycle
+
+      nnew = 0
+      do e = 1, ne
+        a = edges(1,e); b = edges(2,e)
+        found_reverse = .false.
+        do f = 1, ne
+          if (edges(1,f)==b .and. edges(2,f)==a) then
+            found_reverse = .true.; exit
+          end if
+        end do
+        if (.not. found_reverse) then
+          nnew = nnew + 1
+          newf(:, nnew) = [a, b, p]
+        end if
+      end do
+
+      f = 0
+      do e = 1, nf
+        if (.not. visible(e)) then
+          f = f + 1
+          faces(:,f) = faces(:,e)
+        end if
+      end do
+      nf = f
+      do e = 1, nnew
+        nf = nf + 1
+        faces(:,nf) = newf(:,e)
+      end do
+    end do
+
+    vol = 0.d0
+    do f = 1, nf
+      vol = vol + dot_product(pts(:,faces(1,f)), &
+                  cross_product(pts(:,faces(2,f)), pts(:,faces(3,f))))
+    end do
+    vol = abs(vol) / 6.d0
+
+  end subroutine convexHullVolume
+
+  ! Append triangle (ia,ib,ic) oriented so its normal points away from interior c.
+  subroutine add_oriented(faces, nf, ia, ib, ic, pts, c)
+    implicit none
+    integer, intent(inout) :: faces(:,:), nf
+    integer, intent(in)    :: ia, ib, ic
+    real(8), intent(in)    :: pts(:,:), c(3)
+    real(8) :: nrm(3)
+    nf = nf + 1
+    nrm = cross_product(pts(:,ib)-pts(:,ia), pts(:,ic)-pts(:,ia))
+    if (dot_product(nrm, pts(:,ia)-c) >= 0.d0) then
+      faces(:,nf) = [ia, ib, ic]
+    else
+      faces(:,nf) = [ia, ic, ib]
+    end if
+  end subroutine add_oriented
 
 
   ! HexahedronIntesectingPoints
