@@ -39,14 +39,19 @@ contains
     real(8), intent(in)  :: pts(3,n)
     real(8), intent(out) :: vol
 
-    integer :: faces(3, 4*max(n,4))
-    integer :: newf(3, 4*max(n,4))
-    logical :: visible(4*max(n,4))
-    integer :: edges(2, 12*max(n,4))
-    integer :: nf, nnew, ne
+    ! Generous work-buffer capacity.  A simplicial 3-polytope on n points has at
+    ! most 2n-4 faces, so 8*max(n,4) leaves ample head-room; the hard guards
+    ! below make an out-of-bounds write impossible even if floating-point noise
+    ! on a near-degenerate sliver momentarily breaks the horizon "disk"
+    ! invariant (which would otherwise corrupt the heap and abort on return).
+    integer :: faces(3, 8*max(n,4))
+    integer :: newf(3, 8*max(n,4))
+    logical :: visible(8*max(n,4))
+    integer :: edges(2, 24*max(n,4))
+    integer :: nf, nnew, ne, nkeep
     integer :: i, i1, i2, i3, i4, p, a, b, e, f
     real(8) :: c(3), scale, dmax, dd, vmax, tolv, nrm(3), v0(3), d
-    logical :: found_reverse
+    logical :: found_reverse, skip
 
     vol = 0.d0
     if (n < 4) return
@@ -96,19 +101,21 @@ contains
       if (p==i1 .or. p==i2 .or. p==i3 .or. p==i4) cycle
 
       ne = 0
+      skip = .false.
       do f = 1, nf
         v0  = pts(:, faces(1,f))
         nrm = cross_product(pts(:,faces(2,f))-v0, pts(:,faces(3,f))-v0)
         d   = dot_product(nrm, pts(:,p)-v0)
         visible(f) = (d > tolv)
         if (visible(f)) then
+          if (ne+3 > size(edges,2)) then; skip = .true.; exit; end if
           edges(:, ne+1) = [faces(1,f), faces(2,f)]
           edges(:, ne+2) = [faces(2,f), faces(3,f)]
           edges(:, ne+3) = [faces(3,f), faces(1,f)]
           ne = ne + 3
         end if
       end do
-      if (ne == 0) cycle
+      if (skip .or. ne == 0) cycle          ! p interior, or degenerate blow-up
 
       nnew = 0
       do e = 1, ne
@@ -120,10 +127,20 @@ contains
           end if
         end do
         if (.not. found_reverse) then
+          if (nnew+1 > size(newf,2)) then; skip = .true.; exit; end if
           nnew = nnew + 1
           newf(:, nnew) = [a, b, p]
         end if
       end do
+      if (skip) cycle
+
+      ! Would the rebuilt face list overrun the buffer?  Only possible on a
+      ! degenerate horizon; skip p (treat as interior) rather than corrupt memory.
+      nkeep = 0
+      do e = 1, nf
+        if (.not. visible(e)) nkeep = nkeep + 1
+      end do
+      if (nkeep + nnew > size(faces,2)) cycle
 
       f = 0
       do e = 1, nf
