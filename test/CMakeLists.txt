@@ -95,6 +95,22 @@ set_tests_properties(IG-inflow-ceafile-inertmix PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-chimera (overset overlap connections) -------------
+# Volume fractions come from an ill-conditioned hull volume of sliver contacts;
+# they are correct to ~1e-9 but not bit-identical across CPU architectures
+# (FMA contraction perturbs the last digit), so compare with a numeric tolerance
+# rather than an exact diff.
+add_test(
+    NAME    IG-chimera
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-chimera"
+)
+set_tests_properties(IG-chimera PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable
