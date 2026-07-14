@@ -145,7 +145,7 @@ contains
             enddo
           endif
         !$omp parallel private(m,n,var,f,has_injector) &
-        !$omp firstprivate(ini_o,here) &
+        !$omp& firstprivate(ini_o,here)
         !$omp do collapse(2) schedule(dynamic)
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
@@ -218,7 +218,7 @@ contains
         endif
 
         !$omp parallel private(m,n,var,f,has_injector) &
-        !$omp firstprivate(ini_o,here) &
+        !$omp& firstprivate(ini_o,here)
         !$omp do collapse(2) schedule(dynamic)
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
@@ -416,7 +416,7 @@ contains
         endif
 
         !$omp parallel private(m,n,var,f) &
-        !$omp firstprivate(ini_o,here)
+        !$omp& firstprivate(ini_o,here)
         !$omp do collapse(2)
         do n = ni, ne; do m = mi, me
             here(1) = face%center(m,n)%c(fileDir(1))
