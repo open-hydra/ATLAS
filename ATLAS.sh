@@ -12,6 +12,7 @@ function print_usage {
   echo "Hydra pre-processing tools:"
   echo "   ATLAS GPB"
   echo "   ATLAS BCB"
+  echo "   ATLAS BCB-GUI"
   echo "   ATLAS ICB"
   echo "   ATLAS STB"
   echo
@@ -96,6 +97,15 @@ else
       $ATLASDIR/bin/BCB --write-config-doc
       $ATLASDIR/bin/ICB --write-config-doc
       $ATLASDIR/bin/STB --write-config-doc
+    elif [[ $program == 'BCB-GUI' ]]; then
+      if [ -n "$ZSH_VERSION" ]; then
+          eval "$(conda shell.zsh hook)"
+      elif [ -n "$BASH_VERSION" ]; then
+          eval "$(conda shell.bash hook)"
+      fi
+      conda activate ct-env
+      python3 -B $ATLASDIR/GUI/BCB_GUI.py
+      conda deactivate
     elif [[ $program == 'GPB' || $program == 'KAnT' ]]; then
       if [ -n "$ZSH_VERSION" ]; then
           eval "$(conda shell.zsh hook)"

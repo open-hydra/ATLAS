@@ -7,6 +7,13 @@ It supports simple single-patch boundaries, multipatch definitions, periodic lin
 !!! tip "BCB in the Hydra workflow"
     BCB is designed to be used in the Hydra workflow. It consumes mesh and phase information built by other tools, and produces BC files for use by all Hydra solvers.
 
+!!! example "Prefer a visual workflow?"
+    The interactive [BCB GUI](./gui.md) lets you load a mesh, click block faces,
+    assign boundary conditions, and export the `input.ini` directly. Launch it
+    with `ATLAS BCB-GUI`.
+
+    [![BCB GUI preview](images/bcb-gui.png)](./gui.md)
+
 ---
 
 ## BC Types
@@ -68,6 +75,7 @@ ATLAS BCB --input input.ini
 
 - [Required files](./required-files)
 - [BC Setup](./bc-setup)
+- [BCB GUI](./gui)
 - [BC Types](./bc-types)
 - [Output Files](./output)
 - [Input Reference](./input-reference)

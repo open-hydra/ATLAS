@@ -367,6 +367,42 @@
 .tc { color: #3d4f6b; display: block; }
 .tp { color: #9ca3af; font-weight: 700; user-select: none; }
 
+/* ── BCB GUI showcase ───────────────────────────────────────────────── */
+.code-showcase {
+  padding: 5.5rem 0;
+  background: var(--md-code-bg-color, #f5f5f5);
+}
+.code-shot {
+  max-width: 1000px;
+  margin: 0 auto;
+  border-radius: 0.875rem;
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(0, 0, 0, 0.08));
+}
+.code-shot__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.1rem;
+  background: #1c2333;
+}
+.code-shot__label {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: #7c8aa5;
+  font-family: 'Fira Code', monospace;
+}
+.code-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.code-showcase__cta {
+  text-align: center;
+  margin-top: 2.25rem;
+}
+
 /* ── Ecosystem ──────────────────────────────────────────────────────── */
 .code-eco {
   padding: 5.5rem 0;

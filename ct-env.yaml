@@ -9,6 +9,9 @@ dependencies:
 - ipython  # optional (needed for nicer interactive command line)
 - jupyter  # optional (needed for Jupyter Notebook)
 - matplotlib  # optional (needed for plots)
+- pyqt  # optional (needed for the BCB / GPB GUIs)
+- pyvista  # optional (needed for the BCB GUI 3-D mesh viewport)
+- pyvistaqt  # optional (needed for the BCB GUI 3-D mesh viewport)
 - python-graphviz  # optional (needed for reaction path diagrams)
 - pandas  # optional (needed for pandas interface)
 - pint  # optional (needed for units)
@@ -17,4 +20,4 @@ dependencies:
 - pip:
     - -e lib/PiNeR
     - -e lib/cea
-    - -e lib/ORION
+    - ../../lib/ORION

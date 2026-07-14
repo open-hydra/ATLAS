@@ -113,6 +113,7 @@ nav:
       - Overview: user-guide/bcb/index.md
       - Required Files: user-guide/bcb/required-files.md
       - BC Setup: user-guide/bcb/bc-setup.md
+      - GUI: user-guide/bcb/gui.md
       - BC Types: user-guide/bcb/bc-types.md
       - Output Files: user-guide/bcb/output.md
       - Input Reference: user-guide/bcb/input-reference.md
