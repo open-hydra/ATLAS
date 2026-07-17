@@ -13,8 +13,14 @@ contains
     self % dp_n = 7
     if (.not.allocated(self % dp_properties)) &
       allocate(self % dp_properties(1:phase % material % n,1:maxval(phase % material % npCP(:)),1:self % dp_n))
-    
-    self % dp_properties = 1.0_R8
+    if (.not.allocated(self % dp_distribution)) &
+      allocate(self % dp_distribution(1:phase % material % n,1:maxval(phase % material % npCP(:))))
+    if (.not.allocated(self % dp_ds)) &
+      allocate(self % dp_ds(1:phase % material % n,1:maxval(phase % material % npCP(:))))
+
+    self % dp_properties   = 1.0_R8
+    self % dp_distribution = 'none'
+    self % dp_ds           = 0.0_R8
 
     call load_bcb_dp_boundary_config(sourceini, section, phase, cfg)
 
@@ -54,6 +60,8 @@ contains
       self % dp_properties(m,1:npCP,4) = cfg%materials(m)%betap
       self % dp_properties(m,1:npCP,6) = cfg%materials(m)%rp
       self % dp_properties(m,1:npCP,7) = cfg%materials(m)%sigmap
+      self % dp_distribution(m,1:npCP) = cfg%materials(m)%distribution(1:npCP)
+      self % dp_ds(m,1:npCP)           = cfg%materials(m)%ds
 
     enddo
 

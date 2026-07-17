@@ -213,22 +213,28 @@ Turbulence suffix:
 
 ### `401`–`403` — Inlet / Outlet (ICE/IGLOO solvers)  
 
-| ID | Payload fields (7 values, in order) |
+| ID | Payload fields (7 numeric values + 1 string + 1 numeric, in order) |
 |----|-------------------------------------|
-| `401` | `krho, kV, alphap, betap, kT, rp, sigmap` |
-| `402` | `gp, velocity_magnitude, alphap, betap, Tp, rp, sigmap` |
-| `403` | `gp, kV, alphap, betap, Tp, rp, sigmap` |
+| `401` | `krho, kV, alphap, betap, kT, rp, sigmap, distribution, ds` |
+| `402` | `gp, velocity_magnitude, alphap, betap, Tp, rp, sigmap, distribution, ds` |
+| `403` | `gp, kV, alphap, betap, Tp, rp, sigmap, distribution, ds` |
 
-Field key: `krho`/`kV`/`kT` = scaling coefficients for mass/velocity/temperature wrt the gaseous phase; `gp` = mass flux; `alphap`/`betap` = direction angles; `Tp` = particle temperature; `rp` = particle radius; `sigmap` = variance coefficient.
+Field key: `krho`/`kV`/`kT` = scaling coefficients for mass/velocity/temperature wrt the gaseous phase; `gp` = mass flux; `alphap`/`betap` = direction angles; `Tp` = particle temperature; `rp` = particle radius; `sigmap` = variance coefficient; `distribution` = size-distribution law (a string); `ds` = injection-point spacing (last token, meters).
 
 !!! note "Direction angles"
     For normal injection, write `normal,` in place of numeric `alphap` and `betap`.
 
-Example (DP inlet, `id = 402`):
+!!! note "Distribution (8th field)"
+    A string the solver maps to its size-distribution model: one of `Dirac`, `Normal`, `LogNormal`, `RosinRammler`, or a path to a two-column numeric file (any extension) tabulating the distribution by points. Resolved by BCB from the inlet's `distribution` option: `sigmap = 0` always yields `Dirac` (a zero-width delta, overriding any entry); a non-zero `sigmap` with no `distribution` set defaults to `LogNormal`.
+
+!!! note "Injection spacing `ds` (9th field)"
+    Per-population injection-point spacing in **meters** (the BCB `ds` input option is in cm and converted on write). `0.00000E+00` (option unset) tells the solver to fall back to its global `[IGLOO-BC] ds`; a positive value activates per-cell spacing for this population.
+
+Example (DP inlet, `id = 402`, LogNormal, `ds` unset):
 
 ```
        2       1       1       1       1     402
-   0.34500E+03   0.10000E+03   0.26000E+02   0.00000E+00   0.45000E+03   0.50000E-02   0.00000E+00
+   0.34500E+03   0.10000E+03   0.26000E+02   0.00000E+00   0.45000E+03   0.50000E-02   0.50000E+00 LogNormal   0.00000E+00
 ```
 
 ---

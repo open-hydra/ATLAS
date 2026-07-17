@@ -6,7 +6,7 @@ module registry_mod
 
   integer, parameter :: TYPE_INT=1, TYPE_REAL=2, TYPE_LOG=3, TYPE_STR=4
 
-  public :: registry_t, Validate_Registry
+  public :: registry_t, Validate_Registry, lowercase
 
   !--------------------------------------------------------
   ! Value container (typed pointers)

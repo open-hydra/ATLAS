@@ -111,6 +111,18 @@ set_tests_properties(IG-chimera PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : CD-basic (dispersed-phase inlets, distribution field) -------------
+add_test(
+    NAME    CD-basic
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/CD-basic"
+)
+set_tests_properties(CD-basic PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

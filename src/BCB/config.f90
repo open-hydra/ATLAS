@@ -1,6 +1,6 @@
 module bcb_config_mod
   use iso_fortran_env, only: R8 => real64
-  use registry_mod,    only: registry_t
+  use registry_mod,    only: registry_t, lowercase
   use finer,           only: file_ini
   use global_mod,      only: llen
   use phase_mod,       only: phase_t
@@ -141,10 +141,12 @@ module bcb_config_mod
     real(R8), allocatable :: Tp(:)
     real(R8), allocatable :: rp(:)
     real(R8), allocatable :: sigmap(:)
+    real(R8), allocatable :: ds(:)
     real(R8), allocatable :: alphap(:)
     real(R8), allocatable :: betap(:)
     real(R8), allocatable :: rRes(:)
     real(R8), allocatable :: Tsat(:)
+    character(len=32), allocatable :: distribution(:)
   end type bcb_dp_material_config_t
 
   type, public :: bcb_dp_boundary_config_t
@@ -502,7 +504,7 @@ contains
     type(phase_t), intent(in)                    :: phase
     type(bcb_dp_boundary_config_t), intent(out)  :: cfg
 
-    integer :: error, m, npcp
+    integer :: error, m, npcp, p
 
     allocate(cfg%materials(1:phase%material%n))
     do m = 1, phase%material%n
@@ -520,10 +522,12 @@ contains
       allocate(cfg%materials(m)%Tp(1:npcp))
       allocate(cfg%materials(m)%rp(1:npcp))
       allocate(cfg%materials(m)%sigmap(1:npcp))
+      allocate(cfg%materials(m)%ds(1:npcp))
       allocate(cfg%materials(m)%alphap(1:npcp))
       allocate(cfg%materials(m)%betap(1:npcp))
       allocate(cfg%materials(m)%rRes(1:npcp))
       allocate(cfg%materials(m)%Tsat(1:npcp))
+      allocate(cfg%materials(m)%distribution(1:npcp))
 
       cfg%materials(m)%krho = 0.0_R8
       cfg%materials(m)%kV = 1.0_R8
@@ -536,10 +540,12 @@ contains
       cfg%materials(m)%Tp = 0.0_R8
       cfg%materials(m)%rp = 0.0_R8
       cfg%materials(m)%sigmap = 0.0_R8
+      cfg%materials(m)%ds = 0.0_R8
       cfg%materials(m)%alphap = huge(1.0_R8)
       cfg%materials(m)%betap = huge(1.0_R8)
       cfg%materials(m)%rRes = 0.0_R8
       cfg%materials(m)%Tsat = 0.0_R8
+      cfg%materials(m)%distribution = ''
       cfg%materials(m)%has_gp = .false.
 
       call sourceini%get(section_name=section, option_name='krho', val=cfg%materials(m)%krho, error=error)
@@ -561,14 +567,80 @@ contains
       call sourceini%get(section_name=section, option_name='dp',   val=cfg%materials(m)%rp, error=error)
       if (error == 0) cfg%materials(m)%rp = 0.5_R8 * cfg%materials(m)%rp
       call sourceini%get(section_name=section, option_name='sigmap', val=cfg%materials(m)%sigmap, error=error)
+      call sourceini%get(section_name=section, option_name='ds',     val=cfg%materials(m)%ds, error=error)
+      if (error /= 0) cfg%materials(m)%ds = 0.0_R8
+      cfg%materials(m)%ds = cfg%materials(m)%ds * 1.0e-2_R8   ! cm -> m (matches global [IGLOO-BC] ds; NB: dp/rp are NOT converted)
       call sourceini%get(section_name=section, option_name='alphap', val=cfg%materials(m)%alphap, error=error)
       call sourceini%get(section_name=section, option_name='betap',  val=cfg%materials(m)%betap, error=error)
       call sourceini%get(section_name=section, option_name='rRes',   val=cfg%materials(m)%rRes, error=error)
       call sourceini%get(section_name=section, option_name='Tsat',   val=cfg%materials(m)%Tsat, error=error)
+      call sourceini%get(section_name=section, option_name='distribution', val=cfg%materials(m)%distribution, error=error)
+
+      ! Resolve the size-distribution law for each population (string written to
+      ! the BC file, interpreted by the solver). sigmap==0 is a Dirac delta and
+      ! overrides any entry; otherwise default to LogNormal when unset.
+      do p = 1, npcp
+        if (cfg%materials(m)%sigmap(p) == 0.0_R8) then
+          cfg%materials(m)%distribution(p) = 'Dirac'
+        elseif (len_trim(cfg%materials(m)%distribution(p)) == 0) then
+          cfg%materials(m)%distribution(p) = 'LogNormal'
+        else
+          select case (lowercase(trim(adjustl(cfg%materials(m)%distribution(p)))))
+          case ('dirac');        cfg%materials(m)%distribution(p) = 'Dirac'
+          case ('normal');       cfg%materials(m)%distribution(p) = 'Normal'
+          case ('lognormal');    cfg%materials(m)%distribution(p) = 'LogNormal'
+          case ('rosinrammler'); cfg%materials(m)%distribution(p) = 'RosinRammler'
+          case default
+            ! Not a keyword: must be a path to an existing two-column numeric file.
+            if (.not. is_two_column_file(trim(adjustl(cfg%materials(m)%distribution(p))))) then
+              write(*,'(A)') '[ERROR] invalid "distribution" in section ['//trim(section)//']: "'// &
+                             trim(cfg%materials(m)%distribution(p))//'"'
+              write(*,'(A,I0,A)') '        population ', p, &
+                             ' - expected Normal/LogNormal/RosinRammler/Dirac or a two-column numeric file.'
+              error stop
+            endif
+            cfg%materials(m)%distribution(p) = adjustl(cfg%materials(m)%distribution(p))
+          end select
+        endif
+      enddo
 
       if (all(cfg%materials(m)%rRes == 0.0_R8)) cfg%materials(m)%rRes = cfg%materials(m)%rp
     enddo
   end subroutine load_bcb_dp_boundary_config
+
+  ! Returns .true. iff `path` exists and every non-blank, non-comment line parses
+  ! as exactly two real numbers (>=1 data row). Reading line-by-line enforces two
+  ! columns per line rather than letting list-directed input span lines.
+  logical function is_two_column_file(path) result(ok)
+    implicit none
+    character(*), intent(in) :: path
+    integer            :: u, ios, nrows
+    logical            :: exists
+    character(len=512) :: line
+    real(R8)           :: a, b
+
+    ok = .false.
+    inquire(file=path, exist=exists)
+    if (.not. exists) return
+    open(newunit=u, file=path, status='old', action='read', iostat=ios)
+    if (ios /= 0) return
+    nrows = 0
+    do
+      read(u, '(A)', iostat=ios) line
+      if (ios /= 0) exit
+      line = adjustl(line)
+      if (len_trim(line) == 0) cycle
+      if (scan(line(1:1), '#!;') /= 0) cycle
+      read(line, *, iostat=ios) a, b
+      if (ios /= 0) then
+        close(u)
+        return
+      endif
+      nrows = nrows + 1
+    enddo
+    close(u)
+    ok = nrows > 0
+  end function is_two_column_file
 
   subroutine load_bcb_unwrapped_config(sourceini, section, cfg)
     implicit none
@@ -743,6 +815,7 @@ contains
       call bcb_registry%add('bc-section', 'rp', dp_scalar, '0.0', 'Particle radii per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'dp', dp_scalar, '0.0', 'Particle diameters per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'sigmap', dp_scalar, '0.0', 'Particle dispersion widths.', '', .false.)
+      call bcb_registry%add('bc-section', 'ds', dp_scalar, '0.0', 'Injection-point spacing per dispersed population (cm; converted to m).', '', .false.)
       call bcb_registry%add('bc-section', 'alphap', dp_scalar, '0.0', 'Primary injection angle per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'betap', dp_scalar, '0.0', 'Secondary injection angle per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'rRes', dp_scalar, '0.0', 'Residual radius per dispersed population.', '', .false.)

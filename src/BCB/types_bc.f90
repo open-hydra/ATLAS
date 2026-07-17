@@ -29,6 +29,8 @@ module bc_mod
     integer                    :: dp_id=0
     integer                    :: dp_n=0
     real(8),       allocatable :: dp_properties(:,:,:)
+    character(32), allocatable :: dp_distribution(:,:)   ! material x population
+    real(8),       allocatable :: dp_ds(:,:)             ! material x population (meters)
     ! Solid phase
     integer                    :: sp_id=0
     integer                    :: sp_n=0

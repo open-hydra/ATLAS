@@ -329,6 +329,12 @@ module io_write_bc_mod
 
                 end select
 
+                ! The header carries a single id (print_id = gp_id if /=0, else dp_id);
+                ! the data line must match it. When gp_id/=0 the cell is presented as a
+                ! connection/periodic (its line was written above), so a coincident DP
+                ! injection (e.g. an srm face on a block interface) must NOT also emit a
+                ! dp line — the solver keys off the header id and would desync otherwise.
+                if (this % gp_id == 0) then
                 select case (this % dp_id)
                 ! 400-series -> inlet/outlet
                 case(401:403)
@@ -339,9 +345,12 @@ module io_write_bc_mod
                       write(unitfile,'(E14.5)',advance='no') blk(b)%face(f)%center(m,n)%bc%dp_properties(mm,p,i)
                     endif
                   enddo
+                  write(unitfile,'(X,A)',advance='no') trim(blk(b)%face(f)%center(m,n)%bc%dp_distribution(mm,p))
+                  write(unitfile,'(E14.5)',advance='no') blk(b)%face(f)%center(m,n)%bc%dp_ds(mm,p)
                   write(unitfile,'(A)') ''
 
                 end select
+                endif
 
                 endassociate
               enddo

@@ -43,7 +43,7 @@ contains
 
     ! Loop over each block
     do b = 1, size(blocks)
-      section_name = 'BCB-Block'//trim(str(.true.,b))   
+      section_name = 'BCB-Block'//trim(str(.true.,b))
       associate(blk => blocks(b))
 
       call load_bcb_block_config(sini, section_name, blk%nfaces, block_cfg)
@@ -252,6 +252,8 @@ contains
           this%bc%dp_n             = face%bc%dp_n
           allocate(this%bc%dp_properties(1:size(face%bc%dp_properties,1),1:size(face%bc%dp_properties,2),1:face%bc%dp_n))
           this%bc%dp_properties    = face%bc%dp_properties
+          this%bc%dp_distribution  = face%bc%dp_distribution
+          this%bc%dp_ds            = face%bc%dp_ds
         endif
 
         endassociate
