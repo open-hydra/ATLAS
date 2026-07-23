@@ -18,8 +18,9 @@ from simulations.base import AbstractSimulation
 from utils.phase_tools import add_species
 from utils.units import convert2si
 
-_ODE_RTOL = 1.0e-7
-_ODE_ATOL = 1.0e-7
+# Cantera-standard tolerances for stiff detailed kinetics.
+_ODE_RTOL = 1.0e-9
+_ODE_ATOL = 1.0e-15
 
 
 class ZeroDReactorBase(AbstractSimulation):
