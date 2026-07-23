@@ -7,8 +7,8 @@ if masterpath is None:
     print("ATLAS environment variable is not set.")
     sys.exit(1)
 datapath = masterpath + "/database/"
-ct.add_directory(datapath + "Thermo")
-ct.add_directory(datapath + "Chemistry")
+ct.add_directory(datapath + "thermo")
+ct.add_directory(datapath + "chemistry")
 
 
 def update_thermo_model(old_phase_name, model):
