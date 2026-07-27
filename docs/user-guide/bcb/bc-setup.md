@@ -265,9 +265,9 @@ Cells inside injector regions receive `inner-patch`; all remaining cells receive
 ## Multigrid
 
 When `MG-levels > 1` in `[ATLAS-Parameters]`, BCB runs the full BC assignment loop for each
-grid level. Each coarser grid is obtained by halving the node count in every direction (`Ni/2`,
-`Nj/2`, `Nk/2`). Grid dimensions must be divisible by `2^(MG-levels − 1)` in each direction
-(BCB checks this at startup and stops with an error otherwise).
+grid level. Each coarser grid is obtained by halving the cell count in every **active**
+direction (`Ni/2`, `Nj/2`, `Nk/2`); a direction that equals `1` is a singleton and is held
+fixed (kept at `1`), not halved.
 
 The same INI file produces BC files for all levels; there is no per-level configuration.
 Output files are distinguished by the level suffix (see [Output Files](./output)).
@@ -276,6 +276,29 @@ Output files are distinguished by the level suffix (see [Output Files](./output)
 [ATLAS-Parameters]
 MG-levels = 3
 ```
+
+!!! warning "Dimensionality and axis convention (1-D / 2-D meshes)"
+    Multigrid is supported for **3-D, 2-D and 1-D** meshes, but the reduced-dimension
+    cases must use a fixed axis layout, because only the trailing index directions are
+    collapsible:
+
+    | Case | Active directions | Must be singleton (`= 1`) |
+    |------|-------------------|---------------------------|
+    | 3-D  | `i, j, k`         | —                         |
+    | 2-D  | `i, j` (the `i–j` plane) | `k`                 |
+    | 1-D  | `i`               | `j` **and** `k`           |
+
+    So a **1-D** mesh must run **along `i`** (`Nj = Nk = 1`) and a **2-D** mesh must lie in
+    the **`i–j` plane** (`Nk = 1`). A mesh whose only non-trivial extent is on `j` or `k`
+    is not supported and produces inconsistent coarse-grid BC files.
+
+!!! warning "Starting-mesh divisibility requirement"
+    The supplied (finest) mesh must already satisfy the coarsening requirement: **every
+    active direction must be divisible by `2^(MG-levels − 1)`**, while singleton directions
+    (`= 1`) are exempt. BCB checks this at startup and stops with an
+    error otherwise. Size the mesh accordingly **before** generating it — e.g. with
+    `MG-levels = 5` (`2^4 = 16`) a 1-D mesh needs `Ni` a multiple of `16` (such as
+    `Ni = 4000`, `Nj = Nk = 1`).
 
 ## Notes
 

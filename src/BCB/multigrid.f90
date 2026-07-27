@@ -22,6 +22,7 @@ contains
       Ni = fine % block(b)%Ni /2
       Nj = fine % block(b)%Nj /2
       Nk = fine % block(b)%Nk /2
+      Nj = Max ( 1, Nj ) ! 1D case
       Nk = Max ( 1, Nk ) ! 2D case
       coarse % block(b) % Ni = Ni
       coarse % block(b) % Nj = Nj
@@ -30,13 +31,15 @@ contains
       allocate( coarse%block(b)%mesh(1:3,0:Ni,0:Nj,0:Nk) )
 
       do k = 0, fine % block(b)%Nk, 2-Mod(fine % block(b)%Nk,2)
-      do j = 0, fine % block(b)%Nj, 2
+      do j = 0, fine % block(b)%Nj, 2-Mod(fine % block(b)%Nj,2)
       do i = 0, fine % block(b)%Ni, 2
-          
+
         i2 = i / 2
         j2 = j / 2
         k2 = k / 2
-    
+
+        ! 1D
+        if ( fine % block(b)%Nj == 1 ) j2 = j
         ! 2D
         if ( fine % block(b)%Nk == 1 ) k2 = k
     
@@ -64,11 +67,11 @@ contains
       check = 0
 
       if ( Mod ( orion % block(b) % Ni, rap ) == 0 ) check = check + 1
-      if ( Mod ( orion % block(b) % Nj, rap ) == 0 ) check = check + 1
+      if ( Mod ( orion % block(b) % Nj, rap ) == 0 .or. orion % block(b) % Nj == 1 ) check = check + 1
       if ( Mod ( orion % block(b) % Nk, rap ) == 0 .or. orion % block(b) % Nk == 1 ) check = check + 1
 
       if ( check < 3 ) then
-        write(*,*) ' Error in check_multigrid, block: ', b
+        write(*,*) '[ERROR] Check multigrid, block: ', b
         stop
       endif
 
