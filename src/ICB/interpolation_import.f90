@@ -16,10 +16,11 @@ module ic_interpolation_old_mod
 contains
 
 
-  subroutine build_old_solution(oldsolutionfile_, phase)
+  subroutine build_old_solution(oldsolutionfile_, phase, n_species)
     implicit none
     character(len=llen), intent(inout) :: oldsolutionfile_
     character(len=*),    intent(in)    :: phase
+    integer, optional,   intent(in)    :: n_species
     !! Local
     real(R8), allocatable :: mesh(:,:,:,:)
     real(R8), allocatable :: theta(:)
@@ -35,7 +36,7 @@ contains
     allocate(theta(1:nz+1))
 
     if (verbose) write(*,*)" Reading solution file: ", trim(oldsolutionfile)
-    call read_vtk_tec(phase,oldsolutionfile,oldblock)
+    call read_vtk_tec(phase,oldsolutionfile,oldblock,n_species)
 
     if (config_interpolation % law=='extrude') then
 
@@ -128,16 +129,17 @@ contains
   end subroutine build_old_solution
 
 
-  subroutine ensure_old_solution(oldsolutionfile_, phase)
+  subroutine ensure_old_solution(oldsolutionfile_, phase, n_species)
     implicit none
     character(len=llen), intent(inout) :: oldsolutionfile_
     character(len=*),    intent(in)    :: phase
+    integer, optional,   intent(in)    :: n_species
 
     if (.not. allocated(oldblock)) then
-      call build_old_solution(oldsolutionfile_, phase)
+      call build_old_solution(oldsolutionfile_, phase, n_species)
     elseif (oldsolutionfile_ /= oldsolutionfile) then
       deallocate(oldblock)
-      call build_old_solution(oldsolutionfile_, phase)
+      call build_old_solution(oldsolutionfile_, phase, n_species)
     endif
   end subroutine ensure_old_solution
 

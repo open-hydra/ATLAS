@@ -42,12 +42,21 @@ contains
   end subroutine read_tec_file
 
 
+  !> Read an old solution (VTK/Tecplot) into IC blocks for interpolation.
+  !>
+  !> The reader must NOT infer the field layout from the raw variable count,
+  !> because solver solutions carry extra derived variables (e.g. T, gamma, R)
+  !> in addition to the fields ATLAS needs. The caller therefore supplies the
+  !> authoritative structural count via `n`, interpreted per phase:
+  !>   IG -> number of species ; CD -> number of dispersed populations.
+  !> RF needs no count (its velocity-component number is a mesh property).
   subroutine read_vtk_tec (phase_type,filename,blk,n)
     use Lib_VTK
     use Lib_Tecplot
     use Lib_ORION_data
     use global_mod, only: llen
     use ic_block_mod
+    use grid_mod,   only: mesh_cfg
     implicit none
     character(len=2), intent(in)     :: phase_type
     integer, intent(in), optional    :: n
@@ -57,6 +66,7 @@ contains
     type(Orion_Data) :: IOfield
     integer:: error, b, s, m
     integer :: n_species, nnn, nvel
+    integer :: nrans_src, ncoord, idx
 
     if (index(filename,'.tec')>0) then
       IOfield%tec%format = 'ascii'
@@ -81,7 +91,37 @@ contains
       else
         n_species = size(IOfield%block(1)%vars, 1) - 4 - blk(1)%nrans
       endif
+      ! Sanity check: the file must provide at least the mandatory
+      ! [n_species densities][u v w][p] columns. A shortfall means the
+      ! declared species count (old-species) or the file itself is wrong.
+      if (size(IOfield%block(1)%vars, 1) < n_species + 4) then
+        write(*,*) "[ERROR] read_vtk_tec: '"//trim(filename)//"' provides ", &
+          size(IOfield%block(1)%vars, 1), " field variables but ", n_species + 4, &
+          " are required (", n_species, " species + u,v,w,p)."
+        write(*,*) "        Check that the old-species count matches the solution file."
+        stop
+      endif
+      ! Detect how many turbulence variables the source carries. They always
+      ! follow pressure and are identified by name (1=SA, 2=k-omega, 6/7=RSM),
+      ! so trailing non-turbulence extras (T, gamma, R, ...) are not mistaken
+      ! for turbulence. If names are unavailable, no turbulence is read.
+      nrans_src = 0
+      if (allocated(IOfield%varnames)) then
+        ncoord = size(IOfield%varnames) - size(IOfield%block(1)%vars, 1)
+        if (ncoord >= 1) then
+          do s = 1, size(IOfield%block(1)%vars, 1) - (n_species + 4)
+            idx = ncoord + n_species + 4 + s
+            if (idx > size(IOfield%varnames)) exit
+            if (is_turbulence_var(IOfield%varnames(idx))) then
+              nrans_src = nrans_src + 1
+            else
+              exit
+            endif
+          enddo
+        endif
+      endif
       do b = 1, size(blk)
+        blk(b)%nrans = nrans_src
         call blk(b)%compute_centers([0,0,0])
         call blk(b)%allocate(blk(b)%nrans,n_species,blk(b)%dim(1),blk(b)%dim(2),blk(b)%dim(3))
         if (size(IOfield%block(b)%vars)>0) then
@@ -107,8 +147,21 @@ contains
       end do
 
     elseif (phase_type=='CD') then
-      ! Derive population count: each population has 6+blk(1)%neuler variables
-      nnn = size(IOfield%block(1)%vars, 1) / (6 + blk(1)%neuler)
+      ! Each population has 6+blk(1)%neuler variables. Use the caller-supplied
+      ! population count when available rather than dividing the raw variable
+      ! count, which breaks if the file carries extra trailing variables.
+      if (present(n)) then
+        nnn = n
+      else
+        nnn = size(IOfield%block(1)%vars, 1) / (6 + blk(1)%neuler)
+      endif
+      if (size(IOfield%block(1)%vars, 1) < nnn*(6 + blk(1)%neuler)) then
+        write(*,*) "[ERROR] read_vtk_tec: '"//trim(filename)//"' provides ", &
+          size(IOfield%block(1)%vars, 1), " field variables but ", nnn*(6 + blk(1)%neuler), &
+          " are required (", nnn, " populations x ", 6 + blk(1)%neuler, ")."
+        write(*,*) "        Check that the dispersed-population count matches the solution file."
+        stop
+      endif
       do b = 1, size(blk)
         call blk(b)%compute_centers([0,0,0])
         allocate(blk(b)%dp%density      (1:nnn, 1:blk(b)%dim(1), 1:blk(b)%dim(2), 1:blk(b)%dim(3)))
@@ -134,7 +187,23 @@ contains
       enddo
 
     elseif (phase_type=='RF') then
-      nvel = size(IOfield%block(1)%vars, 1) - 3 - blk(1)%nrans
+      ! The velocity-component count is a mesh property, NOT nvars-3-nrans:
+      ! solver files interleave extra scalars (e.g. T between h and turbulence),
+      ! so guessing from the variable count mislocates enthalpy/velocity.
+      ! Layout: [p, velocity(nvel), h, <extras>, turb(nrans as trailing vars)].
+      if (mesh_cfg%meshType == 10) then
+        nvel = 1
+      elseif (mesh_cfg%meshType == -2) then
+        nvel = 2
+      else
+        nvel = 3
+      endif
+      if (size(IOfield%block(1)%vars, 1) < nvel + 2) then
+        write(*,*) "[ERROR] read_vtk_tec: '"//trim(filename)//"' provides ", &
+          size(IOfield%block(1)%vars, 1), " field variables but ", nvel + 2, &
+          " are required (p + ", nvel, " velocity + h)."
+        stop
+      endif
       do b = 1, size(blk)
         call blk(b)%compute_centers([0,0,0])
         if (.not.allocated(blk(b)%rf%pressure)) then
@@ -150,14 +219,43 @@ contains
             blk(b)%rf%velocity(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(s+1,:,:,:)
           enddo
           blk(b)%rf%enthalpy   (1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(nvel+2,:,:,:)
+          ! Turbulence quantities are conventionally the last nrans variables.
           do s = 1, blk(b)%nrans
-            blk(b)%rf%turbprop(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = IOfield%block(b)%vars(nvel+3+s,:,:,:)
+            blk(b)%rf%turbprop(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = &
+              IOfield%block(b)%vars(size(IOfield%block(b)%vars,1)-blk(b)%nrans+s,:,:,:)
           enddo
         endif
       enddo
     endif
 
   end subroutine read_vtk_tec
+
+
+  !> True if a solution variable name denotes a turbulence quantity. Covers the
+  !> common models: Spalart-Allmaras (mi_t / mi_tilde / nut / mut), k-omega and
+  !> k-epsilon (kappa / tke / k, omega, epsilon), and Reynolds-stress components
+  !> (primed names like ru'u', or ruu/rvv/.../rvw). Case-insensitive.
+  logical function is_turbulence_var(rawname)
+    character(len=*), intent(in) :: rawname
+    character(len=len(rawname))  :: s
+    integer :: i, ic
+
+    s = ''
+    do i = 1, len_trim(rawname)
+      ic = iachar(rawname(i:i))
+      if (ic >= iachar('A') .and. ic <= iachar('Z')) ic = ic + 32
+      s(i:i) = achar(ic)
+    enddo
+    s = trim(adjustl(s))
+
+    is_turbulence_var = &
+        index(s, "mi_t")  > 0 .or. index(s, "tilde") > 0 .or. index(s, "'") > 0 .or. &
+        s == "nut" .or. s == "mut" .or. s == "mu_t" .or. s == "nu_t" .or. &
+        s == "kappa" .or. s == "tke" .or. s == "k" .or. &
+        s == "omega" .or. s == "epsilon" .or. s == "eps" .or. &
+        s == "ruu" .or. s == "rvv" .or. s == "rww" .or. &
+        s == "ruv" .or. s == "ruw" .or. s == "rvw"
+  end function is_turbulence_var
 
 
   subroutine write_vtk_tec(phase,ICformat,blk)

@@ -47,7 +47,10 @@ contains
     if (IC_type == 'interpolation') then
       write(*,*) ' -- CD type = interpolation'
 
-      call ensure_old_solution(OFF, 'CD')
+      ! Pass the known population count so the reader locates each population's
+      ! fields by the authoritative number instead of dividing the file's
+      ! variable count (which breaks when extra trailing variables are present).
+      call ensure_old_solution(OFF, 'CD', nnn)
       call compute_interp_map(map, oldblock, blk, oldid, config_interpolation % law)
 
       ! ---- Per-population per-field interpolation ----

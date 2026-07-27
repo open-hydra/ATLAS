@@ -45,6 +45,7 @@ contains
     character(len=2)              :: nozzle_dir
     real(R8)                      :: L_threshold
     logical                       :: is_variable
+    logical                       :: interp_turb
     ! Interpolation-specific locals
     type(interp_map_t)            :: map
     type(var_block), allocatable  :: src_field(:)
@@ -54,6 +55,7 @@ contains
     integer                       :: sold, cnt, bb
 
     is_variable = .false.
+    interp_turb = .false.
     call load_zone_field(M, ig_cfg%mach, 1.d0)
     call load_zone_field(p0, ig_cfg%p0, 1.d0)
     call load_zone_field(T0, ig_cfg%T0, 1.d0)
@@ -124,7 +126,7 @@ contains
     elseif (blk%nrans==7) then
 
         if(rhoRij/=0.0) blk%ig%turbprop(1:3,:,:,:) = rhoRij
-        blk%ig%turbprop(4:6,:,:,:) = 1d-8
+        if(.not.interp_turb) blk%ig%turbprop(4:6,:,:,:) = 1d-8
         if(omega/=0.0) blk%ig%turbprop(7,:,:,:) = omega
 
     endif
@@ -146,8 +148,22 @@ contains
         old_sp = sp
       endif
 
-      ! Lazy-load old solution
-      call ensure_old_solution(OFF, 'IG')
+      ! Lazy-load old solution. Pass the known old-species count so the reader
+      ! locates velocity/pressure by the authoritative species number rather
+      ! than guessing it from the file column count. This makes interpolation
+      ! robust to source files that carry extra trailing variables (e.g. a
+      ! solver's derived T, gamma, R, or turbulence fields).
+      call ensure_old_solution(OFF, 'IG', old_sp%n)
+
+      ! Turbulence policy: if the block has no turbulence configured but the
+      ! source solution carries turbulence variables, adopt the source model so
+      ! those fields are interpolated too. When turbulence IS configured, the
+      ! configured value/model wins (constant assignment happens post-select).
+      if (blk%nrans == 0 .and. oldblock(1)%nrans > 0) then
+        blk%nrans = oldblock(1)%nrans
+        if (.not.allocated(blk%ig%turbprop)) &
+          allocate(blk%ig%turbprop(blk%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+      endif
 
       ! Species count in old block
       n_old_sp = size(oldblock(1)%ig%density, 1)
@@ -245,8 +261,10 @@ contains
       call dealloc_src()
 
       ! ---- Turbulent properties ----
-      if (blk%nrans > 0) then
-        do cnt = 1, blk%nrans
+      ! Interpolate only the components the source actually provides; any extra
+      ! components requested by the block config keep their post-select constant.
+      if (blk%nrans > 0 .and. oldblock(1)%nrans > 0) then
+        do cnt = 1, min(blk%nrans, oldblock(1)%nrans)
           allocate(src_field(size(oldblock)))
           do bb = 1, size(oldblock)
             allocate(src_field(bb)%var(oldblock(bb)%dim(1), oldblock(bb)%dim(2), oldblock(bb)%dim(3)))
@@ -255,6 +273,7 @@ contains
           call apply_interp_map(map, blk%ig%turbprop(cnt,:,:,:), src_field)
           call dealloc_src()
         enddo
+        interp_turb = .true.
       endif
 
       call map%destroy()
@@ -517,21 +536,13 @@ contains
       if (alpha>2026d0) alpha = 0d0
       if (beta>2026d0)  beta = 0d0
 
-      if (ux==0.d0) then
+      if (ux==0.d0 .and. uy==0.d0 .and. uz==0.d0) then
         blk%ig%velocity(1,i,j,k) = vel_mag*cos(alpha)*cos(beta)
-      else
-        blk%ig%velocity(1,i,j,k) = ux
-      endif
-
-      if (uy==0.d0) then
         blk%ig%velocity(2,i,j,k) = vel_mag*cos(alpha)*sin(beta)
-      else
-        blk%ig%velocity(2,i,j,k) = uy
-      endif
-
-      if (uz==0.d0) then
         blk%ig%velocity(3,i,j,k) = vel_mag*sin(beta)
       else
+        blk%ig%velocity(1,i,j,k) = ux
+        blk%ig%velocity(2,i,j,k) = uy
         blk%ig%velocity(3,i,j,k) = uz
       endif
 
