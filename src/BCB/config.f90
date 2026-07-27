@@ -11,13 +11,13 @@ module bcb_config_mod
   private
 
   integer, parameter         :: max_faces = 6
-  integer, parameter, public :: n_variable_file_keys = 18
+  integer, parameter, public :: n_variable_file_keys = 20
 
   character(len=10), parameter, public :: variable_file_keys(n_variable_file_keys) = [ &
     'ks        ', 'q         ', 'T         ', 'Tref      ', 'hconv     ', &
     'qrad      ', 'eps       ', 'alpha     ', 'beta      ', 'g         ', &
     'krho      ', 'a         ', 'n         ', 'pRef      ', 'rhoGrain  ', &
-    'Taf       ', 'SFgeo     ', 'SF        ' ]
+    'Taf       ', 'SFgeo     ', 'SF        ', 'mach      ', 'p         ' ]
 
   type, public :: bcb_block_config_t
     logical             :: has_phase = .false.
