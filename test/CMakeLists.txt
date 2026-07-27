@@ -45,6 +45,21 @@ set_tests_properties(IG-nozzle3D PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-interp-mindist -------------
+# Minimum-distance interpolation of an ideal-gas solution onto an identical
+# grid (identity map). The source field.tec carries solver-style extra 
+# variables (T,g,R) beyond ATLAS's rho,u,v,w,p layout.
+add_test(
+    NAME    IG-interp-mindist
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/ic.tec reference/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-mindist"
+)
+set_tests_properties(IG-interp-mindist PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 
 # ---- BCB : IG-inflow-nozzle -------------
 add_test(
