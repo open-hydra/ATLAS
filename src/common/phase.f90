@@ -63,7 +63,7 @@ contains
     real(R8),        intent(inout), optional :: h0
     character(len=500)               :: CEAfile
     character(len=20)                :: name, str(2)
-    character(len=:), allocatable    :: item(:), section_name(:)
+    character(len=:), allocatable    :: items(:,:), section_name(:)
     integer :: i, j, error
     integer :: section_idx
     real(R8) :: ytot
@@ -98,18 +98,27 @@ contains
         endif
       enddo
     endif
-    ! Direct address of mass fractions
-    do while(sini%loop(section_name=section_name(1), option_pairs=item))
-      if (index(item(1),'y')/=0 .and. item(1)/='type') then
-        name = item(1); name = name(2:20)
-        do j = 1, species%n
-          if (trim(name)==trim(species%name(j))) then
-            read(item(2),'(D12.5)') species%massf(j)
-            exit
-          end if
-        end do
-      endif
-    enddo
+    ! Direct address of mass fractions.
+    ! NB: FiNeR's %loop iterator keeps its position in a SAVEd counter shared by
+    ! every section of every file_ini, so it must not be used here: BCB calls
+    ! define_composition once per boundary cell from inside an OpenMP region and
+    ! concurrent iterators would corrupt each other. get_items is pure/stateless.
+    ! sini always carries a single section (see the callers in ICB/builder.f90
+    ! and BCB/builder_face.f90), so this covers section_name(1).
+    call sini%get_items(items)
+    if (allocated(items)) then
+      do i = 1, size(items, dim=1)
+        if (index(items(i,1),'y')/=0 .and. trim(items(i,1))/='type') then
+          name = items(i,1); name = name(2:20)
+          do j = 1, species%n
+            if (trim(name)==trim(species%name(j))) then
+              read(items(i,2),'(D12.5)') species%massf(j)
+              exit
+            end if
+          end do
+        endif
+      enddo
+    endif
 
     if (species%n==1) species%massf(1) = 1.0
 
