@@ -112,7 +112,7 @@ contains
       implicit none
 
       ! Inflow | p0, T0
-      if     (p0/=0_R8     .and. T0/=0_R8 .and. p==0._R8 .and. self%definition=='inlet') then
+      if     (p0/=0_R8     .and. T0/=0_R8 .and. p==0._R8 .and. p0_time_file=='none' .and. self%definition=='inlet') then
         self % ig_id = 401
         dim = 3
         call setup_bc_inlet(ip0=2)
