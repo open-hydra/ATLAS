@@ -7,7 +7,8 @@
 |-----------|---------|---------|----------|-------------|
 | BCB-file | input.ini |  |  no | INI file containing BCB block and boundary definitions. |
 | BC-force-connect | T |  |  no | Force standard connection matching when chimera is off. |
-| BC-chimera | F |  |  no | Enable chimera connectivity instead of standard matching. |
+| BC-chimera | F |  |  no | Enable the overset search on the faces declared chimera. Faces declared connection keep the standard matching. |
+| BC-force-chimera | F |  |  no | Extend the overset search to every unresolved face, whatever its declared type. Facelets without donors keep their own BC. |
 
 ## BCB-Block*
 
@@ -43,6 +44,7 @@
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |
+| un | 0.0 |  |  no | Prescribed normal velocity component. |
 | mit | 0.0 |  |  no | Turbulence intensity for 1-equation models. |
 | kappa | 0.0 |  |  no | Turbulent kinetic energy. |
 | omega | 0.0 |  |  no | Specific dissipation rate. |
@@ -89,6 +91,7 @@
 | rp | 0.0 |  |  no | Particle radii per dispersed population. |
 | dp | 0.0 |  |  no | Particle diameters per dispersed population. |
 | sigmap | 0.0 |  |  no | Particle dispersion widths. |
+| ds | 0.0 |  |  no | Injection-point spacing per dispersed population (cm; converted to m). |
 | alphap | 0.0 |  |  no | Primary injection angle per dispersed population. |
 | betap | 0.0 |  |  no | Secondary injection angle per dispersed population. |
 | rRes | 0.0 |  |  no | Residual radius per dispersed population. |
@@ -121,3 +124,5 @@
 | Taf-file |  |  |  no | ASCII file providing varying values for Taf. |
 | SFgeo-file |  |  |  no | ASCII file providing varying values for SFgeo. |
 | SF-file |  |  |  no | ASCII file providing varying values for SF. |
+| mach-file |  |  |  no | ASCII file providing varying values for mach. |
+| p-file |  |  |  no | ASCII file providing varying values for p. |

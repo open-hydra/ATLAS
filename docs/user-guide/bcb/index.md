@@ -50,6 +50,8 @@ It supports simple single-patch boundaries, multipatch definitions, periodic lin
 
 	Overset-grid connectivity with donor/receiver interpolation payloads.
 
+	[Requirements and limits](./connectivity.md)
+
 -   :material-shape: **Multi-solver**
 
 	---

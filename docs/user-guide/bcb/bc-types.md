@@ -11,8 +11,8 @@ This page covers the full BC roster with reference tables and INI syntax for eve
 | `null` | no | Empty/placeholder BC. |
 | `axisymmetric` | no | Axisymmetric boundary. |
 | `extrapolation` | no | Extrapolation boundary. |
-| `connection` | no | Standard block-to-block connection marker. |
-| `chimera` | no | Overset/chimera marker; interpolation info written in chimera payload. |
+| `connection` | no | Standard block-to-block connection marker; always resolved by face-center matching, also when `BC-chimera` is on. |
+| `chimera` | no | Overset/chimera marker; interpolation info written in chimera payload. Only these faces are searched when `BC-chimera` is on. |
 | `symmetry` | no | Symmetry boundary. |
 | `periodic` | yes | Requires periodic setup keys (for example `faces`, optionally `blocks`). |
 | `wall` | yes | Wall model depends on phase and provided keys. |
@@ -28,6 +28,12 @@ This page covers the full BC roster with reference tables and INI syntax for eve
 | Connectivity | `connection`, `chimera`, `periodic` |
 | Flow / thermal | `wall`, `inlet`, `outlet` |
 | Special | `manifold`, `srm` |
+
+!!! warning "Before using `connection` or `chimera`"
+    Both take no input section, but they place real requirements on the mesh and
+    have failure modes that are not reported at run time — in particular
+    partially covered chimera facelets. Read
+    [Block Connectivity](./connectivity.md) first.
 
 ## INI Syntax
 
@@ -228,4 +234,5 @@ rhoGrain    = 1750.0
 
 ## Next
 
+- [Block Connectivity](./connectivity.md)
 - [Output Files](./output.md)

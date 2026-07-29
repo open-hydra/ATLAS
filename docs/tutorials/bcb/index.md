@@ -14,6 +14,8 @@ Detailed tutorial pages are being written. The table below lists the available r
 | `IG+SP` | Validate combined ideal-gas and solid-particle BC handling in one case. |
 | `IG-SRM` | Validate SRM-oriented ideal-gas inflow/outflow BC setup. |
 | `IG-chimera` | Validate chimera/overset boundary metadata generation. |
+| `IG-chimera+connection` | Validate chimera and standard connection coexisting on a distorted, refined 3-block layout. |
+| `IG-force-chimera` | Validate `BC-force-chimera` on a partial interface: only the facelets that see the other block become chimera. |
 | `IG-periodic` | Validate periodic face pairing and periodic BC consistency. |
 | `IG-multipatch-1D` | Validate 1D multipatch face-index mapping and BC construction. |
 | `IG-multipatch-2D` | Validate 2D multipatch face-index mapping and BC construction. |

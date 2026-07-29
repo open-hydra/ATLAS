@@ -103,6 +103,14 @@ Written after the chimera interpolation pass. Covers two ghost-cell layers inwar
 2. For ghost layer 1: `nchi_g1` donor lines, each `b  i  j  k  weight` (`4I8 + E20.10`).
 3. For ghost layer 2: `nchi_g2` donor lines, same format.
 
+`weight` is the donor's share of the receiver ghost cell, so the weights of one
+ghost layer sum to 1. They are normalised over the donors that were found: a
+ghost cell only partly inside the donor block produces the same payload as a
+fully covered one, and how much of the facelet is actually covered is **not**
+recorded. See [Block Connectivity](./connectivity.md#limitations) before relying
+on it. A count of `0` for a layer means no donor was found and the BC file is
+not usable.
+
 Example (3-D, `id = 102`, 1 donor for layer 1, 2 donors for layer 2):
 
 ```

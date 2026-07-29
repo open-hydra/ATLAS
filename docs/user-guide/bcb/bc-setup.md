@@ -62,7 +62,8 @@ T = 1200.0
 | `BCB-file` | `input.ini` | Path to the BCB INI input file |
 | `MG-levels` | `1` | Number of multigrid grid levels to generate |
 | `BC-force-connect` | `true` | Automatically resolve block-to-block connections |
-| `BC-chimera` | `false` | Enable chimera/overset connectivity workflow |
+| `BC-chimera` | `false` | Run the overset search on the faces declared `chimera`; faces declared `connection` keep the standard face-center matching |
+| `BC-force-chimera` | `false` | Extend the overset search to every unresolved facelet regardless of its declared type. Use it for partial interfaces (a block facing only a strip of a larger one): the facelets that find donors become chimera, the others keep their own BC |
 
 ### `[BCB-BlockN]` keys
 
@@ -304,8 +305,9 @@ MG-levels = 3
 
 - For BCs that require input (`periodic`, `wall`, `inlet`, `manifold`, `srm`), that section must include `type = ...`.
 - For BCs without required input (`null`, `axisymmetric`, `extrapolation`, `connection`, `chimera`, `symmetry`, `outlet`), a further section is not needed.
-- `connection` and `chimera` are geometry/connectivity-driven. They generally do not need scalar parameters in the section.
+- `connection` and `chimera` are geometry/connectivity-driven. They generally do not need scalar parameters in the section, but they do constrain the mesh — see [Block Connectivity](./connectivity.md).
 
 ## Next
 
 - [BC Types](./bc-types.md)
+- [Block Connectivity](./connectivity.md)
