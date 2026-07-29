@@ -289,11 +289,10 @@ contains
       V = V + vol1 + vol2
     end do
 
-    if (abs(volHex - V) .lt. toll1) then
-      inside = .true.
-    else
-      inside = .false.
-    end if
+    ! Relative test: the coordinates reach this routine pre-scaled by fs, so an
+    ! absolute tolerance on a volume is mesh-size dependent and drops below the
+    ! roundoff of V as soon as the cells are not tiny.
+    inside = abs(volHex - V) .le. max(toll1, 1.d-8*volHex)
 
   end subroutine pointInsideHexahedron
 
@@ -517,11 +516,10 @@ contains
     a3 = 0.5 * norm(cross_product(C - P, D - P))
     a4 = 0.5 * norm(cross_product(D - P, A - P))
 
-    if (abs(areaQuad - (a1 + a2 + a3 + a4)) .le. toll1) then
-      inside = .true.
-    else
-      inside = .false.
-    end if
+    ! Relative for the same reason as pointInsideHexahedron: with pre-scaled
+    ! coordinates an absolute area tolerance is far below the accuracy of the
+    ! plane-plane intersection point being tested.
+    inside = abs(areaQuad - (a1 + a2 + a3 + a4)) .le. max(toll1, 1.d-8*areaQuad)
 
   end subroutine isPointInQuadrangle
 
