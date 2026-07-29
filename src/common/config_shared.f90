@@ -13,6 +13,7 @@ module config_shared_mod
     integer             :: mg_levels = 1
     logical             :: bc_force_connect = .true.
     logical             :: bc_chimera = .false.
+    logical             :: bc_force_chimera = .false.
   end type atlas_parameters_t
 
   type, public :: config_velocity_t
@@ -72,6 +73,7 @@ contains
     cfg%mg_levels = 1
     cfg%bc_force_connect = .true.
     cfg%bc_chimera = .false.
+    cfg%bc_force_chimera = .false.
 
     call fini%load(filename=trim(ini_filename))
 
@@ -97,6 +99,10 @@ contains
     call fini%get(section_name='ATLAS-Parameters', option_name='BC-chimera', &
                   val=cfg%bc_chimera, error=error)
     if (error /= 0) cfg%bc_chimera = .false.
+
+    call fini%get(section_name='ATLAS-Parameters', option_name='BC-force-chimera', &
+                  val=cfg%bc_force_chimera, error=error)
+    if (error /= 0) cfg%bc_force_chimera = .false.
   end subroutine load_atlas_parameters
 
   subroutine load_shared_velocity_config(zoneini, cfg, section_name)
@@ -194,7 +200,12 @@ contains
                         'T', 'Force standard connection matching when chimera is off.', &
                         '', .false.)
       call registry%add('ATLAS-Parameters', 'BC-chimera', cfg%bc_chimera, 'F', &
-                        'Enable chimera connectivity instead of standard matching.', &
+                        'Enable the overset search on the faces declared chimera. '// &
+                        'Faces declared connection keep the standard matching.', &
+                        '', .false.)
+      call registry%add('ATLAS-Parameters', 'BC-force-chimera', cfg%bc_force_chimera, 'F', &
+                        'Extend the overset search to every unresolved face, whatever '// &
+                        'its declared type. Facelets without donors keep their own BC.', &
                         '', .false.)
     end select
   end subroutine add_atlas_registry_entries

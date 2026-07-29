@@ -23,7 +23,7 @@ program BCB
   type(orion_data)            :: fine_orion, coarse_orion 
   type(file_ini)              :: sourceini
   integer                     :: b, m, MG_levels
-  logical                     :: force_connect, chimeraon
+  logical                     :: force_connect, chimeraon, force_chimera
   logical                     :: write_config_doc
   character(len=256)          :: input_file
 
@@ -46,7 +46,8 @@ program BCB
   
   ! INI handling
   call build_INI(prog='BCB',nb=size(fine_orion%block),inisource=sourceini,MG_levels=MG_levels,&
-               force_connect=force_connect,chimeraon=chimeraon,input_file=trim(input_file))
+               force_connect=force_connect,chimeraon=chimeraon,force_chimera=force_chimera,&
+               input_file=trim(input_file))
 
   ! Phase properties import
   call read_phase(phase)
@@ -80,14 +81,12 @@ program BCB
     ! BC computation
     call build_BC(phase,sourceini,blk)
 
-    ! Multiblock operations
+    ! Multiblock operations. Faces declared 'connection' are always resolved by
+    ! face-center matching; chimera only claims the faces declared 'chimera'.
     call find_periodic(blk)
     if (size(blk)>1) then
-      if (chimeraon) then
-        call chimera_wrapper(blk)
-      else
-        call find_connect(blk,force_connect)
-      endif
+      call find_connect(blk,force_connect,chimeraon)
+      if (chimeraon) call chimera_wrapper(blk,force_chimera)
     endif
 
     ! BC writing

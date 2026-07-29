@@ -257,14 +257,18 @@ contains
 
 
   !> Based on the find_connect.F file of AFFS
-  subroutine find_connect(blk,force_connect)
-    ! use omp_lib
+  !> `skip_chimera` leaves the faces declared 'chimera' to the overset search.
+  subroutine find_connect(blk,force_connect,skip_chimera)
+    use bc_names_mod, only: MARKER_CONN, MARKER_Chim
     implicit none
     type(BC_block), intent(inout) :: blk(:)
     logical, intent(in) :: force_connect
+    logical, intent(in), optional :: skip_chimera
     real(8), allocatable  :: x(:), y(:), z(:)
     integer, allocatable :: b(:), f(:), n(:), m(:), def(:), prop(:,:), match(:)
-    logical, allocatable :: adj(:)
+    logical, allocatable :: adj(:), usable(:), declared(:)
+    logical :: no_chimera
+    integer :: nmissing
     integer :: nb, nbound
     integer, allocatable :: nboundb(:)
     integer, allocatable :: nx(:), ny(:), nz(:)
@@ -297,6 +301,9 @@ contains
 
     if (mesh_cfg%meshType==-1) return
 
+    no_chimera = .false.
+    if (present(skip_chimera)) no_chimera = skip_chimera
+
     nb = size(blk)
     allocate(nboundb(nb))
     allocate(nx(nb)); allocate(ny(nb)); allocate(nz(nb))
@@ -315,6 +322,7 @@ contains
     allocate(x(1:nbound)); allocate(y(1:nbound)); allocate(z(1:nbound))
     allocate(b(1:nbound)); allocate(f(1:nbound)); allocate(m(1:nbound))
     allocate(n(1:nbound)); allocate(def(1:nbound)); allocate(adj(1:nbound))
+    allocate(usable(1:nbound)); allocate(declared(1:nbound))
 
     if (mesh_cfg%meshType == -2) then
       allocate(prop(1:nbound,1:4))
@@ -331,6 +339,9 @@ contains
             associate( this => blk(b1)%face(f1)%center(m1,n1) )
             def(i) = this%bc%gp_id
             adj(i) = this%bc%adj_assigned
+            declared(i) = trim(this%bc%definition)==trim(MARKER_CONN)
+            usable(i) = (def(i)==100 .or. force_connect) .and. &
+                        .not.(no_chimera .and. trim(this%bc%definition)==trim(MARKER_Chim))
             x(i) = this%c(1)
             y(i) = this%c(2)
             z(i) = this%c(3)
@@ -349,14 +360,14 @@ contains
     match = 0
     !$omp parallel do schedule(dynamic) private(i,j,blocal,dum1)
     do i = 1, nbound
-      if (def(i)/=100 .and. .not.force_connect) cycle
+      if (.not.usable(i)) cycle
       if (adj(i)) cycle
       blocal = 1
       do while (i>sum(nboundb(1:blocal)))
         blocal = blocal+1
       enddo
       do j = sum(nboundb(1:blocal))+1, nbound
-        if (def(j)/=100 .and. .not.force_connect) cycle
+        if (.not.usable(j)) cycle
         if (adj(j)) cycle
         dum1 = (x(i)-x(j))**2 + (y(i)-y(j))**2 + (z(i)-z(j))**2
         if (sqrt(dum1)<1d-7) then
@@ -398,6 +409,18 @@ contains
       endif
     enddo
     deallocate(match)
+
+    nmissing = count(declared .and. .not.adj)
+    if (nmissing>0) then
+      write(*,'(A,I0,A)') ' [WARNING] ', nmissing, ' cells declared as connection found no matching face center'
+      write(*,'(A)')      '           they are left to the chimera search if it is enabled'
+      do i = 1, nbound
+        if (declared(i) .and. .not.adj(i)) then
+          write(*,'(A,4(X,I0))') '           first unmatched (block, face, m, n):', b(i), f(i), m(i), n(i)
+          exit
+        endif
+      enddo
+    endif
 
 
     do b1 = 1, nb

@@ -10,14 +10,14 @@ module io_ini_mod
 
 contains
 
-  subroutine build_INI(prog,nb,inisource,ICformat,MG_levels,chimeraon,force_connect,input_file)
+  subroutine build_INI(prog,nb,inisource,ICformat,MG_levels,chimeraon,force_connect,force_chimera,input_file)
     implicit none
     character(len=3), intent(in)                :: prog
     integer, intent(in)                         :: nb
     type(file_ini), intent(out)                 :: inisource
     integer, intent(inout), optional            :: MG_levels
     character(len=*), intent(inout), optional   :: ICformat
-    logical, intent(inout), optional            :: chimeraon, force_connect
+    logical, intent(inout), optional            :: chimeraon, force_connect, force_chimera
     character(len=*), intent(in), optional      :: input_file
     type(atlas_parameters_t)                    :: atlas_cfg
     type(file_ini)                              :: fini
@@ -32,6 +32,7 @@ contains
     if (present(ICformat)) ICformat = atlas_cfg%ic_format
     if (present(force_connect)) force_connect = atlas_cfg%bc_force_connect
     if (present(chimeraon)) chimeraon = atlas_cfg%bc_chimera
+    if (present(force_chimera)) force_chimera = atlas_cfg%bc_force_chimera
 
     ! Read specific INI file
     call fini%load(filename=atlas_cfg%input_file)

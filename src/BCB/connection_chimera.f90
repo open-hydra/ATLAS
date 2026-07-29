@@ -230,7 +230,34 @@ module bc_chimera_mod
 
 contains
 
-  subroutine chimera_wrapper(block)
+  !> Receivers claimed by the overset search: the faces declared 'chimera', plus
+  !> the faces declared 'connection' that find_connect could not match. With
+  !> `force` every still unresolved facelet is searched, whatever its declared
+  !> type; the ones without donors simply keep their own BC.
+  logical function is_chimera_face(block, br, fr, ir, jr, kr, force)
+    use bc_block_mod, only: BC_block
+    use bc_names_mod, only: MARKER_Chim, MARKER_CONN
+    use grid_mod,     only: ijk2mn
+    implicit none
+    type(BC_block), intent(in) :: block(:)
+    integer, intent(in)        :: br, fr, ir, jr, kr
+    logical, intent(in)        :: force
+    integer :: m, n
+
+    is_chimera_face = .false.
+    if (fr > block(br)%nfaces) return
+    call ijk2mn(ir,jr,kr,fr,m,n)
+    if (m<1 .or. m>block(br)%face(fr)%Nm) return
+    if (n<1 .or. n>block(br)%face(fr)%Nn) return
+    associate (bc => block(br)%face(fr)%center(m,n)%bc)
+      if (bc%adj_assigned) return
+      is_chimera_face = force .or. &
+                        trim(bc%definition)==trim(MARKER_Chim) .or. &
+                        trim(bc%definition)==trim(MARKER_CONN)
+    end associate
+  end function is_chimera_face
+
+  subroutine chimera_wrapper(block,force_chimera)
     use intersection_mod
     use bc_block_mod
     use grid_mod, only: mesh_cfg
@@ -238,6 +265,8 @@ contains
     !$ use omp_lib, only: omp_get_max_threads, omp_get_thread_num
     implicit none
     type(BC_block), intent(inout) :: block(:)
+    logical, intent(in), optional :: force_chimera
+    logical                 :: force
     integer                 :: ir,jr,kr,br,ni
     integer                 :: unitlog
     integer                 :: gc(3)
@@ -251,6 +280,8 @@ contains
 
     gc = mesh_cfg%gc
     procStart = [1-gc(1),1-gc(2),1-gc(3)]
+    force = .false.
+    if (present(force_chimera)) force = force_chimera
 
     ! Broad-phase acceleration structure over all donor cells
     call build_donor_grid(block, grid)
@@ -273,10 +304,14 @@ contains
 
       allocate(block(br)%face(1)%cell(1-gc(1):0,                                 1-gc(2):block(br)%dim(2)+gc(2),            1-gc(3):block(br)%dim(3)+gc(3)))
       allocate(block(br)%face(2)%cell(block(br)%dim(1)+1:block(br)%dim(1)+gc(1), 1-gc(2):block(br)%dim(2)+gc(2),            1-gc(3):block(br)%dim(3)+gc(3)))
-      allocate(block(br)%face(3)%cell(1-gc(1):block(br)%dim(1)+gc(1),            1-gc(2):0,                                 1-gc(3):block(br)%dim(3)+gc(3)))
-      allocate(block(br)%face(4)%cell(1-gc(1):block(br)%dim(1)+gc(1),            block(br)%dim(2)+1:block(br)%dim(2)+gc(2), 1-gc(3):block(br)%dim(3)+gc(3)))
-      allocate(block(br)%face(5)%cell(1-gc(1):block(br)%dim(1)+gc(1),            1-gc(2):block(br)%dim(2)+gc(2),            1-gc(3):0))
-      allocate(block(br)%face(6)%cell(1-gc(1):block(br)%dim(1)+gc(1),            1-gc(2):block(br)%dim(2)+gc(2),            block(br)%dim(3)+1:block(br)%dim(3)+gc(3)))
+      if (block(br)%nfaces >= 4) then
+        allocate(block(br)%face(3)%cell(1-gc(1):block(br)%dim(1)+gc(1),            1-gc(2):0,                                 1-gc(3):block(br)%dim(3)+gc(3)))
+        allocate(block(br)%face(4)%cell(1-gc(1):block(br)%dim(1)+gc(1),            block(br)%dim(2)+1:block(br)%dim(2)+gc(2), 1-gc(3):block(br)%dim(3)+gc(3)))
+      endif
+      if (block(br)%nfaces >= 6) then
+        allocate(block(br)%face(5)%cell(1-gc(1):block(br)%dim(1)+gc(1),            1-gc(2):block(br)%dim(2)+gc(2),            1-gc(3):0))
+        allocate(block(br)%face(6)%cell(1-gc(1):block(br)%dim(1)+gc(1),            1-gc(2):block(br)%dim(2)+gc(2),            block(br)%dim(3)+1:block(br)%dim(3)+gc(3)))
+      endif
 
       ! Face 1
       if (allocated(nodeinside)) deallocate(nodeinside)
@@ -284,7 +319,7 @@ contains
       nodeinside = .false.
       !$omp parallel do collapse(3) private(ir,jr,kr) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = 1-gc(1), 0
-        call LoopOverDonors(block,grid,tbuf,br,ir,jr,kr,nodeinside,processed, &
+        call LoopOverDonors(block,grid,tbuf,br,1,force,ir,jr,kr,nodeinside,processed, &
                            [1-gc(1),1-gc(2),1-gc(3)],procStart)
       enddo; enddo; enddo
       !$omp end parallel do
@@ -295,7 +330,7 @@ contains
       nodeinside = .false.
       !$omp parallel do collapse(3) private(ir,jr,kr) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = 1, block(br)%dim(2); do ir = block(br)%dim(1)+1,block(br)%dim(1)+gc(1)
-        call LoopOverDonors(block,grid,tbuf,br,ir,jr,kr,nodeinside,processed, &
+        call LoopOverDonors(block,grid,tbuf,br,2,force,ir,jr,kr,nodeinside,processed, &
                            [block(br)%dim(1)+1,1-gc(2),1-gc(3)],procStart)
       enddo; enddo; enddo
       !$omp end parallel do
@@ -306,7 +341,7 @@ contains
       nodeinside = .false.
       !$omp parallel do collapse(3) private(ir,jr,kr) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = 1-gc(2), 0; do ir = 1, block(br)%dim(1)
-        call LoopOverDonors(block,grid,tbuf,br,ir,jr,kr,nodeinside,processed, &
+        call LoopOverDonors(block,grid,tbuf,br,3,force,ir,jr,kr,nodeinside,processed, &
                            [1-gc(1),1-gc(2),1-gc(3)],procStart)
       enddo; enddo; enddo
       !$omp end parallel do
@@ -317,7 +352,7 @@ contains
       nodeinside = .false.
       !$omp parallel do collapse(3) private(ir,jr,kr) schedule(dynamic)
       do kr = 1, block(br)%dim(3); do jr = block(br)%dim(2)+1, block(br)%dim(2)+gc(2); do ir = 1, block(br)%dim(1)
-        call LoopOverDonors(block,grid,tbuf,br,ir,jr,kr,nodeinside,processed, &
+        call LoopOverDonors(block,grid,tbuf,br,4,force,ir,jr,kr,nodeinside,processed, &
                            [1-gc(1),block(br)%dim(2)+1,1-gc(3)],procStart)
       enddo; enddo; enddo
       !$omp end parallel do
@@ -330,7 +365,7 @@ contains
         nodeinside = .false.
         !$omp parallel do collapse(3) private(ir,jr,kr) schedule(dynamic)
         do kr = 1-gc(3), 0; do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
-          call LoopOverDonors(block,grid,tbuf,br,ir,jr,kr,nodeinside,processed, &
+          call LoopOverDonors(block,grid,tbuf,br,5,force,ir,jr,kr,nodeinside,processed, &
                             [1-gc(1),1-gc(2),1-gc(3)],procStart)
         enddo; enddo; enddo
         !$omp end parallel do
@@ -341,7 +376,7 @@ contains
         nodeinside = .false.
         !$omp parallel do collapse(3) private(ir,jr,kr) schedule(dynamic)
         do kr = block(br)%dim(3)+1,block(br)%dim(3)+gc(3); do jr = 1, block(br)%dim(2); do ir = 1, block(br)%dim(1)
-          call LoopOverDonors(block,grid,tbuf,br,ir,jr,kr,nodeinside,processed, &
+          call LoopOverDonors(block,grid,tbuf,br,6,force,ir,jr,kr,nodeinside,processed, &
                             [1-gc(1),1-gc(2),block(br)%dim(3)+1],procStart)
         enddo; enddo; enddo
         !$omp end parallel do
@@ -415,7 +450,7 @@ contains
 
   end subroutine chimera_wrapper
 
-  subroutine LoopOverDonors(block,grid,tbuf,br,ir,jr,kr,nodeinside,processed,startingIndexes,procStart)
+  subroutine LoopOverDonors(block,grid,tbuf,br,fr,force,ir,jr,kr,nodeinside,processed,startingIndexes,procStart)
     use bc_block_mod, only: BC_block
     use intersection_mod
     use chimera_grid_mod, only: donor_grid_t, query_donor_grid
@@ -424,7 +459,8 @@ contains
     type(BC_block), intent(in)     :: block(:)
     type(donor_grid_t), intent(in) :: grid
     type(rec_buffer), intent(inout) :: tbuf(0:)
-    integer, intent(in)    :: br,ir,jr,kr
+    integer, intent(in)    :: br,fr,ir,jr,kr
+    logical, intent(in)    :: force
     integer, intent(in)    :: startingIndexes(3)
     integer, intent(in)    :: procStart(3)
     logical, intent(inout) :: nodeinside(:,startingIndexes(1):,startingIndexes(2):,startingIndexes(3):)
@@ -438,6 +474,7 @@ contains
     character(len=64)          :: fmtbuf
     character(len=:), allocatable :: sbuf
 
+    if (.not.is_chimera_face(block,br,fr,ir,jr,kr,force)) return
     if (processed(ir,jr,kr)) return
     processed(ir,jr,kr) = .true.
 
