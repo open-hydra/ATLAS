@@ -126,6 +126,39 @@ set_tests_properties(IG-chimera PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-chimera+connection (chimera and connection on the same run) ----
+# Three blocks in series on a distorted grid: block1 (coarse) overlaps block2
+# (fine) -> chimera; block2 meets block3 on a shared, curved, non-matching-in-i
+# surface -> standard connection. Checks that a face declared 'connection' keeps
+# the exact 1:1 matching while chimera is enabled. Same numeric tolerance as
+# IG-chimera, for the same reason.
+add_test(
+    NAME    IG-chimera+connection
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-chimera+connection"
+)
+set_tests_properties(IG-chimera+connection PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-force-chimera (partial interface, BC-force-chimera) ------------
+# A small fine block overlaps only a strip of a large coarse block. The large
+# block's face and the small block's lateral faces are declared symmetry; with
+# BC-force-chimera the facelets that actually see the other block become chimera
+# and the remaining ones keep symmetry. Same numeric tolerance as IG-chimera.
+add_test(
+    NAME    IG-force-chimera
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-force-chimera"
+)
+set_tests_properties(IG-force-chimera PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : CD-basic (dispersed-phase inlets, distribution field) -------------
 add_test(
     NAME    CD-basic
