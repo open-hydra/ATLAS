@@ -16,4 +16,3 @@
 Automatically sourced from git history.
 
 - AndreaGiacomi
-- copilot-swe-agent[bot]
