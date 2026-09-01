@@ -15,6 +15,7 @@ function print_usage {
   echo "   ATLAS BCB-GUI"
   echo "   ATLAS ICB"
   echo "   ATLAS STB"
+  echo "   ATLAS MDB"
   echo
   echo "Other tools:"
   echo "   ATLAS CEA"
@@ -97,6 +98,7 @@ else
       $ATLASDIR/bin/BCB --write-config-doc
       $ATLASDIR/bin/ICB --write-config-doc
       $ATLASDIR/bin/STB --write-config-doc
+      $ATLASDIR/bin/MDB --write-config-doc
     elif [[ $program == 'BCB-GUI' ]]; then
       if [ -n "$ZSH_VERSION" ]; then
           eval "$(conda shell.zsh hook)"

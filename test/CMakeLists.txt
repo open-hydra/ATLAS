@@ -182,3 +182,93 @@ set_tests_properties(x-variable PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---------------------------------------------------------------------------
+#  MDB : mesh decomposition
+# ---------------------------------------------------------------------------
+# Each case runs the pre-processing chain that produces MDB's own input (BCB,
+# and ICB where a solution field is wanted), then splits it.  Three things are
+# checked, in order of how well they explain a failure:
+#
+#   check-split.py  the split grid against the grid it came from: dimensions,
+#                   cell conservation, and every value equal to the parent's
+#   check-bc.py     the split BC file on its own terms: every boundary cell
+#                   present exactly once, every connection reciprocal
+#   diff            the decomposition map and the BC file against the reference,
+#                   which pins the cut placement, the block numbering and the
+#                   canonical record order MOSE's ghost exchange relies on
+#
+# The BC files are integer records copied verbatim, so an exact diff is right
+# here -- no numeric tolerance is needed as it is for the chimera cases.
+
+# ---- MDB : split-longest (cut axis) -------------
+add_test(
+    NAME    split-longest
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/split-longest"
+)
+set_tests_properties(split-longest PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : block-directions (per-block split-directions) -------------
+add_test(
+    NAME    block-directions
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/block-directions"
+)
+set_tests_properties(block-directions PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : mg3-granularity (multigrid cut alignment, 3 BC levels) -------------
+add_test(
+    NAME    mg3-granularity
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt fromATLAStoSolver/INPUT-split/bc2.txt fromATLAStoSolver/INPUT-split/bc3.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt && diff fromATLAStoSolver/INPUT-split/bc2.txt reference/bc2.txt && diff fromATLAStoSolver/INPUT-split/bc3.txt reference/bc3.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/mg3-granularity"
+)
+set_tests_properties(mg3-granularity PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : halo-trade (balance/ghost-cell objective) -------------
+add_test(
+    NAME    halo-trade
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/halo-trade"
+)
+set_tests_properties(halo-trade PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : balance-only (halo-weight = 0, the historical objective) ----------
+add_test(
+    NAME    balance-only
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/balance-only"
+)
+set_tests_properties(balance-only PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : split-solution (grid + solution field, prefixed BC files) ---------
+add_test(
+    NAME    split-solution
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB ICB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py fromATLAStoSolver/gas-ic.tec fromATLAStoSolver/gas-ic-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/split-solution"
+)
+set_tests_properties(split-solution PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

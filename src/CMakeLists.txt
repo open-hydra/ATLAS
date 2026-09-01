@@ -49,6 +49,25 @@ target_include_directories(BCB PRIVATE
     $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
 )
 
+# MDB executable: MDB/ + common
+file(GLOB MDB_SOURCES "MDB/*.f90")
+list(REMOVE_ITEM MDB_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/MDB/config.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/MDB/decomposition.f90"
+)
+list(PREPEND MDB_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/MDB/config.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/MDB/decomposition.f90"
+)
+add_executable(MDB ${MDB_SOURCES} ${COMMON_SOURCES})
+target_link_libraries(MDB PRIVATE FiNeR::FiNeR ${ATLAS_CEA_TARGET} ORION)
+if (TARGET fbasics::core)
+  target_link_libraries(MDB PRIVATE fbasics::core)
+endif()
+target_include_directories(MDB PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
+)
+
 # STB executable: STB/ + common
 file(GLOB STB_SOURCES "STB/*.f90")
 add_executable(STB ${STB_SOURCES} ${COMMON_SOURCES})
@@ -64,6 +83,7 @@ if (TARGET cea_abort_support)
   target_link_libraries(ICB PRIVATE cea_abort_support)
   target_link_libraries(BCB PRIVATE cea_abort_support)
   target_link_libraries(STB PRIVATE cea_abort_support)
+  target_link_libraries(MDB PRIVATE cea_abort_support)
 endif()
 
 if(USE_OPENMP)
@@ -71,10 +91,12 @@ if(USE_OPENMP)
   target_link_libraries(ICB PRIVATE OpenMP::OpenMP_Fortran)
   target_link_libraries(BCB PRIVATE OpenMP::OpenMP_Fortran)
   target_link_libraries(STB PRIVATE OpenMP::OpenMP_Fortran)
+  target_link_libraries(MDB PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
 if(USE_TECIO)
   target_link_libraries(ICB PRIVATE -pthread)
   target_link_libraries(BCB PRIVATE -pthread)
   target_link_libraries(STB PRIVATE -pthread)
+  target_link_libraries(MDB PRIVATE -pthread)
 endif()
