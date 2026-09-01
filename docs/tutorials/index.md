@@ -33,3 +33,9 @@ Each tutorial maps to one or more regression cases and explains the test objecti
 | Tutorial | Description |
 |----------|-------------|
 | [KAnT Reference Cases](./kant/) | Objectives for equilibrium, ignition-delay, counterflow, and time-evolution kinetics tests |
+
+## MDB Tutorials
+
+| Tutorial | Description |
+|----------|-------------|
+| [MDB Reference Cases](./mdb/) | Objectives for mesh decomposition and BC-splitting tests |

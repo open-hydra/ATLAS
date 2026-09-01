@@ -60,6 +60,14 @@ ATLAS groups its functionality into independent tools:
 
     [:octicons-arrow-right-24: STB User Guide](./user-guide/stb/index.md)
 
+-   :material-scissors-cutting:{ .lg .middle } __MDB — Mesh Decomposition Builder__
+
+    ---
+
+    **Fortran** &nbsp;·&nbsp; Splits a multi-block structured mesh into more, smaller blocks to improve MPI load balance for MOSE parallel runs. Rewrites BC files for all multigrid levels automatically.
+
+    [:octicons-arrow-right-24: MDB User Guide](./user-guide/mdb/index.md)
+
 -   :material-flask:{ .lg .middle } __KAnT — Kinetic Analyzer and Tester__
 
     ---
@@ -72,7 +80,7 @@ ATLAS groups its functionality into independent tools:
 
 ATLAS hosts two language stacks that coexist in the same CMake build tree:
 
-- **Fortran 2008** — BCB, ICB, STB, and all shared Fortran libraries (CEA, ORION, FiNeR)
+- **Fortran 2008** — BCB, ICB, STB, MDB, and all shared Fortran libraries (CEA, ORION, FiNeR)
 - **Python 3** — GPB and all shared Python libraries (Cantera, CEA, CoolProp, PiNeR)
 
 ---

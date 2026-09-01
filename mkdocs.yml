@@ -125,6 +125,10 @@ nav:
       - IC Strategies: user-guide/icb/ic-strategies.md
       - Output Files: user-guide/icb/output.md
       - Input Reference: user-guide/icb/input-reference.md
+    - Mesh Decomposition Builder:
+      - Overview: user-guide/mdb/index.md
+      - Output Files: user-guide/mdb/output.md
+      - Input Reference: user-guide/mdb/input-reference.md
     - Source Terms Builder:
       - Overview: user-guide/stb/index.md
       - Input Reference: user-guide/stb/input-reference.md
@@ -166,6 +170,8 @@ nav:
       - Overview: tutorials/icb/index.md
     - KAnT:
       - Overview: tutorials/kant/index.md
+    - MDB:
+      - Overview: tutorials/mdb/index.md
 
   - Development:
     - Overview: development/index.md

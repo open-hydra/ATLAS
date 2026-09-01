@@ -36,6 +36,14 @@ Each page opens with **what the tool can do**, then covers how to configure it.
 
 	[Open STB Guide](./stb/index.md)
 
+-   :material-scissors-cutting: **MDB**
+
+	---
+
+	Decompose a multi-block structured mesh into more, smaller blocks to improve MOSE parallel scalability.
+
+	[Open MDB Guide](./mdb/index.md)
+
 <!-- -   :material-chart-line: **KAnT**
 
 	---
@@ -63,6 +71,9 @@ ATLAS ICB
 
 # 4 — build source terms (optional)
 ATLAS STB
+
+# 5 — decompose mesh for parallel MOSE run (optional)
+ATLAS MDB
 ```
 
 !!! warning
