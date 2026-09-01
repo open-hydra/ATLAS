@@ -20,6 +20,7 @@ ATLAS is an open-source pre-processing toolbox for Hydra simulation workflows. I
 - **Boundary Condition Builder (BCB)** - maps block faces to BC models and writes solver-ready BC files.
 - **Initial Condition Builder (ICB)** - generates initialized fields from uniform, profile-based, interpolation, or nozzle strategies.
 - **Source Terms Builder (STB)** - builds volumetric source term datasets for coupled simulations.
+- **Mesh Decomposition Builder (MDB)** - splits blocks to load-balance a mesh over a given number of MPI ranks, rewriting grid, solution, and BC files.
 - **KAnT (Kinetic Analyzer and Tester)** - runs 0-D and 1-D chemistry analyses (equilibrium, ignition delay, time evolution, counterflow flame).
 - **Workflow chaining** - tools can be run independently or in sequence from a shared `input.ini`.
 
@@ -123,6 +124,7 @@ Tool-specific user guides:
 - [BCB](docs/user-guide/bcb/index.md)
 - [ICB](docs/user-guide/icb/index.md)
 - [STB](docs/user-guide/stb/index.md)
+- [MDB](docs/user-guide/mdb/index.md)
 - [KAnT](docs/user-guide/kant/index.md)
 
 ## Testing
