@@ -49,17 +49,28 @@ contains
 
   !> Split the BC file of one multigrid level.
   !> level 1 is the fine grid; level L works on dimensions divided by 2**(L-1).
-  subroutine split_bc_level(dec, level, infile, outfile, ierr)
-    type(decomposition_t), intent(inout) :: dec
-    integer,               intent(in)    :: level
-    character(len=*),      intent(in)    :: infile, outfile
-    integer,               intent(out)   :: ierr
+  !>
+  !> `donor_dec` is the decomposition of the *other* phase of a coupled
+  !> (multi-phase) case. Type-103 records connect two blocks that belong to
+  !> different phases, and ATLAS numbers blocks per phase, so a 103 donor must
+  !> be remapped against that other phase's decomposition -- never against this
+  !> one. Pass the other phase's decomposition (the trivial one if it is not
+  !> being split); omit it only for a genuinely single-phase mesh, in which case
+  !> a 103 record is an error rather than something to guess at.
+  subroutine split_bc_level(dec, level, infile, outfile, ierr, donor_dec)
+    type(decomposition_t), intent(inout)           :: dec
+    integer,               intent(in)              :: level
+    character(len=*),      intent(in)              :: infile, outfile
+    integer,               intent(out)             :: ierr
+    type(decomposition_t), intent(inout), optional :: donor_dec
     ! Local
     integer :: s, b, p, d, f, m, n, r, t, c
     integer :: nm, nn, li, lj, lk, pi, pj, pk, pm, pn, ord, side, dir
     integer :: qi, qj, qk, ti, tj, tk, q, nb1, nb2, ncut, nused, nwritten, nrec_in
     integer :: don(4), cn(9)
     integer, allocatable :: ldim(:,:), llo(:,:), lhi(:,:)
+    integer, allocatable :: dldim(:,:), dllo(:,:), dlhi(:,:)
+    logical :: have_donor
     integer, allocatable :: obase(:), fbase(:,:), pnm(:,:), pnn(:,:)
     integer :: pd(3)
     real(8) :: vf
@@ -69,36 +80,14 @@ contains
     s = 2**(level-1)
 
     ! ── Level-scaled parent dimensions and piece ranges ──────────────────────
-    allocate(ldim(3,dec%nparent))
-    allocate(llo(3,dec%npieces), lhi(3,dec%npieces))
+    call level_ranges(dec, s, ldim, llo, lhi, ierr)
+    if (ierr /= 0) return
 
-    do b = 1, dec%nparent
-      do d = 1, 3
-        if (dec%pdim(d,b) == 1) then
-          ldim(d,b) = 1
-        else
-          if (mod(dec%pdim(d,b), s) /= 0) then
-            write(*,'(A,I0,A,I0,A,I0)') ' [ERROR] block ', b, ' dimension ', dec%pdim(d,b), &
-              ' is not divisible by the multigrid ratio ', s
-            ierr = 1; return
-          endif
-          ldim(d,b) = max(1, dec%pdim(d,b)/s)
-        endif
-      enddo
-    enddo
-
-    do p = 1, dec%npieces
-      b = dec%piece(p)%parent
-      do d = 1, 3
-        if (ldim(d,b) == dec%pdim(d,b)) then
-          llo(d,p) = dec%piece(p)%lo(d)
-          lhi(d,p) = dec%piece(p)%hi(d)
-        else
-          llo(d,p) = (dec%piece(p)%lo(d) - 1)/s + 1
-          lhi(d,p) = dec%piece(p)%hi(d)/s
-        endif
-      enddo
-    enddo
+    have_donor = present(donor_dec)
+    if (have_donor) then
+      call level_ranges(donor_dec, s, dldim, dllo, dlhi, ierr)
+      if (ierr /= 0) return
+    endif
 
     ! ── Canonical ordinal layout of the *input* file ─────────────────────────
     allocate(obase(dec%nparent), fbase(NFACES,dec%nparent))
@@ -178,7 +167,19 @@ contains
                   write(*,'(A,I0)') ' [ERROR] malformed connection record at line ', rec_hdr(r)+1
                   call finish(); return
                 endif
-                call remap_cell(dec, ldim, llo, s, cn(1), cn(2), cn(3), cn(4), q, qi, qj, qk, ierr)
+                if (t == 103) then
+                  ! Inter-phase connection: the donor is numbered in the other
+                  ! phase, so it must be located in that phase's decomposition.
+                  if (.not. have_donor) then
+                    write(*,'(A)') ' [ERROR] type-103 (inter-phase) record found but no donor-phase'
+                    write(*,'(A)') '         decomposition was supplied. Declare both phases with'
+                    write(*,'(A)') '         [MDB-Phase1]/[MDB-Phase2] so MDB can remap the coupling.'
+                    ierr = 1; call finish(); return
+                  endif
+                  call remap_cell(donor_dec, dldim, dllo, s, cn(1), cn(2), cn(3), cn(4), q, qi, qj, qk, ierr)
+                else
+                  call remap_cell(dec, ldim, llo, s, cn(1), cn(2), cn(3), cn(4), q, qi, qj, qk, ierr)
+                endif
                 if (ierr /= 0) then
                   write(*,'(A,4(X,I0))') ' [ERROR] connection donor outside the mesh:', cn(1:4)
                   call finish(); return
@@ -290,6 +291,50 @@ contains
     end select
 
   end subroutine neighbour_cell
+
+
+  !> Level-scaled parent dimensions and piece index ranges of a decomposition.
+  !> Level L works on dimensions divided by s = 2**(L-1).
+  subroutine level_ranges(dec, s, ldim, llo, lhi, ierr)
+    type(decomposition_t), intent(in)  :: dec
+    integer,               intent(in)  :: s
+    integer, allocatable,  intent(out) :: ldim(:,:), llo(:,:), lhi(:,:)
+    integer,               intent(out) :: ierr
+    integer :: b, d, p
+
+    ierr = 0
+    allocate(ldim(3,dec%nparent))
+    allocate(llo(3,dec%npieces), lhi(3,dec%npieces))
+
+    do b = 1, dec%nparent
+      do d = 1, 3
+        if (dec%pdim(d,b) == 1) then
+          ldim(d,b) = 1
+        else
+          if (mod(dec%pdim(d,b), s) /= 0) then
+            write(*,'(A,I0,A,I0,A,I0)') ' [ERROR] block ', b, ' dimension ', dec%pdim(d,b), &
+              ' is not divisible by the multigrid ratio ', s
+            ierr = 1; return
+          endif
+          ldim(d,b) = max(1, dec%pdim(d,b)/s)
+        endif
+      enddo
+    enddo
+
+    do p = 1, dec%npieces
+      b = dec%piece(p)%parent
+      do d = 1, 3
+        if (ldim(d,b) == dec%pdim(d,b)) then
+          llo(d,p) = dec%piece(p)%lo(d)
+          lhi(d,p) = dec%piece(p)%hi(d)
+        else
+          llo(d,p) = (dec%piece(p)%lo(d) - 1)/s + 1
+          lhi(d,p) = dec%piece(p)%hi(d)/s
+        endif
+      enddo
+    enddo
+
+  end subroutine level_ranges
 
 
   !> Map a cell given in *parent* level-indices to the piece that owns it and

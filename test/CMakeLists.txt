@@ -201,6 +201,24 @@ set_tests_properties(x-variable PROPERTIES
 # The BC files are integer records copied verbatim, so an exact diff is right
 # here -- no numeric tolerance is needed as it is for the chimera cases.
 
+# ---- MDB : coupled-phases (two-phase interface remapping) -------------
+# A fluid block over a solid block, split with different rank counts so the two
+# phases are cut at different indices.  Type-103 donors are numbered in the
+# other phase, so they have to be remapped against that phase's decomposition;
+# resolving them against the phase being split corrupts the interface silently,
+# which is what this pins.  check-coupling.py checks the pair of files against
+# each other, which is the only place a 103 record can be validated.
+add_test(
+    NAME    coupled-phases
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map reference/plate-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/plate-bc.txt reference/plate-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases"
+)
+set_tests_properties(coupled-phases PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- MDB : split-longest (cut axis) -------------
 add_test(
     NAME    split-longest
