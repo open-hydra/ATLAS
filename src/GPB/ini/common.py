@@ -26,6 +26,7 @@ def convert2si(value, unit):
 class PhaseDefinition:
   section: str
   phase_type: str
+  phase_modeling: str
 
 # Scan INI file for "GPB-Phase*". Assign types to the found phase.
 def check_phases(ini_file):
@@ -48,6 +49,10 @@ def load_phase_definitions(ini_file):
     if phase_type is None:
       phase_type = 'ideal-gas'
 
-    phase_definitions.append(PhaseDefinition(section=section, phase_type=phase_type))
+    phase_modeling= get(ini_file, section, 'modeling', str)
+    if phase_modeling is None:
+      phase_type = 'ideal-gas'
+
+    phase_definitions.append(PhaseDefinition(section=section, phase_type=phase_type, phase_modeling=phase_modeling))
 
   return phase_definitions
