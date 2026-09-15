@@ -191,7 +191,19 @@ Tp     = 450.0
 Vp     = 100.0
 alphap = 26.0
 dp     = 0.01
+
+[dp_mult]
+type = inlet
+p1-gp = 10
+p2-gp = 20
+p1-dp = 0.01
+p2-dp = 0.001
+
+; p1 and p2 refer to phase name (prefix of phase.txt files).
 ```
+
+!!! warning "Phase name requirements"
+    For the dispersed phase, the phase name may be added in front of the entry name to assign a property to that phase. This is mandatory when multiple phases are injected together through the same boundary face.
 
 ---
 

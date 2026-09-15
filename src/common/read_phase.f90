@@ -206,9 +206,11 @@ contains
           if (ios==0) then
             read(u,'(A)',iostat=ios) type
             if (ios==0) then
-              if (index(type,'condensed-dispersed')>0) then
+              if (index(type,'condensed-dispersed')>0 .or. &
+                  index(type,'liquid-dispersed')>0    .or. &
+                  index(type,'solid-dispersed')>0    ) then
                 phase(i)%type = 'DP'
-              elseif (index(type,'solid')>0) then
+              elseif (index(type,'solid-bulk')>0) then
                 phase(i)%type = 'SP'
               elseif (index(type,'ideal-gas')>0) then
                 phase(i)%type = 'IG'

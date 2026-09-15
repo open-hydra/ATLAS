@@ -171,7 +171,7 @@ contains
     ! Phase-specific properties
     select case(phase % type)
 
-    ! Ideal gas
+    ! Ideal-gas and real-fluid phases
     case('IG', 'RF')
 
       select case(trim(self % definition))

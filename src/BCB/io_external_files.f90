@@ -19,7 +19,7 @@ module io_external_mod
   !> Container for a single BC data file (coordinate arrays + values).
   type :: bc_file_type
     character(len=256)   :: name
-    character(len=8)     :: var
+    character(len=16)    :: var
     integer              :: length = 0
     integer              :: width  = 0
     real(8), allocatable :: dirArray1(:), dirArray2(:), array(:,:)
@@ -29,21 +29,26 @@ contains
 
   !> Scan an INI section for all known *-file options and populate
   !> bc_file(:) with the detected entries.
-  subroutine detect_bc_files(ini, section, bc_file, n_files)
+  subroutine detect_bc_files(ini, section, phase_name, bc_file, n_files)
     type(file_ini),     intent(in)    :: ini
-    character(len=*),   intent(in)    :: section
+    character(len=*),   intent(in)    :: section, phase_name
     type(bc_file_type), intent(inout) :: bc_file(:)
     integer,            intent(out)   :: n_files
 
-    character(len=256) :: infile_dummy
+    character(len=256) :: infile_dummy, ini_entry_dummy
     integer            :: k, error
 
     n_files = 0
     do k = 1, n_variable_file_keys
-      call ini%get(section_name=section, option_name=trim(variable_file_keys(k))//'-file', val=infile_dummy, error=error)
+      if (trim(variable_file_keys(k))=='krho' .and. trim(phase_name)/='') then
+        ini_entry_dummy = trim(phase_name)//'-'//trim(variable_file_keys(k))
+      else
+        ini_entry_dummy = trim(variable_file_keys(k))
+      endif
+      call ini%get(section_name=section, option_name=trim(ini_entry_dummy)//'-file', val=infile_dummy, error=error)
       if (error == 0) then
         n_files = n_files + 1
-        bc_file(n_files)%var  = trim(variable_file_keys(k))
+        bc_file(n_files)%var  = ini_entry_dummy
         bc_file(n_files)%name = infile_dummy
       endif
     enddo
