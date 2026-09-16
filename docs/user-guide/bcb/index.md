@@ -60,7 +60,7 @@ It supports simple single-patch boundaries, multipatch definitions, periodic lin
 
 </div>
 
-Use the full reference in [BC Types](./bc-types) for summary tables and INI syntax examples for each type.
+Use the full reference in [BC Types](./bc-types.md) for summary tables and INI syntax examples for each type.
 
 ## Workflow
 
@@ -75,12 +75,12 @@ ATLAS BCB --input input.ini
 
 ## References
 
-- [Required files](./required-files)
-- [BC Setup](./bc-setup)
-- [BCB GUI](./gui)
-- [BC Types](./bc-types)
-- [Output Files](./output)
-- [Input Reference](./input-reference)
+- [Required files](./required-files.md)
+- [BC Setup](./bc-setup.md)
+- [BCB GUI](./gui.md)
+- [BC Types](./bc-types.md)
+- [Output Files](./output.md)
+- [Input Reference](./input-reference.md)
 
 See the [tutorials](/tutorials/bcb/) for worked examples.
 

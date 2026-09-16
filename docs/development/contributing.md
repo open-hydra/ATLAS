@@ -43,7 +43,7 @@ Until a dedicated `CODE_OF_CONDUCT.md` is added, treat GitHub community standard
 
 ### Code Changes
 
-1. **Make your changes** following [Code Style Guide](./code-style)
+1. **Make your changes** following [Code Style Guide](./code-style.md)
 2. **Write tests** for new functionality
 3. **Run tests locally**:
    ```bash
@@ -82,8 +82,8 @@ Until a dedicated `CODE_OF_CONDUCT.md` is added, treat GitHub community standard
 
 - **Keep PRs focused**: One feature or bug fix per PR
 - **Include tests**: New functionality must have tests  
-- **Update docs**: If changing user-facing APIs, update [docs/development](./index)
-- **Follow code style**: See [Code Style Guide](./code-style)
+- **Update docs**: If changing user-facing APIs, update [docs/development](./index.md)
+- **Follow code style**: See [Code Style Guide](./code-style.md)
 - **Ensure CI passes**: All GitHub Actions checks must pass
 - **Meaningful commits**: Commit messages describe *what* and *why*
 - **Reference issues**: Use `Fixes #123` in PR description if applicable
@@ -95,7 +95,7 @@ Use this before submitting:
 
 - [ ] Tests pass: `cd build && ctest --output-on-failure`
 - [ ] New tests added for new functionality
-- [ ] Code follows [Code Style Guide](./code-style)
+- [ ] Code follows [Code Style Guide](./code-style.md)
 - [ ] Documentation updated (if needed)
 - [ ] Commit messages are clear
 - [ ] SemVer impact is declared in PR description
@@ -184,14 +184,6 @@ cmake --build . && ctest --output-on-failure
    mkdocs serve
    ```
 
-## Development Resources
-
-- **Code Style**: [Code Style Guide](./code-style)
-- **Build Guide**: [Build Instructions](./build)
-- **Architecture**: [Project Structure](./structure)
-- **Testing**: [Testing Guide](./testing)
-- **Versioning**: [Semantic Versioning Guide](./versioning)
-
 ## Questions?
 
 - 💬 GitHub Discussions
@@ -210,4 +202,4 @@ Contributors are recognized in:
 
 **Thank you for contributing!** 🙏
 
-See also: [Code Style](./code-style), [Testing](./testing)
+See also: [Code Style](./code-style.md), [Testing](./testing.md)

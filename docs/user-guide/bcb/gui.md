@@ -77,10 +77,21 @@ Boundary conditions come in two kinds, matching the INI format:
 === "Build — BCs with input"
 
     In the **Build** tab, define a named BC with a `type` (`wall`, `inlet`,
-    `outlet`, `manifold`, `srm`, `periodic`) and its parameters. Each BC you
+    `outlet`, `manifold`, `gsi`, `periodic`) and its parameters. Each BC you
     build becomes selectable in the Assign tab. Parameter keys can be picked
     from per-type suggestions or typed freely (any `key = value` is allowed),
     which covers spatially-varying and `*-file` inputs.
+
+    For `gsi` the suggestion list spans every variant, since BCB selects the
+    model from the keys you set — see [BC Types](./bc-types.md#gsi). Setting
+    `pyrolysis-model` or `surface-reactions` here is what picks the pyrolysis,
+    ablation or combined variant; leaving both unset and giving the burn-rate
+    keys builds a solid-propellant grain.
+
+!!! note "Files written with `type = srm`"
+    `srm` was renamed `gsi` and is no longer accepted by BCB. The GUI rewrites
+    it to `gsi` when it loads an older `input.ini`, so re-saving the case
+    upgrades it. Hand-written INIs are not touched — update the `type` yourself.
 
 ![Building an inlet boundary condition with parameters; the selected inflow face is highlighted](images/bcb-gui-build.png)
 

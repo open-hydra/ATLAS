@@ -58,7 +58,7 @@ ICB writes the initial solution field for one or more Hydra blocks. The strategy
 
 ---
 
-Use the full reference in [IC Strategies](./ic-strategies) for summary tables and INI syntax examples for each type.
+Use the full reference in [IC Strategies](./ic-strategies.md) for summary tables and INI syntax examples for each type.
 
 ## Workflow
 
@@ -75,11 +75,11 @@ Generated files are in `fromATLAStoSolver/`.
 
 ## References
 
-- [Required files](./required-files)
-- [IC Setup](./ic-setup)
-- [IC Strategies](./ic-strategies)
-- [Output Files](./output)
-- [Input Reference](./input-reference) — INI keys and their meaning
+- [Required files](./required-files.md)
+- [IC Setup](./ic-setup.md)
+- [IC Strategies](./ic-strategies.md)
+- [Output Files](./output.md)
+- [Input Reference](./input-reference.md) — INI keys and their meaning
 
 See the [tutorials](/tutorials/icb/) for worked examples.
 

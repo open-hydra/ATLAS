@@ -11,8 +11,8 @@ How to build ATLAS from source.
 - **Make or Ninja**: For running the build (CMake generates build files for either)
 
 **Optional:**
-- **OpenMP**: For shared-memory parallelization (enabled by default on most systems)
-- **MPI**: For distributed-memory parallelization (currently not used by default)
+- **OpenMP**: For shared-memory parallelization (off by default; enable with `USE_OPENMP=ON`)
+- **MPI**: Not currently wired up — the `USE_MPI` option is commented out in `CMakeLists.txt`
 - **Doxygen**: For generating API documentation (if needed)
 
 **Python (for GPB tool):**
@@ -49,8 +49,8 @@ cmake -DCMAKE_BUILD_TYPE=Debug ..
 # Release build with optimizations
 cmake -DCMAKE_BUILD_TYPE=Release ..
 
-# Enable parallel support
-cmake -DENABLE_MPI=ON -DENABLE_OPENMP=ON ..
+# Enable OpenMP
+cmake -DUSE_OPENMP=ON ..
 
 # Custom installation directory
 cmake -DCMAKE_INSTALL_PREFIX=/custom/path ..
@@ -245,4 +245,4 @@ ctest --output-on-failure
 
 This ensures your changes pass the same checks as CI.
 
-See: [Testing](./testing), [Project Structure](./structure)
+See: [Testing](./testing.md), [Project Structure](./structure.md)

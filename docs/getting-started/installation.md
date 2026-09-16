@@ -174,4 +174,4 @@ conda env remove -n ct-env
 
 ---
 
-Next: [Quick Start Guide](./quick-start)
+Next: [Quick Start Guide](./quick-start.md)

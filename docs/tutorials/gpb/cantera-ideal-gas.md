@@ -31,9 +31,8 @@ Tmax      = 5000
 | `transport = cantera` | Cantera mixture-averaged transport for $\mu$ and $\lambda$ |
 | `Tmax = 5000` | Extend the property table to 5000 K |
 
-::: info
-When `type` is not specified, GPB defaults to `type = ideal-gas`.
-:::
+!!! info
+    When `type` is not specified, GPB defaults to `type = ideal-gas`.
 
 ## Running
 

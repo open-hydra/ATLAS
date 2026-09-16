@@ -26,7 +26,7 @@
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| type | null | null<br>axisymmetric<br>extrapolation<br>connection<br>chimera<br>symmetry<br>periodic<br>wall<br>inlet<br>outlet<br>manifold<br>srm |  no | Boundary-condition type for the named section. |
+| type | null | null<br>axisymmetric<br>extrapolation<br>connection<br>chimera<br>symmetry<br>periodic<br>wall<br>inlet<br>outlet<br>manifold<br>gsi |  no | Boundary-condition type for the named section. |
 | direction |  |  |  no | Patch directions using x,y,z,r,t,i,j,k. |
 | patch<n> |  |  |  no | Named sub-patch section used by multipatch boundaries. |
 | range<n> | 0.0 |  |  no | Sub-patch limits associated with patch<n>. |
@@ -50,6 +50,21 @@
 | omega | 0.0 |  |  no | Specific dissipation rate. |
 | rhoRij | 0.0 |  |  no | Reynolds-stress tensor magnitude. |
 | nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
+| surface-reactions | none |  |  no | Surface-reactions model for GSI boundaries. |
+| pyrolysis-model | none |  |  no | Pyrolysis model for GSI boundaries. |
+| cp | 0.0 |  |  no | GSI boundary specific heat. |
+| Ti | 0.0 |  |  no | GSI boundary ignition temperature. |
+| dh | 0.0 |  |  no | GSI boundary heat of reaction. |
+| mit | 0.0 |  |  no | Turbulence intensity for 1-equation models. |
+| kappa | 0.0 |  |  no | Turbulent kinetic energy. |
+| omega | 0.0 |  |  no | Specific dissipation rate. |
+| rhoRij | 0.0 |  |  no | Reynolds-stress tensor magnitude. |
+| nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
+| a | 0.0 |  |  no | Burn-rate pre-exponential coefficient. |
+| n | 0.0 |  |  no | Burn-rate pressure exponent. |
+| pRef | 1.0 |  |  no | Reference pressure for the burn law. |
+| rhoGrain | 0.0 |  |  no | Solid propellant density. |
+| SF | 1.0 |  |  no | Scale factor for the grain propellant. |
 | mach | 0.0 |  |  no | Ideal-gas Mach number. |
 | p0 | 0.0 |  |  no | Ideal-gas stagnation pressure. |
 | T0 | 0.0 |  |  no | Ideal-gas stagnation temperature. |
@@ -69,7 +84,6 @@
 | q | 0.0 |  |  no | Prescribed wall heat flux. |
 | T | 0.0 |  |  no | Prescribed wall temperature. |
 | ks | 0.0 |  |  no | Wall roughness height. |
-| qrad | 0.0 |  |  no | Radiative heat flux. |
 | eps | 0.0 |  |  no | Wall emissivity. |
 | q | 0.0 |  |  no | Prescribed wall heat flux. |
 | T | 0.0 |  |  no | Prescribed wall temperature. |
@@ -96,16 +110,6 @@
 | betap | 0.0 |  |  no | Secondary injection angle per dispersed population. |
 | rRes | 0.0 |  |  no | Residual radius per dispersed population. |
 | Tsat | 0.0 |  |  no | Saturation temperature per dispersed population. |
-| mit | 0.0 |  |  no | Turbulence intensity for 1-equation models. |
-| kappa | 0.0 |  |  no | Turbulent kinetic energy. |
-| omega | 0.0 |  |  no | Specific dissipation rate. |
-| rhoRij | 0.0 |  |  no | Reynolds-stress tensor magnitude. |
-| nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
-| a | 0.0 |  |  no | Burn-rate pre-exponential coefficient. |
-| n | 0.0 |  |  no | Burn-rate pressure exponent. |
-| pRef | 1.0 |  |  no | Reference pressure for the burn law. |
-| rhoGrain | 0.0 |  |  no | Solid propellant density. |
-| SF | 1.0 |  |  no | Scale factor for the grain propellant. |
 | ks-file |  |  |  no | ASCII file providing varying values for ks. |
 | q-file |  |  |  no | ASCII file providing varying values for q. |
 | T-file |  |  |  no | ASCII file providing varying values for T. |

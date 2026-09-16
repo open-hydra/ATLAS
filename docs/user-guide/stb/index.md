@@ -53,8 +53,8 @@ Generated files are written to `fromATLAStoSolver/`.
 
 ## References
 
-- [Input Reference](./input-reference) — INI keys and supported parameters
-- [Output Files](./output) — Files written for Hydra
+- [Input Reference](./input-reference.md) — INI keys and supported parameters
+- [Output Files](./output.md) — Files written for Hydra
 
 See the [tutorials](/tutorials/stb/) for worked examples.
 

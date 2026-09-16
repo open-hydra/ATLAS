@@ -343,4 +343,4 @@ If you use personal formatting tools locally, keep diffs focused and avoid large
 
 ---
 
-See: [Testing](./testing), [Contributing](./contributing)
+See: [Testing](./testing.md), [Contributing](./contributing.md)

@@ -5,8 +5,8 @@ ATLAS Fortran tools (BCB, ICB, STB) target the **Fortran 2008** standard and are
 ## Prerequisites
 
 - GFortran ≥ 9 or Intel `ifort` ≥ 2021
-- CMake ≥ 3.15
-- OpenMP (optional, for parallelism)
+- CMake ≥ 3.23
+- OpenMP (optional, off by default)
 
 ## Building
 
@@ -28,30 +28,25 @@ bin/STB    — Source Terms Builder
 
 ## Source Layout
 
-```
-src/hydra-tools/
-├── BCB/          — Boundary Condition Builder
-│   ├── BCB.f90              — entry point (program)
-│   ├── config.f90           — runtime configuration
-│   ├── types_bc.f90         — BC data types
-│   ├── types_block.f90      — block data types
-│   ├── builder_block.f90    — block-level construction
-│   ├── builder_face.f90     — face-level construction
-│   ├── builder_200/300/400*/500.f90  — per-BC-type builders
-│   ├── connection_*.f90     — standard / chimera connections
-│   ├── io_*.f90             — I/O routines
-│   └── bc_names.f90         — BC type name constants
-├── ICB/          — Initial Condition Builder
-│   ├── ICB.f90
-│   ├── config.f90
-│   ├── types_block.f90
-│   ├── builder.f90
-│   ├── builder_ig/dp/rf/sp.f90  — per-phase builders
-│   ├── interpolation_*.f90
-│   └── io_fields.f90
-└── STB/          — Setup Tool Builder
-    ├── STB.f90
-    └── area_variation.f90
+The tree is laid out in [Project Structure](./structure.md#directory-layout).
+Each tool lives in `src/<TOOL>/` and follows the same shape:
+
+| File pattern | Role |
+|---|---|
+| `<TOOL>.f90` | Entry point (`program`) |
+| `config.f90` | Input registry and config loaders |
+| `types_*.f90` | Derived types |
+| `builder_*.f90` | Construction logic, usually submodules of the types module |
+| `io_*.f90` | Readers and writers |
+
+`src/common/` holds what the tools share: grid and phase handling, the INI,
+mesh and ASCII-table readers, geometry and math helpers, and the input registry
+that generates the input-reference pages.
+
+To find the module a file defines, grep it — the names follow the convention below:
+
+```bash
+grep -rn "^\s*module " src/BCB/
 ```
 
 ## Module Conventions
@@ -103,4 +98,4 @@ end module bc_mod
 - `INTENT(IN/OUT/INOUT)` on all dummy arguments
 - Error handling via `error stop` with a descriptive message
 
-See [Code Style](./code-style) for the full conventions.
+See [Code Style](./code-style.md) for the full conventions.

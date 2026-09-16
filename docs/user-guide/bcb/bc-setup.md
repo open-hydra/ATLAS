@@ -271,7 +271,7 @@ direction (`Ni/2`, `Nj/2`, `Nk/2`); a direction that equals `1` is a singleton a
 fixed (kept at `1`), not halved.
 
 The same INI file produces BC files for all levels; there is no per-level configuration.
-Output files are distinguished by the level suffix (see [Output Files](./output)).
+Output files are distinguished by the level suffix (see [Output Files](./output.md)).
 
 ```ini
 [ATLAS-Parameters]
@@ -303,7 +303,7 @@ MG-levels = 3
 
 ## Notes
 
-- For BCs that require input (`periodic`, `wall`, `inlet`, `manifold`, `srm`), that section must include `type = ...`.
+- For BCs that require input (`periodic`, `wall`, `inlet`, `manifold`, `gsi`), that section must include `type = ...`.
 - For BCs without required input (`null`, `axisymmetric`, `extrapolation`, `connection`, `chimera`, `symmetry`, `outlet`), a further section is not needed.
 - `connection` and `chimera` are geometry/connectivity-driven. They generally do not need scalar parameters in the section, but they do constrain the mesh — see [Block Connectivity](./connectivity.md).
 

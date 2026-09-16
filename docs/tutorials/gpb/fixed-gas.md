@@ -34,9 +34,8 @@ kl      = 0.25 0.30
 
 GPB derives $c_p = \gamma R / (\gamma - 1)$, $c_v = c_p / \gamma$, and $R = R_u / M_w$ automatically.
 
-::: tip Over-specified sets
-You can provide more keys than strictly needed (e.g. both `gamma` and `cp`). GPB will check consistency and raise an error if the set is contradictory.
-:::
+!!! tip "Over-specified sets"
+    You can provide more keys than strictly needed (e.g. both `gamma` and `cp`). GPB will check consistency and raise an error if the set is contradictory.
 
 ## Running
 

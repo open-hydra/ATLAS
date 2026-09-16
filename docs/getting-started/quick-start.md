@@ -8,7 +8,7 @@ This quick start builds a minimal ATLAS case for a 3-D De Laval nozzle with:
 
 ## Prerequisites
 
-- ATLAS installed (see [Installation Guide](./installation))
+- ATLAS installed (see [Installation Guide](./installation.md))
 - a working shell setup (`source .setvars.sh` or `./install.sh setvars`)
 - a mesh file already available before running BCB and ICB
 

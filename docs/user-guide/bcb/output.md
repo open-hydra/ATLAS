@@ -140,16 +140,19 @@ Example (3-D, `id = 201`):
 
 ---
 
-### `301`–`305` — Wall (MOSE/ARES solver)
+### `301`–`302` — Wall (MOSE/ARES solver)
 
 | ID | Payload fields (in order) |
 |----|--------------------------|
 | `301` | `q, ks, eps` |
 | `302` | `T, ks, eps` |
-| `303` | `T, qrad, ks` |
-| `304` | `qrad, ks` |
 
-`ks` = roughness height; `eps` = wallemissivity; `q` = heat flux; `T` = wall temperature; `qrad` = radiative heat flux.
+`ks` = roughness height; `eps` = wall emissivity; `q` = heat flux; `T` = wall temperature.
+
+!!! note "No radiative fluid-wall IDs"
+    A fluid-phase wall resolves to `301` (heat flux) or `302` (temperature) only.
+    Any other key combination is written as `300` (Eulerian symmetry). Radiative
+    gas-side boundaries are handled by the [`gsi`](#gsi-ids) IDs instead.
 
 Example (`id = 301`, prescribed heat flux):
 
@@ -207,7 +210,7 @@ Example (`id = 302`, prescribed wall temperature):
 !!! note "Direction angles"
     For normal injection, write `normal,` in place of numeric `alpha` and `beta`.
 
-For turbulence-specified inlets, the payload line is extended with additional fields depending on the turbulence model and (see [input reference](./input-reference) for details).
+For turbulence-specified inlets, the payload line is extended with additional fields depending on the turbulence model and (see [input reference](./input-reference.md) for details).
 
 Turbulence suffix:
 
@@ -255,13 +258,32 @@ Example (DP inlet, `id = 402`, LogNormal, `ds` unset):
 
 `block`, `face` = source block/face index from which the manifold draws its conditions; 
 
-### `502` — Solid rocket motor (SRM) grain burning
+### `502`–`506` — Gas-surface interaction (GSI) { #gsi-ids }
 
-| ID | Payload fields (in order) |
-|----|-----------|--------------------------|
-| `502` | `Taf, a, n, pRef, rhoGrain, SF, massf(1:ns) [, turb…]` |
+All five IDs are produced by the single `gsi` marker; BCB selects the variant
+from the keys present in the section (see [BC Types](./bc-types.md#gsi)).
 
-`Taf` = adiabatic flame temperature [K]; `a` = burn rate pre-exponential coefficient; `n` = burn rate pressure exponent; `pRef` = reference pressure [Pa]; `rhoGrain` = propellant grain density [kg m⁻³]; `SF` = geometric scale factor (default 1); `massf(1:ns)` = species mass fractions. Turbulence suffix same as inlet IDs (depends on `nrans`).
+| ID | Variant | Payload fields (in order) | Payload length |
+|----|---------|---------------------------|----------------|
+| `502` | Solid propellant | `Taf, a, n, pRef, rhoGrain, SF, massf(1:ns) [, turb…]` | `6 + ns [+ nrans]` |
+| `503` | Melting | `cp, Tm, Ti, dh, qrad, eps, massf(1:ns)` | `6 + ns` |
+| `504` | Pyrolysis | `pyro, qrad, eps, massf(1:ns)` | `3 + ns` |
+| `505` | Surface reactions | `surf, qrad, eps` | `3` |
+| `506` | Pyrolysis + surface reactions | `pyro, surf, qrad, eps, massf(1:ns)` | `4 + ns` |
+
+Field key: `Taf` = adiabatic flame temperature [K]; `a` = burn-rate pre-exponential coefficient; `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `rhoGrain` = propellant grain density [kg m⁻³]; `SF` = geometric scale factor (default 1); `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
+
+Only `502` carries a turbulence suffix, using the same layout as the inlet IDs
+(depends on `nrans`). `505` is the only GSI variant that writes **no** mass
+fractions.
+
+!!! note "Model codes"
+    `pyro` and `surf` are written as reals encoding the model chosen in the INI file:
+
+    | Field | INI key | Value → code |
+    |---|---|---|
+    | `pyro` | `pyrolysis-model` | `HTPB` → `1`, `HDPB` → `2`, `PP` → `3` |
+    | `surf` | `surface-reactions` | `bradley` → `1` |
 
 Example (`id = 502`, single-species, no turbulence):
 
@@ -269,6 +291,31 @@ Example (`id = 502`, single-species, no turbulence):
        1       1      20       1       4     502
     0.342053E+04,    0.520000E-02,    0.350000E+00,    0.482900E+07,    0.175000E+04,    0.100000E+01,    0.100000E+01,
 ```
+
+Example (`id = 503`, melting, 3 species — `cp = 1000`, `Tm = 500`, `Ti = 300`, `dh = -500`, `qrad = 1e4`, `eps` unset):
+
+```
+       1       1      20       1       4     503
+    0.100000E+04,    0.500000E+03,    0.300000E+03,   -0.500000E+03,    0.100000E+05,    0.000000E+00,    0.700000E+00,    0.300000E+00,    0.100000E-19,
+```
+
+Example (`id = 504`, pyrolysis, `HTPB` → `1`, 3 species):
+
+```
+       1       1      20       1       4     504
+    0.100000E+01,    0.100000E+05,    0.000000E+00,    0.700000E+00,    0.300000E+00,    0.100000E-19,
+```
+
+Example (`id = 505`, surface reactions, `bradley` → `1`, no mass fractions):
+
+```
+       1       1      20       1       4     505
+    0.100000E+01,    0.100000E+07,    0.000000E+00,
+```
+
+!!! note "Unset species"
+    Species not named by a `y<species>` key are written as `0.100000E-19`
+    (the `1e-20` floor), not as exact zero.
 
 ---
 

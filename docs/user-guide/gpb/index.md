@@ -79,12 +79,12 @@ type = condensed-dispersed
 ...
 ```
 
-See [Input Reference](./input-reference) for full per-type information.
+See [Input Reference](./input-reference.md) for full per-type information.
 
 ## Output
 
 Property files are written to `fromATLAStoSolver/`.
 
-See [Output Files](./output) for full per-type information.
+See [Output Files](./output.md) for full per-type information.
 
 ---

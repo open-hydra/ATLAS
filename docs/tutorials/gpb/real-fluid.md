@@ -38,9 +38,8 @@ NH   = 40
 | `NP = 40` | — | 40 pressure nodes (coarse; use ≥ 200 for production) |
 | `NH = 40` | — | 40 enthalpy nodes |
 
-::: warning Small grid
-The test case uses `NP = NH = 40` for speed. For production simulations, use the default 200 × 200 or larger near the critical point.
-:::
+!!! warning "Small grid"
+    The test case uses `NP = NH = 40` for speed. For production simulations, use the default 200 × 200 or larger near the critical point.
 
 ## Critical Point Context
 

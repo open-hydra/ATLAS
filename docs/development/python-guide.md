@@ -115,7 +115,7 @@ To add support for a new thermodynamic phase (e.g., multiphase mixtures):
 
 4. **Add tests** in `test/GPB/test_multiphase.py` using `pytest`
 
-5. **Document** in docstrings and update [Python Package Reference](./python-packages)
+5. **Document** in docstrings — these are the API reference, so keep them accurate
 
 ## Code Style
 

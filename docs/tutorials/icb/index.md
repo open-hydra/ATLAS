@@ -2,9 +2,8 @@
 
 All test cases referenced here are available in `test/ICB/`.
 
-::: warning Work in progress
-Detailed tutorial pages are being written.
-:::
+!!! warning "Work in progress"
+    Detailed tutorial pages are being written.
 
 | Case | Test objective |
 |------|----------------|

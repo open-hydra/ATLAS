@@ -2,9 +2,8 @@
 
 All test cases referenced here are available in `test/BCB/`.
 
-::: warning Work in progress
-Detailed tutorial pages are being written. The table below lists the available reference cases.
-:::
+!!! warning "Work in progress"
+    Detailed tutorial pages are being written. The table below lists the available reference cases.
 
 | Case | Test objective |
 |------|----------------|
@@ -12,7 +11,9 @@ Detailed tutorial pages are being written. The table below lists the available r
 | `IG-2D` | Validate ideal-gas BC mapping on a 2D multi-face layout. |
 | `IG+CD` | Validate combined ideal-gas and condensed-phase BC handling in one case. |
 | `IG+SP` | Validate combined ideal-gas and solid-particle BC handling in one case. |
-| `IG-SRM` | Validate SRM-oriented ideal-gas inflow/outflow BC setup. |
+| `IG-melting` | Validate the `gsi` melting variant (`503`): `cp`/`T`/`Ti`/`dh`/`qrad` plus injected composition. |
+| `IG-pyrolysis` | Validate the `gsi` pyrolysis variant (`504`) with `pyrolysis-model = HTPB`. |
+| `IG-ablation` | Validate the `gsi` surface-reactions variant (`505`) with `surface-reactions = bradley`. |
 | `IG-chimera` | Validate chimera/overset boundary metadata generation. |
 | `IG-chimera+connection` | Validate chimera and standard connection coexisting on a distorted, refined 3-block layout. |
 | `IG-force-chimera` | Validate `BC-force-chimera` on a partial interface: only the facelets that see the other block become chimera. |
@@ -23,6 +24,7 @@ Detailed tutorial pages are being written. The table below lists the available r
 | `IG-multipatch-index` | Validate index-based multipatch configuration parsing and mapping. |
 | `IG-inflow-nozzle` | Validate nozzle-driven inflow BC generation. |
 | `IG-inflow-ceafile-inertmix` | Validate CEA-based inert-mixture inflow BC generation. |
+| `IG-inflow-p0time` | Validate a time-varying total-pressure inlet driven by `p0-time-file`. |
 | `IG-extrapolated-time-file` | Validate time-dependent BC interpolation/extrapolation from external files. |
 | `IG-xtheta-variable-T` | Validate inflow temperature assignment varying with x-theta coordinates. |
 | `IG-y-variable-massflux` | Validate spanwise-varying mass-flux BC assignment. |

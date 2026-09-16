@@ -4,7 +4,7 @@ This page describes ATLAS tests in plain terms: what each test is trying to prov
 
 ## What A Test Checks
 
-Most regression tests run one tool (`GPB`, `BCB`, `ICB`, or `STB`) from a case folder and then compare produced files with reference files.
+Most regression tests run one tool (`GPB`, `BCB`, `ICB`, `MDB`, or `STB`) from a case folder and then compare produced files with reference files.
 
 If outputs match, the test objective is considered met.
 
@@ -12,16 +12,27 @@ If outputs match, the test objective is considered met.
 
 These are the cases currently registered in `test/CMakeLists.txt`.
 
-| Test name | Tool | Main goal |
-|---|---|---|
-| `ceafile-reactive-OG` | GPB | Verify reactive gas setup from CEA data produces stable composition/chemistry outputs. |
-| `SP-basic` | ICB | Verify basic solid initial-condition field generation. |
-| `IG-nozzle3D` | ICB | Verify 3D nozzle initial-condition generation and VTK export path. |
-| `IG-inflow-nozzle` | BCB | Verify nozzle inflow boundary-condition construction. |
-| `IG-multipatch-file` | BCB | Verify multipatch BC assignment when patches are provided by file. |
-| `IG-multipatch-1D` | BCB | Verify 1D multipatch face mapping and resulting BC output consistency. |
-| `IG-inflow-ceafile-inertmix` | BCB | Verify inflow BC creation using CEA-based inert-mixture inputs. |
-| `x-variable` | STB | Verify spatially varying source-term generation along x. |
+| Test name | Tool | Case folder | Main goal |
+|---|---|---|---|
+| `ceafile-reactive-OG` | GPB | `GPB/IG-ceafile-reactive-OG` | Reactive gas setup from CEA data produces the expected composition/chemistry output. |
+| `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
+| `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
+| `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |
+| `IG-inflow-nozzle` | BCB | `BCB/IG-inflow-nozzle` | Nozzle inflow boundary-condition construction. |
+| `IG-inflow-ceafile-inertmix` | BCB | `BCB/IG-inflow-ceafile-inertmix` | Inflow BC creation using CEA-based inert-mixture inputs. |
+| `IG-multipatch-file` | BCB | `BCB/IG-multipatch-file` | Multipatch BC assignment when patches are provided by file. |
+| `IG-multipatch-1D` | BCB | `BCB/IG-multipatch-1D` | 1D multipatch face mapping and resulting BC output. |
+| `IG-chimera` | BCB | `BCB/IG-chimera` | Chimera/overset boundary metadata generation. |
+| `IG-chimera+connection` | BCB | `BCB/IG-chimera+connection` | Chimera and standard connection coexisting on one layout. |
+| `IG-force-chimera` | BCB | `BCB/IG-force-chimera` | `BC-force-chimera` on a partial interface. |
+| `CD-basic` | BCB | `BCB/CD-basic` | Condensed-phase BC assignment and export. |
+| `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
+| `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
+| `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
+| `mg3-granularity` | MDB | `MDB/mg3-granularity` | Partition granularity under 3 multigrid levels. |
+| `split-longest` | MDB | `MDB/split-longest` | Splitting along the longest block direction. |
+| `split-solution` | MDB | `MDB/split-solution` | Splitting a case that carries a solution field. |
+| `x-variable` | STB | `STB/x-variable` | Spatially varying source-term generation along x. |
 
 ## Test Families And Their Intent
 
@@ -66,6 +77,16 @@ KAnT tests check chemistry-analysis workflows produce expected trends and output
 - `time_evolution`: validate transient 0D species/temperature evolution workflows.
 - `counterflow`: validate counterflow chemistry/flame workflow setup.
 
+### MDB Cases (`test/MDB/`)
+
+MDB tests check that a mesh and its BC data are split consistently across parallel partitions.
+
+- `split-longest`, `block-directions`: validate the choice of split direction.
+- `balance-only`: validate load balancing when no split is required.
+- `halo-trade`: validate halo/ghost bookkeeping between partitions.
+- `mg3-granularity`: validate partition sizing under multigrid constraints.
+- `split-solution`: validate splitting a case that also carries a solution field.
+
 ### STB Cases (`test/STB/`)
 
 STB tests check source-term field generation.
@@ -89,4 +110,4 @@ ctest -R IG-nozzle3D --output-on-failure
 
 ---
 
-See also [Project Structure](./structure) and [Build Instructions](./build).
+See also [Project Structure](./structure.md) and [Build Instructions](./build.md).

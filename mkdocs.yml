@@ -4,7 +4,9 @@ repo_name: open-hydra/ATLAS
 repo_url: https://github.com/open-hydra/ATLAS
 
 docs_dir: docs
-exclude_docs: README.md
+exclude_docs: |
+  README.md
+  overrides/
 
 validation:
   nav:
@@ -182,9 +184,7 @@ nav:
     - Contributing: development/contributing.md
     - Code Style: development/code-style.md
     - Fortran Guide: development/fortran-guide.md
-    - Fortran Modules: development/fortran-modules.md
     - Python Guide: development/python-guide.md
-    - Python Packages: development/python-packages.md
 
   - About:
     - about/index.md
