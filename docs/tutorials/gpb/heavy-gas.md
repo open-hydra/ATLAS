@@ -34,9 +34,8 @@ The heavy-gas model represents propellant-loaded flows where the mixture contain
 ## Running
 
 ```bash
-export ATLASDIR=/path/to/ATLAS
 cd test/GPB/IG-mixture-HG
-python -m GPB --input-file input.ini
+ATLAS GPB
 ```
 
 ## Expected Output

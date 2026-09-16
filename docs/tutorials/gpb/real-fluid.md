@@ -50,9 +50,8 @@ The chosen range $[8\,\text{MPa}, 15\,\text{MPa}] \times [320\,\text{K}, 450\,\t
 ## Running
 
 ```bash
-export ATLASDIR=/path/to/ATLAS
 cd test/GPB/RF-co2
-python -m GPB --input-file input.ini
+ATLAS GPB
 ```
 
 ## Expected Output

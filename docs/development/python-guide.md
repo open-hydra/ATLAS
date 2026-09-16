@@ -1,6 +1,10 @@
 # Python Development Guide
 
-ATLAS Python tools (GPB, KAnT) are regular Python packages invoked as `python -m <Package>`.
+ATLAS Python tools (GPB, KAnT) are run as package **directories**, not with `-m`:
+their internal imports are flat (`from input_registry import ...`), so the package
+directory itself must be on `sys.path` — which is what `python3 <dir>` does and
+`python -m` does not. Normally you invoke them through the `ATLAS` launcher,
+which also activates the conda environment.
 
 ## Prerequisites
 
@@ -29,17 +33,23 @@ export ATLASDIR=/path/to/ATLAS
 ### General Phase Builder (GPB)
 
 ```bash
-export ATLASDIR=/path/to/ATLAS
-python -m GPB --input-file input.ini
+# Through the launcher (activates ct-env for you)
+ATLAS GPB
+ATLAS GPB -i mycase.ini
 
-# View configuration template
-python -m GPB --write-config-doc > template.ini
+# Directly, with an interpreter that already has the dependencies
+export ATLASDIR=/path/to/ATLAS
+python3 -B $ATLASDIR/src/GPB --input-file input.ini
+
+# Regenerate the input-reference page (writes gpb-input.md in the current directory)
+python3 -B $ATLASDIR/src/GPB --write-config-doc
 ```
 
-### KAnT (Future)
-Once implemented:
+### KAnT
+
 ```bash
-python -m KAnT --input-file input.ini
+ATLAS KAnT
+ATLAS KAnT --plot        # --plot is supported by KAnT, not by GPB
 ```
 
 ## Source Layout

@@ -53,7 +53,7 @@ ATLAS/
 | **ICB** | Generates spatially varying initial-condition fields | `src/ICB/` | `bin/ICB` | INI + mesh → Tecplot/VTK fields |
 | **MDB** | Splits mesh and BC data across parallel partitions | `src/MDB/` | `bin/MDB` | Mesh + BC files → per-partition files |
 | **STB** | Computes spatially varying source terms | `src/STB/` | `bin/STB` | Mesh + INI → source-term data |
-| **GPB** | Builds thermodynamic phase-property tables from CEA and Cantera | `src/GPB/` | `python -m GPB` | INI + databases → thermo/transport tables |
+| **GPB** | Builds thermodynamic phase-property tables from CEA and Cantera | `src/GPB/` | `ATLAS GPB` | INI + databases → thermo/transport tables |
 
 Each tool's internal file layout follows the same conventions — see
 [Source Layout](./fortran-guide.md#source-layout) in the Fortran Development Guide.

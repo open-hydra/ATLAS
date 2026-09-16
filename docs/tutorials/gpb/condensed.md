@@ -36,9 +36,8 @@ GPB looks up the Burcat polynomial coefficients for the given `material` name. T
 ## Running
 
 ```bash
-export ATLASDIR=/path/to/ATLAS
 cd test/GPB/CP-Tvar-dispersed
-python -m GPB --input-file input.ini
+ATLAS GPB
 ```
 
 ## Expected Output

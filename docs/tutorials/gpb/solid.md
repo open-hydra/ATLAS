@@ -35,9 +35,8 @@ The ATLAS solid-phase database is located in `database/thermo/` and includes a c
 ## Running
 
 ```bash
-export ATLASDIR=/path/to/ATLAS
 cd test/GPB/SP-Tvar
-python -m GPB --input-file input.ini
+ATLAS GPB
 ```
 
 ## Expected Output

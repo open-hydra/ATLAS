@@ -29,6 +29,6 @@ All test cases referenced here are available in `test/BCB/`.
 | `IG-xtheta-variable-T` | Validate inflow temperature assignment varying with x-theta coordinates. |
 | `IG-y-variable-massflux` | Validate spanwise-varying mass-flux BC assignment. |
 | `NO_IG-1D` | Validate no-ideal-gas configuration path for 1D boundary setup. |
-| `CD-basic` | Validate condensed-phase BC assignment and export. |
-| `CD-z-variable-krho` | Validate z-dependent condensed-property BC setup (e.g., k-rho variation). |
+| `DP-basic` | Validate dispersed-phase BC assignment and export. |
+| `DP-z-variable-krho` | Validate z-dependent dispersed-property BC setup (e.g., k-rho variation). |
 | `SP-basic` | Validate solid-phase/particle BC assignment and output. |

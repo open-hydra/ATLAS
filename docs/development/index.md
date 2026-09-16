@@ -7,7 +7,7 @@ ATLAS is a mixed-language project. Pre-processing tools are implemented in **For
 | Track | Tools | Entry point |
 |-------|-------|-------------|
 | [Fortran](./fortran-guide.md) | BCB, ICB, MDB, STB | CMake → `make` |
-| [Python](./python-guide.md) | GPB, KAnT | `python -m <package>` |
+| [Python](./python-guide.md) | GPB, KAnT | `ATLAS <TOOL>` (or `python3 src/<TOOL>`) |
 
 ## Where To Go
 

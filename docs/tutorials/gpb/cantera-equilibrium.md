@@ -42,9 +42,8 @@ GPB delegates unit parsing to Cantera. Supported unit strings include `Pa`, `atm
 ## Running
 
 ```bash
-export ATLASDIR=/path/to/ATLAS
 cd test/GPB/IG-ct-equilibrium
-python -m GPB --input-file input.ini
+ATLAS GPB
 ```
 
 ## Expected Output

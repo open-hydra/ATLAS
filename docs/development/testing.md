@@ -25,13 +25,14 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-chimera` | BCB | `BCB/IG-chimera` | Chimera/overset boundary metadata generation. |
 | `IG-chimera+connection` | BCB | `BCB/IG-chimera+connection` | Chimera and standard connection coexisting on one layout. |
 | `IG-force-chimera` | BCB | `BCB/IG-force-chimera` | `BC-force-chimera` on a partial interface. |
-| `CD-basic` | BCB | `BCB/CD-basic` | Condensed-phase BC assignment and export. |
+| `DP-basic` | BCB | `BCB/DP-basic` | Dispersed-phase BC assignment and export. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
 | `mg3-granularity` | MDB | `MDB/mg3-granularity` | Partition granularity under 3 multigrid levels. |
 | `split-longest` | MDB | `MDB/split-longest` | Splitting along the longest block direction. |
 | `split-solution` | MDB | `MDB/split-solution` | Splitting a case that carries a solution field. |
+| `coupled-phases` | BCB + MDB | `MDB/coupled-phases` | Two-phase interface: type-`103` donors remapped against the other phase's decomposition. |
 | `x-variable` | STB | `STB/x-variable` | Spatially varying source-term generation along x. |
 
 ## Test Families And Their Intent
@@ -45,7 +46,7 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `IG-multipatch-*`: validate patch indexing, file-driven patches, and multi-face mapping behavior.
 - `IG-inflow-*`: validate inflow models, including nozzle and CEA-coupled inflow definitions.
 - `IG-chimera`: validate overset/chimera boundary metadata preparation.
-- `IG+CD`, `IG+SP`, `CD-*`, `SP-basic`: validate mixed boundary models (ideal gas, condensed, solid).
+- `IG+CD`, `IG+SP`, `DP-*`, `SP-basic`: validate mixed boundary models (ideal gas, condensed, dispersed, solid).
 
 ### GPB Cases (`test/GPB/`)
 
@@ -86,6 +87,7 @@ MDB tests check that a mesh and its BC data are split consistently across parall
 - `halo-trade`: validate halo/ghost bookkeeping between partitions.
 - `mg3-granularity`: validate partition sizing under multigrid constraints.
 - `split-solution`: validate splitting a case that also carries a solution field.
+- `coupled-phases`: validate cross-phase (`103`) donor remapping when two phases are cut at different indices.
 
 ### STB Cases (`test/STB/`)
 

@@ -37,9 +37,8 @@ The `CEA.inp` file must be located in the same directory as `input.ini` (or an a
 ## Running
 
 ```bash
-export ATLASDIR=/path/to/ATLAS
 cd test/GPB/IG-ceafile-reactive-OG
-python -m GPB --input-file input.ini
+ATLAS GPB
 ```
 
 ## Expected Output

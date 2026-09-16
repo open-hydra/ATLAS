@@ -40,9 +40,8 @@ GPB derives $c_p = \gamma R / (\gamma - 1)$, $c_v = c_p / \gamma$, and $R = R_u 
 ## Running
 
 ```bash
-export ATLASDIR=/path/to/ATLAS
 cd test/GPB/IG-fixgas
-python -m GPB --input-file input.ini
+ATLAS GPB
 ```
 
 ## Expected Output

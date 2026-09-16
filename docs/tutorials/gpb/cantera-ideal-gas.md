@@ -37,9 +37,8 @@ Tmax      = 5000
 ## Running
 
 ```bash
-export ATLASDIR=/path/to/ATLAS
 cd test/GPB/IG-reactive
-python -m GPB --input-file input.ini
+ATLAS GPB
 ```
 
 ## Expected Output
