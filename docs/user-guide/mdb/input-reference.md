@@ -31,3 +31,50 @@ Per-block overrides. `*` is replaced by the 1-based block index (e.g. `MDB-Block
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | split-directions | *(from MDB-Parameters)* | any subset of `i`, `j`, `k` | no | Restrict the cut directions for this block. Typical use: set to `ik` on a boundary-layer block to prevent wall-normal (`j`) cuts. |
+
+## MDB-Phase*
+
+Coupled (multi-phase) cases. `*` is replaced by the 1-based phase index
+(`MDB-Phase1`, `MDB-Phase2`). Declaring these sections puts MDB in coupled mode
+and supersedes the flat `grid` / `grid-out` / `prefix` / `map-file` keys of
+`MDB-Parameters`; with none declared those flat keys describe a single phase, so
+existing single-phase inputs are unaffected.
+
+Coupled mode is **required** whenever the BC files contain type-`103` records.
+A `103` record is the fluid–solid interface, and its donor is numbered in the
+*other* phase — ATLAS block ids restart at 1 for each phase — so the donor can
+only be resolved against that other phase's decomposition. Splitting a coupled
+case one phase at a time cannot do that, and MDB now stops with an error rather
+than rewriting the interface against the wrong block numbering.
+
+Exactly two phases may be declared: a `103` record names only `(block,i,j,k)` in
+"the other phase", so the interface is ambiguous with three or more.
+
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| grid | *(none)* | | yes | Path to this phase's grid (or grid+solution) file. This is the key that makes the section exist; phases are read consecutively from `MDB-Phase1` until one is missing. |
+| grid-out | `<grid>-split.<ext>` | | no | Output path for this phase's decomposed grid. |
+| bc-path | *(from MDB-Parameters)* | | no | Directory containing this phase's BC files. |
+| bc-out-path | *(from MDB-Parameters)* | | no | Directory for this phase's decomposed BC files. Both phases may share one directory: the files are distinguished by `prefix`. |
+| prefix | *(empty)* | | no | This phase's BC file prefix (`<prefix>bc.txt`), e.g. `gas-` and `plate-`. |
+| map-file | `<prefix>decomposition.map` | | no | Decomposition record for this phase. Must differ between phases. |
+| ranks | *(from MDB-Parameters)* | >=1 | no | Ranks to balance this phase for. Both solvers run on every rank in a coupled run, so leaving this unset is almost always right; setting it differently per phase is mainly useful for testing. |
+
+### Example
+
+```ini
+[MDB-Parameters]
+ranks       = 24
+bc-path     = INPUT
+bc-out-path = INPUT-split
+
+[MDB-Phase1]
+grid     = INPUT/gas-ic.tec
+grid-out = INPUT-split/gas-ic.tec
+prefix   = gas-
+
+[MDB-Phase2]
+grid     = INPUT/plate-ic.tec
+grid-out = INPUT-split/plate-ic.tec
+prefix   = plate-
+```

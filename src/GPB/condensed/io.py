@@ -8,14 +8,10 @@ ensure_output_dir()
 
 def write_basics(type, name, mat_phases, groups):
 
-    # Write the data to a file in Tecplot-readable format
+    # Write the data to a free-format ASCII file
     filename = outpath + name + "phase.txt"
 
     with open(filename, 'w') as f:
-        if 'condensed' in type:
-            f.write("condensed-dispersed phase\n")
-        elif type == 'solid':
-            f.write("solid phase\n")
         for i, m in enumerate(mat_phases):
             f.write(f"{m.name} {int(groups[i])}\n")
 

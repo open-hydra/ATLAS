@@ -37,6 +37,14 @@ MDB splits a multi-block structured grid — and its solution field if one is pr
 
     Override `split-directions` for individual blocks via `MDB-BlockN` sections. The typical use is to prevent wall-normal cuts in boundary-layer blocks.
 
+-   :material-layers-triple-outline: **Coupled (Multi-Phase) Cases**
+
+    ---
+
+    Declare `MDB-Phase1` and `MDB-Phase2` to split a conjugate-heat-transfer mesh. Each phase is decomposed on its own, then the type-`103` interface records are remapped against the *other* phase's decomposition — which is the only way they can be resolved, since ATLAS numbers blocks per phase.
+
+    **When to use:** any case whose BC files contain `103` records, i.e. anything run with `hydra-MF` or `hydra-AF`.
+
 </div>
 
 ---
@@ -49,6 +57,8 @@ MDB splits a multi-block structured grid — and its solution field if one is pr
 | `<bc-out-path>/bc.txt`, `bc2.txt`, … | Decomposed BC files, one per multigrid level |
 | `decomposition.map` | New block → parent block, index range, owning rank, and face origins |
 
+For a coupled case each phase produces its own set: `<prefix>bc.txt` in the shared `bc-out-path`, its own split grid, and its own `<prefix>decomposition.map`.
+
 The split is **exact**: node planes on a cut are duplicated in both neighbours and cell data is partitioned without duplication, so a decomposed restart carries the original solution unchanged — no interpolation is involved.
 
 ---
@@ -57,8 +67,9 @@ The split is **exact**: node planes on a cut are duplicated in both neighbours a
 
 0. Confirm that BCB and ICB have produced their output files.
 1. Set `ranks` to the number of MPI ranks you will launch MOSE with.
-2. Optionally add `MDB-BlockN` sections to restrict cut directions on specific blocks.
-3. Run MDB.
+2. For a coupled case, add one `MDB-Phase*` section per phase (see [Input Reference](input-reference.md)). MDB refuses to split a mesh containing type-`103` records without them, because the interface cannot be remapped from one phase alone.
+3. Optionally add `MDB-BlockN` sections to restrict cut directions on specific blocks.
+4. Run MDB.
 
 ```ini
 [ATLAS-Parameters]

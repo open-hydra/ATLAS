@@ -551,7 +551,12 @@ contains
     type(phase_t), intent(in)                    :: phase
     type(bcb_dp_boundary_config_t), intent(out)  :: cfg
 
-    integer :: error, m, npcp, p
+    character(len=129) :: pn
+    integer :: error, m, npcp, p, i
+        character(len=:), allocatable    :: items(:,:), section_name(:)
+
+    pn = trim(adjustl(phase%name))
+    if (phase%name /= '') pn = trim(pn)//'-'
 
     allocate(cfg%materials(1:phase%material%n))
     do m = 1, phase%material%n
@@ -595,33 +600,42 @@ contains
       cfg%materials(m)%distribution = ''
       cfg%materials(m)%has_gp = .false.
 
-      call sourceini%get(section_name=section, option_name='krho', val=cfg%materials(m)%krho, error=error)
-      call sourceini%get(section_name=section, option_name='kV',   val=cfg%materials(m)%kV, error=error)
-      call sourceini%get(section_name=section, option_name='kT',   val=cfg%materials(m)%kT, error=error)
-      call sourceini%get(section_name=section, option_name='gp',   val=cfg%materials(m)%gp, error=error)
+      call sourceini%get_items(items)
+      if (allocated(items)) then
+        do i = 1, size(items, dim=1)
+        print*, items
+        enddo
+        endif
+
+      call sourceini%get(section_name=section, option_name=trim(pn)//'krho', val=cfg%materials(m)%krho, error=error)
+      print*, error
+      print*, trim(pn)//'krho', cfg%materials(m)%krho
+      call sourceini%get(section_name=section, option_name=trim(pn)//'kV',   val=cfg%materials(m)%kV, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'kT',   val=cfg%materials(m)%kT, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'gp',   val=cfg%materials(m)%gp, error=error)
       cfg%materials(m)%has_gp = error == 0
-      call sourceini%get(section_name=section, option_name='up',   val=cfg%materials(m)%up, error=error)
-      call sourceini%get(section_name=section, option_name='vp',   val=cfg%materials(m)%vp, error=error)
-      call sourceini%get(section_name=section, option_name='wp',   val=cfg%materials(m)%wp, error=error)
-      call sourceini%get(section_name=section, option_name='Vp',   val=cfg%materials(m)%velocity_magnitude, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'up',   val=cfg%materials(m)%up, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'vp',   val=cfg%materials(m)%vp, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'wp',   val=cfg%materials(m)%wp, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'Vp',   val=cfg%materials(m)%velocity_magnitude, error=error)
       if (error /= 0) then
         cfg%materials(m)%velocity_magnitude = sqrt(cfg%materials(m)%up**2 + &
                                                    cfg%materials(m)%vp**2 + &
                                                    cfg%materials(m)%wp**2)
       endif
-      call sourceini%get(section_name=section, option_name='Tp',   val=cfg%materials(m)%Tp, error=error)
-      call sourceini%get(section_name=section, option_name='rp',   val=cfg%materials(m)%rp, error=error)
-      call sourceini%get(section_name=section, option_name='dp',   val=cfg%materials(m)%rp, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'Tp',   val=cfg%materials(m)%Tp, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'rp',   val=cfg%materials(m)%rp, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'dp',   val=cfg%materials(m)%rp, error=error)
       if (error == 0) cfg%materials(m)%rp = 0.5_R8 * cfg%materials(m)%rp
-      call sourceini%get(section_name=section, option_name='sigmap', val=cfg%materials(m)%sigmap, error=error)
-      call sourceini%get(section_name=section, option_name='ds',     val=cfg%materials(m)%ds, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'sigmap', val=cfg%materials(m)%sigmap, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'ds',     val=cfg%materials(m)%ds, error=error)
       if (error /= 0) cfg%materials(m)%ds = 0.0_R8
       cfg%materials(m)%ds = cfg%materials(m)%ds * 1.0e-2_R8   ! cm -> m (matches global [IGLOO-BC] ds; NB: dp/rp are NOT converted)
-      call sourceini%get(section_name=section, option_name='alphap', val=cfg%materials(m)%alphap, error=error)
-      call sourceini%get(section_name=section, option_name='betap',  val=cfg%materials(m)%betap, error=error)
-      call sourceini%get(section_name=section, option_name='rRes',   val=cfg%materials(m)%rRes, error=error)
-      call sourceini%get(section_name=section, option_name='Tsat',   val=cfg%materials(m)%Tsat, error=error)
-      call sourceini%get(section_name=section, option_name='distribution', val=cfg%materials(m)%distribution, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'alphap', val=cfg%materials(m)%alphap, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'betap',  val=cfg%materials(m)%betap, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'rRes',   val=cfg%materials(m)%rRes, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'Tsat',   val=cfg%materials(m)%Tsat, error=error)
+      call sourceini%get(section_name=section, option_name=trim(pn)//'distribution', val=cfg%materials(m)%distribution, error=error)
 
       ! Resolve the size-distribution law for each population (string written to
       ! the BC file, interpreted by the solver). sigmap==0 is a Dirac delta and

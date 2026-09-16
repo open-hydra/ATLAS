@@ -112,7 +112,7 @@ contains
     endif
 
     ! Check file presence
-    call detect_bc_files(ini_o, 'cell', bc_file, n_files)
+    call detect_bc_files(ini_o, 'cell', phase%name, bc_file, n_files)
     if (n_files>0) file_present = .true.
 
     if (file_multipatch) then

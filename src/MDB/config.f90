@@ -8,6 +8,20 @@ module config_mdb_mod
   implicit none
   private
 
+  !> One phase of a (possibly coupled) case. ATLAS numbers blocks per phase and
+  !> writes one BC file set per phase, so each phase is decomposed on its own;
+  !> the phases are tied together only by the type-103 records that cross the
+  !> fluid-solid interface.
+  type, public :: mdb_phase_t
+    character(len=llen) :: grid     = ''
+    character(len=llen) :: grid_out = ''                 !< '' -> <grid>-split.<ext>
+    character(len=llen) :: bc_in    = 'INPUT'
+    character(len=llen) :: bc_out   = 'INPUT-split'
+    character(len=llen) :: prefix   = ''
+    character(len=llen) :: map_file = ''                 !< '' -> <prefix>decomposition.map
+    integer             :: ranks    = 0                  !< 0 -> inherit [MDB-Parameters] ranks
+  end type mdb_phase_t
+
   type, public :: mdb_config_t
     character(len=llen) :: input_file = 'input.ini'
     integer             :: mg_levels  = 1
@@ -23,13 +37,21 @@ module config_mdb_mod
     character(len=llen) :: prefix     = ''                   !< MOSE phase prefix of the BC files
     character(len=llen) :: map_file   = 'decomposition.map'
     character(len=8)    :: directions = 'ijk'
+    integer                        :: nphase = 0        !< number of [MDB-Phase#] sections
+    type(mdb_phase_t), allocatable :: phase(:)
   end type mdb_config_t
 
   public :: load_mdb_config
   public :: load_block_directions
   public :: write_mdb_registry_markdown
 
-  character(len=*), parameter :: SEC = 'MDB-Parameters'
+  character(len=*), parameter :: SEC  = 'MDB-Parameters'
+  character(len=*), parameter :: PSEC = 'MDB-Phase*'
+
+  !> Upper bound on [MDB-Phase#] sections scanned. A type-103 record names only
+  !> (block,i,j,k) in "the other phase", so a coupled mesh is meaningful for two
+  !> phases; the extra slots exist so a miscounted input fails loudly.
+  integer, parameter, public :: MAXPHASE = 8
 
 contains
 
@@ -67,7 +89,72 @@ contains
     if (cfg%min_cells  <= 0) cfg%min_cells  = 4 * 2**(cfg%mg_levels-1)
     if (cfg%max_blocks <= 0) cfg%max_blocks = max(8*cfg%ranks, 1)
 
+    call load_phases(fini, cfg)
+
   end subroutine load_mdb_config
+
+
+  !> Collect the [MDB-Phase1] .. [MDB-Phase#] sections, numbered consecutively
+  !> from 1. With none declared the flat [MDB-Parameters] keys describe a single
+  !> phase, which is what every pre-existing single-phase input does.
+  subroutine load_phases(fini, cfg)
+    type(file_ini),     intent(in)    :: fini
+    type(mdb_config_t), intent(inout) :: cfg
+    type(mdb_phase_t) :: ph(MAXPHASE)
+    character(len=32) :: section
+    character(len=16) :: sn
+    integer :: n, np, error
+    logical :: found
+
+    np = 0
+    do n = 1, MAXPHASE
+      write(sn,'(I0)') n
+      section = 'MDB-Phase'//trim(sn)
+
+      ph(n)%grid = ''
+      call fini%get(section_name=trim(section), option_name='grid', val=ph(n)%grid, error=error)
+      found = (error == 0 .and. len_trim(ph(n)%grid) > 0)
+      if (.not. found) exit
+
+      ph(n)%grid_out = ''
+      ph(n)%bc_in    = cfg%bc_in
+      ph(n)%bc_out   = cfg%bc_out
+      ph(n)%prefix   = ''
+      ph(n)%map_file = ''
+      ph(n)%ranks    = 0
+      call fini%get(section_name=trim(section), option_name='grid-out',    val=ph(n)%grid_out, error=error)
+      call fini%get(section_name=trim(section), option_name='bc-path',     val=ph(n)%bc_in,    error=error)
+      call fini%get(section_name=trim(section), option_name='bc-out-path', val=ph(n)%bc_out,   error=error)
+      call fini%get(section_name=trim(section), option_name='prefix',      val=ph(n)%prefix,   error=error)
+      call fini%get(section_name=trim(section), option_name='map-file',    val=ph(n)%map_file, error=error)
+      call fini%get(section_name=trim(section), option_name='ranks',       val=ph(n)%ranks,    error=error)
+      np = n
+    enddo
+
+    if (np == 0) then
+      ! Legacy single-phase input: the flat keys are the one and only phase.
+      allocate(cfg%phase(1))
+      cfg%nphase           = 1
+      cfg%phase(1)%grid     = cfg%grid
+      cfg%phase(1)%grid_out = cfg%grid_out
+      cfg%phase(1)%bc_in    = cfg%bc_in
+      cfg%phase(1)%bc_out   = cfg%bc_out
+      cfg%phase(1)%prefix   = cfg%prefix
+      cfg%phase(1)%map_file = cfg%map_file
+      cfg%phase(1)%ranks    = cfg%ranks
+      return
+    endif
+
+    allocate(cfg%phase(np))
+    cfg%nphase = np
+    do n = 1, np
+      cfg%phase(n) = ph(n)
+      if (cfg%phase(n)%ranks < 1) cfg%phase(n)%ranks = cfg%ranks
+      if (len_trim(cfg%phase(n)%map_file) == 0) &
+        cfg%phase(n)%map_file = trim(cfg%phase(n)%prefix)//'decomposition.map'
+    enddo
+
+  end subroutine load_phases
 
 
   !> Per-block override of the directions that may be cut, e.g.
@@ -136,6 +223,24 @@ contains
       'MOSE phase prefix of the BC files (<prefix>bc.txt).', '', .false.)
     call reg%add(SEC, 'map-file', c%map_file, 'decomposition.map', &
       'File recording the new-block to parent-block mapping.', '', .false.)
+
+    call reg%add(PSEC, 'grid', c%grid, '', &
+      'Grid or grid+solution file of this phase. Declaring [MDB-Phase1] and &
+      &[MDB-Phase2] puts MDB in coupled mode, which is required whenever the BC &
+      &files contain type-103 (fluid-solid interface) records.', '', .false.)
+    call reg%add(PSEC, 'grid-out', c%grid_out, '', &
+      'Output grid file for this phase (empty = <grid>-split.<ext>).', '', .false.)
+    call reg%add(PSEC, 'bc-path', c%bc_in, 'INPUT', &
+      'Directory holding this phase''s boundary condition files.', '', .false.)
+    call reg%add(PSEC, 'bc-out-path', c%bc_out, 'INPUT-split', &
+      'Directory this phase''s decomposed boundary condition files go to.', '', .false.)
+    call reg%add(PSEC, 'prefix', c%prefix, '', &
+      'Phase prefix of this phase''s BC files (<prefix>bc.txt).', '', .false.)
+    call reg%add(PSEC, 'map-file', c%map_file, '', &
+      'Decomposition record for this phase (empty = <prefix>decomposition.map).', '', .false.)
+    call reg%add(PSEC, 'ranks', c%ranks, '0', &
+      'Ranks to balance this phase for (0 = the [MDB-Parameters] value). Both &
+      &phases run on every rank, so leaving this at 0 is almost always right.', '', .false.)
 
     if (present(filename)) then
       fileout = filename

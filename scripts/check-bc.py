@@ -4,6 +4,11 @@
   * every boundary cell of every block appears exactly once
   * connection/periodic records are reciprocal
   * chimera donors point inside a real block (ghost layers allowed)
+
+Type 103 is the fluid-solid interface of a coupled case. Its donor lives in the
+*other* phase, which ATLAS writes to a separate bc.txt with its own block
+numbering, so a 103 donor cannot be resolved from one file alone and is counted
+here rather than checked. Use check-coupling.py on the two files together.
 """
 import sys
 from collections import defaultdict
@@ -64,11 +69,15 @@ def main(path):
     else:
         print(f'  [ok]   record count matches block dimensions ({expected})')
 
-    # reciprocity
+    # reciprocity (intra-file only: see the note on type 103 in the docstring)
     bad = 0
     nconn = 0
+    ninter = 0
     for (b, i, j, k, f), (t, prop) in recs.items():
-        if t not in (101, 103, 201):
+        if t == 103:
+            ninter += 1
+            continue
+        if t not in (101, 201):
             continue
         nconn += 1
         v = [int(x) for x in prop.split()[:5]]
@@ -80,7 +89,7 @@ def main(path):
                 print(f'  [FAIL] {(b,i,j,k,f)} type {t} -> {key}: no such boundary cell')
             continue
         ot, oprop = other
-        if ot not in (101, 103, 201):
+        if ot not in (101, 201):
             bad += 1
             if bad < 4:
                 print(f'  [FAIL] {(b,i,j,k,f)} -> {key} is type {ot}, not a connection')
@@ -95,6 +104,9 @@ def main(path):
         err += 1
     else:
         print(f'  [ok]   all {nconn} connection records reciprocal')
+    if ninter:
+        print(f'  [--]   {ninter} type-103 interface records skipped '
+              f'(cross-phase; check with check-coupling.py)')
 
     # chimera donors
     badc = 0

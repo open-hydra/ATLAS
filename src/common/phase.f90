@@ -99,12 +99,6 @@ contains
       enddo
     endif
     ! Direct address of mass fractions.
-    ! NB: FiNeR's %loop iterator keeps its position in a SAVEd counter shared by
-    ! every section of every file_ini, so it must not be used here: BCB calls
-    ! define_composition once per boundary cell from inside an OpenMP region and
-    ! concurrent iterators would corrupt each other. get_items is pure/stateless.
-    ! sini always carries a single section (see the callers in ICB/builder.f90
-    ! and BCB/builder_face.f90), so this covers section_name(1).
     call sini%get_items(items)
     if (allocated(items)) then
       do i = 1, size(items, dim=1)
