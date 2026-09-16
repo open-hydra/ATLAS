@@ -533,3 +533,61 @@
 .md-content svg .matplotlib-axis line {
   stroke: currentColor !important;
 }
+
+
+/* ── Ecosystem 2×3 matrix ───────────────────────────────────────────── */
+.code-eco__flow--graph {
+  align-items: center;
+  gap: 1rem;
+}
+
+.code-eco__matrix {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, auto);
+  column-gap: 2rem;
+  row-gap: 1.5rem;
+  align-items: stretch;
+  justify-content: center;
+  width: min(100%, 700px);
+  flex: 1 1 700px;
+  min-width: 0;
+}
+
+.code-eco__matrix .code-eco__node {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.code-eco__flow--graph > .code-eco__node {
+  flex: 0 1 190px;
+  min-width: 170px;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+@media (max-width: 1100px) and (min-width: 769px) {
+  .code-eco__flow--graph {
+    display: grid;
+    grid-template-columns: minmax(150px, 190px) auto minmax(0, 1fr) auto minmax(150px, 190px);
+    gap: 0.8rem;
+    align-items: center;
+  }
+
+  .code-eco__matrix {
+    width: 100%;
+    flex: none;
+    column-gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .code-eco__matrix {
+    width: 100%;
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    column-gap: 0;
+    row-gap: 1rem;
+  }
+}
