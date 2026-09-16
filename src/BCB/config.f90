@@ -553,7 +553,6 @@ contains
 
     character(len=129) :: pn
     integer :: error, m, npcp, p, i
-        character(len=:), allocatable    :: items(:,:), section_name(:)
 
     pn = trim(adjustl(phase%name))
     if (phase%name /= '') pn = trim(pn)//'-'
@@ -600,16 +599,7 @@ contains
       cfg%materials(m)%distribution = ''
       cfg%materials(m)%has_gp = .false.
 
-      call sourceini%get_items(items)
-      if (allocated(items)) then
-        do i = 1, size(items, dim=1)
-        print*, items
-        enddo
-        endif
-
       call sourceini%get(section_name=section, option_name=trim(pn)//'krho', val=cfg%materials(m)%krho, error=error)
-      print*, error
-      print*, trim(pn)//'krho', cfg%materials(m)%krho
       call sourceini%get(section_name=section, option_name=trim(pn)//'kV',   val=cfg%materials(m)%kV, error=error)
       call sourceini%get(section_name=section, option_name=trim(pn)//'kT',   val=cfg%materials(m)%kT, error=error)
       call sourceini%get(section_name=section, option_name=trim(pn)//'gp',   val=cfg%materials(m)%gp, error=error)
