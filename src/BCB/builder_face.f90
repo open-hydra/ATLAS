@@ -134,7 +134,7 @@ contains
     subroutine assign_cells_spatial()
       implicit none
       logical :: has_injector
-      type(file_ini) :: ini_c   !< Thread-local working copy of ini_o, see note below.
+      type(file_ini) :: ini_c   !< Working copy of ini_o, updated per cell.
 
       ! Importing data from files and/or apply multipatch
       select case (dirSize)
@@ -145,10 +145,7 @@ contains
               call read_bc_file_1d(bc_file(f), dir(1))
             enddo
           endif
-        !$omp parallel private(m,n,var,f,has_injector,ini_c) &
-        !$omp& firstprivate(here)
         ini_c = ini_o
-        !$omp do collapse(2) schedule(dynamic)
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
             if (file_present) then
@@ -167,7 +164,6 @@ contains
             if (file_multipatch) then
               select type (plate_file)
               type is (real_plate_type)
-                !$omp critical(real_plate)
                 if (file_named_multipatch) then
                   call map_real_plate_cell(plate_file, here, [dir(1)], m, n, &
                     face, definition_inner, 1.0_R8, A_inj, x_inj, y_inj, &
@@ -177,7 +173,6 @@ contains
                     face, definition, 1.0_R8, A_inj, x_inj, y_inj, ini_c, &
                     cnt_bc, has_injector)
                 endif
-                !$omp end critical(real_plate)
                 if (file_named_multipatch) then
                   if (has_injector) then
                     call face%center(m,n)%bc%build(ini_inner,'cell',phase)
@@ -192,15 +187,12 @@ contains
                   call face%center(m,n)%bc%build(ini_c,'cell',phase)
                 endif
               type is (KAFFS_plate_type)
-                !$omp critical(kaffs_plate)
                 call Full_plate_2D(plate_file, face, n, m, dir, Inj_phi_R, &
                   definition, A_inj, z_input, ini_c)
-                !$omp end critical(kaffs_plate)
                 call face%center(m,n)%bc%build(ini_c,'cell',phase)
               end select
             endif
         enddo; enddo
-        !$omp end parallel
 
       ! Two dimensional variaton
       case(2)
@@ -210,7 +202,7 @@ contains
           enddo
         endif
 
-        ! Build injector sectors for KAFFS plates (must precede OMP parallel region)
+        ! Build injector sectors for KAFFS plates (must precede the cell loop)
         if (file_multipatch) then
           select type (plate_file)
             type is (KAFFS_plate_type)
@@ -219,10 +211,7 @@ contains
           end select
         endif
 
-        !$omp parallel private(m,n,var,f,has_injector,ini_c) &
-        !$omp& firstprivate(here)
         ini_c = ini_o
-        !$omp do collapse(2) schedule(dynamic)
         do n = 1, face%Nn; do m = 1, face%Nm
             here(1) = face%center(m,n)%c(dir(1))
             here(2) = face%center(m,n)%c(dir(2))
@@ -243,7 +232,6 @@ contains
             if (file_multipatch) then
               select type (plate_file)
               type is (real_plate_type)
-                !$omp critical(real_plate)
                 if (file_named_multipatch) then
                   call map_real_plate_cell(plate_file, here, [1, 2], m, n, &
                     face, definition_inner, 1.0_R8, A_inj, x_inj, y_inj, &
@@ -253,7 +241,6 @@ contains
                     face, definition, 1.0_R8, A_inj, x_inj, y_inj, ini_c, &
                     cnt_bc, has_injector)
                 endif
-                !$omp end critical(real_plate)
                 if (file_named_multipatch) then
                   if (has_injector) then
                     call face%center(m,n)%bc%build(ini_inner,'cell',phase)
@@ -268,15 +255,12 @@ contains
                   call face%center(m,n)%bc%build(ini_c,'cell',phase)
                 endif
               type is (KAFFS_plate_type)
-                !$omp critical(kaffs_plate)
                 call Injector_mapping(plate_file, here, Inj_phi_R, n, m, face, &
                   A_inj, definition, ini_c)
-                !$omp end critical(kaffs_plate)
                 call face%center(m,n)%bc%build(ini_c,'cell',phase)
               end select
             endif
         enddo; enddo
-        !$omp end parallel
       end select
 
       ! Write injector output data for real plates
@@ -329,7 +313,7 @@ contains
     subroutine assign_cells_index()
       implicit none
       integer :: i, mi, me, ni, ne
-      type(file_ini) :: ini_c   !< Thread-local working copy of ini_o (see assign_cells_spatial).
+      type(file_ini) :: ini_c   !< Working copy of ini_o, updated per cell.
 
 
       mi = 0; me = huge(1)
@@ -376,16 +360,13 @@ contains
 
       select case (fileDirSize)
       case(0)
-        !$omp parallel private(m,n,ini_c)
         ini_c = ini_o
-        !$omp do collapse(2)
         do n = ni, ne
           do m = mi, me
             face%center(m,n)%bc%definition = definition
             call face%center(m,n)%bc%build(ini_c,'cell',phase)
           enddo
         enddo
-        !$omp end parallel
       
       ! One dimensional variation
       case(1)
@@ -395,9 +376,7 @@ contains
             call read_bc_file_1d(bc_file(f), fileDir(1))
           enddo
         endif
-        !$omp parallel private(m,n,var,f,ini_c) firstprivate(here)
         ini_c = ini_o
-        !$omp do collapse(2)
         do n = ni, ne; do m = mi, me
           here(1) = face%center(m,n)%c(fileDir(1))
           if (file_present) then
@@ -411,7 +390,6 @@ contains
           face%center(m,n)%bc%definition = definition
           call face%center(m,n)%bc%build(ini_c,'cell',phase)
         enddo; enddo
-        !$omp end parallel
 
       ! Two dimensional variation
       case(2)
@@ -421,10 +399,7 @@ contains
           enddo
         endif
 
-        !$omp parallel private(m,n,var,f,ini_c) &
-        !$omp& firstprivate(here)
         ini_c = ini_o
-        !$omp do collapse(2)
         do n = ni, ne; do m = mi, me
             here(1) = face%center(m,n)%c(fileDir(1))
             here(2) = face%center(m,n)%c(fileDir(2))
@@ -439,7 +414,6 @@ contains
             face%center(m,n)%bc%definition = definition
             call face%center(m,n)%bc%build(ini_c,'cell',phase)
         enddo; enddo
-        !$omp end parallel
       end select
 
     end subroutine assign_cells_index
