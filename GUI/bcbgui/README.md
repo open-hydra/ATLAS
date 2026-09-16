@@ -16,7 +16,9 @@ mesh and export a BCB `input.ini`.
    - **keyword BCs** that need no section (`symmetry`, `connection`, `chimera`,
      `extrapolation`, `outlet`, `null`, `axisymmetric`);
    - **named sections** you define with a `type` (`wall`, `inlet`, `outlet`,
-     `manifold`, `srm`, `periodic`) plus arbitrary key/value parameters.
+     `manifold`, `gsi`, `periodic`) plus arbitrary key/value parameters.
+     Sections read from an older INI with the retired `srm` type are migrated
+     to `gsi` on load.
 4. **Export** — writes `[ATLAS-Parameters]`, one `[BCB-BlockN]` per block, and
    the referenced named sections, in the format documented in
    `docs/user-guide/bcb/bc-setup.md`.

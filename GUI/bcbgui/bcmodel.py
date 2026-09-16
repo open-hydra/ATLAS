@@ -41,11 +41,29 @@ TYPED_BCS = OrderedDict([
                   "pRef-file"]),
     ("outlet",   ["p", "pRef", "pRef-file"]),
     ("manifold", ["p0", "T0", "p", "T"]),
-    ("srm",      ["a", "n", "pRef", "rhoGrain", "Taf", "krho", "SF", "SFgeo",
+    ("gsi",      ["surface-reactions", "pyrolysis-model", "qrad", "eps",
+                  "cp", "T", "Ti", "dh",
+                  "eq-CEA-file", "eq-CEA-section",
+                  "yN2", "yO2", "yH2", "yH2O", "yCO2",
+                  "a", "n", "pRef", "rhoGrain", "Taf", "krho", "SF", "SFgeo",
+                  "mit", "kappa", "omega", "rhoRij", "nrans",
                   "direction", "a-file", "n-file", "pRef-file", "rhoGrain-file",
-                  "Taf-file", "krho-file", "SF-file", "SFgeo-file"]),
+                  "Taf-file", "krho-file", "SF-file", "SFgeo-file",
+                  "qrad-file", "eps-file", "T-file"]),
     ("periodic", ["direction"]),
 ])
+
+# Keys whose value must be one of a fixed set of names. BCB stops with an error
+# on an unknown name, so the editor pre-fills the first entry and lists the rest.
+ENUM_KEY_VALUES = {
+    "pyrolysis-model": ["HTPB", "HDPB", "PP"],
+    "surface-reactions": ["bradley"],
+}
+
+# Renamed BC types, applied when reading an ``input.ini``. ``srm`` became ``gsi``
+# when the solid-propellant grain BC was folded into the gas-surface interaction
+# family, and BCB no longer accepts the old name.
+TYPE_ALIASES = {"srm": "gsi"}
 
 # Suggested keys for the [ATLAS-Parameters] section.
 ATLAS_PARAM_KEYS = ["MG-levels", "BC-force-connect", "BC-chimera", "BCB-file"]
@@ -237,6 +255,7 @@ class BCBDocument:
                 continue
             kv_dict = OrderedDict(kv)
             bc_type = kv_dict.pop("type", "wall")
+            bc_type = TYPE_ALIASES.get(bc_type.strip(), bc_type)
             sec = BCSection(name, bc_type, list(kv_dict.items()))
             doc.add_section(sec)
 

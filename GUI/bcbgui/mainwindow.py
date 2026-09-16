@@ -16,7 +16,8 @@ from PyQt6.QtCore import Qt, QSettings
 from . import mesh_io
 from . import faces as facemod
 from . import theme as thememod
-from .bcmodel import BCBDocument, BCSection, KEYWORD_BCS, TYPED_BCS, ATLAS_PARAM_KEYS
+from .bcmodel import (BCBDocument, BCSection, KEYWORD_BCS, TYPED_BCS,
+                      ATLAS_PARAM_KEYS, ENUM_KEY_VALUES)
 from .viewport import MeshViewport, UNASSIGNED_COLOR
 
 # Fixed hues for the keyword BCs; sections rotate through SECTION_PALETTE.
@@ -759,7 +760,13 @@ class BCBMainWindow(QWidget):
 
     def _add_param_row(self):
         key = self.suggest_combo.currentText().strip()
-        self._table_append(self.param_table, key, "")
+        # Keys with a fixed set of accepted names start on a valid one rather
+        # than empty, which BCB would reject.
+        allowed = ENUM_KEY_VALUES.get(key, [])
+        self._table_append(self.param_table, key, allowed[0] if allowed else "")
+        if allowed:
+            item = self.param_table.item(self.param_table.rowCount() - 1, 1)
+            item.setToolTip("Accepted values: " + ", ".join(allowed))
         self._commit_section_editor()
 
     def _add_blank_param_row(self):
