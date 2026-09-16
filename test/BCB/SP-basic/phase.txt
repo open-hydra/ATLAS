@@ -1,2 +1,2 @@
-solid phase
+solid-bulk
 dummy
