@@ -14,7 +14,7 @@ module bc_names_mod
   character(len=20), parameter :: MARKER_INLET    = 'inlet'
   character(len=20), parameter :: MARKER_OUTLET   = 'outlet'
   character(len=20), parameter :: MARKER_MANIFOLD = 'manifold'
-  character(len=20), parameter :: MARKER_SRM      = 'srm'
+  character(len=20), parameter :: MARKER_GSI      = 'gsi'
 
   logical, parameter :: bc_with_input(MARKER_NUM) = [ &
     .false., & ! null
@@ -28,10 +28,10 @@ module bc_names_mod
     .true.,  & ! inlet
     .false., & ! outlet
     .true.,  & ! manifold
-    .true.   & ! srm
+    .true.   & ! gsi
   ]
 
-    character(len=20), parameter :: MARKER_NAMES(MARKER_NUM) = [ &
+  character(len=20), parameter :: MARKER_NAMES(MARKER_NUM) = [ &
     MARKER_NULL, &
     MARKER_AXIS, &
     MARKER_EXTRA, &
@@ -43,7 +43,7 @@ module bc_names_mod
     MARKER_INLET, &
     MARKER_OUTLET, &
     MARKER_MANIFOLD, &
-    MARKER_SRM &
+    MARKER_GSI &
   ]
 
 contains

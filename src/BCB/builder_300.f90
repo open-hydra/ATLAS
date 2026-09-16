@@ -16,31 +16,17 @@ contains
 
     ! Heat flux, roughness (if 0, smooth wall), and emissivity
     if (cfg%has_q .and. .not. cfg%has_T .and. .not. cfg%has_qrad) then
+      self % ig_id = 301
       self % ig_n = 3
       allocate(self % ig_properties(1:self % ig_n))
-      self % ig_id = 301
       self % ig_properties(1:3) = [cfg%q, cfg%ks, cfg%eps]
     
     ! Temperature, roughness (if 0, smooth wall), and emissivity
     elseif (cfg%has_T .and. .not. cfg%has_q .and. .not. cfg%has_qrad) then
-      self % ig_n = 3
-      allocate(self % ig_properties(1:self % ig_n))
       self % ig_id = 302
-      self % ig_properties(1:3) = [cfg%T, cfg%ks, cfg%eps]
-
-    ! Temperature, radiative heat flux, and roughness (if 0, smooth wall)
-    elseif (cfg%has_T .and. cfg%has_qrad .and. .not. cfg%has_q) then
       self % ig_n = 3
       allocate(self % ig_properties(1:self % ig_n))
-      self % ig_id = 303
-      self % ig_properties(1:3) = [cfg%T, cfg%qrad, cfg%ks]
-
-    ! Radiative heat flux, and roughness (if 0, smooth wall)
-    elseif (cfg%has_qrad .and. .not. cfg%has_T .and. .not. cfg%has_q) then
-      self % ig_n = 2
-      allocate(self % ig_properties(1:self % ig_n))
-      self % ig_id = 304
-      self % ig_properties(1:2) = [cfg%qrad, cfg%ks]
+      self % ig_properties(1:3) = [cfg%T, cfg%ks, cfg%eps]
 
     ! Eulerian symmetry
     else

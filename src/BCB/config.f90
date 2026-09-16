@@ -79,6 +79,31 @@ module bcb_config_mod
     logical  :: has_eps = .false.
   end type bcb_wall_fluid_config_t
 
+  type, public :: bcb_gsi_fluid_config_t
+    real(R8) :: T = 0.0_R8
+    real(R8) :: qrad = 0.0_R8
+    real(R8) :: eps = 0.0_R8
+    real(R8) :: cp = 0.0_R8
+    real(R8) :: Ti = 0.0_R8
+    real(R8) :: dh = 0.0_R8
+    logical  :: has_T = .false.
+    logical  :: has_ks = .false.
+    logical  :: has_qrad = .false.
+    logical  :: has_eps = .false.
+    logical  :: has_cp = .false.
+    logical  :: has_Ti = .false.
+    logical  :: has_dh = .false.
+    character(len=32) :: surface_reactions_model = 'none'
+    character(len=32) :: pyrolysis_model = 'none'
+    ! solid rocket propellant properties (APN law)
+    real(R8) :: a = 0.0_R8
+    real(R8) :: n = 0.0_R8
+    real(R8) :: pRef = 1.0_R8
+    real(R8) :: rhoGrain = 0.0_R8
+    real(R8) :: SF = 1.0_R8
+    type(config_turbulence_t) :: turbulence
+  end type bcb_gsi_fluid_config_t
+
   type, public :: bcb_wall_solid_config_t
     real(R8) :: q = 0.0_R8
     real(R8) :: T = 0.0_R8
@@ -117,15 +142,6 @@ module bcb_config_mod
     type(config_velocity_t)   :: velocity
     type(config_turbulence_t) :: turbulence
   end type bcb_ig_boundary_config_t
-
-  type, public :: bcb_srm_config_t
-    real(R8) :: a = 0.0_R8
-    real(R8) :: n = 0.0_R8
-    real(R8) :: pRef = 1.0_R8
-    real(R8) :: rhoGrain = 0.0_R8
-    real(R8) :: SF = 1.0_R8
-    type(config_turbulence_t) :: turbulence
-  end type bcb_srm_config_t
 
   type, public :: bcb_dp_material_config_t
     integer :: npcp = 0
@@ -170,7 +186,7 @@ module bcb_config_mod
   public :: load_bcb_wall_fluid_config
   public :: load_bcb_wall_solid_config
   public :: load_bcb_ig_boundary_config
-  public :: load_bcb_srm_config
+  public :: load_bcb_gsi_fluid_config
   public :: load_bcb_dp_boundary_config
   public :: load_bcb_unwrapped_config
   public :: write_bcb_registry_markdown
@@ -475,11 +491,11 @@ contains
     call load_shared_turbulence_config(sourceini, cfg%turbulence, section)
   end subroutine load_bcb_ig_boundary_config
 
-  subroutine load_bcb_srm_config(sourceini, section, cfg)
+  subroutine load_bcb_gsi_fluid_config(sourceini, section, cfg)
     implicit none
-    type(file_ini), intent(in)            :: sourceini
-    character(*), intent(in)              :: section
-    type(bcb_srm_config_t), intent(out)   :: cfg
+    type(file_ini), intent(in)                :: sourceini
+    character(*), intent(in)                  :: section
+    type(bcb_gsi_fluid_config_t), intent(out) :: cfg
 
     integer :: error
 
@@ -495,7 +511,38 @@ contains
     if (error /= 0) cfg%rhoGrain = 0.0_R8
     call sourceini%get(section_name=section, option_name='SF', val=cfg%SF, error=error)
     if (error /= 0) cfg%SF = 1.0_R8
-  end subroutine load_bcb_srm_config
+
+    call sourceini%get(section_name=section, option_name='T', val=cfg%T, error=error)
+    cfg%has_T = error == 0
+    if (.not. cfg%has_T) cfg%T = 0.0_R8
+
+    call sourceini%get(section_name=section, option_name='qrad', val=cfg%qrad, error=error)
+    cfg%has_qrad = error == 0
+    if (.not. cfg%has_qrad) cfg%qrad = 0.0_R8
+
+    call sourceini%get(section_name=section, option_name='eps', val=cfg%eps, error=error)
+    cfg%has_eps = error == 0
+    if (.not. cfg%has_eps) cfg%eps = 0.0_R8
+
+    call sourceini%get(section_name=section, option_name='surface-reactions', val=cfg%surface_reactions_model, error=error)
+    if (error /= 0) cfg%surface_reactions_model = 'none'
+
+    call sourceini%get(section_name=section, option_name='pyrolysis-model', val=cfg%pyrolysis_model, error=error)
+    if (error /= 0) cfg%pyrolysis_model = 'none'
+
+    call sourceini%get(section_name=section, option_name='cp', val=cfg%cp, error=error)
+    cfg%has_cp = error == 0
+    if (.not. cfg%has_cp) cfg%cp = 0.0_R8
+
+    call sourceini%get(section_name=section, option_name='Ti', val=cfg%Ti, error=error)
+    cfg%has_Ti = error == 0
+    if (.not. cfg%has_Ti) cfg%Ti = 0.0_R8
+
+    call sourceini%get(section_name=section, option_name='dh', val=cfg%dh, error=error)
+    cfg%has_dh = error == 0
+    if (.not. cfg%has_dh) cfg%dh = 0.0_R8
+
+  end subroutine load_bcb_gsi_fluid_config
 
   subroutine load_bcb_dp_boundary_config(sourceini, section, phase, cfg)
     implicit none
@@ -689,8 +736,8 @@ contains
     character(len=7), target :: file_direction
     type(bcb_wall_fluid_config_t), target :: wall_fluid_cfg
     type(bcb_wall_solid_config_t), target :: wall_solid_cfg
+    type(bcb_gsi_fluid_config_t), target :: gsi_cfg
     type(bcb_ig_boundary_config_t), target :: ig_cfg
-    type(bcb_srm_config_t), target :: srm_cfg
     real(R8), target :: dp_scalar(3)
     character(len=32), target :: time_file
     logical, target :: periodic
@@ -719,8 +766,8 @@ contains
     file_direction = ''
     wall_fluid_cfg = bcb_wall_fluid_config_t()
     wall_solid_cfg = bcb_wall_solid_config_t()
+    gsi_cfg = bcb_gsi_fluid_config_t()
     ig_cfg = bcb_ig_boundary_config_t()
-    srm_cfg = bcb_srm_config_t()
     dp_scalar = 0.0_R8
     time_file = 'none'
     periodic = .false.
@@ -750,10 +797,10 @@ contains
 
     call add_velocity_registry_entries(bcb_registry, 'bc-section', velocity_cfg)
     call add_turbulence_registry_entries(bcb_registry, 'bc-section', turbulence_cfg)
+    call add_gsi_entries()
     call add_ig_entries()
     call add_wall_entries()
     call add_dp_entries()
-    call add_srm_entries()
     call add_variable_file_entries()
 
     if (present(filename)) then
@@ -789,7 +836,6 @@ contains
       call bcb_registry%add('bc-section', 'q', wall_fluid_cfg%q, '0.0', 'Prescribed wall heat flux.', '', .false.)
       call bcb_registry%add('bc-section', 'T', wall_fluid_cfg%T, '0.0', 'Prescribed wall temperature.', '', .false.)
       call bcb_registry%add('bc-section', 'ks', wall_fluid_cfg%ks, '0.0', 'Wall roughness height.', '', .false.)
-      call bcb_registry%add('bc-section', 'qrad', wall_fluid_cfg%qrad, '0.0', 'Radiative heat flux.', '', .false.)
       call bcb_registry%add('bc-section', 'eps', wall_fluid_cfg%eps, '0.0', 'Wall emissivity.', '', .false.)
 
       call bcb_registry%add('bc-section', 'q', wall_solid_cfg%q, '0.0', 'Prescribed wall heat flux.', '', .false.)
@@ -822,14 +868,19 @@ contains
       call bcb_registry%add('bc-section', 'Tsat', dp_scalar, '0.0', 'Saturation temperature per dispersed population.', '', .false.)
     end subroutine add_dp_entries
 
-    subroutine add_srm_entries()
-      call add_turbulence_registry_entries(bcb_registry, 'bc-section', srm_cfg%turbulence)
-      call bcb_registry%add('bc-section', 'a', srm_cfg%a, '0.0', 'Burn-rate pre-exponential coefficient.', '', .false.)
-      call bcb_registry%add('bc-section', 'n', srm_cfg%n, '0.0', 'Burn-rate pressure exponent.', '', .false.)
-      call bcb_registry%add('bc-section', 'pRef', srm_cfg%pRef, '1.0', 'Reference pressure for the burn law.', '', .false.)
-      call bcb_registry%add('bc-section', 'rhoGrain', srm_cfg%rhoGrain, '0.0', 'Solid propellant density.', '', .false.)
-      call bcb_registry%add('bc-section', 'SF', srm_cfg%SF, '1.0',  'Scale factor for the grain propellant.', '', .false.)
-    end subroutine add_srm_entries
+    subroutine add_gsi_entries()
+      call bcb_registry%add('bc-section', 'surface-reactions', gsi_cfg%surface_reactions_model, 'none', 'Surface-reactions model for GSI boundaries.', '', .false.)
+      call bcb_registry%add('bc-section', 'pyrolysis-model', gsi_cfg%pyrolysis_model, 'none', 'Pyrolysis model for GSI boundaries.', '', .false.)
+      call bcb_registry%add('bc-section', 'cp', gsi_cfg%cp, '0.0', 'GSI boundary specific heat.', '', .false.)
+      call bcb_registry%add('bc-section', 'Ti', gsi_cfg%Ti, '0.0', 'GSI boundary ignition temperature.', '', .false.)
+      call bcb_registry%add('bc-section', 'dh', gsi_cfg%dh, '0.0', 'GSI boundary heat of reaction.', '', .false.)
+      call add_turbulence_registry_entries(bcb_registry, 'bc-section', gsi_cfg%turbulence)
+      call bcb_registry%add('bc-section', 'a', gsi_cfg%a, '0.0', 'Burn-rate pre-exponential coefficient.', '', .false.)
+      call bcb_registry%add('bc-section', 'n', gsi_cfg%n, '0.0', 'Burn-rate pressure exponent.', '', .false.)
+      call bcb_registry%add('bc-section', 'pRef', gsi_cfg%pRef, '1.0', 'Reference pressure for the burn law.', '', .false.)
+      call bcb_registry%add('bc-section', 'rhoGrain', gsi_cfg%rhoGrain, '0.0', 'Solid propellant density.', '', .false.)
+      call bcb_registry%add('bc-section', 'SF', gsi_cfg%SF, '1.0',  'Scale factor for the grain propellant.', '', .false.)
+    end subroutine add_gsi_entries
 
     subroutine add_variable_file_entries()
       integer :: i
@@ -847,7 +898,7 @@ contains
       allowed = trim(MARKER_NULL)//'<br>'//trim(MARKER_AXIS)//'<br>'//trim(MARKER_EXTRA)//'<br>'// &
                 trim(MARKER_CONN)//'<br>'//trim(MARKER_Chim)//'<br>'//trim(MARKER_SYM)//'<br>'// &
                 trim(MARKER_PER)//'<br>'//trim(MARKER_WALL)//'<br>'//trim(MARKER_INLET)//'<br>'// &
-                trim(MARKER_OUTLET)//'<br>'//trim(MARKER_MANIFOLD)//'<br>'//trim(MARKER_SRM)
+                trim(MARKER_OUTLET)//'<br>'//trim(MARKER_MANIFOLD)//'<br>'//trim(MARKER_GSI)
     end function boundary_type_list
 
   end subroutine write_bcb_registry_markdown

@@ -97,10 +97,9 @@ module io_write_bc_mod
 
             end select
 
-
             select case (print_id)
-            ! 300-series -> wall | 500-series -> Special boundary conditions (e.g., SRM grain)
-            case(301:309, 501:502)
+            ! 300-series -> wall | 500-series -> Special boundary conditions (manifold, GSI)
+            case(301:309, 501:506)
               do i = 1, this % ig_n
                 write(unitfile,'(E16.6,A1)',advance='no') this % ig_properties(i),','
               enddo

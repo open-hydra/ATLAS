@@ -45,7 +45,7 @@ module bc_mod
     procedure, pass(self)      :: build_wall_solid
     procedure, pass(self)      :: build_periodic
     procedure, pass(self)      :: build_manifold
-    procedure, pass(self)      :: build_srm_ig
+    procedure, pass(self)      :: build_gsi_ig
 
   end type bc_t
 
@@ -92,7 +92,7 @@ module bc_mod
       type(phase_t),        intent(in)    :: phase
     end subroutine
 
-    module subroutine build_srm_ig(self, sourceini, section, phase)
+    module subroutine build_gsi_ig(self, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
       type(file_ini),       intent(in)    :: sourceini
       character(len=*),     intent(in)    :: section
@@ -181,8 +181,8 @@ contains
       case(trim(MARKER_INLET), trim(MARKER_OUTLET))
         call build_inflow_outflow_ig(self, sourceini, section, phase)
 
-      case(trim(MARKER_SRM))
-        call build_srm_ig(self, sourceini, section, phase)
+      case(trim(MARKER_GSI))
+        call build_gsi_ig(self, sourceini, section, phase)
 
       ! case default
       !   write(*,*) '[ERROR] BC definition ', trim(self % definition), ' not implemented for ideal gas or real fluid phase'
