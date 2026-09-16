@@ -341,7 +341,7 @@ contains
           case(1:2)
             if (dir(i) == 6) then
               write(*,*) '[ERROR] index i does not vary on face 1/2'
-              stop
+              stop 1
             elseif (dir(i) == 7) then
               mi = nint(rng(2*(i-1)+1)); me = nint(rng(2*i))
             elseif (dir(i) == 8) then
@@ -351,7 +351,7 @@ contains
           case(3:4)
             if (dir(i) == 7) then
               write(*,*) '[ERROR] index j does not vary on face 3/4'
-              stop
+              stop 1
             elseif (dir(i) == 6) then
               mi = nint(rng(2*(i-1)+1)); me = nint(rng(2*i))
             elseif (dir(i) == 8) then
@@ -361,7 +361,7 @@ contains
           case(5:6)
             if (dir(i) == 8) then
               write(*,*) '[ERROR] index k does not vary on face 5/6'
-              stop
+              stop 1
             elseif (dir(i) == 6) then
               mi = nint(rng(2*(i-1)+1)); me = nint(rng(2*i))
             elseif (dir(i) == 7) then

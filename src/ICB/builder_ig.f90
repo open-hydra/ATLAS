@@ -327,7 +327,7 @@ contains
               blk%ig%density(s,i,j,k) = rhoc*sp%massf(s)
               if (isnan(blk%ig%density(s,i,j,k))) then
                 write(*,*) '[ERROR] NaN in density assignment'
-                stop
+                stop 1
               endif
               enddo
               blk%ig%temperature(i,j,k) = Tc
@@ -335,7 +335,7 @@ contains
               blk%ig%pressure(i,j,k) = pc
               if (isnan(blk%ig%pressure(i,j,k))) then
                 write(*,*) '[ERROR] NaN in pressure assignment'
-                stop
+                stop 1
               endif
           endif
 
@@ -374,7 +374,7 @@ contains
                 blk%ig%density(s,i,j,k) = rho(i,j,k)*sp%massf(s)
                 if (isnan(blk%ig%density(s,i,j,k))) then
                   write(*,*) '[ERROR] NaN in density assignment'
-                  stop
+                  stop 1
                 endif
               enddo
               a = sqrt(gamma*Rgas*T(i,j,k))
@@ -384,7 +384,7 @@ contains
               blk%ig%pressure(i,j,k) = p(i,j,k)
               if (isnan(blk%ig%pressure(i,j,k))) then
                 write(*,*) '[ERROR] NaN in pressure assignment'
-                stop
+                stop 1
               endif
           endif
 
@@ -587,13 +587,13 @@ contains
     case ('t'); dir = 5
     case default
       write(*,*) '[ERROR] Unsupported direction in read_file_direction: ', trim(vardirection)
-      stop
+      stop 1
     end select
 
     call read_ascii_table(varfile, file_dir, file_var, ios)
     if (ios/=0) then
       write(*,*) '[ERROR] Could not read file: ', trim(varfile)
-      stop
+      stop 1
     endif
 
     file_length = size(file_dir)
@@ -607,7 +607,7 @@ contains
         write(*,*) '[ERROR] interpolated point ', blk%center(i,j,k)%c(dir), ' is outside the file data range.'
         write(*,*) '        File: ', trim(varfile)
         write(*,*) '        File data range: ', file_dir(1), ' to ', file_dir(file_length)
-        stop
+        stop 1
       endif
     enddo; enddo; enddo
     !$omp end parallel

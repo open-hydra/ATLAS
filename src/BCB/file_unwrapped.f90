@@ -63,11 +63,11 @@ contains
     orion%tec%format = 'ascii'
     if (tec_read_structured_multiblock(orion=orion, filename=trim(linefile)) /= 0) then
       write(*,'(A,A)') "[ERROR] failed to read line-file: ", trim(linefile)
-      stop
+      stop 1
     endif
     if (.not. allocated(orion%block)) then
       write(*,'(A,A)') "[ERROR] line-file has no zones: ", trim(linefile)
-      stop
+      stop 1
     endif
     nzones = size(orion%block)
 
@@ -139,7 +139,7 @@ contains
     s_max = maxval(centers)
     if (s_max - s_min < 1.0e-12_R8) then
       write(*,'(A)') "[ERROR] Unwrapped circular range <= 0"
-      stop
+      stop 1
     endif
     do i = 1, npts
       strip%theta(i) = (centers(i) - s_min) / (s_max - s_min) * TWOPI

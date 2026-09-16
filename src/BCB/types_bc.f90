@@ -229,7 +229,7 @@ contains
 
     case default
       write(*,*) '[ERROR] Phase type ', trim(phase % type), ' not supported'
-      stop
+      stop 1
   
     end select
 

@@ -208,13 +208,13 @@ contains
     case ('t'); dir = 5
     case default
       write(*,*) '[ERROR] Unsupported direction in assign_from_1D_table: ', trim(vardirection)
-      stop
+      stop 1
     end select
 
     call read_ascii_table(varfile, file_dir, file_var, ios)
     if (ios/=0) then
       write(*,*) '[ERROR] Could not read file: ', trim(varfile)
-      stop
+      stop 1
     endif
 
     file_length = size(file_dir)
@@ -229,7 +229,7 @@ contains
         write(*,*) '[ERROR] interpolated point ', blk%center(i,j,k)%c(dir), ' is outside the file data range.'
         write(*,*) '        File: ', trim(varfile)
         write(*,*) '        File data range: ', file_dir(1), ' to ', file_dir(file_length)
-        stop
+        stop 1
       endif
     enddo; enddo; enddo
     !$omp end parallel

@@ -59,7 +59,7 @@ contains
         if (bc_with_input(m)) then
           write(*,'(2A)')'[ERROR] Missing input data for bc: ', trim(try)
           write(*,'(A)') '        You have chosen a known bc, but it requires input data'
-          stop
+          stop 1
         else
           def = MARKER_NAMES(m)
           return
@@ -74,7 +74,7 @@ contains
         write(*,'(2A)')   '        - ', trim(MARKER_NAMES(m))
       endif
     enddo
-    stop
+    stop 1
 
   end subroutine check_assignment_no_input
 
@@ -99,7 +99,7 @@ contains
         write(*,'(2A)')   '        - ', trim(MARKER_NAMES(m))
       endif
     enddo
-    stop
+    stop 1
 
   end subroutine check_assignment_with_input
 

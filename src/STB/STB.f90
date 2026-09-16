@@ -20,6 +20,7 @@ program STB
   type(orion_data)               :: orion 
   type(file_ini)                 :: sourceini
   character(len=256)             :: output_fmt
+  character(len=llen)            :: input_file
   logical                        :: write_config_doc
   integer                        :: b
 
@@ -27,7 +28,7 @@ program STB
   write(*,*) ' ATLAS - Source Terms Builder'
   write(*,*)
 
-  call command_line_argument(output_fmt, write_config_doc)
+  call command_line_argument(output_fmt, write_config_doc, input_file)
 
   if (write_config_doc) then
     call write_stb_registry_markdown('stb-input.md')
@@ -46,7 +47,7 @@ program STB
   enddo
   
   ! INI handling
-  call build_INI(prog='STB',nb=size(orion%block),inisource=sourceini)
+  call build_INI(prog='STB',nb=size(orion%block),inisource=sourceini,input_file=trim(input_file))
 
   ! Build Q2D area variation files, if any
   call build_area_variation(sourceini,blk)
@@ -59,16 +60,18 @@ program STB
 
 contains
 
-  subroutine command_line_argument(output_fmt, write_config_doc)
+  subroutine command_line_argument(output_fmt, write_config_doc, input_file)
     implicit none
     character(len=256), intent(out) :: output_fmt
     logical, intent(out) :: write_config_doc
+    character(len=*), intent(out) :: input_file
     character(len=99) :: arg
     integer :: arg_count, i
 
     verbose = .false.
     write_config_doc = .false.
     output_fmt = 'tec-ascii'  ! Default output format
+    input_file = 'input.ini'
 
     arg_count = COMMAND_ARGUMENT_COUNT()
 
@@ -78,6 +81,8 @@ contains
         verbose = .true.
       else if (arg == '-o' .or. arg == '--output') then
         if (i < arg_count) call GET_COMMAND_ARGUMENT(i+1, output_fmt)
+      else if (arg == '-i' .or. arg == '--input') then
+        if (i < arg_count) call GET_COMMAND_ARGUMENT(i+1, input_file)
       else if (arg == '--write-config-doc') then
         write_config_doc = .true.
       end if

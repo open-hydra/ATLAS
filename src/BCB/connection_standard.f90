@@ -450,7 +450,7 @@ contains
                 write(*,*) "[ERROR] Connection not found"
                 write(*,*) "        b, f, m, n", b1, f1, m1, n1
                 !$omp end critical(conn_print)
-                stop
+                stop 1
               endif
               endassociate
             endif

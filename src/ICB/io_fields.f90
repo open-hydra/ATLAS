@@ -78,7 +78,7 @@ contains
 
     if (error/=0) then
       write(*,*) "[ERROR] reading "//trim(filename)
-      stop
+      stop 1
     endif
 
     allocate(blk(size(IOfield%block)))
@@ -99,7 +99,7 @@ contains
           size(IOfield%block(1)%vars, 1), " field variables but ", n_species + 4, &
           " are required (", n_species, " species + u,v,w,p)."
         write(*,*) "        Check that the old-species count matches the solution file."
-        stop
+        stop 1
       endif
       ! Detect how many turbulence variables the source carries. They always
       ! follow pressure and are identified by name (1=SA, 2=k-omega, 6/7=RSM),
@@ -160,7 +160,7 @@ contains
           size(IOfield%block(1)%vars, 1), " field variables but ", nnn*(6 + blk(1)%neuler), &
           " are required (", nnn, " populations x ", 6 + blk(1)%neuler, ")."
         write(*,*) "        Check that the dispersed-population count matches the solution file."
-        stop
+        stop 1
       endif
       do b = 1, size(blk)
         call blk(b)%compute_centers([0,0,0])
@@ -202,7 +202,7 @@ contains
         write(*,*) "[ERROR] read_vtk_tec: '"//trim(filename)//"' provides ", &
           size(IOfield%block(1)%vars, 1), " field variables but ", nvel + 2, &
           " are required (p + ", nvel, " velocity + h)."
-        stop
+        stop 1
       endif
       do b = 1, size(blk)
         call blk(b)%compute_centers([0,0,0])

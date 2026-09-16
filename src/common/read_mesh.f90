@@ -31,7 +31,7 @@ contains
         error = p3d_read_multiblock(orion=orion,filename=path)
       else
         write(*,*) '[ERROR] mesh file is not readable'
-        stop
+        stop 1
       endif
     else
       orion%tec%node = .false.
@@ -52,7 +52,7 @@ contains
 
     if (size(orion%block) == 0) then
       write(*,*) "[ERROR] mesh file read, but no blocks imported!"
-      stop
+      stop 1
     endif
 
 

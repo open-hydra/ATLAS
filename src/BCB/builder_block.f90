@@ -121,7 +121,7 @@ contains
           
           if (ff<=2 .and. mesh_cfg%meshType/=-1) then
             write(*,'(A,I2,A,I2)')'[ERROR] Missing face entry for face ', ff, ' in block ', b
-            stop
+            stop 1
           endif
 
         else

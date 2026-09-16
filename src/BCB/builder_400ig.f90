@@ -122,7 +122,7 @@ contains
       elseif (p0_time_file/='none' .and. self%definition=='inlet') then
         if (T0==0_R8) then
           write(*,*) '[ERROR] T0 must be specified when using p0-time-file'
-          stop
+          stop 1
         endif
         self % ig_id = 402
         self % time_varying = .true.
@@ -201,7 +201,7 @@ contains
       else
         write(*,*) '[ERROR] insufficient or inconsistent inflow properties specified.'
         write(*,*) '        Please check input file and documentation.'
-        stop
+        stop 1
 
       endif
 
@@ -257,7 +257,7 @@ contains
 
         if (Ae_At < 1.0d0) then
           write(*,*) '[ERROR] Ae_At must be >= 1.0'
-          stop
+          stop 1
         endif
 
         ! Compute gas properties from species composition
@@ -342,7 +342,7 @@ contains
 
     if (.not. local_cfg%has_center) then
       write(*,*) '[ERROR] Missing center in input (x y z)'
-      stop
+      stop 1
     endif
 
     ! Execute unwrapped to 3D mapping

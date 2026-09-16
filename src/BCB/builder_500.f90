@@ -136,11 +136,11 @@ contains
 
       if (n_srm == 0._R8) then
         write(*,*) '[ERROR] Burn rate exponent n required for SRM grain BC.'
-        stop
+        stop 1
       endif
       if (rhoGrain_srm == 0._R8) then
         write(*,*) '[ERROR] Grain density rhoGrain required for SRM grain BC.'
-        stop
+        stop 1
       endif
 
       self%ig_properties(1) = T0            ! Taf: adiabatic flame temperature
@@ -185,7 +185,7 @@ contains
       case default
         write(*,*) '[ERROR] Unknown surface reaction model name: ', trim(adjustl(name))
         write(*,*) '        Available options: bradley'
-        stop
+        stop 1
     end select
 
   end function surface_model_name2value
@@ -204,7 +204,7 @@ contains
         write(*,*) '        Available options: HTPB'
         write(*,*) '                           HDPB'
         write(*,*) '                           PP'
-        stop
+        stop 1
     end select
 
   end function pyrolysis_model_name2value

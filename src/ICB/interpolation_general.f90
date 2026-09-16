@@ -174,13 +174,13 @@ contains
     else
       write(*,*) "[ERROR] 3D Meshes with different Nz"
       write(*,*) " Can't use law = 'index' in this case"
-      stop
+      stop 1
     endif
 
     ! Validate Ni, Nj match
     if (oldblocks(b)%dim(1) /= tgt%dim(1) .or. oldblocks(b)%dim(2) /= tgt%dim(2)) then
       write(*,*) "[ERROR] 2D and 3D Mesh do not have the same Nx and Ny elements"
-      stop
+      stop 1
     endif
 
     if (verbose) then
@@ -258,7 +258,7 @@ contains
     if (.not. xint_dimension) then
       write(*,*) "[ERROR] Interpolation with law='multiple' is impossible"
       write(*,*) "[ERROR] Meshes are not multiple of one another"
-      stop
+      stop 1
     endif
 
     if (verbose) then
@@ -940,12 +940,12 @@ contains
       error = tec_read_structured_multiblock(orion=IOfield, filename=trim(filename))
     else
       write(*,*) '[ERROR] interpolation_general: unsupported file format: ', trim(filename)
-      stop
+      stop 1
     endif
 
     if (error /= 0) then
       write(*,*) '[ERROR] interpolation_general: failed to read ', trim(filename)
-      stop
+      stop 1
     endif
 
     allocate(source_blocks(size(IOfield%block)))

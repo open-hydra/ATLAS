@@ -62,7 +62,7 @@ contains
     call read_ascii_table(cfg%file, xin, ain, ierr)
     if (ierr /= 0) then
       write(*,*) '[ERROR] Cannot read area variation file: ', trim(cfg%file)
-      stop
+      stop 1
     endif
 
     ni = block%dim(1); nj = block%dim(2)

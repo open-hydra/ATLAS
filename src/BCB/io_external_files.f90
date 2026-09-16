@@ -69,7 +69,7 @@ contains
     call read_ascii_table(bf%name, tmp_dir, tmp_val, ios)
     if (ios /= 0) then
        write(*,*) '[ERROR] BC file '//trim(bf%name)//' not found'
-       stop
+       stop 1
     endif
     bf%length = size(tmp_dir)
     call move_alloc(tmp_dir, bf%dirArray1)

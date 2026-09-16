@@ -201,7 +201,7 @@ contains
 
     if (.not. exists) then
       write(*,*) '[ERROR] unable to locate thermo.lib for cea'
-      stop
+      stop 1
     end if
 
     atlas_cea_thermo = read_thermo(thermo_file)
@@ -241,7 +241,7 @@ contains
     problems = read_input(filename)
     if (section_idx < 1 .or. section_idx > size(problems)) then
       write(*,*) '[ERROR] eq-CEA-section is out of range'
-      stop
+      stop 1
     end if
     problem = problems(section_idx)
 
@@ -297,7 +297,7 @@ contains
 
     case default
       write(*,*) '[ERROR] Unsupported cea problem type in eq-CEA-file'
-      stop
+      stop 1
     end select
 
     call assign_species_massf(name_list, massf, result_names, result_massf)
@@ -438,14 +438,14 @@ contains
         state1 = problem%problem%s_schedule%values(idx_)
       else
         write(*,*) '[ERROR] Entropy from reactants is not supported'
-        stop
+        stop 1
       end if
     case ('uv')
       if (allocated(problem%problem%u_schedule)) then
         state1 = problem%problem%u_schedule%values(idx_)
       else
         write(*,*) '[ERROR] Internal energy from reactants is not supported'
-        stop
+        stop 1
       end if
     case default
       state1 = 0.0_dp
@@ -476,7 +476,7 @@ contains
         state2 = 1.0_dp / val
       case default
         write(*,*) '[ERROR] Volume units not recognized in cea input'
-        stop
+        stop 1
       end select
     case default
       state2 = convert_units_to_si(problem%problem%p_schedule%values(idx_), problem%problem%p_schedule%units)
@@ -570,7 +570,7 @@ contains
         weights = reactants%weights_from_moles(moles)
       else
         write(*,*) '[ERROR] Unsupported reactant amount type in cea input'
-        stop
+        stop 1
       end if
       return
     end if

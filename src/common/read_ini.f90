@@ -21,6 +21,7 @@ contains
     character(len=*), intent(in), optional      :: input_file
     type(atlas_parameters_t)                    :: atlas_cfg
     type(file_ini)                              :: fini
+    logical                                     :: ini_exists
 
     if (present(input_file)) then
       call load_atlas_parameters(prog, atlas_cfg, input_file)
@@ -34,7 +35,15 @@ contains
     if (present(chimeraon)) chimeraon = atlas_cfg%bc_chimera
     if (present(force_chimera)) force_chimera = atlas_cfg%bc_force_chimera
 
-    ! Read specific INI file
+    ! Read specific INI file. This may be a different file from the one parsed
+    ! above, when '<PROG>-file' redirects to it; a missing one would otherwise
+    ! load as empty and surface as a confusing downstream failure.
+    inquire(file=trim(atlas_cfg%input_file), exist=ini_exists)
+    if (.not. ini_exists) then
+      write(*,'(3A)') '[ERROR] ', trim(prog), ' input file not found: '//trim(atlas_cfg%input_file)
+      write(*,'(A)')  '        Check the '//trim(prog)//'-file key in [ATLAS-Parameters].'
+      stop 1
+    endif
     call fini%load(filename=atlas_cfg%input_file)
     inisource = generate_sections_input(prog,fini,nb)
 

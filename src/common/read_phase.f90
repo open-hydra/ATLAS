@@ -24,7 +24,7 @@ contains
     open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
     if (ios/=0) then
       write(*,*) '[ERROR] phase file '//trim(prefix)//'phase.txt'//' not found'
-      stop
+      stop 1
     endif
     ios = 0; n = -1
     read(unitfile,*)!skip first line
@@ -218,7 +218,7 @@ contains
                 phase(i)%type = 'RF'
               else
                 write(*,*) '[ERROR] unknown phase type'
-                stop
+                stop 1
               endif
             endif
             close(u)

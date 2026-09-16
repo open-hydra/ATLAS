@@ -83,7 +83,7 @@ contains
     call read_ascii_table(cfg%var%file, xin, qin, ierr)
     if (ierr /= 0) then
       write(*,*) '[ERROR] Cannot read qvol file: ', trim(cfg%var%file)
-      stop
+      stop 1
     endif
     
     call var_blk%allocate(ni, nj, nk)

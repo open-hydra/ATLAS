@@ -61,12 +61,23 @@ contains
     character(len=32) :: file_option
     character(len=llen) :: ini_filename
     integer :: error
+    logical :: ini_exists
 
     if (present(input_file)) then
       ini_filename = input_file
     else
       ini_filename = 'input.ini'
     end if
+
+    ! FiNeR's load() silently ignores a missing file, which leaves every option
+    ! at its default and makes the tool fail much later (or crash) for reasons
+    ! that have nothing to do with the real problem. Catch it here instead.
+    inquire(file=trim(ini_filename), exist=ini_exists)
+    if (.not. ini_exists) then
+      write(*,'(3A)') '[ERROR] ', trim(prog), ' input file not found: '//trim(ini_filename)
+      write(*,'(A)')  '        Pass one with -i/--input, or create input.ini in this directory.'
+      stop 1
+    endif
 
     cfg%input_file = trim(ini_filename)
     cfg%ic_format = 'tec'

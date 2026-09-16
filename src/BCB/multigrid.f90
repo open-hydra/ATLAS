@@ -72,7 +72,7 @@ contains
 
       if ( check < 3 ) then
         write(*,*) '[ERROR] Check multigrid, block: ', b
-        stop
+        stop 1
       endif
 
     enddo
