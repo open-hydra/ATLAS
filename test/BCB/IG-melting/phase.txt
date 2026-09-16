@@ -1,0 +1,4 @@
+ideal-gas phase
+O2 32
+H2 2.0
+H20 18.0
