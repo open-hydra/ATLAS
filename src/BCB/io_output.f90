@@ -315,6 +315,11 @@ module io_write_bc_mod
 
                 if (this % gp_id/=0) then
                   print_id = this % gp_id
+                  ! Axis override ([<face>] <phase>-type = outlet): this phase's file carries
+                  ! 400 where the gas file keeps 200. No payload, like every other 400.
+                  if (k > 0) then
+                    if (this % dp(k) % id == 400 .and. this % gp_id == 200) print_id = 400
+                  endif
                 elseif (k > 0) then
                   print_id = this % dp(k) % id
                 else

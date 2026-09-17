@@ -62,7 +62,7 @@ face4 = wall_hot        ; a named section, defined below
 | Keyword | Output ID | Notes |
 |---|---|---|
 | `null` | `0` | Placeholder; no payload. |
-| `axisymmetric` | `200` | No payload. |
+| `axisymmetric` | `200` | No payload. A named section may send a dispersed phase out through the axis, see [Dispersed-phase override on the axis](#dispersed-phase-override-on-the-axis). |
 | `symmetry` | `300` | No payload. |
 | `extrapolation` | `400` | No payload. |
 | `connection` | `101` / `103` | Resolved by face-centre matching during the connection pass. |
@@ -379,6 +379,26 @@ p2-dp = 0.001
     `p2-*` keys only `p2-bc.txt` (variant selection included, so one phase may be `401`
     and the other `402` on the same face). Payload values are always written as numbers;
     only an unset `alphap`/`betap` is written as `normal,`.
+
+#### Dispersed-phase override on the axis
+
+On a 2D-axisymmetric mesh the axis face is `axisymmetric` (`200`) for every phase. A
+Lagrangian dispersed phase may instead be let out through it: give the face a named
+section with the keyword type and add `<phase>-type = outlet` for that phase only.
+
+```ini
+[BCB-Block1]
+face3 = ax
+
+[ax]
+type       = axisymmetric   ; gas: 200 as before
+partL-type = outlet         ; partL only: 400 (particles leave through the axis)
+```
+
+`gas-bc.txt` keeps `200` on face 3; `partL-bc.txt` carries `400` there (no payload). Only
+`outlet` is accepted — any other word stops BCB with `[ERROR] partL-type = <word>: only
+"outlet" is allowed ...`. The wedge faces BCB auto-tags on a 2Daxi mesh carry no section and
+always stay `200`.
 
 ---
 
