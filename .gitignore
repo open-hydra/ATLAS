@@ -1,5 +1,6 @@
 # test
 fromATLAStoSolver
+test/**/injector_data_*.dat
 
 # database
 database/Tec-eqn/*.eqn
