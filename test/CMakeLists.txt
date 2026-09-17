@@ -231,6 +231,36 @@ set_tests_properties(IG+CD PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-tokens-tolerated (P3: key=value tokens on the material line) ----
+# DP-basic with `modeling=lagrangian` on line 1 and `evaporation=CEM alpha-e=0.5`
+# after `dummy 1` in drop-phase.txt (mesh.tec is a symlink to DP-basic's). The
+# tokens are for the solvers: BCB must ignore them and write DP-basic's BC file.
+add_test(
+    NAME    DP-tokens-tolerated
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/drop-bc.txt ../DP-basic/reference/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-tokens-tolerated"
+)
+set_tests_properties(DP-tokens-tolerated PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-bad-name (P3: a phase file name with two dashes is refused) ----
+# `part-E-phase.txt` used to overrun ORION's parse(). `!` inverts BCB's status
+# (pipefail carries it through tee) and the grep pins the reason, so a crash or
+# an unrelated abort still fails the test; WILL_FAIL would accept any failure.
+add_test(
+    NAME    DP-bad-name
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q 'must contain at most one' bcb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-bad-name"
+)
+set_tests_properties(DP-bad-name PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable
