@@ -246,14 +246,10 @@ contains
           endif
         endif
 
-        ! DP
-        this%bc%dp_id              = face%bc%dp_id
-        if (face%bc%dp_n>0) then
-          this%bc%dp_n             = face%bc%dp_n
-          allocate(this%bc%dp_properties(1:size(face%bc%dp_properties,1),1:size(face%bc%dp_properties,2),1:face%bc%dp_n))
-          this%bc%dp_properties    = face%bc%dp_properties
-          this%bc%dp_distribution  = face%bc%dp_distribution
-          this%bc%dp_ds            = face%bc%dp_ds
+        ! DP: one slot per dispersed phase; intrinsic assignment deep-copies every
+        ! slot with its allocatable components (id, n, properties, distribution, ds)
+        if (allocated(face%bc%dp)) then
+          this%bc%dp               = face%bc%dp
         endif
 
         endassociate

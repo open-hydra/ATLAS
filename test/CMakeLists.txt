@@ -261,6 +261,21 @@ set_tests_properties(DP-bad-name PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-two-phases (two dispersed phases on the same faces, one slot each) ----
+# partE and partL share every inlet; each <name>-bc.txt must carry ITS phase's ids
+# and payloads. partE's 402 inlet has Tp = 2300 K: written as a number, not as the
+# 'normal,' direction sentinel. At db4b213 both files were identical (last phase won).
+add_test(
+    NAME    DP-two-phases
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/partE-bc.txt reference/partE-bc.txt && diff fromATLAStoSolver/partL-bc.txt reference/partL-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-two-phases"
+)
+set_tests_properties(DP-two-phases PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

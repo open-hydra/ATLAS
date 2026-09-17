@@ -373,6 +373,13 @@ p2-dp = 0.001
 !!! warning "Phase name requirements"
     For the dispersed phase, the phase name may be added in front of the entry name to assign a property to that phase. This is mandatory when multiple phases are injected together through the same boundary face.
 
+!!! note "One record set per dispersed phase"
+    Each named dispersed phase gets its own ids and payloads in its own `<name>-bc.txt`:
+    on a face shared by `p1` and `p2`, the `p1-*` keys reach only `p1-bc.txt` and the
+    `p2-*` keys only `p2-bc.txt` (variant selection included, so one phase may be `401`
+    and the other `402` on the same face). Payload values are always written as numbers;
+    only an unset `alphap`/`betap` is written as `normal,`.
+
 ---
 
 ### `outlet`
