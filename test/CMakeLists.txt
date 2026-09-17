@@ -21,6 +21,30 @@ set_tests_properties(ceafile-reactive-OG PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : CP-fixmat-dispersed (phase-file header + modeling token) -------------
+add_test(
+    NAME    CP-fixmat-dispersed
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-properties.dat reference/part-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-fixmat-dispersed"
+)
+set_tests_properties(CP-fixmat-dispersed PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : SP-fixmat (solid-bulk header) -------------
+add_test(
+    NAME    SP-fixmat
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/metals-phase.txt reference/metals-phase.txt && diff fromATLAStoSolver/metals-properties.dat reference/metals-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/SP-fixmat"
+)
+set_tests_properties(SP-fixmat PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : SP-basic -------------
 add_test(
     NAME    SP-basic

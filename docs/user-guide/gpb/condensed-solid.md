@@ -16,6 +16,7 @@ Used when liquid droplets or solid particles are carried in a gas suspension.
 ```ini
 [GPB-Phase1]
 type     = condensed-dispersed
+modeling = lagrangian
 material = AL2O3(L)
 k        = 0.25
 cp       = 1000
@@ -27,6 +28,7 @@ rho      = 2500
 ```ini
 [GPB-Phase1]
 type     = condensed-dispersed
+modeling = lagrangian
 material = AL2O3(L)
 thermo   = Burcat
 rho      = 2500
@@ -37,6 +39,7 @@ rho      = 2500
 ```ini
 [GPB-Phase1]
 type     = condensed-dispersed
+modeling = lagrangian
 material = AL2O3(L), H2O(L)
 thermo   = Burcat
 rho      = 2500, 1000
@@ -49,6 +52,7 @@ For dispersed phases, the user can specify the number of groups to be used for t
 ```ini
 [GPB-Phase1]
 type     = condensed-dispersed
+modeling = lagrangian
 material = AL2O3(L)
 thermo   = Burcat
 rho      = 2500
@@ -56,6 +60,8 @@ groups   = 3
 ```
 
 ## Solid Phase (`type = solid`)
+
+`solid-bulk` is accepted as a synonym of `solid`, and `solid-bulk` is the word the generated `<prefix>phase.txt` carries on its first line.
 
 Used to model walls and structural materials. Same syntax as the condensed-dispersed phase, but with `type = solid`.
 

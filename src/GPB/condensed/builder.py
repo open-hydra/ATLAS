@@ -2,6 +2,7 @@ import cantera as ct
 from . import properties as CP_properties
 from . import io as CP_IO
 from ini import *
+from ini.condensed import phase_header_word
 import os, sys
 from config import setup_cantera_dirs, CEA_TRANS_FILE
 
@@ -23,7 +24,7 @@ class Material:
         """
         self.solution = cantera_solution
 
-def build(type,inifile,section):
+def build(type,inifile,section,modeling=None):
 
     # ---------------------------------------------------
     # Initialization of variables
@@ -44,9 +45,10 @@ def build(type,inifile,section):
         string = name[:-1]  # Remove the last character
     else:
         string = 'no name'
-    if 'dispersed' in type:
+    header = phase_header_word(type)
+    if header.endswith('-dispersed'):
         print(' - Condensed-dispersed phase:', string)
-    elif type == 'solid':
+    else:
         print(' - Solid phase:', string)
     print()
 
@@ -106,7 +108,7 @@ def build(type,inifile,section):
     # ---------------------------------------------------
     # Write materials name and groups number
     # ---------------------------------------------------
-    CP_IO.write_basics(type, name, material_group, groups)
+    CP_IO.write_basics(type, name, material_group, groups, modeling)
 
     # ---------------------------------------------------
     # Build physical and thermal properties
