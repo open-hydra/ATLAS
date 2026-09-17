@@ -295,7 +295,7 @@ contains
       nb = 0
       do b = 1, size(blk)
         do ap = 1, size(blk(b)%associated_phase(:))
-          if (index(phase(p)%name,blk(b)%associated_phase(ap)%name)>0) then
+          if (trim(phase(p)%name) == trim(blk(b)%associated_phase(ap)%name)) then
             nb = nb + 1
             if (phase(p)%type=='IG') nsc = blk(b)%associated_phase(ap)%species%n
             !> 'DP', not 'CD': read_phase.f90:210 sets phase%type='DP' for a condensed-dispersed
@@ -376,7 +376,7 @@ contains
       do b = 1, size(blk)
         thereis = .false.
         do ap = 1, size(blk(b)%associated_phase)
-          if (index(phase(p)%name,blk(b)%associated_phase(ap)%name)>0) thereis = .true.
+          if (trim(phase(p)%name) == trim(blk(b)%associated_phase(ap)%name)) thereis = .true.
         enddo
         if (.not.thereis) cycle
         cnt = cnt + 1

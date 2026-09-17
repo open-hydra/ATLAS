@@ -37,7 +37,7 @@ module io_write_bc_mod
     match = .false.
     do b = 1, size(blk)
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) match = .true.
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) match = .true.
       enddo
     enddo
 
@@ -54,7 +54,7 @@ module io_write_bc_mod
     do b = 1, size(blk)
       match = .false.
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) match = .true.
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) match = .true.
       enddo
       if (.not.match) cycle
       mend(1:2) = blk(b)%dim(2); nend(1:2) = blk(b)%dim(3)
@@ -156,7 +156,7 @@ module io_write_bc_mod
     match = .false.
     do b = 1, size(blk)
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) match = .true.
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) match = .true.
       enddo
     enddo
 
@@ -173,7 +173,7 @@ module io_write_bc_mod
     do b = 1, size(blk)
       match = .false.
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) match = .true.
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) match = .true.
       enddo
       if (.not.match) cycle
       mend(1:2) = blk(b)%dim(2); nend(1:2) = blk(b)%dim(3)

@@ -261,6 +261,21 @@ set_tests_properties(DP-bad-name PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-substring-names (P5: nested phase names are refused) ----------
+# `part` and `partL`: with substring matching a block associated to `part` was
+# also written into partL-bc.txt. read_phase must now stop before any BC file
+# is built; same expect-failure form as DP-bad-name.
+add_test(
+    NAME    DP-substring-names
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q 'is a substring of' bcb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-substring-names"
+)
+set_tests_properties(DP-substring-names PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-two-phases (two dispersed phases on the same faces, one slot each) ----
 # partE and partL share every inlet; each <name>-bc.txt must carry ITS phase's ids
 # and payloads. partE's 402 inlet has Tp = 2300 K: written as a number, not as the
