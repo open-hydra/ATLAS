@@ -106,9 +106,18 @@ def build(type,inifile,section,modeling=None):
     # ---------------------------------------------------
 
     # ---------------------------------------------------
+    # Per-material solver model tokens (P3): validated here so a bad key
+    # fails GPB, aligned with material_group (its length = number of
+    # materials). NOT written yet: the line below keeps them out of the
+    # phase file until the IGLOO/ICE/MI2 readers accept tokens.
+    # ---------------------------------------------------
+    material_tokens = CP_read_material_models(inifile, section, len(material_group))
+    material_tokens = None  # P3.5: delete this line once the IGLOO/ICE/MI2 readers accept tokens (hydra-side handoff)
+
+    # ---------------------------------------------------
     # Write materials name and groups number
     # ---------------------------------------------------
-    CP_IO.write_basics(type, name, material_group, groups, modeling)
+    CP_IO.write_basics(type, name, material_group, groups, modeling, material_tokens=material_tokens)
 
     # ---------------------------------------------------
     # Build physical and thermal properties
