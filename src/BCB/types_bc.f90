@@ -153,6 +153,8 @@ contains
 
     case(trim(MARKER_AXIS))
       self % gp_id = 200
+      ! [<face>] <phase>-type = outlet : that dispersed phase leaves through the axis (400)
+      if (phase % type == 'DP') call dispersed_axis_override(self, sourceini, section, phase)
       return
 
     case(trim(MARKER_SYM))
@@ -268,6 +270,38 @@ contains
     k = size(self % dp)
     self % dp(k) % phase_name = phase_name
   end function dp_slot
+
+
+  !> Dispersed-phase override on an axisymmetric face:
+  !>   [<face>]  type = axisymmetric  +  <phase>-type = outlet
+  !> The gas keeps 200; this phase's slot gets 400 (particles leave through the axis).
+  !> Only 'outlet' is accepted: the wedge faces IGLOO folds on must stay 200 and nothing
+  !> else makes sense on an axis. The auto-tagged wedge faces of a 2Daxi mesh carry no
+  !> section, so the key is absent there and they keep 200.
+  subroutine dispersed_axis_override(self, sourceini, section, phase)
+    implicit none
+    class(bc_t),          intent(inout) :: self
+    type(file_ini),       intent(in)    :: sourceini
+    character(len=*),     intent(in)    :: section
+    type(phase_t),        intent(in)    :: phase
+    character(len=64)                   :: w
+    integer                             :: error, k
+
+    if (len_trim(phase % name) == 0) return
+    w = ''
+    call sourceini%get(section_name=section, option_name=trim(phase % name)//'-type', val=w, error=error)
+    if (error /= 0) return
+    k = self % dp_slot(phase % name)
+    select case (trim(adjustl(w)))
+    case ('outlet')
+      self % dp(k) % id = 400
+      self % dp(k) % n  = 0
+    case default
+      write(*,'(A)') '[ERROR] '//trim(phase % name)//'-type = '//trim(adjustl(w))// &
+                     ': only "outlet" is allowed for a dispersed phase on an axisymmetric face'
+      stop 1
+    end select
+  end subroutine dispersed_axis_override
 
   ! subroutine MOSKA_connection(self, sourceini, section)
   !   use finer, only: file_ini

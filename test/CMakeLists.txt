@@ -291,6 +291,21 @@ set_tests_properties(DP-two-phases PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-axis-override (dispersed phase let out through the axis) -------------
+# 2Daxi nozzle (IG+CD's mesh). [ax] type = axisymmetric + partL-type = outlet:
+# gas-bc.txt keeps 200 on the axis face 3, partL-bc.txt carries 400 there; the
+# auto-tagged wedge faces 5/6 stay 200 in both. Without the override both files carry 200.
+add_test(
+    NAME    DP-axis-override
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/partL-bc.txt reference/partL-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-axis-override"
+)
+set_tests_properties(DP-axis-override PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable
