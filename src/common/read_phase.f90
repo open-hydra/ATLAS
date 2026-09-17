@@ -209,7 +209,7 @@ contains
     implicit none
     type(phase_t), allocatable, intent(inout) :: phase(:)
     character(len=128) :: filename, stringa(2)
-    integer :: i, k, num_files, u, ios
+    integer :: i, j, k, num_files, u, ios
     character(len=128), allocatable :: file_list(:)
     character(len=128) :: type
 
@@ -262,6 +262,29 @@ contains
         endif
         phase(i)%name = stringa(1)
       end do
+      ! P5: phase names must be distinct, all named or a single unnamed file, and
+      ! never a substring of one another (BCB/ICB associate blocks to phases by name)
+      do i = 1, size(phase)
+        do j = 1, size(phase)
+          if (i == j) cycle
+          if (len_trim(phase(i)%name) == 0 .and. len_trim(phase(j)%name) > 0) then
+            write(*,'(A)') '[ERROR] unnamed phase file '//trim(file_list(i))// &
+                           ' cannot coexist with named phase file '//trim(file_list(j))
+            stop 1
+          endif
+          if (len_trim(phase(i)%name) == 0) cycle
+          if (trim(phase(i)%name) == trim(phase(j)%name)) then
+            write(*,'(A)') '[ERROR] duplicate phase name "'//trim(phase(i)%name)//'": '// &
+                           trim(file_list(i))//' and '//trim(file_list(j))
+            stop 1
+          endif
+          if (index(trim(phase(j)%name), trim(phase(i)%name)) > 0) then
+            write(*,'(A)') '[ERROR] phase name "'//trim(phase(i)%name)//'" ('//trim(file_list(i))// &
+                           ') is a substring of "'//trim(phase(j)%name)//'" ('//trim(file_list(j))//')'
+            stop 1
+          endif
+        enddo
+      enddo
       deallocate(file_list)
     else
       ! If no species or material file is present, ideal-gas phase is assumed
