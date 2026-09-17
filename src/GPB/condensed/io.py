@@ -1,19 +1,30 @@
 import numpy as np
 import os
 from config import OUTPATH, ensure_output_dir
+from ini.condensed import phase_header_word
 
 outpath = OUTPATH
 ensure_output_dir()
 
 
-def write_basics(type, name, mat_phases, groups):
+def write_basics(type, name, mat_phases, groups, modeling=None, material_tokens=None):
+    """<name>phase.txt: line 1 = type word [+ ' modeling=<v>'], then one
+    '<name> <groups>[ key=value ...]' line per material. material_tokens is a
+    per-material list of 'key=value' strings (nothing is written until P3 wires it)."""
 
     # Write the data to a free-format ASCII file
     filename = outpath + name + "phase.txt"
 
     with open(filename, 'w') as f:
+        head = phase_header_word(type)
+        if modeling:
+            head += f" modeling={modeling}"
+        f.write(head + "\n")
         for i, m in enumerate(mat_phases):
-            f.write(f"{m.name} {int(groups[i])}\n")
+            line = f"{m.name} {int(groups[i])}"
+            if material_tokens and material_tokens[i]:
+                line += " " + " ".join(material_tokens[i])
+            f.write(line + "\n")
 
 
 

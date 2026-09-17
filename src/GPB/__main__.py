@@ -32,9 +32,9 @@ for phase in phase_definitions:
     phase_type = phase.phase_type.lower()
     if ('ideal' in phase_type or 'heavy' in phase_type):
         ideal_gas.build(inifile, phase.section)
-    if ('condensed' in phase_type):
-        condensed.build(phase_type, inifile, phase.section)
-    if ('solid' in phase_type):
-        condensed.build(phase_type, inifile, phase.section)
-    if ('real' in phase_type):
+    elif ('dispersed' in phase_type or phase_type in ('solid', 'solid-bulk')):
+        condensed.build(phase_type, inifile, phase.section, phase.phase_modeling)
+    elif ('real' in phase_type):
         real_fluid.build(inifile, phase.section)
+    else:
+        raise SystemExit(f"[ERROR] [{phase.section}] type = '{phase.phase_type}' is not a GPB phase type")

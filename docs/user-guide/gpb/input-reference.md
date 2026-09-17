@@ -11,7 +11,8 @@
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| type | ideal-gas | ideal-gas,heavy-gas,condensed-dispersed,solid,real-fluid | no | Phase model selector for the current section. |
+| type | ideal-gas | ideal-gas,heavy-gas,condensed-dispersed,liquid-dispersed,solid-dispersed,solid,solid-bulk,real-fluid | no | Phase model selector for the current section. |
+| modeling |  | lagrangian,eulerian | no | Dispersed phase treatment the solver will use; written on line 1 of <name>phase.txt as modeling=<value>. |
 | name |  |  | no | Prefix for generated output files. |
 | Tmin | 1 | >0 | no | Minimum tabulation temperature [K]. |
 | Tmax | 5000 | >0 | no | Maximum tabulation temperature [K]. |

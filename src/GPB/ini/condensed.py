@@ -41,3 +41,15 @@ def CP_read_material(ini_file,section):
     groups = np.ones(len(mat))
 
   return mat, groups, cp, k, rho
+
+
+def phase_header_word(type):
+  """First word of <name>phase.txt: the vocabulary of src/common/read_phase.f90
+  ('condensed-dispersed' | 'liquid-dispersed' | 'solid-dispersed' -> DP, 'solid-bulk' -> SP).
+  'solid' is accepted as a synonym of 'solid-bulk'."""
+  t = type.lower().strip()
+  if t in ('solid', 'solid-bulk'):
+    return 'solid-bulk'
+  if t in ('condensed-dispersed', 'liquid-dispersed', 'solid-dispersed'):
+    return t
+  raise SystemExit(f"[ERROR] unknown condensed/solid phase type '{type}'")
