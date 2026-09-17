@@ -298,7 +298,11 @@ contains
           if (index(phase(p)%name,blk(b)%associated_phase(ap)%name)>0) then
             nb = nb + 1
             if (phase(p)%type=='IG') nsc = blk(b)%associated_phase(ap)%species%n
-            if (phase(p)%type=='CD') mat = blk(b)%associated_phase(ap)%material
+            !> 'DP', not 'CD': read_phase.f90:210 sets phase%type='DP' for a condensed-dispersed
+            !  phase, and builder.f90:66,200 agree. Comparing against 'CD' here left `mat` empty,
+            !  so the varname and data loops below emitted nothing and the CD IC file came out
+            !  holding only x/y/z.
+            if (phase(p)%type=='DP') mat = blk(b)%associated_phase(ap)%material
             nrans_ref  = blk(b)%nrans
             neuler_ref = blk(b)%neuler
           endif
@@ -326,7 +330,7 @@ contains
           elseif (nrans_ref==7) then
             varnames = trim(varnames)//' ru''u'' rv''v'' rw''w'' ru''v'' ru''w'' rv''w'' omega'
           endif
-        case('CD')
+        case('DP')   ! see note at the `mat =` assignment above: the type string is 'DP'
           nnn = 0
           do m = 1, mat%n
             do g = 1, mat%npCP(m)
@@ -418,7 +422,7 @@ contains
             endif
           endif
 
-        case('CD')
+        case('DP')   ! see note at the `mat =` assignment above: the type string is 'DP'
           orion%block(cnt)%name = 'B'//trim(str(.true.,b))//'-CD'
           allocate(orion%block(cnt)%vars(1:nnn*(6+blk(b)%neuler),1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)))
           s = 1

@@ -57,6 +57,18 @@ set_tests_properties(SP-basic PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG+DP (gas + dispersed phase; DP IC file carries the population fields) -------------
+add_test(
+    NAME    IG+DP
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/particles-ic.tec reference/particles-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG+DP"
+)
+set_tests_properties(IG+DP PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-nozzle3D -------------
 add_test(
     NAME    IG-nozzle3D
