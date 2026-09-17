@@ -59,6 +59,7 @@
 | thermo | NASA9 | NASA7,NASA9,Burcat,SP-database | no | Condensed-phase thermodynamic model selector. |
 | material | ATLAS |  | no | Condensed-phase material names. |
 | groups | 1 |  | no | Group index per condensed material. |
+| h0 |  |  | no | Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs). |
 | cp |  |  | no | Fixed specific heat values for condensed materials. |
 | k |  |  | no | Fixed thermal conductivity values for condensed materials. |
 | rho |  |  | no | Density values for condensed materials. |

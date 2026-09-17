@@ -23,6 +23,25 @@ cp       = 1000
 rho      = 2500
 ```
 
+#### Enthalpy datum of constant-property materials (`h0`)
+
+With `cp` given, the `Enthalpy` column of `<name>properties.dat` is the relative `cp·T` (its value at 298.15 K is `cp·298.15`, not the enthalpy of formation). Add `h0` (J/kg, one value per material) to make the column absolute:
+
+```text
+h(T) = cp·T + (h0 − cp·298.15)      so that   h(298.15 K) = h0
+```
+
+The header then reads `Enthalpy_abs` instead of `Enthalpy`; without `h0` nothing changes. Use the same reference state as the gas-phase thermodynamics (NASA/Burcat: enthalpy of formation of the liquid at 298.15 K), e.g. `h0 = -15865000` for liquid water. Temperature-dependent materials (`thermo = Burcat` and the NASA tables) always write `Enthalpy_abs`, because the polynomials carry the formation enthalpy.
+
+```ini
+[GPB-Phase1]
+type     = condensed-dispersed
+material = H2O(L)
+cp       = 4184
+rho      = 997
+h0       = -15865000
+```
+
 ### Temperature-dependent properties
 
 ```ini

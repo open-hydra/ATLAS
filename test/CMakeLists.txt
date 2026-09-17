@@ -425,3 +425,30 @@ set_tests_properties(split-solution PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : CP-Tvar-dispersed (Burcat/cantera table -> absolute enthalpy, header Enthalpy_abs) ----
+# Numeric tolerance instead of a byte diff: rows are closed-form NASA-7 evaluations printed with
+# 6 decimals; libm/FMA/cantera-minor drift is <= 1e-12 relative, a datum error is >= 1e-3 relative,
+# a wrong column is O(1). tol = 1e-6 as in IG-chimera.
+add_test(
+    NAME    CP-Tvar-dispersed
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/phase.txt reference/phase.txt && grep -q Enthalpy_abs fromATLAStoSolver/properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/properties.dat fromATLAStoSolver/properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-dispersed"
+)
+set_tests_properties(CP-Tvar-dispersed PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-fixmat-h0 (fixed cp + h0 -> Enthalpy_abs with h(298.15 K) = h0) --------------------
+add_test(
+    NAME    CP-fixmat-h0
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && bash check_h0.sh fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-fixmat-h0"
+)
+set_tests_properties(CP-fixmat-h0 PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

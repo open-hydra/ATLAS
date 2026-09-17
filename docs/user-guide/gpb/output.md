@@ -118,7 +118,9 @@ If type contains `dispersed`, variables are:
 1. `Temperature`
 2. `Cp`
 3. `Density`
-4. `Enthalpy`
+4. `Enthalpy` or `Enthalpy_abs`
+
+The fourth name tags the enthalpy datum; the column is always read by position. `Enthalpy` is relative (`cp·T` for constant-`cp` materials, the `SP-database` integral from `Tmin`); `Enthalpy_abs` is absolute, i.e. it includes the enthalpy of formation (every `thermo` table, and constant-`cp` materials given `h0`, see [Condensed & Solid Phases](./condensed-solid.md)).
 
 Otherwise variables are:
 
@@ -228,7 +230,7 @@ Example first lines of `alumina-properties.dat`:
 
 ```text
 TITLE = "Mass Thermodynamic Properties"
-VARIABLES = "Temperature", "Cp", "Density", "Enthalpy"
+VARIABLES = "Temperature", "Cp", "Density", "Enthalpy_abs"
 ZONE T="Al2O3"
 I=3000, F=POINT
 ```
