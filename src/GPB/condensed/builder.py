@@ -17,6 +17,7 @@ class Material:
         self.density = None
         self.specific_heat = None
         self.thermal_conductivity = None
+        self.h0 = None   # [J/kg] enthalpy at 298.15 K, fixed-cp materials only (optional [GPB-Phase*] h0)
     
     def load_from_cantera(self, cantera_solution):
         """
@@ -78,6 +79,8 @@ def build(type,inifile,section,modeling=None):
             material.load_from_cantera(ct_solution)
             if material.density is None:
                 material.density = fix_rho[i]
+            # the solid layout writes a conductivity column: optional k per material, else 0 (as the fixed branch)
+            material.thermal_conductivity = fix_k[i] if fix_k is not None else 0.0
             material_group.append(material)
     # ---------------------------------------------------
 
@@ -85,10 +88,13 @@ def build(type,inifile,section,modeling=None):
     # T-constant material
     if fix_cp is not None:
         print(' -- Found fixed properties materials')
+        fix_h0 = CP_read_enthalpy_datum(inifile, section, len(fix_cp))
         for i in range(len(fix_cp)):
             material = Material(name=material_names[i],type='fixed')
             material.density = fix_rho[i]
             material.specific_heat = fix_cp[i]
+            if fix_h0 is not None:
+                material.h0 = fix_h0[i]
             try:
                 material.thermal_conductivity = fix_k[i]
             except:

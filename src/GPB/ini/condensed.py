@@ -107,3 +107,17 @@ def CP_read_material_models(ini_file, section, nmat):
     for i, v in enumerate(vals):
       tokens[i].append(f"{key}={v:.10g}")
   return tokens
+
+
+def CP_read_enthalpy_datum(ini_file, section, nmat):
+  """Optional `h0` [J/kg]: enthalpy of each fixed-cp material at 298.15 K (one value per material; a single
+  value is broadcast). None when absent -> the Enthalpy column stays the relative cp*T."""
+
+  h0 = get(ini_file, section, 'h0', np.ndarray)
+  if h0 is None:
+    return None
+  if h0.size == 1:
+    h0 = np.repeat(h0, nmat)
+  if h0.size != nmat:
+    raise SystemExit(f"[ERROR] [{section}] h0: {h0.size} value(s) for {nmat} material(s)")
+  return h0

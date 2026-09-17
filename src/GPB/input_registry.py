@@ -168,6 +168,10 @@ REGISTRY_ENTRIES: List[RegistryEntry] = [
         'Group index per condensed material.'
     ),
     RegistryEntry(
+        'GPB-Condensed', 'h0', '', '', False,
+        'Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs).'
+    ),
+    RegistryEntry(
         'GPB-Condensed', 'cp', '', '', False,
         'Fixed specific heat values for condensed materials.'
     ),
@@ -350,6 +354,7 @@ GPB_CONDENSED = [
     RegistryEntry('GPB-Condensed', 'thermo', 'NASA9', 'NASA7,NASA9,Burcat,SP-database', False, 'Condensed-phase thermodynamic model selector.'),
     RegistryEntry('GPB-Condensed', 'material', 'ATLAS', '', False, 'Condensed-phase material names.'),
     RegistryEntry('GPB-Condensed', 'groups', '1', '', False, 'Group index per condensed material.'),
+    RegistryEntry('GPB-Condensed', 'h0', '', '', False, 'Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs).'),
     RegistryEntry('GPB-Condensed', 'cp', '', '', False, 'Fixed specific heat values for condensed materials.'),
     RegistryEntry('GPB-Condensed', 'k', '', '', False, 'Fixed thermal conductivity values for condensed materials.'),
     RegistryEntry('GPB-Condensed', 'rho', '', '', False, 'Density values for condensed materials.'),

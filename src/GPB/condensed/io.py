@@ -28,7 +28,8 @@ def write_basics(type, name, mat_phases, groups, modeling=None, material_tokens=
 
 
 
-def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, enthalpy, conductivity, energy):
+def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, enthalpy, conductivity, energy,
+                     enthalpy_absolute=False):
 
     # Write the data to a file in Tecplot-readable format
     filename = outpath + name + "properties.dat"
@@ -40,7 +41,12 @@ def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, 
         f.write("TITLE = \"Mass Thermodynamic Properties\"\n")
 
         if 'dispersed' in type:
-            f.write("VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"Enthalpy\"\n")
+            # Column 4 is consumed by POSITION (IGLOO/ICE/ATLAS read 3 variables after Temperature);
+            # its NAME tags the datum so a consumer can assert instead of assume:
+            #   Enthalpy      relative: cp*T (fixed cp without h0) or the SP-database integral from Tmin
+            #   Enthalpy_abs  absolute: formation enthalpy included (thermo tables, or fixed cp with h0)
+            h_label = "Enthalpy_abs" if enthalpy_absolute else "Enthalpy"
+            f.write(f"VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"{h_label}\"\n")
             
             for species_name in species_names:
                 f.write(f"ZONE T=\"{species_name}\"\n")
