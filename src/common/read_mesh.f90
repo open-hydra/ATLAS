@@ -22,6 +22,10 @@ contains
         orion%tec%bc = .false.
         orion%tec%format = 'ascii'
         error = tec_read_structured_multiblock(orion=orion,filename=trim(path))
+        if (error/=2724 .and. error/=0) then
+          write(*,*) '[ERROR] mesh file with path '//trim(path)//' found, but failed to read it'
+          stop 1
+        endif
       elseif (index(path,'.szplt')>0) then
         orion%tec%node = .false.
         orion%tec%bc = .false.
@@ -38,6 +42,10 @@ contains
       orion%tec%bc = .false.
       orion%tec%format = 'ascii'
       error = tec_read_structured_multiblock(orion=orion,filename='mesh.tec')
+      if (error/=2724 .and. error/=0) then
+        write(*,*) '[ERROR] mesh.tec found, but failed to read it'
+        stop 1
+      endif
       if (error/=0) then   
         error = p3d_read_multiblock(orion=orion,filename='mesh.p3d')
         if (error/=0) then
@@ -54,7 +62,6 @@ contains
       write(*,*) "[ERROR] mesh file read, but no blocks imported!"
       stop 1
     endif
-
 
   end subroutine read_mesh
 
