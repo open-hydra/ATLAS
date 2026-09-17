@@ -14,9 +14,12 @@ acceptance, P9 hydra half, §10. Every file:line below was re-verified on 2026-0
 - IGLOO `src/lib/IGLOO` is a **plain checkout** of its own repo (branch `work-in-progress`, HEAD `92f7c4f`, 12 dirty files =
   the P3.3 surface; the plan audit was taken one commit earlier at `b6ce417` — every anchor below holds at `92f7c4f`).
   `figaro submodule update` never touches it. IGLOO links `FiNeR OSLO ORION` only — it cannot read FLINT.
-- **ATLAS `main` is broken at 0015e33** ("new ORION commit", ORION c9fe983 → 34f4397 "improve tecplot ASCII reader"):
-  every mesh-reading ATLAS case SIGSEGVs after "Reading mesh file ... Done!" (22/30 red, reproduced locally). The feat
-  branch is based on db4b213 and pins ORION c9fe983. Report to Marco; do not bump hydra's ATLAS gitlink to 0015e33.
+- **ATLAS `main` was broken at 0015e33** ("new ORION commit", ORION c9fe983 → 34f4397 "improve tecplot ASCII reader"):
+  every mesh-reading ATLAS case SIGSEGV'd after "Reading mesh file ... Done!" (22/30 red, reproduced locally, CI red).
+  Fixed upstream the same day: ORION e13eedb/92665c9/1d78e9c ("improve Tecplot ASCII reader", "add error diagnostic",
+  "Normalize line endings") and ATLAS 7b14e60 (`read_mesh.f90` now `stop 1`s on a reader error); CI green again from
+  7b14e60 on. The feat branch was rebased onto 72c7d70 (ORION 1d78e9c) and its full ctest re-run from a clean build.
+  Bump hydra's ATLAS gitlink to the merged SHA, never to 0015e33 itself.
 - **What ATLAS writes now.** `<name>phase.txt`: line 1 = type word (`condensed-dispersed` | `liquid-dispersed` |
   `solid-dispersed` | `solid-bulk`) optionally followed by ` modeling=lagrangian|eulerian`; then one `<name> <groups>`
   line per material, followed by zero or more `key=value` tokens **once item 3 is done** (today `builder.py` still passes
@@ -146,7 +149,7 @@ discriminator).
 ## 6. P9 hydra half
 
 - Bump the gitlink: `cd utils/ATLAS && git fetch && git checkout <merged sha>` then `git -C hydra add utils/ATLAS`
-  (commit with the user's other work; never `git add -A`). NOT to 0015e33 (see §0).
+  (commit with the user's other work; never `git add -A`). Any SHA from 7b14e60 on is fine; 0015e33 alone is broken (see §0).
 - `rm -rf utils/ATLAS/build-fix` (28 MB stale build tree, untracked). Decide `utils/ATLAS/database/chemistry/Singh.yaml`
   (commit to ATLAS or delete). After the stash in §0: `git -C utils/ATLAS stash list` → `atlas-p0-dirty` holds the
   pre-plan dirty files (`types_block.f90` OMP comment-out, `io_fields.f90` CD→DP which landed as P2 commit 117d8cc)
