@@ -1,8 +1,6 @@
 name: CTest
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -37,7 +35,6 @@ jobs:
       - name: Build with install.sh
         run: |
           chmod +x ./install.sh
-          # Use GNU compilers and create ct-env for GPB/KAnT tests.
           ./install.sh build --compilers=gnu
 
       - name: Sanity check GPB Python deps
