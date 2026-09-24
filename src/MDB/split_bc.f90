@@ -68,6 +68,8 @@ contains
     integer :: nm, nn, li, lj, lk, pi, pj, pk, pm, pn, ord, side, dir
     integer :: qi, qj, qk, ti, tj, tk, q, nb1, nb2, ncut, nused, nwritten, nrec_in
     integer :: don(4), cn(9)
+    integer :: cn_tail(9), ios_tail
+    character(len=32) :: tail
     integer, allocatable :: ldim(:,:), llo(:,:), lhi(:,:)
     integer, allocatable :: dldim(:,:), dllo(:,:), dlhi(:,:)
     logical :: have_donor
@@ -167,7 +169,12 @@ contains
                   write(*,'(A,I0)') ' [ERROR] malformed connection record at line ', rec_hdr(r)+1
                   call finish(); return
                 endif
+                tail = ''
                 if (t == 103) then
+                  ! Fluid phases append the interface roughness to a 103 record: carry
+                  ! its text over unchanged. Older files have none, and are written as before.
+                  read(line,*,iostat=ios_tail) cn_tail(1:9), tail
+                  if (ios_tail /= 0) tail = ''
                   ! Inter-phase connection: the donor is numbered in the other
                   ! phase, so it must be located in that phase's decomposition.
                   if (.not. have_donor) then
@@ -185,6 +192,8 @@ contains
                   call finish(); return
                 endif
                 write(line,'(9I8)') q, qi, qj, qk, cn(5), cn(6), cn(7), cn(8), cn(9)
+                if (len_trim(tail) > 0) &
+                  line = trim(line)//repeat(' ', max(1, 16-len_trim(tail)))//trim(tail)
                 call put(trim(line)//NL)
 
               case(102)

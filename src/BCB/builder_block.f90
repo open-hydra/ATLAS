@@ -216,6 +216,7 @@ contains
         this%bc%ci_properties      = face%bc%ci_properties
         this%bc%adj_assigned       = .false.
         this%bc%connection         = face%bc%connection
+        this%bc%ci_ks              = face%bc%ci_ks
 
         ! IG
         this%bc%ig_id              = face%bc%ig_id

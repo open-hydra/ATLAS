@@ -1,0 +1,4 @@
+# x [m]   ks [m]   -- tent profile, wider than the face (0 <= x <= 1)
+-0.1   1.0e-5
+ 0.5   1.0e-4
+ 1.1   1.0e-5

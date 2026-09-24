@@ -90,6 +90,9 @@ module io_write_bc_mod
               do i = 1, size(this % connection)
                 write(unitfile,'(I8)',advance='no') this % connection(i)
               enddo
+              ! Multi-solver interface: trailing wall roughness (3-D records only)
+              if (this % gp_id==103 .and. mesh_cfg%meshType>0) &
+                write(unitfile,'(E16.6)',advance='no') this % ci_ks
               write(unitfile,'(A)') ''
 
             case(102)

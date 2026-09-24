@@ -198,8 +198,10 @@ set_tests_properties(x-variable PROPERTIES
 #                   which pins the cut placement, the block numbering and the
 #                   canonical record order MOSE's ghost exchange relies on
 #
-# The BC files are integer records copied verbatim, so an exact diff is right
-# here -- no numeric tolerance is needed as it is for the chimera cases.
+# The BC files are integer records copied verbatim -- the one real value, the
+# roughness trailing a fluid-phase 103 record, is carried over as text -- so an
+# exact diff is right here: no numeric tolerance is needed as it is for the
+# chimera cases.
 
 # ---- MDB : coupled-phases (two-phase interface remapping) -------------
 # A fluid block over a solid block, split with different rank counts so the two
@@ -214,6 +216,38 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases"
 )
 set_tests_properties(coupled-phases PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : coupled-phases-ks (uniform roughness on the interface) -------------
+# coupled-phases with ks on the gas connection.  A fluid phase writes the
+# roughness after the integers of each 103 record, and MDB has to carry it
+# through the split.  The solid phase writes none, so its file and both
+# decompositions are diffed against coupled-phases itself: adding the
+# roughness must leave them untouched.
+add_test(
+    NAME    coupled-phases-ks
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map ../coupled-phases/reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map ../coupled-phases/reference/plate-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/plate-bc.txt ../coupled-phases/reference/plate-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases-ks"
+)
+set_tests_properties(coupled-phases-ks PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : coupled-phases-ksfile (roughness varying along x, real fluid) -----
+# Same interface, real-fluid gas, ks read from a file along x: the connection
+# is then built facelet by facelet, each 103 record getting the value at its
+# own centre.  Same checks as coupled-phases-ks.
+add_test(
+    NAME    coupled-phases-ksfile
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map ../coupled-phases/reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map ../coupled-phases/reference/plate-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/plate-bc.txt ../coupled-phases/reference/plate-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases-ksfile"
+)
+set_tests_properties(coupled-phases-ksfile PROPERTIES
     LABELS      "MDB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

@@ -66,6 +66,11 @@ module bcb_config_mod
     integer :: face = 0
   end type bcb_manifold_config_t
 
+  type, public :: bcb_connection_config_t
+    real(R8) :: ks = 0.0_R8
+    logical  :: has_ks = .false.
+  end type bcb_connection_config_t
+
   type, public :: bcb_wall_fluid_config_t
     real(R8) :: q = 0.0_R8
     real(R8) :: T = 0.0_R8
@@ -167,6 +172,7 @@ module bcb_config_mod
   public :: load_bcb_face_runtime_config
   public :: load_bcb_periodic_config
   public :: load_bcb_manifold_config
+  public :: load_bcb_connection_config
   public :: load_bcb_wall_fluid_config
   public :: load_bcb_wall_solid_config
   public :: load_bcb_ig_boundary_config
@@ -358,6 +364,20 @@ contains
     call sourceini%get(section_name=section, option_name='face', val=cfg%face, error=error)
     if (error /= 0) cfg%face = 0
   end subroutine load_bcb_manifold_config
+
+  subroutine load_bcb_connection_config(sourceini, section, cfg)
+    implicit none
+    type(file_ini), intent(in)                 :: sourceini
+    character(*), intent(in)                   :: section
+    type(bcb_connection_config_t), intent(out) :: cfg
+
+    integer :: error
+
+    ! Optional: a connection without ks is a smooth interface
+    call sourceini%get(section_name=section, option_name='ks', val=cfg%ks, error=error)
+    cfg%has_ks = error == 0
+    if (.not. cfg%has_ks) cfg%ks = 0.0_R8
+  end subroutine load_bcb_connection_config
 
   subroutine load_bcb_wall_fluid_config(sourceini, section, cfg)
     implicit none

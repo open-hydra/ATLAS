@@ -18,6 +18,7 @@ module bc_mod
     integer, allocatable       :: ci_properties(:)
     integer                    :: connection(4)=0
     logical                    :: adj_assigned=.false.
+    real(8)                    :: ci_ks=0.0d0      ! roughness seen by the fluid on a 103 interface
     ! Ideal gas
     integer                    :: ig_id=0
     integer                    :: ig_n=0
@@ -43,6 +44,7 @@ module bc_mod
     procedure, pass(self)      :: build_inflow_outflow_dp
     procedure, pass(self)      :: build_wall_fluid
     procedure, pass(self)      :: build_wall_solid
+    procedure, pass(self)      :: build_connection
     procedure, pass(self)      :: build_periodic
     procedure, pass(self)      :: build_manifold
     procedure, pass(self)      :: build_srm_ig
@@ -72,6 +74,13 @@ module bc_mod
     end subroutine
 
     module subroutine build_wall_solid(self, sourceini, section, phase)
+      class(bc_t),          intent(inout) :: self
+      type(file_ini),       intent(in)    :: sourceini
+      character(len=*),     intent(in)    :: section
+      type(phase_t),        intent(in)    :: phase
+    end subroutine
+
+    module subroutine build_connection(self, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
       type(file_ini),       intent(in)    :: sourceini
       character(len=*),     intent(in)    :: section
@@ -139,6 +148,10 @@ contains
 
     case(trim(MARKER_CONN), trim(MARKER_CHIM))
       self % gp_id = 100
+      ! Fluid phases only: the roughness ends up on the 103 records of their bc file
+      if (trim(self % definition)==trim(MARKER_CONN) .and. &
+          (phase % type=='IG' .or. phase % type=='RF')) &
+        call build_connection(self, sourceini, section, phase)
       return
 
     case(trim(MARKER_AXIS))
