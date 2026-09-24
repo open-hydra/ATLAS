@@ -143,6 +143,23 @@ set_tests_properties(IG-chimera+connection PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG+SP-force-chimera (inter-phase chimera, id 104) ----------------
+# IG-force-chimera's mesh and faces, with the large block in a gas phase and the
+# small one in a solid phase. With BC-force-chimera the facelets that see the
+# other block become chimera; receiver and donor belong to different phases, so
+# both gas-bc.txt and solid-bc.txt write them as 104 instead of 102. Same
+# numeric tolerance as IG-chimera.
+add_test(
+    NAME    IG+SP-force-chimera
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/solid-bc.txt fromATLAStoSolver/solid-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG+SP-force-chimera"
+)
+set_tests_properties(IG+SP-force-chimera PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-force-chimera (partial interface, BC-force-chimera) ------------
 # A small fine block overlaps only a strip of a large coarse block. The large
 # block's face and the small block's lateral faces are declared symmetry; with
