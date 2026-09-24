@@ -7,6 +7,17 @@ module bc_mod
   implicit none
   private
 
+  !> Boundary data of ONE dispersed phase on a face/cell. bc_t holds one slot per
+  !> dispersed phase built on it, found by exact phase name (dp_slot).
+  type, public :: dp_slot_t
+    character(len=128)         :: phase_name = ''
+    integer                    :: id = 0
+    integer                    :: n  = 0
+    real(8),       allocatable :: properties(:,:,:)     ! material x population x property
+    character(32), allocatable :: distribution(:,:)    ! material x population
+    real(8),       allocatable :: ds(:,:)              ! material x population (meters)
+  end type dp_slot_t
+
   type, public:: bc_t
     ! General
     character(len=20)          :: name
@@ -25,12 +36,8 @@ module bc_mod
     logical,       allocatable :: ig_time(:)
     real(8),       allocatable :: ig_properties(:)
     type(species_t)            :: ig_species
-    ! Dispersed particles
-    integer                    :: dp_id=0
-    integer                    :: dp_n=0
-    real(8),       allocatable :: dp_properties(:,:,:)
-    character(32), allocatable :: dp_distribution(:,:)   ! material x population
-    real(8),       allocatable :: dp_ds(:,:)             ! material x population (meters)
+    ! Dispersed particles: one slot per dispersed phase associated with the block (P4)
+    type(dp_slot_t), allocatable :: dp(:)
     ! Solid phase
     integer                    :: sp_id=0
     integer                    :: sp_n=0
@@ -41,6 +48,7 @@ module bc_mod
     procedure, pass(self)      :: build
     procedure, pass(self)      :: build_inflow_outflow_ig
     procedure, pass(self)      :: build_inflow_outflow_dp
+    procedure, pass(self)      :: dp_slot
     procedure, pass(self)      :: build_wall_fluid
     procedure, pass(self)      :: build_wall_solid
     procedure, pass(self)      :: build_periodic
@@ -57,8 +65,9 @@ module bc_mod
       type(phase_t),        intent(in)    :: phase
     end subroutine
 
-    module subroutine build_inflow_outflow_dp(self, sourceini, section, phase)
+    module subroutine build_inflow_outflow_dp(self, k, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
+      integer,              intent(in)    :: k
       type(file_ini),       intent(in)    :: sourceini
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
@@ -117,6 +126,7 @@ contains
     type(phase_t),        intent(in)    :: phase
     type(file_ini),       intent(in)    :: sourceini
     character(len=*),     intent(in)    :: section
+    integer                             :: k
 
     ! Further initialization
     if (mesh_cfg%meshType==-1) then
@@ -143,6 +153,8 @@ contains
 
     case(trim(MARKER_AXIS))
       self % gp_id = 200
+      ! [<face>] <phase>-type = outlet : that dispersed phase leaves through the axis (400)
+      if (phase % type == 'DP') call dispersed_axis_override(self, sourceini, section, phase)
       return
 
     case(trim(MARKER_SYM))
@@ -194,17 +206,19 @@ contains
     ! Dispersed phase
     case('DP')
 
+      k = self % dp_slot(phase % name)
+
       select case(trim(self % definition))
       case(trim(MARKER_SYM))
-        self % dp_id = 300
-        self % dp_n = 0
+        self % dp(k) % id = 300
+        self % dp(k) % n = 0
 
       case (trim(MARKER_WALL))
-        self % dp_id = 301
-        self % dp_n = 0
+        self % dp(k) % id = 301
+        self % dp(k) % n = 0
 
       case (trim(MARKER_INLET), trim(MARKER_OUTLET))
-        call build_inflow_outflow_dp(self, sourceini, section, phase)
+        call build_inflow_outflow_dp(self, k, sourceini, section, phase)
 
       ! case default
       !   write(*,*) '[ERROR] BC definition ', trim(self % definition), ' not implemented for dispersed phase'
@@ -234,6 +248,60 @@ contains
     end select
 
   end subroutine build
+
+
+  !> Index of the slot holding `phase_name` in self % dp, appending an empty one when
+  !> absent. Exact name match, never substring. Every dispersed phase built on a
+  !> face/cell therefore keeps its own id and payload arrays.
+  function dp_slot(self, phase_name) result(k)
+    implicit none
+    class(bc_t),      intent(inout) :: self
+    character(len=*), intent(in)    :: phase_name
+    integer                         :: k
+    type(dp_slot_t), allocatable    :: tmp(:)
+
+    if (.not. allocated(self % dp)) allocate(self % dp(0))
+    do k = 1, size(self % dp)
+      if (trim(self % dp(k) % phase_name) == trim(phase_name)) return
+    enddo
+    allocate(tmp(1:size(self % dp)+1))
+    tmp(1:size(self % dp)) = self % dp
+    call move_alloc(tmp, self % dp)
+    k = size(self % dp)
+    self % dp(k) % phase_name = phase_name
+  end function dp_slot
+
+
+  !> Dispersed-phase override on an axisymmetric face:
+  !>   [<face>]  type = axisymmetric  +  <phase>-type = outlet
+  !> The gas keeps 200; this phase's slot gets 400 (particles leave through the axis).
+  !> Only 'outlet' is accepted: the wedge faces IGLOO folds on must stay 200 and nothing
+  !> else makes sense on an axis. The auto-tagged wedge faces of a 2Daxi mesh carry no
+  !> section, so the key is absent there and they keep 200.
+  subroutine dispersed_axis_override(self, sourceini, section, phase)
+    implicit none
+    class(bc_t),          intent(inout) :: self
+    type(file_ini),       intent(in)    :: sourceini
+    character(len=*),     intent(in)    :: section
+    type(phase_t),        intent(in)    :: phase
+    character(len=64)                   :: w
+    integer                             :: error, k
+
+    if (len_trim(phase % name) == 0) return
+    w = ''
+    call sourceini%get(section_name=section, option_name=trim(phase % name)//'-type', val=w, error=error)
+    if (error /= 0) return
+    k = self % dp_slot(phase % name)
+    select case (trim(adjustl(w)))
+    case ('outlet')
+      self % dp(k) % id = 400
+      self % dp(k) % n  = 0
+    case default
+      write(*,'(A)') '[ERROR] '//trim(phase % name)//'-type = '//trim(adjustl(w))// &
+                     ': only "outlet" is allowed for a dispersed phase on an axisymmetric face'
+      stop 1
+    end select
+  end subroutine dispersed_axis_override
 
   ! subroutine MOSKA_connection(self, sourceini, section)
   !   use finer, only: file_ini

@@ -2,6 +2,7 @@ import cantera as ct
 from . import properties as CP_properties
 from . import io as CP_IO
 from ini import *
+from ini.condensed import phase_header_word
 import os, sys
 from config import setup_cantera_dirs, CEA_TRANS_FILE
 
@@ -16,6 +17,7 @@ class Material:
         self.density = None
         self.specific_heat = None
         self.thermal_conductivity = None
+        self.h0 = None   # [J/kg] enthalpy at 298.15 K, fixed-cp materials only (optional [GPB-Phase*] h0)
     
     def load_from_cantera(self, cantera_solution):
         """
@@ -23,7 +25,7 @@ class Material:
         """
         self.solution = cantera_solution
 
-def build(type,inifile,section):
+def build(type,inifile,section,modeling=None):
 
     # ---------------------------------------------------
     # Initialization of variables
@@ -44,9 +46,10 @@ def build(type,inifile,section):
         string = name[:-1]  # Remove the last character
     else:
         string = 'no name'
-    if 'dispersed' in type:
+    header = phase_header_word(type)
+    if header.endswith('-dispersed'):
         print(' - Condensed-dispersed phase:', string)
-    elif type == 'solid':
+    else:
         print(' - Solid phase:', string)
     print()
 
@@ -69,13 +72,18 @@ def build(type,inifile,section):
     # T-varying material
     if fix_cp is None and thermo_model != 'SP-database':
         print(' -- Found T-varying properties materials')
-        materials = [s for s in all_mat if s.name in material_names]
+        # INI order, not database order: groups[i], fix_rho[i] and material_tokens[i]
+        # are indexed by the position in the INI `material` list
+        materials = sorted([s for s in all_mat if s.name in material_names],
+                           key=lambda s: material_names.index(s.name))
         for i, m in enumerate(materials):
             ct_solution = ct.Solution(thermo='fixed-stoichiometry', species=[m])
             material = Material(name=ct_solution.species_names[0], type='cantera')
             material.load_from_cantera(ct_solution)
             if material.density is None:
                 material.density = fix_rho[i]
+            # the solid layout writes a conductivity column: optional k per material, else 0 (as the fixed branch)
+            material.thermal_conductivity = fix_k[i] if fix_k is not None else 0.0
             material_group.append(material)
     # ---------------------------------------------------
 
@@ -83,10 +91,13 @@ def build(type,inifile,section):
     # T-constant material
     if fix_cp is not None:
         print(' -- Found fixed properties materials')
+        fix_h0 = CP_read_enthalpy_datum(inifile, section, len(fix_cp))
         for i in range(len(fix_cp)):
             material = Material(name=material_names[i],type='fixed')
             material.density = fix_rho[i]
             material.specific_heat = fix_cp[i]
+            if fix_h0 is not None:
+                material.h0 = fix_h0[i]
             try:
                 material.thermal_conductivity = fix_k[i]
             except:
@@ -104,9 +115,17 @@ def build(type,inifile,section):
     # ---------------------------------------------------
 
     # ---------------------------------------------------
+    # Per-material solver model tokens: validated here so a bad key
+    # fails GPB, aligned with material_group (its length = number of
+    # materials), written as key=value after '<name> <groups>' on the
+    # material line of <name>phase.txt (IGLOO reads them there).
+    # ---------------------------------------------------
+    material_tokens = CP_read_material_models(inifile, section, len(material_group))
+
+    # ---------------------------------------------------
     # Write materials name and groups number
     # ---------------------------------------------------
-    CP_IO.write_basics(type, name, material_group, groups)
+    CP_IO.write_basics(type, name, material_group, groups, modeling, material_tokens=material_tokens)
 
     # ---------------------------------------------------
     # Build physical and thermal properties

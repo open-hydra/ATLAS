@@ -128,13 +128,12 @@ contains
 
   subroutine read_dp_properties(prefix, mat)
     use phase_mod, only: material_t
-    use strings, only: parse
     use Lib_Tecplot
     implicit none
     character(len=*), intent(in):: prefix
     type(material_t), intent(inout) :: mat
-    integer :: i, n, ios, Ti1, Ti2, unitfile
-    character(len=30) :: wholestring, args(2)
+    integer :: i, n, ios, Ti1, Ti2, unitfile, k
+    character(len=512) :: wholestring, token, rest, groups
     type(orion_data) :: orion
 
     open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
@@ -152,9 +151,39 @@ contains
     read(unitfile,*)!skip first line
     do i = 1, n
       read(unitFile,'(A)') wholestring
-      call parse(wholestring,' ',args)
-      mat%name(i) = trim(adjustl(args(1)))
-      read(args(2),*,iostat=ios) mat%npCP(i)
+      ! P3: the line is "<material> [<groups>] [key=value ...]"; only the first
+      ! two blank-separated tokens are used here, the key=value tokens are for
+      ! the solvers. solid-bulk lines may carry the name alone (groups -> 1).
+      do k = 1, len_trim(wholestring)
+        if (wholestring(k:k) == achar(9)) wholestring(k:k) = ' '
+      enddo
+      wholestring = adjustl(wholestring)
+      k = index(wholestring, ' ')
+      token = wholestring(1:k-1)
+      rest = adjustl(wholestring(k:))
+      k = index(rest, ' ')
+      groups = rest(1:k-1)
+      if (len_trim(token) == 0) then
+        write(*,'(*(g0))') '[ERROR] phase file '//trim(prefix)//'phase.txt line ', i+1, &
+                           ': expected "<material> <groups>", got an empty line'
+        stop 1
+      endif
+      if (len_trim(token) > len(mat%name)) then
+        write(*,'(*(g0))') '[ERROR] phase file '//trim(prefix)//'phase.txt line ', i+1, &
+                           ': material name "'//trim(token)//'" exceeds ', len(mat%name), ' characters'
+        stop 1
+      endif
+      mat%name(i) = trim(token)
+      if (len_trim(groups) == 0) then
+        mat%npCP(i) = 1
+      else
+        read(groups,*,iostat=ios) mat%npCP(i)
+        if (ios /= 0) then
+          write(*,'(*(g0))') '[ERROR] phase file '//trim(prefix)//'phase.txt line ', i+1, &
+                             ': groups count "'//trim(groups)//'" is not an integer'
+          stop 1
+        endif
+      endif
     end do
     close(unitFile)
 
@@ -180,7 +209,7 @@ contains
     implicit none
     type(phase_t), allocatable, intent(inout) :: phase(:)
     character(len=128) :: filename, stringa(2)
-    integer :: i, num_files, u, ios
+    integer :: i, j, k, num_files, u, ios
     character(len=128), allocatable :: file_list(:)
     character(len=128) :: type
 
@@ -196,6 +225,13 @@ contains
       phase%name = ''
       do i = 1, size(phase)
         filename = trim(adjustl(file_list(i)))
+        ! P3: the name is '<name>-phase.txt' or 'phase.txt'; a second '-' would
+        ! overrun stringa(2) inside parse() (ORION writes args(nargs) unchecked)
+        if (count([(filename(k:k) == '-', k = 1, len_trim(filename))]) > 1) then
+          write(*,'(A)') '[ERROR] phase file name must contain at most one "-" (<name>-phase.txt): '// &
+                         trim(filename)
+          stop 1
+        endif
         call parse(filename,'-',stringa)
         if (stringa(2)=='') then
           stringa(2) = stringa(1)
@@ -226,6 +262,29 @@ contains
         endif
         phase(i)%name = stringa(1)
       end do
+      ! P5: phase names must be distinct, all named or a single unnamed file, and
+      ! never a substring of one another (BCB/ICB associate blocks to phases by name)
+      do i = 1, size(phase)
+        do j = 1, size(phase)
+          if (i == j) cycle
+          if (len_trim(phase(i)%name) == 0 .and. len_trim(phase(j)%name) > 0) then
+            write(*,'(A)') '[ERROR] unnamed phase file '//trim(file_list(i))// &
+                           ' cannot coexist with named phase file '//trim(file_list(j))
+            stop 1
+          endif
+          if (len_trim(phase(i)%name) == 0) cycle
+          if (trim(phase(i)%name) == trim(phase(j)%name)) then
+            write(*,'(A)') '[ERROR] duplicate phase name "'//trim(phase(i)%name)//'": '// &
+                           trim(file_list(i))//' and '//trim(file_list(j))
+            stop 1
+          endif
+          if (index(trim(phase(j)%name), trim(phase(i)%name)) > 0) then
+            write(*,'(A)') '[ERROR] phase name "'//trim(phase(i)%name)//'" ('//trim(file_list(i))// &
+                           ') is a substring of "'//trim(phase(j)%name)//'" ('//trim(file_list(j))//')'
+            stop 1
+          endif
+        enddo
+      enddo
       deallocate(file_list)
     else
       ! If no species or material file is present, ideal-gas phase is assumed
