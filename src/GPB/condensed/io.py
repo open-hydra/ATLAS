@@ -10,7 +10,7 @@ ensure_output_dir()
 def write_basics(type, name, mat_phases, groups, modeling=None, material_tokens=None):
     """<name>phase.txt: line 1 = type word [+ ' modeling=<v>'], then one
     '<name> <groups>[ key=value ...]' line per material. material_tokens is a
-    per-material list of 'key=value' strings (nothing is written until P3 wires it)."""
+    per-material list of 'key=value' strings to append after the group count.
 
     # Write the data to a free-format ASCII file
     filename = outpath + name + "phase.txt"
