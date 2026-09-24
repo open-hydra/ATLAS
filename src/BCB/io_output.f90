@@ -325,6 +325,9 @@ module io_write_bc_mod
                     write(unitfile,'(I8)',advance='no') this % connection(i)
                   enddo
                   write(unitfile,'(A)') ''
+              
+                case(102)
+                  call write_chimera(blk(b)%face(f), f, Ai, Aj, Ak)
 
                 end select
 
