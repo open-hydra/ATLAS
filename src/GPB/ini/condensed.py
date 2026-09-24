@@ -113,9 +113,15 @@ def CP_read_enthalpy_datum(ini_file, section, nmat):
   """Optional `h0` [J/kg]: enthalpy of each fixed-cp material at 298.15 K (one value per material; a single
   value is broadcast). None when absent -> the Enthalpy column stays the relative cp*T."""
 
-  h0 = get(ini_file, section, 'h0', np.ndarray)
-  if h0 is None:
+  # read as strings: PiNeR's np.ndarray path returns None on a non-numeric value, which
+  # would turn a mistyped h0 into "no h0" and silently write the relative cp*T column
+  vals = get(ini_file, section, 'h0', list)
+  if vals is None:
     return None
+  try:
+    h0 = np.asarray([float(v) for v in vals])
+  except ValueError:
+    raise SystemExit(f"[ERROR] [{section}] h0 = '{' '.join(vals)}': expected real number(s)")
   if h0.size == 1:
     h0 = np.repeat(h0, nmat)
   if h0.size != nmat:
