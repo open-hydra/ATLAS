@@ -584,6 +584,7 @@ contains
     integer                 :: k,i,m,n,t
     integer                 :: ni_per_receiver
     logical                 :: nodeinside_local(8)
+    integer                 :: p1, p2
 
     localID = [br,ir,jr,kr]
     volume = 0.d0
@@ -618,7 +619,19 @@ contains
     
     allocate(block(br)%face(fr)%cell(ir,jr,kr)%chimerainfo(1:ni_per_receiver,1:5))
     call ijk2mn(ir,jr,kr,fr,m,n)
-    block(br)%face(fr)%center(m,n)%bc%gp_id = 102
+    
+    block(br)%face(fr)%center(m,n)%bc%gp_id = 104
+    do i = 1, ni
+      if (all(intersection(i)%receiverID==localID)) then
+        do p1 = 1, size(block(br)%associated_phase)
+          do p2 = 1, size(block(intersection(i)%donorID(1))%associated_phase)
+              if (block(br)%associated_phase(p1)%name==block(intersection(i)%donorID(1))%associated_phase(p2)%name) then
+                block(br)%face(fr)%center(m,n)%bc%gp_id = 102
+            endif
+          enddo
+        enddo
+      endif
+    enddo
 
     k = 0
     do i = 1, ni

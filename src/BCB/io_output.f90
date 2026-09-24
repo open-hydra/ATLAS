@@ -95,7 +95,7 @@ module io_write_bc_mod
                 write(unitfile,'(E16.6)',advance='no') this % ci_ks
               write(unitfile,'(A)') ''
 
-            case(102)
+            case(102, 104)
               call write_chimera(blk(b)%face(f), f, Ai, Aj, Ak)
 
             end select
@@ -217,7 +217,7 @@ module io_write_bc_mod
               enddo
               write(unitfile,'(A)') ''
 
-            case(102)
+            case(102, 104)
               call write_chimera(blk(b)%face(f), f, Ai, Aj, Ak)
 
             end select
