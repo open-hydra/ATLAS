@@ -103,7 +103,7 @@ condensed-dispersed modeling=lagrangian
 
 - the type word is `condensed-dispersed`, `liquid-dispersed` or `solid-dispersed` for a dispersed phase (it is the `type` you wrote), or `solid-bulk` for a solid phase (`type = solid` and `type = solid-bulk` both write `solid-bulk`)
 - ` modeling=lagrangian` or ` modeling=eulerian` is appended only when `[GPB-Phase*] modeling` is set; it is ignored for a solid phase. hydra-MI2 cross-checks it against the solver that claims the phase
-- then one line per material: the material name, the number of groups, and zero or more `key=value` tokens (none are written today); tokens are space-separated and never contain `=` elsewhere
+- then one line per material: the material name, the number of groups, and zero or more configured `key=value` tokens; tokens are space-separated and never contain `=` elsewhere
 
 ```text
 <material_name> <groups>[ key=value ...]
