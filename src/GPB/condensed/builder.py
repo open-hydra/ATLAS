@@ -72,7 +72,10 @@ def build(type,inifile,section,modeling=None):
     # T-varying material
     if fix_cp is None and thermo_model != 'SP-database':
         print(' -- Found T-varying properties materials')
-        materials = [s for s in all_mat if s.name in material_names]
+        # INI order, not database order: groups[i], fix_rho[i] and material_tokens[i]
+        # are indexed by the position in the INI `material` list
+        materials = sorted([s for s in all_mat if s.name in material_names],
+                           key=lambda s: material_names.index(s.name))
         for i, m in enumerate(materials):
             ct_solution = ct.Solution(thermo='fixed-stoichiometry', species=[m])
             material = Material(name=ct_solution.species_names[0], type='cantera')
@@ -112,13 +115,12 @@ def build(type,inifile,section,modeling=None):
     # ---------------------------------------------------
 
     # ---------------------------------------------------
-    # Per-material solver model tokens (P3): validated here so a bad key
+    # Per-material solver model tokens: validated here so a bad key
     # fails GPB, aligned with material_group (its length = number of
-    # materials). NOT written yet: the line below keeps them out of the
-    # phase file until the IGLOO/ICE/MI2 readers accept tokens.
+    # materials), written as key=value after '<name> <groups>' on the
+    # material line of <name>phase.txt (IGLOO reads them there).
     # ---------------------------------------------------
     material_tokens = CP_read_material_models(inifile, section, len(material_group))
-    material_tokens = None  # P3.5: delete this line once the IGLOO/ICE/MI2 readers accept tokens (hydra-side handoff)
 
     # ---------------------------------------------------
     # Write materials name and groups number

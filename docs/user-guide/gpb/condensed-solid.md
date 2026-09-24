@@ -86,10 +86,6 @@ single value is broadcast to every material). GPB validates them and writes them
 `<material> <groups>` on the material line of `<name>-phase.txt`; the solvers consume the tokens, ATLAS's own
 readers (BCB/ICB) ignore them. An absent key emits no token and the solver's default applies.
 
-!!! note
-    The keys are validated by GPB but **not yet written** to the phase file: the IGLOO/ICE/MI2 readers have
-    to accept tokens first (hydra-side change). Until then a key in `[GPB-Phase*]` is checked and discarded.
-
 ```ini
 [GPB-Phase1]
 type        = condensed-dispersed

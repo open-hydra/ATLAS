@@ -22,8 +22,8 @@ acceptance, P9 hydra half, §10. Every file:line below was re-verified on 2026-0
   Bump hydra's ATLAS gitlink to the merged SHA, never to 0015e33 itself.
 - **What ATLAS writes now.** `<name>phase.txt`: line 1 = type word (`condensed-dispersed` | `liquid-dispersed` |
   `solid-dispersed` | `solid-bulk`) optionally followed by ` modeling=lagrangian|eulerian`; then one `<name> <groups>`
-  line per material, followed by zero or more `key=value` tokens **once item 3 is done** (today `builder.py` still passes
-  `material_tokens=None`, so no token is emitted). `<name>properties.dat`: 4 columns in the same ORDER, column 4 named
+  line per material, followed by zero or more `key=value` tokens (item 3 landed on the branch: GPB writes them, reals
+  as `{v:.10g}`; test `CP-fixmat-tokens`). `<name>properties.dat`: 4 columns in the same ORDER, column 4 named
   `Enthalpy` (relative: `cp·T`, or the SP-database integral) or `Enthalpy_abs` (absolute: NASA/Burcat tables, or fixed
   `cp` with the new `[GPB-Phase*] h0`). `<name>-bc.txt`: per-phase ids/payloads (P4), exact phase-name matching (P5),
   `<phase>-type = outlet` on a `type = axisymmetric` face (P6).
@@ -88,11 +88,11 @@ Gates: `test/mi2-checks/p1_routing_checks.sh <scratch-root>` (evap-box-ta permut
 
 ## 3. P3.5 — wire the token writer and regenerate
 
-- In ATLAS (`src/GPB/condensed/builder.py`, on the branch or on `main` after merge): delete the line
-  `material_tokens = None  # P3.5: ...` that follows `material_tokens = CP_read_material_models(...)`; the call
-  `CP_IO.write_basics(..., material_tokens=material_tokens)` then emits the tokens. Commit, push, bump the gitlink (item 6).
-- Caveat: in the T-varying branch of `builder.py` `material_group` follows the database order of `all_mat`, not the INI
-  `material` order; map tokens by `m.name` rather than by index there, or assert the two orders agree.
+- **DONE on the branch (2026-09-24):** the `material_tokens = None` line is gone from `src/GPB/condensed/builder.py`, so
+  `CP_IO.write_basics(..., material_tokens=material_tokens)` emits the tokens; test `CP-fixmat-tokens` gates it. The
+  T-varying (cantera) branch now sorts `materials` into INI order, so `groups[i]`, `rho[i]` and the tokens land on the
+  right material (before, two materials listed against database order swapped their densities, and would have swapped
+  their tokens). Remaining ATLAS action: bump the gitlink (item 6).
 - Token format: `key=value`, words verbatim, reals `{v:.10g}` (`4.5e-07`, `550`, `1000000`, `1`).
 - Regenerate: ATLAS `test/GPB/*dispersed*/reference/*phase.txt` (no INI carries a key today → byte-identical, run anyway);
   hydra `test/{evap-box,evap-box-ord2,evap-box-ta,evap-probe}` (`part-phase.txt` line 2 gains ` alpha-e=1`),

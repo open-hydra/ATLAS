@@ -452,3 +452,18 @@ set_tests_properties(CP-fixmat-h0 PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : CP-fixmat-tokens (per-material key=value tokens on the material line) ------------------
+# Same case as CP-fixmat-dispersed plus `evaporation = CEM` and `alpha-e = 0.5`: the material line must
+# read `AL2O3(L) 1 evaporation=CEM alpha-e=0.5` (IGLOO reads the tokens there). The properties table is
+# unaffected by the keys and stays byte-identical to CP-fixmat-dispersed's.
+add_test(
+    NAME    CP-fixmat-tokens
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-properties.dat reference/part-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-fixmat-tokens"
+)
+set_tests_properties(CP-fixmat-tokens PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
