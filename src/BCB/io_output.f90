@@ -37,7 +37,7 @@ module io_write_bc_mod
     match = .false.
     do b = 1, size(blk)
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) match = .true.
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) match = .true.
       enddo
     enddo
 
@@ -55,7 +55,7 @@ module io_write_bc_mod
     do b = 1, size(blk)
       match = .false.
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) match = .true.
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) match = .true.
       enddo
       if (.not.match) cycle
       mend(1:2) = blk(b)%dim(2); nend(1:2) = blk(b)%dim(3)
@@ -157,7 +157,7 @@ module io_write_bc_mod
     match = .false.
     do b = 1, size(blk)
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) match = .true.
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) match = .true.
       enddo
     enddo
 
@@ -175,7 +175,7 @@ module io_write_bc_mod
     do b = 1, size(blk)
       match = .false.
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) match = .true.
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) match = .true.
       enddo
       if (.not.match) cycle
       mend(1:2) = blk(b)%dim(2); nend(1:2) = blk(b)%dim(3)
@@ -259,6 +259,7 @@ module io_write_bc_mod
     integer                      :: i, j, b, mm, p, f, m, n, mend(6), nend(6), pCD
     integer                      :: print_id
     integer                      :: Ai, Aj, Ak, ii, jj, kk
+    integer                      :: k, ks
     logical                      :: match
 
     call execute_command_line('mkdir -p '//trim(outpath))
@@ -269,10 +270,11 @@ module io_write_bc_mod
       name_ = trim(name)//'-'
     endif
 
+    ! Exact phase-name match (a substring test would let 'part' claim 'partL')
     match = .false.
     do b = 1, size(blk)
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) match = .true.
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) match = .true.
       enddo
     enddo
 
@@ -290,7 +292,7 @@ module io_write_bc_mod
     do b = 1, size(blk)
       match = .false.
       do p = 1, size(blk(b)%associated_phase(:))
-        if (index(trim(name),trim(blk(b)%associated_phase(p)%name))>0) then
+        if (trim(name) == trim(blk(b)%associated_phase(p)%name)) then
           match = .true.
           pCD = p
         endif
@@ -309,10 +311,27 @@ module io_write_bc_mod
 
                 call fmn2ijk(f,m,n,blk(b)%dim(1),blk(b)%dim(2),blk(b)%dim(3),Ai,Aj,Ak)
 
+                ! Slot of THIS phase on this cell (exact name match); k = 0 when the cell
+                ! carries none (keyword BCs: null/connection/axisymmetric/... return before
+                ! the phase-specific build).
+                k = 0
+                if (allocated(this % dp)) then
+                  do ks = 1, size(this % dp)
+                    if (trim(this % dp(ks) % phase_name) == trim(name)) k = ks
+                  enddo
+                endif
+
                 if (this % gp_id/=0) then
                   print_id = this % gp_id
+                  ! Axis override ([<face>] <phase>-type = outlet): this phase's file carries
+                  ! 400 where the gas file keeps 200. No payload, like every other 400.
+                  if (k > 0) then
+                    if (this % dp(k) % id == 400 .and. this % gp_id == 200) print_id = 400
+                  endif
+                elseif (k > 0) then
+                  print_id = this % dp(k) % id
                 else
-                  print_id = this % dp_id
+                  print_id = 0
                 endif
 
                 if     (mesh_cfg%meshType==-1) then
@@ -339,24 +358,27 @@ module io_write_bc_mod
 
                 end select
 
-                ! The header carries a single id (print_id = gp_id if /=0, else dp_id);
+                ! The header carries a single id (print_id = gp_id if /=0, else the slot id);
                 ! the data line must match it. When gp_id/=0 the cell is presented as a
                 ! connection/periodic (its line was written above), so a coincident DP
                 ! injection (e.g. an srm face on a block interface) must NOT also emit a
-                ! dp line — the solver keys off the header id and would desync otherwise.
-                if (this % gp_id == 0) then
-                select case (this % dp_id)
+                ! dp line -- the solver keys off the header id and would desync otherwise.
+                if (this % gp_id == 0 .and. k > 0) then
+                select case (this % dp(k) % id)
                 ! 400-series -> inlet/outlet
                 case(401:403)
-                  do i = 1, size(blk(b)%face(f)%center(m,n)%bc%dp_properties,3)
-                    if (blk(b)%face(f)%center(m,n)%bc%dp_properties(mm,p,i) > 1000.0_R8) then
+                  do i = 1, size(this % dp(k) % properties,3)
+                    ! Only the direction slots (3 = alphap, 4 = betap) carry the huge() "unset"
+                    ! sentinel (config.f90) and print as 'normal,' -- mirrors write_ig_bc.
+                    ! Any other value (Tp = 2300 K, gp or Vp above 1e3, ...) prints as a number.
+                    if ((i == 3 .or. i == 4) .and. this % dp(k) % properties(mm,p,i) > 1e10_R8) then
                       write(unitfile,'(A16)',advance='no') 'normal,'
                     else
-                      write(unitfile,'(E14.5)',advance='no') blk(b)%face(f)%center(m,n)%bc%dp_properties(mm,p,i)
+                      write(unitfile,'(E14.5)',advance='no') this % dp(k) % properties(mm,p,i)
                     endif
                   enddo
-                  write(unitfile,'(X,A)',advance='no') trim(blk(b)%face(f)%center(m,n)%bc%dp_distribution(mm,p))
-                  write(unitfile,'(E14.5)',advance='no') blk(b)%face(f)%center(m,n)%bc%dp_ds(mm,p)
+                  write(unitfile,'(X,A)',advance='no') trim(this % dp(k) % distribution(mm,p))
+                  write(unitfile,'(E14.5)',advance='no') this % dp(k) % ds(mm,p)
                   write(unitfile,'(A)') ''
 
                 end select

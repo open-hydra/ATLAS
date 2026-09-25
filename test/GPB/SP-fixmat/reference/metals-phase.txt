@@ -1,0 +1,3 @@
+solid-bulk
+vanadium 1
+vibranium 1
