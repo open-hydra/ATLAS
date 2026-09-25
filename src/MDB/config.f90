@@ -10,8 +10,8 @@ module config_mdb_mod
 
   !> One phase of a (possibly coupled) case. ATLAS numbers blocks per phase and
   !> writes one BC file set per phase, so each phase is decomposed on its own;
-  !> the phases are tied together only by the type-103 records that cross the
-  !> fluid-solid interface.
+  !> the phases are tied together only by the type-103/104 records that cross the
+  !> phase interface.
   type, public :: mdb_phase_t
     character(len=llen) :: grid     = ''
     character(len=llen) :: grid_out = ''                 !< '' -> <grid>-split.<ext>
@@ -53,7 +53,7 @@ module config_mdb_mod
   character(len=*), parameter :: SEC  = 'MDB-Parameters'
   character(len=*), parameter :: PSEC = 'MDB-Phase*'
 
-  !> Upper bound on [MDB-Phase#] sections scanned. A type-103 record names only
+  !> Upper bound on [MDB-Phase#] sections scanned. A type-103/104 record names only
   !> (block,i,j,k) in "the other phase", so a coupled mesh is meaningful for two
   !> phases; the extra slots exist so a miscounted input fails loudly.
   integer, parameter, public :: MAXPHASE = 8
@@ -277,7 +277,7 @@ contains
     call reg%add(PSEC, 'grid', c%grid, '', &
       'Grid or grid+solution file of this phase. Declaring [MDB-Phase1] and &
       &[MDB-Phase2] puts MDB in coupled mode, which is required whenever the BC &
-      &files contain type-103 (fluid-solid interface) records.', '', .false.)
+      &files contain type-103 (inter-phase connection) or type-104 (inter-phase chimera) records.', '', .false.)
     call reg%add(PSEC, 'grid-out', c%grid_out, '', &
       'Output grid file for this phase (empty = <grid>-split.<ext>).', '', .false.)
     call reg%add(PSEC, 'bc-path', c%bc_in, 'INPUT', &
