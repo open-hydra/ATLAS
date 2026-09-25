@@ -95,7 +95,7 @@ program BCB
       case('IG', 'RF')
         call write_ig_bc(phase(b)%name,blk,m)
       case('DP')
-        call write_dp_bc(phase(b)%name,blk)
+        call write_dp_bc(phase(b)%name,blk,m)
       case('SP')
         call write_sp_bc(phase(b)%name,blk,m)
       end select

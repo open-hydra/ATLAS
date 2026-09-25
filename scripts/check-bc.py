@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """Self-consistency checker for a MOSE bc.txt.
 
-  * every boundary cell of every block appears exactly once
+  ./check-bc.py [--dispersed] <bc.txt> [...]
+
+  * every boundary cell of every block appears the same number of times
   * connection/periodic records are reciprocal
   * chimera donors point inside a real block (ghost layers allowed)
+
+--dispersed reads the file the way ATLAS_BCB::write_dp_bc wrote it: no property
+line under the 300-series, and the whole boundary table repeated once per
+(material, population) pair. Without it the 300-series is read with the gas and
+solid convention, one property line each.
 
 Type 103 is the fluid-solid interface of a coupled case. Its donor lives in the
 *other* phase, which ATLAS writes to a separate bc.txt with its own block
@@ -16,9 +23,14 @@ from collections import defaultdict
 ONE_PROP = set([101, 103, 201, 420]) | set(range(301, 310)) | set(range(401, 409)) | {410}
 ONE_PROP |= {501, 502}
 
+# A dispersed-phase file carries a property line only under a connection, a
+# chimera and a 401-403 inlet.
+ONE_PROP_DP = {101, 103, 201, 401, 402, 403}
 
-def parse(path):
-    recs = {}          # (b,i,j,k,f) -> (type, propline)
+
+def parse(path, dispersed=False):
+    one_prop = ONE_PROP_DP if dispersed else ONE_PROP
+    recs = defaultdict(list)   # (b,i,j,k,f) -> [(type, propline), ...] one per copy
     chim = []          # (b,i,j,k,f, [(db,di,dj,dk)])
     dims = defaultdict(lambda: [0, 0, 0])
     with open(path) as fh:
@@ -45,17 +57,19 @@ def parse(path):
                 p = lines[il + 2 + c].split()
                 donors.append(tuple(int(x) for x in p[:4]))
             chim.append((b, i, j, k, f, donors))
-        elif t in ONE_PROP:
+        elif t in one_prop:
             np_ = 1
             prop = lines[il + 1]
-        recs[(b, i, j, k, f)] = (t, prop)
+        recs[(b, i, j, k, f)].append((t, prop))
         il += 1 + np_
     return recs, chim, dims, nrec
 
 
-def main(path):
-    recs, chim, dims, nrec = parse(path)
-    print(f'{path}: {nrec} records, {len(dims)} blocks')
+def main(path, dispersed=False):
+    recs, chim, dims, nrec = parse(path, dispersed)
+    ncopy = max((len(v) for v in recs.values()), default=1)
+    copies = f', {ncopy} copies of the boundary table' if ncopy > 1 else ''
+    print(f'{path}: {nrec} records, {len(dims)} blocks{copies}')
 
     err = 0
 
@@ -63,17 +77,21 @@ def main(path):
     expected = 0
     for b, (ni, nj, nk) in dims.items():
         expected += 2 * (nj * nk + ni * nk + ni * nj)
-    if expected != nrec:
-        print(f'  [FAIL] expected {expected} boundary cells, found {nrec}')
+    uneven = sum(1 for v in recs.values() if len(v) != ncopy)
+    if uneven:
+        print(f'  [FAIL] {uneven} boundary cells do not appear {ncopy} times')
+        err += 1
+    elif expected * ncopy != nrec:
+        print(f'  [FAIL] expected {expected * ncopy} boundary cells, found {nrec}')
         err += 1
     else:
-        print(f'  [ok]   record count matches block dimensions ({expected})')
+        print(f'  [ok]   record count matches block dimensions ({expected} x {ncopy})')
 
     # reciprocity (intra-file only: see the note on type 103 in the docstring)
     bad = 0
     nconn = 0
     ninter = 0
-    for (b, i, j, k, f), (t, prop) in recs.items():
+    for (b, i, j, k, f), (t, prop) in ((key, v[0]) for key, v in recs.items()):
         if t == 103:
             ninter += 1
             continue
@@ -83,6 +101,8 @@ def main(path):
         v = [int(x) for x in prop.split()[:5]]
         key = tuple(v)
         other = recs.get(key)
+        if other is not None:
+            other = other[0]
         if other is None:
             bad += 1
             if bad < 4:
@@ -133,7 +153,9 @@ def main(path):
 
 
 if __name__ == '__main__':
+    args = sys.argv[1:]
+    dispersed = '--dispersed' in args
     rc = 0
-    for p in sys.argv[1:]:
-        rc += main(p)
+    for p in (a for a in args if not a.startswith('--')):
+        rc += main(p, dispersed)
     sys.exit(1 if rc else 0)

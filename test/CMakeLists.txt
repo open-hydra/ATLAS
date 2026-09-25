@@ -207,6 +207,23 @@ set_tests_properties(DP-basic PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-multigrid (one dispersed BC file per grid level) -------------
+# write_dp_bc used to ignore the level it was called with and always open
+# <prefix>bc.txt, so a run with MG-levels > 1 rewrote that one file once per
+# level: the fine table ended up replaced by the coarse one and padded with NULs
+# to the old length. One file per level now, each with its own table, and every
+# level carries the three (material, population) copies this phase has.
+add_test(
+    NAME    DP-multigrid
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py --dispersed fromATLAStoSolver/drop-bc.txt fromATLAStoSolver/drop-bc2.txt fromATLAStoSolver/drop-bc3.txt && diff fromATLAStoSolver/drop-bc.txt reference/drop-bc.txt && diff fromATLAStoSolver/drop-bc2.txt reference/drop-bc2.txt && diff fromATLAStoSolver/drop-bc3.txt reference/drop-bc3.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-multigrid"
+)
+set_tests_properties(DP-multigrid PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-z-variable-krho (z-profile krho file, phase-prefixed keys) -------------
 add_test(
     NAME    DP-z-variable-krho
@@ -349,6 +366,27 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases"
 )
 set_tests_properties(coupled-phases PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : dispersed-populations (dispersed-phase BC file, two MG levels) ----
+# A dispersed phase with two materials, one of them in two populations, on two
+# multigrid levels.  Such a file is shaped differently from a gas one in two
+# ways, and both are pinned here: BCB repeats the whole boundary table once per
+# (material, population) pair, block by block, and it writes no property line
+# under a dispersed wall or symmetry where the gas and solid writers write one.
+# Read with the gas convention every wall record swallows the next header, and
+# the copies look like duplicate boundary cells -- MDB refused the file outright
+# before.  Both levels carry the same three copies, so the coarse table is split
+# as well, which also pins that BCB now writes one dispersed file per level.
+add_test(
+    NAME    dispersed-populations
+    COMMAND bash -c "${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py --dispersed fromATLAStoSolver/INPUT-split/drop-bc.txt fromATLAStoSolver/INPUT-split/drop-bc2.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/drop-bc.txt reference/drop-bc.txt && diff fromATLAStoSolver/INPUT-split/drop-bc2.txt reference/drop-bc2.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/dispersed-populations"
+)
+set_tests_properties(dispersed-populations PROPERTIES
     LABELS      "MDB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

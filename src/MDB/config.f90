@@ -20,6 +20,11 @@ module config_mdb_mod
     character(len=llen) :: prefix   = ''
     character(len=llen) :: map_file = ''                 !< '' -> <prefix>decomposition.map
     integer             :: ranks    = 0                  !< 0 -> inherit [MDB-Parameters] ranks
+    !> A dispersed phase writes a different BC file: ATLAS_BCB::write_dp_bc puts
+    !> no property line under a wall or a symmetry, where the gas and solid
+    !> writers do, and repeats the whole boundary table once per (material,
+    !> population) pair. Detected from <prefix>phase.txt; `phase-type` overrides.
+    logical             :: dispersed = .false.
   end type mdb_phase_t
 
   type, public :: mdb_config_t
@@ -128,6 +133,7 @@ contains
       call fini%get(section_name=trim(section), option_name='prefix',      val=ph(n)%prefix,   error=error)
       call fini%get(section_name=trim(section), option_name='map-file',    val=ph(n)%map_file, error=error)
       call fini%get(section_name=trim(section), option_name='ranks',       val=ph(n)%ranks,    error=error)
+      call read_phase_type(fini, trim(section), ph(n))
       np = n
     enddo
 
@@ -142,6 +148,7 @@ contains
       cfg%phase(1)%prefix   = cfg%prefix
       cfg%phase(1)%map_file = cfg%map_file
       cfg%phase(1)%ranks    = cfg%ranks
+      call read_phase_type(fini, SEC, cfg%phase(1))
       return
     endif
 
@@ -155,6 +162,46 @@ contains
     enddo
 
   end subroutine load_phases
+
+
+  !> Is this phase a dispersed one? `phase-type = gas|dispersed` decides when it
+  !> is given; otherwise the phase file settles it, the same first line BCB used
+  !> to choose its writer. Looked for beside the input file and in the BC
+  !> directory, which is where a solver case keeps it. Unknown means gas, which
+  !> is what every pre-existing input is.
+  subroutine read_phase_type(fini, section, ph)
+    type(file_ini),    intent(in)    :: fini
+    character(len=*),  intent(in)    :: section
+    type(mdb_phase_t), intent(inout) :: ph
+    character(len=llen) :: kind, line
+    integer :: error, u, ios
+    logical :: ex
+
+    kind = ''
+    call fini%get(section_name=section, option_name='phase-type', val=kind, error=error)
+    if (error == 0 .and. len_trim(kind) > 0) then
+      ph%dispersed = (index(kind, 'disp') > 0)
+      return
+    endif
+
+    ph%dispersed = .false.
+    line = trim(ph%prefix)//'phase.txt'
+    inquire(file=trim(line), exist=ex)
+    if (.not. ex) then
+      line = trim(ph%bc_in)//'/'//trim(ph%prefix)//'phase.txt'
+      inquire(file=trim(line), exist=ex)
+    endif
+    if (.not. ex) return
+
+    open(newunit=u, file=trim(line), status='old', action='read', iostat=ios)
+    if (ios /= 0) return
+    read(u,'(A)',iostat=ios) line
+    close(u)
+    if (ios /= 0) return
+
+    ph%dispersed = index(line, 'dispersed') > 0
+
+  end subroutine read_phase_type
 
 
   !> Per-block override of the directions that may be cut, e.g.
@@ -219,6 +266,9 @@ contains
       'Directory holding the boundary condition files to split.', '', .false.)
     call reg%add(SEC, 'bc-out-path', c%bc_out, 'INPUT-split', &
       'Directory the decomposed boundary condition files are written to.', '', .false.)
+    call reg%add(SEC, 'phase-type', dirs, '', &
+      'Phase kind of the BC files: gas or dispersed, which use different property-line &
+      &conventions. Empty = read it from <prefix>phase.txt.', 'gas | dispersed', .false.)
     call reg%add(SEC, 'prefix', c%prefix, '', &
       'MOSE phase prefix of the BC files (<prefix>bc.txt).', '', .false.)
     call reg%add(SEC, 'map-file', c%map_file, 'decomposition.map', &

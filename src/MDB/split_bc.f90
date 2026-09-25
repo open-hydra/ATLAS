@@ -34,8 +34,21 @@ module split_bc_mod
   integer, allocatable :: rec_hdr(:)    !< line index of the record header
   integer, allocatable :: rec_np(:)     !< number of property lines that follow
   integer, allocatable :: rec_type(:)   !< ATLAS BC id
-  integer, allocatable :: ord2rec(:)    !< canonical boundary-cell ordinal -> record
-  integer              :: nrec = 0
+  integer, allocatable :: rec_ord(:)    !< canonical boundary-cell ordinal of each record
+  integer, allocatable :: ord2rec(:,:)  !< (boundary-cell ordinal, copy) -> record
+  integer              :: nrec  = 0
+  !> How many times the file repeats the whole boundary table. One for a gas
+  !> phase. A dispersed phase carries one copy per (material, population) pair
+  !> -- ATLAS_BCB::write_dp_bc loops materials and populations inside the block
+  !> loop -- so every boundary cell appears `ncopy` times, with the same
+  !> geometry and its own injection data.
+  integer              :: ncopy = 1
+  !> Which property-line convention the file follows. A dispersed-phase file
+  !> carries no property line under the 300-series (ATLAS_BCB::write_dp_bc emits
+  !> one only for a connection, a chimera and a 401-403 inlet), while the gas
+  !> and solid writers do emit one. Reading a dispersed file with the gas
+  !> convention swallows the next header as a property line.
+  logical              :: dp_schema = .false.
 
   ! ── Buffered output ────────────────────────────────────────────────────────
   character(len=OBUFLEN) :: obuf
@@ -57,16 +70,17 @@ contains
   !> one. Pass the other phase's decomposition (the trivial one if it is not
   !> being split); omit it only for a genuinely single-phase mesh, in which case
   !> a 103 record is an error rather than something to guess at.
-  subroutine split_bc_level(dec, level, infile, outfile, ierr, donor_dec)
+  subroutine split_bc_level(dec, level, infile, outfile, ierr, donor_dec, dispersed)
     type(decomposition_t), intent(inout)           :: dec
     integer,               intent(in)              :: level
     character(len=*),      intent(in)              :: infile, outfile
     integer,               intent(out)             :: ierr
     type(decomposition_t), intent(inout), optional :: donor_dec
+    logical,               intent(in),    optional :: dispersed
     ! Local
-    integer :: s, b, p, d, f, m, n, r, t, c
+    integer :: s, b, p, d, f, m, n, r, t, c, cp
     integer :: nm, nn, li, lj, lk, pi, pj, pk, pm, pn, ord, side, dir
-    integer :: qi, qj, qk, ti, tj, tk, q, nb1, nb2, ncut, nused, nwritten, nrec_in
+    integer :: qi, qj, qk, ti, tj, tk, q, nb1, nb2, ncut, nused, nwritten, nrec_in, ncopy_in
     integer :: don(4), cn(9)
     integer, allocatable :: ldim(:,:), llo(:,:), lhi(:,:)
     integer, allocatable :: dldim(:,:), dllo(:,:), dlhi(:,:)
@@ -78,6 +92,9 @@ contains
 
     ierr = 0
     s = 2**(level-1)
+
+    dp_schema = .false.
+    if (present(dispersed)) dp_schema = dispersed
 
     ! ── Level-scaled parent dimensions and piece ranges ──────────────────────
     call level_ranges(dec, s, ldim, llo, lhi, ierr)
@@ -111,7 +128,8 @@ contains
     if (ierr /= 0) then
       call cleanup(); return
     endif
-    nrec_in = nrec
+    nrec_in  = nrec
+    ncopy_in = ncopy
 
     ! ── Write the decomposed file ────────────────────────────────────────────
     open(newunit=ounit, file=outfile, access='stream', form='unformatted', &
@@ -130,113 +148,118 @@ contains
       pd(2) = lhi(2,p) - llo(2,p) + 1
       pd(3) = lhi(3,p) - llo(3,p) + 1
 
-      do f = 1, NFACES
-        call face_extent(f, pd, nm, nn)
-        dir  = face_dir(f)
-        side = face_side(f)
+      ! Every copy of the boundary table is split the same way: the copies
+      ! differ only in the injection payload they carry, and the solver reads
+      ! them in this order, all faces of a block before the next copy.
+      do cp = 1, ncopy
+        do f = 1, NFACES
+          call face_extent(f, pd, nm, nn)
+          dir  = face_dir(f)
+          side = face_side(f)
 
-        do n = 1, nn
-          do m = 1, nm
+          do n = 1, nn
+            do m = 1, nm
 
-            call fmn2ijk(f, m, n, pd, li, lj, lk)
-            pi = llo(1,p) + li - 1
-            pj = llo(2,p) + lj - 1
-            pk = llo(3,p) + lk - 1
+              call fmn2ijk(f, m, n, pd, li, lj, lk)
+              pi = llo(1,p) + li - 1
+              pj = llo(2,p) + lj - 1
+              pk = llo(3,p) + lk - 1
 
-            if (on_parent_boundary(side, dir, p, b)) then
+              if (on_parent_boundary(side, dir, p, b)) then
 
-              ! ── Inherited boundary cell ─────────────────────────────────
-              call ijk2mn(f, pi, pj, pk, pm, pn)
-              ord = obase(b) + fbase(f,b) + (pn-1)*pnm(f,b) + pm
-              r   = ord2rec(ord)
-              if (r == 0) then
-                write(*,'(A,4(X,I0))') ' [ERROR] missing BC record for (block,i,j,k):', b, pi, pj, pk
-                ierr = 1; call finish(); return
-              endif
-              t = rec_type(r)
-              nused = nused + 1
-
-              call put_header(p, li, lj, lk, f, t)
-
-              select case(t)
-
-              case(101, 103, 201)
-                call get_line(rec_hdr(r)+1, line)
-                read(line,*,iostat=ierr) cn(1:9)
-                if (ierr /= 0) then
-                  write(*,'(A,I0)') ' [ERROR] malformed connection record at line ', rec_hdr(r)+1
-                  call finish(); return
+                ! ── Inherited boundary cell ─────────────────────────────────
+                call ijk2mn(f, pi, pj, pk, pm, pn)
+                ord = obase(b) + fbase(f,b) + (pn-1)*pnm(f,b) + pm
+                r   = ord2rec(ord, cp)
+                if (r == 0) then
+                  write(*,'(A,4(X,I0))') ' [ERROR] missing BC record for (block,i,j,k):', b, pi, pj, pk
+                  ierr = 1; call finish(); return
                 endif
-                if (t == 103) then
-                  ! Inter-phase connection: the donor is numbered in the other
-                  ! phase, so it must be located in that phase's decomposition.
-                  if (.not. have_donor) then
-                    write(*,'(A)') ' [ERROR] type-103 (inter-phase) record found but no donor-phase'
-                    write(*,'(A)') '         decomposition was supplied. Declare both phases with'
-                    write(*,'(A)') '         [MDB-Phase1]/[MDB-Phase2] so MDB can remap the coupling.'
-                    ierr = 1; call finish(); return
-                  endif
-                  call remap_cell(donor_dec, dldim, dllo, s, cn(1), cn(2), cn(3), cn(4), q, qi, qj, qk, ierr)
-                else
-                  call remap_cell(dec, ldim, llo, s, cn(1), cn(2), cn(3), cn(4), q, qi, qj, qk, ierr)
-                endif
-                if (ierr /= 0) then
-                  write(*,'(A,4(X,I0))') ' [ERROR] connection donor outside the mesh:', cn(1:4)
-                  call finish(); return
-                endif
-                write(line,'(9I8)') q, qi, qj, qk, cn(5), cn(6), cn(7), cn(8), cn(9)
-                call put(trim(line)//NL)
+                t = rec_type(r)
+                nused = nused + 1
 
-              case(102)
-                call get_line(rec_hdr(r)+1, line)
-                read(line,*,iostat=ierr) nb1, nb2
-                if (ierr /= 0) then
-                  write(*,'(A,I0)') ' [ERROR] malformed chimera header at line ', rec_hdr(r)+1
-                  call finish(); return
-                endif
-                write(line,'(2I8)') nb1, nb2
-                call put(trim(line)//NL)
-                do c = 1, nb1+nb2
-                  call get_line(rec_hdr(r)+1+c, line)
-                  read(line,*,iostat=ierr) don(1:4), vf
+                call put_header(p, li, lj, lk, f, t)
+
+                select case(t)
+
+                case(101, 103, 201)
+                  call get_line(rec_hdr(r)+1, line)
+                  read(line,*,iostat=ierr) cn(1:9)
                   if (ierr /= 0) then
-                    write(*,'(A,I0)') ' [ERROR] malformed chimera donor at line ', rec_hdr(r)+1+c
+                    write(*,'(A,I0)') ' [ERROR] malformed connection record at line ', rec_hdr(r)+1
                     call finish(); return
                   endif
-                  call remap_cell(dec, ldim, llo, s, don(1), don(2), don(3), don(4), q, qi, qj, qk, ierr)
+                  if (t == 103) then
+                    ! Inter-phase connection: the donor is numbered in the other
+                    ! phase, so it must be located in that phase's decomposition.
+                    if (.not. have_donor) then
+                      write(*,'(A)') ' [ERROR] type-103 (inter-phase) record found but no donor-phase'
+                      write(*,'(A)') '         decomposition was supplied. Declare both phases with'
+                      write(*,'(A)') '         [MDB-Phase1]/[MDB-Phase2] so MDB can remap the coupling.'
+                      ierr = 1; call finish(); return
+                    endif
+                    call remap_cell(donor_dec, dldim, dllo, s, cn(1), cn(2), cn(3), cn(4), q, qi, qj, qk, ierr)
+                  else
+                    call remap_cell(dec, ldim, llo, s, cn(1), cn(2), cn(3), cn(4), q, qi, qj, qk, ierr)
+                  endif
                   if (ierr /= 0) then
-                    write(*,'(A,4(X,I0))') ' [ERROR] chimera donor outside the mesh:', don(1:4)
+                    write(*,'(A,4(X,I0))') ' [ERROR] connection donor outside the mesh:', cn(1:4)
                     call finish(); return
                   endif
-                  write(line,'(4I8,E20.10)') q, qi, qj, qk, vf
+                  write(line,'(9I8)') q, qi, qj, qk, cn(5), cn(6), cn(7), cn(8), cn(9)
                   call put(trim(line)//NL)
-                enddo
 
-              case default
-                do c = 1, rec_np(r)
-                  call put_raw(rec_hdr(r)+c)
-                enddo
+                case(102)
+                  call get_line(rec_hdr(r)+1, line)
+                  read(line,*,iostat=ierr) nb1, nb2
+                  if (ierr /= 0) then
+                    write(*,'(A,I0)') ' [ERROR] malformed chimera header at line ', rec_hdr(r)+1
+                    call finish(); return
+                  endif
+                  write(line,'(2I8)') nb1, nb2
+                  call put(trim(line)//NL)
+                  do c = 1, nb1+nb2
+                    call get_line(rec_hdr(r)+1+c, line)
+                    read(line,*,iostat=ierr) don(1:4), vf
+                    if (ierr /= 0) then
+                      write(*,'(A,I0)') ' [ERROR] malformed chimera donor at line ', rec_hdr(r)+1+c
+                      call finish(); return
+                    endif
+                    call remap_cell(dec, ldim, llo, s, don(1), don(2), don(3), don(4), q, qi, qj, qk, ierr)
+                    if (ierr /= 0) then
+                      write(*,'(A,4(X,I0))') ' [ERROR] chimera donor outside the mesh:', don(1:4)
+                      call finish(); return
+                    endif
+                    write(line,'(4I8,E20.10)') q, qi, qj, qk, vf
+                    call put(trim(line)//NL)
+                  enddo
 
-              end select
+                case default
+                  do c = 1, rec_np(r)
+                    call put_raw(rec_hdr(r)+c)
+                  enddo
 
-            else
+                end select
 
-              ! ── New internal cut: connect to the neighbouring piece ──────
-              call neighbour_cell(dir, side, pi, pj, pk, ti, tj, tk)
-              call remap_cell(dec, ldim, llo, s, b, ti, tj, tk, q, qi, qj, qk, ierr)
-              if (ierr /= 0) then
-                write(*,'(A,4(X,I0))') ' [ERROR] cut-plane neighbour not found:', b, pi, pj, pk
-                call finish(); return
+              else
+
+                ! ── New internal cut: connect to the neighbouring piece ──────
+                call neighbour_cell(dir, side, pi, pj, pk, ti, tj, tk)
+                call remap_cell(dec, ldim, llo, s, b, ti, tj, tk, q, qi, qj, qk, ierr)
+                if (ierr /= 0) then
+                  write(*,'(A,4(X,I0))') ' [ERROR] cut-plane neighbour not found:', b, pi, pj, pk
+                  call finish(); return
+                endif
+                call put_header(p, li, lj, lk, f, 101)
+                write(line,'(9I8)') q, qi, qj, qk, face_opposite(f), 1, 0, 0, 1
+                call put(trim(line)//NL)
+                ncut = ncut + 1
+
               endif
-              call put_header(p, li, lj, lk, f, 101)
-              write(line,'(9I8)') q, qi, qj, qk, face_opposite(f), 1, 0, 0, 1
-              call put(trim(line)//NL)
-              ncut = ncut + 1
 
-            endif
+              nwritten = nwritten + 1
 
-            nwritten = nwritten + 1
-
+            enddo
           enddo
         enddo
       enddo
@@ -249,8 +272,14 @@ contains
       ierr = 1; return
     endif
 
-    write(*,'(A,I0,A,I0,A,I0,A)') '   level '//itoa(level)//': ', nwritten, ' records (', &
-      nused, ' inherited, ', ncut, ' new cut-plane connections)'
+    if (ncopy_in > 1) then
+      write(*,'(A,I0,A,I0,A,I0,A,I0,A)') '   level '//itoa(level)//': ', nwritten, ' records (', &
+        nused, ' inherited, ', ncut, ' new cut-plane connections) in ', ncopy_in, &
+        ' copies of the boundary table'
+    else
+      write(*,'(A,I0,A,I0,A,I0,A)') '   level '//itoa(level)//': ', nwritten, ' records (', &
+        nused, ' inherited, ', ncut, ' new cut-plane connections)'
+    endif
 
   contains
 
@@ -458,10 +487,9 @@ contains
     character(len=MAXLINE) :: line
 
     ierr = 0
-    allocate(rec_hdr(nlines), rec_np(nlines), rec_type(nlines))
-    allocate(ord2rec(ntot))
-    ord2rec = 0
-    nrec = 0
+    allocate(rec_hdr(nlines), rec_np(nlines), rec_type(nlines), rec_ord(nlines))
+    nrec  = 0
+    ncopy = 1
 
     il = 1
     do while (il <= nlines)
@@ -520,36 +548,90 @@ contains
         write(*,'(A,I0)') ' [ERROR] BC record out of range at line ', il
         ierr = 1; return
       endif
-      if (ord2rec(ord) /= 0) then
-        write(*,'(A,I0)') ' [ERROR] duplicate BC record at line ', il
-        ierr = 1; return
-      endif
-      ord2rec(ord) = nrec
+      rec_ord(nrec) = ord
 
       il = il + 1 + np
     enddo
 
-    if (nrec /= ntot) then
-      write(*,'(A,I0,A,I0,A)') ' [ERROR] BC file holds ', nrec, ' records but the grid needs ', &
-        ntot, ' - grid and BC file do not match'
-      ierr = 1; return
-    endif
+    call index_copies(ntot, ierr)
 
   end subroutine parse_records
 
 
-  !> Number of property lines following a header, matching the dispatch of
-  !> MOSE_IO_BC::Check_BC exactly.
-  pure integer function nprop_lines(t) result(np)
+  !> Build the (ordinal, copy) index. A gas-phase file holds one record per
+  !> boundary cell; a dispersed-phase file holds `ncopy` of them, one per
+  !> (material, population) pair, and the solver expects to read them back in
+  !> the same order. Anything else -- a short file, a file written for another
+  !> grid, an uneven number of copies -- is rejected here rather than silently
+  !> producing a decomposition the solver would misread.
+  subroutine index_copies(ntot, ierr)
+    integer, intent(in)  :: ntot
+    integer, intent(out) :: ierr
+    integer, allocatable :: seen(:)
+    integer :: r, ord
+
+    ierr = 0
+
+    if (ntot < 1 .or. mod(nrec, ntot) /= 0) then
+      write(*,'(A,I0,A,I0,A)') ' [ERROR] BC file holds ', nrec, ' records but the grid needs ', &
+        ntot, ' per copy of the boundary table'
+      write(*,'(A)') '         a gas phase writes one copy; a dispersed phase writes one per'
+      write(*,'(A)') '         (material, population) pair, so the count must be a multiple'
+      ierr = 1; return
+    endif
+
+    ncopy = nrec / ntot
+    allocate(ord2rec(ntot, ncopy), seen(ntot))
+    ord2rec = 0
+    seen    = 0
+
+    do r = 1, nrec
+      ord = rec_ord(r)
+      seen(ord) = seen(ord) + 1
+      if (seen(ord) > ncopy) then
+        write(*,'(A,I0,A,I0)') ' [ERROR] boundary cell at line ', rec_hdr(r), &
+          ' appears more often than the ', ncopy, ' copies the record count implies'
+        ierr = 1; return
+      endif
+      ord2rec(ord, seen(ord)) = r
+    enddo
+
+    if (any(seen /= ncopy)) then
+      write(*,'(A,I0,A)') ' [ERROR] the BC file does not cover every boundary cell ', ncopy, &
+        ' times: it is incomplete or does not belong to this grid'
+      ierr = 1; return
+    endif
+
+  end subroutine index_copies
+
+
+  !> Number of property lines following a header. The gas and solid files match
+  !> the dispatch of MOSE_IO_BC::Check_BC exactly; a dispersed-phase file is
+  !> written by ATLAS_BCB::write_dp_bc, which emits a property line only for a
+  !> connection, a chimera and a 401-403 inlet -- its walls and symmetries are a
+  !> bare header.
+  integer function nprop_lines(t) result(np)
     integer, intent(in) :: t
+
     select case(t)
-    case(101, 103, 201, 301:309, 401:408, 410, 420, 501:502)
-      np = 1
     case(102)
       np = 1      ! caller replaces this with 1 + ni(1) + ni(2)
+    case(101, 103, 201)
+      np = 1
     case default
-      np = 0
+      if (dp_schema) then
+        select case(t)
+        case(401:403); np = 1
+        case default;  np = 0
+        end select
+      else
+        select case(t)
+        case(301:309, 401:408, 410, 420, 501:502); np = 1
+        case default;                              np = 0
+        end select
+      endif
     end select
+
   end function nprop_lines
 
 
@@ -627,9 +709,11 @@ contains
     if (allocated(rec_hdr))  deallocate(rec_hdr)
     if (allocated(rec_np))   deallocate(rec_np)
     if (allocated(rec_type)) deallocate(rec_type)
+    if (allocated(rec_ord))  deallocate(rec_ord)
     if (allocated(ord2rec))  deallocate(ord2rec)
     nlines = 0
     nrec   = 0
+    ncopy  = 1
   end subroutine cleanup
 
 

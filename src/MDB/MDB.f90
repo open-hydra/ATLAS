@@ -25,7 +25,7 @@ program MDB
   type(decomposition_t), allocatable :: dec(:)
   integer               :: lev, gran, ierr
   integer               :: ip, jp, ndonor
-  logical               :: write_config_doc, coupled, anysplit
+  logical               :: write_config_doc, coupled, anysplit, has_level
   character(len=llen)   :: input_file, fin, fout
 
   write(*,*)
@@ -103,10 +103,23 @@ program MDB
     do lev = 1, cfg%mg_levels
       fin  = bc_name(trim(cfg%phase(ip)%bc_in),  lev, trim(cfg%phase(ip)%prefix))
       fout = bc_name(trim(cfg%phase(ip)%bc_out), lev, trim(cfg%phase(ip)%prefix))
+
+      ! A coarse level is optional: a solver that builds its coarse grids
+      ! without boundary conditions has none, and ATLAS writes none at all for a
+      ! dispersed phase. The fine level is not optional.
+      if (lev > 1) then
+        inquire(file=trim(fin), exist=has_level)
+        if (.not. has_level) then
+          write(*,'(A,I0,A)') '   level ', lev, ': '//trim(fin)//' not found, nothing to split'
+          cycle
+        endif
+      endif
       if (ndonor > 0) then
-        call split_bc_level(dec(ip), lev, trim(fin), trim(fout), ierr, donor_dec=dec(ndonor))
+        call split_bc_level(dec(ip), lev, trim(fin), trim(fout), ierr, donor_dec=dec(ndonor), &
+                            dispersed=cfg%phase(ip)%dispersed)
       else
-        call split_bc_level(dec(ip), lev, trim(fin), trim(fout), ierr)
+        call split_bc_level(dec(ip), lev, trim(fin), trim(fout), ierr, &
+                            dispersed=cfg%phase(ip)%dispersed)
       endif
       if (ierr /= 0) then
         write(*,'(A)') ' [ERROR] failed on '//trim(fin)

@@ -21,6 +21,7 @@
 | grid-out | `<grid>-split.<ext>` | | no | Output path for the decomposed grid file. Defaults to the input name with `-split` appended before the extension. |
 | bc-path | INPUT | | no | Directory containing the BC files to split (`bc.txt`, `bc2.txt`, …). |
 | bc-out-path | INPUT-split | | no | Directory where the decomposed BC files are written. Created if it does not exist. |
+| phase-type | autodetect | `gas`, `dispersed` | no | Which property-line convention the BC files follow. A dispersed phase writes no property line under the 300-series and repeats the boundary table once per (material, population) pair. Read from the first line of `<prefix>phase.txt` when not set. |
 | prefix | *(empty)* | | no | Phase name prefix used in BC file names. Set this when the BC files follow the `<prefix>bc.txt` naming convention (multi-phase setups). |
 | map-file | decomposition.map | | no | Path where the decomposition record is written. |
 

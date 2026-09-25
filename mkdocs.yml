@@ -28,7 +28,7 @@ theme:
     code: Fira Code
   palette:
     - scheme: default
-      primary: indigo
+      primary: white
       accent: cyan
       toggle:
         icon: material/weather-night
