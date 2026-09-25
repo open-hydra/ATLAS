@@ -67,7 +67,7 @@ program MDB
   ! ════ Stage 1: decompose every phase and write its grid ═══════════════════
   ! Each phase is decomposed independently -- ATLAS numbers blocks per phase --
   ! but all decompositions must exist before any BC file is rewritten, because
-  ! a type-103 record has to be remapped against the *other* phase.
+  ! a type-103/104 record has to be remapped against the *other* phase.
   do ip = 1, cfg%nphase
     if (coupled) then
       write(*,'(A,I0,A)') ' ── Phase ', ip, ' ─────────────────────────────────────────────'
@@ -82,12 +82,12 @@ program MDB
 
   ! ════ Stage 2: boundary conditions ════════════════════════════════════════
   ! One file per phase per multigrid level. `ndonor` is the other phase of the
-  ! coupling, whose decomposition resolves the type-103 donors.
+  ! coupling, whose decomposition resolves the type-103/104 donors.
   write(*,*)
   write(*,'(A)') ' Boundary conditions'
 
   if (cfg%nphase > 2) then
-    write(*,'(A)') ' [ERROR] a type-103 record names only (block,i,j,k) in "the other phase",'
+    write(*,'(A)') ' [ERROR] a type-103/104 record names only (block,i,j,k) in "the other phase",'
     write(*,'(A,I0,A)') '         so the interface is ambiguous with ', cfg%nphase, ' phases declared.'
     write(*,'(A)') '         Declare exactly two [MDB-Phase#] sections.'
     stop 1
@@ -218,7 +218,7 @@ contains
     if (dec(ip)%npieces == dec(ip)%nparent) then
       write(*,'(A)') ' Nothing to split: the mesh already meets the target.'
       ! In coupled mode this phase's BC file still has to be rewritten: its
-      ! type-103 donors point into the other phase, which may well be split.
+      ! type-103/104 donors point into the other phase, which may well be split.
       if (.not. coupled) stop
       write(*,*)
       return

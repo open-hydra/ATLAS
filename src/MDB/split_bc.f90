@@ -64,12 +64,13 @@ contains
   !> level 1 is the fine grid; level L works on dimensions divided by 2**(L-1).
   !>
   !> `donor_dec` is the decomposition of the *other* phase of a coupled
-  !> (multi-phase) case. Type-103 records connect two blocks that belong to
-  !> different phases, and ATLAS numbers blocks per phase, so a 103 donor must
-  !> be remapped against that other phase's decomposition -- never against this
-  !> one. Pass the other phase's decomposition (the trivial one if it is not
-  !> being split); omit it only for a genuinely single-phase mesh, in which case
-  !> a 103 record is an error rather than something to guess at.
+  !> (multi-phase) case. Type-103 (connection) and type-104 (chimera) records
+  !> connect two blocks that belong to different phases, and ATLAS numbers blocks
+  !> per phase, so a 103/104 donor must be remapped against that other phase's
+  !> decomposition -- never against this one. Pass the other phase's
+  !> decomposition (the trivial one if it is not being split); omit it only for a
+  !> genuinely single-phase mesh, in which case a 103/104 record is an error
+  !> rather than something to guess at.
   subroutine split_bc_level(dec, level, infile, outfile, ierr, donor_dec, dispersed)
     type(decomposition_t), intent(inout)           :: dec
     integer,               intent(in)              :: level
@@ -218,12 +219,20 @@ contains
                     line = trim(line)//repeat(' ', max(1, 16-len_trim(tail)))//trim(tail)
                   call put(trim(line)//NL)
 
-                case(102)
+                case(102, 104)
                   call get_line(rec_hdr(r)+1, line)
                   read(line,*,iostat=ierr) nb1, nb2
                   if (ierr /= 0) then
                     write(*,'(A,I0)') ' [ERROR] malformed chimera header at line ', rec_hdr(r)+1
                     call finish(); return
+                  endif
+                  ! Inter-phase chimera: the donors are numbered in the other
+                  ! phase, so they must be located in that phase's decomposition.
+                  if (t == 104 .and. .not. have_donor) then
+                    write(*,'(A)') ' [ERROR] type-104 (inter-phase chimera) record found but no donor-phase'
+                    write(*,'(A)') '         decomposition was supplied. Declare both phases with'
+                    write(*,'(A)') '         [MDB-Phase1]/[MDB-Phase2] so MDB can remap the coupling.'
+                    ierr = 1; call finish(); return
                   endif
                   write(line,'(2I8)') nb1, nb2
                   call put(trim(line)//NL)
@@ -234,7 +243,11 @@ contains
                       write(*,'(A,I0)') ' [ERROR] malformed chimera donor at line ', rec_hdr(r)+1+c
                       call finish(); return
                     endif
-                    call remap_cell(dec, ldim, llo, s, don(1), don(2), don(3), don(4), q, qi, qj, qk, ierr)
+                    if (t == 104) then
+                      call remap_cell(donor_dec, dldim, dllo, s, don(1), don(2), don(3), don(4), q, qi, qj, qk, ierr)
+                    else
+                      call remap_cell(dec, ldim, llo, s, don(1), don(2), don(3), don(4), q, qi, qj, qk, ierr)
+                    endif
                     if (ierr /= 0) then
                       write(*,'(A,4(X,I0))') ' [ERROR] chimera donor outside the mesh:', don(1:4)
                       call finish(); return
@@ -526,7 +539,7 @@ contains
       endif
 
       np = nprop_lines(h(6))
-      if (h(6) == 102) then
+      if (h(6) == 102 .or. h(6) == 104) then
         call get_line(int(il)+1, line)
         read(line,*,iostat=ierr) nb1, nb2
         if (ierr /= 0) then
@@ -623,7 +636,7 @@ contains
     integer, intent(in) :: t
 
     select case(t)
-    case(102)
+    case(102, 104)
       np = 1      ! caller replaces this with 1 + ni(1) + ni(2)
     case(101, 103, 201)
       np = 1

@@ -15,7 +15,9 @@ solid convention, one property line each.
 Type 103 is the fluid-solid interface of a coupled case. Its donor lives in the
 *other* phase, which ATLAS writes to a separate bc.txt with its own block
 numbering, so a 103 donor cannot be resolved from one file alone and is counted
-here rather than checked. Use check-coupling.py on the two files together.
+here rather than checked. The same holds for the donors of a type-104 record,
+the inter-phase chimera: it is parsed like a 102, but its donors are counted,
+not range-checked. Use check-coupling.py on the two files together.
 """
 import sys
 from collections import defaultdict
@@ -32,6 +34,7 @@ def parse(path, dispersed=False):
     one_prop = ONE_PROP_DP if dispersed else ONE_PROP
     recs = defaultdict(list)   # (b,i,j,k,f) -> [(type, propline), ...] one per copy
     chim = []          # (b,i,j,k,f, [(db,di,dj,dk)])
+    xchim = []         # the same for type 104, whose donors live in the other phase
     dims = defaultdict(lambda: [0, 0, 0])
     with open(path) as fh:
         lines = fh.read().split('\n')
@@ -49,24 +52,24 @@ def parse(path, dispersed=False):
         d[0] = max(d[0], i); d[1] = max(d[1], j); d[2] = max(d[2], k)
         prop = None
         np_ = 0
-        if t == 102:
+        if t in (102, 104):
             n1, n2 = (int(x) for x in lines[il + 1].split())
             np_ = 1 + n1 + n2
             donors = []
             for c in range(n1 + n2):
                 p = lines[il + 2 + c].split()
                 donors.append(tuple(int(x) for x in p[:4]))
-            chim.append((b, i, j, k, f, donors))
+            (chim if t == 102 else xchim).append((b, i, j, k, f, donors))
         elif t in one_prop:
             np_ = 1
             prop = lines[il + 1]
         recs[(b, i, j, k, f)].append((t, prop))
         il += 1 + np_
-    return recs, chim, dims, nrec
+    return recs, chim, xchim, dims, nrec
 
 
 def main(path, dispersed=False):
-    recs, chim, dims, nrec = parse(path, dispersed)
+    recs, chim, xchim, dims, nrec = parse(path, dispersed)
     ncopy = max((len(v) for v in recs.values()), default=1)
     copies = f', {ncopy} copies of the boundary table' if ncopy > 1 else ''
     print(f'{path}: {nrec} records, {len(dims)} blocks{copies}')
@@ -148,6 +151,10 @@ def main(path, dispersed=False):
             err += 1
         else:
             print(f'  [ok]   all {ndon} chimera donors inside their block')
+    if xchim:
+        nxdon = sum(len(donors) for (*_, donors) in xchim)
+        print(f'  [--]   {len(xchim)} type-104 chimera records ({nxdon} donors) skipped '
+              f'(cross-phase; check with check-coupling.py)')
 
     return err
 

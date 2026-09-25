@@ -1,4 +1,4 @@
-submodule (bc_mod) bc_connection_mod
+submodule (bc_mod) bc_connection_smod
   use bcb_config_mod, only: bcb_connection_config_t, load_bcb_connection_config
 
   implicit none
@@ -17,4 +17,4 @@ contains
 
   end procedure build_connection
 
-end submodule bc_connection_mod
+end submodule bc_connection_smod
