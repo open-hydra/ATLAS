@@ -17,7 +17,7 @@ The output file is written in the same format as the input (Tecplot ASCII `.tec`
 
 ## Decomposed BC Files
 
-MDB rewrites every multigrid BC level found in `bc-path` and places the results in `bc-out-path` (created if absent).
+MDB rewrites every multigrid BC level found in `bc-path` and places the results in `bc-out-path` (created if absent). The fine level must be there; a coarse level that is missing is reported and skipped, which is what a solver that builds its coarse grids without boundary conditions needs, and what a dispersed phase always looks like.
 
 | Multigrid level | File name (no prefix) | File name (with prefix `<p>`) |
 |---|---|---|
@@ -32,6 +32,13 @@ New interior faces generated at cut planes are written as standard connection re
 
     ```bash
     python3 scripts/check-bc.py INPUT-split/bc.txt INPUT-split/bc2.txt
+    ```
+
+    Add `--dispersed` for a dispersed-phase file, whose property lines and
+    repeated boundary table follow a different convention:
+
+    ```bash
+    python3 scripts/check-bc.py --dispersed INPUT-split/drop-bc.txt
     ```
 
     `scripts/check-split.py` verifies the split grid against the grid it came from: one zone per map record with the recorded dimensions, cells conserved and claimed exactly once, and every nodal and cell-centred value equal to its parent's:

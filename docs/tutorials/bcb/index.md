@@ -30,5 +30,6 @@ All test cases referenced here are available in `test/BCB/`.
 | `IG-y-variable-massflux` | Validate spanwise-varying mass-flux BC assignment. |
 | `NO_IG-1D` | Validate no-ideal-gas configuration path for 1D boundary setup. |
 | `DP-basic` | Validate dispersed-phase BC assignment and export. |
+| `DP-multigrid` | Validate that a dispersed phase writes one BC file per multigrid level, each holding that level's table with its (material, population) copies. |
 | `DP-z-variable-krho` | Validate z-dependent dispersed-property BC setup (e.g., k-rho variation). |
 | `SP-basic` | Validate solid-phase/particle BC assignment and output. |

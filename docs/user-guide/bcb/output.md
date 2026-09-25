@@ -224,6 +224,15 @@ Turbulence suffix:
 
 ### `401`–`403` — Inlet / Outlet (ICE/IGLOO solvers)  
 
+!!! warning "A dispersed-phase file repeats its boundary table"
+    A dispersed phase carries one or more **materials**, each with a number of
+    **populations**, declared in `<prefix>phase.txt` as `<material> <npCP>` after
+    the phase-type line. BCB writes the whole boundary table once per (material,
+    population) pair, block by block: the copies are identical in geometry and
+    differ only in the payload of their `401`–`403` records. A phase with two
+    materials, one of them in two populations, therefore produces three copies of
+    every boundary cell, and the solver reads them back in that order.
+
 | ID | Payload fields (7 numeric values + 1 string + 1 numeric, in order) |
 |----|-------------------------------------|
 | `401` | `krho, kV, alphap, betap, kT, rp, sigmap, distribution, ds` |

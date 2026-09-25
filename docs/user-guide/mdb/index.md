@@ -108,6 +108,7 @@ MDB prints a decomposition summary on completion:
     - 3-D meshes only: the BC header must carry `b i j k f type`.
     - Every block dimension must be a multiple of `2^(MG-levels-1)`, which MOSE requires for coarsening.
     - BC ids must be the current ATLAS set; files written with legacy numeric ids are rejected with the offending line quoted.
+    - A dispersed phase is read with its own conventions, taken from the first line of `<prefix>phase.txt` (override with `phase-type`): no property line under the 300-series, and the whole boundary table repeated once per (material, population) pair. Every copy is split the same way and they are written back in the same order.
 
 ---
 

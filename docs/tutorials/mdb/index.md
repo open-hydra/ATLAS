@@ -10,6 +10,8 @@ All test cases referenced here are available in `test/MDB/`.
 | `halo-trade` | Validate the balance/ghost-cell objective: the search reverts to the decomposition with the best `balance / (1 + halo-weight * ghost)` rather than the last one it visited. |
 | `balance-only` | Validate that `halo-weight = 0` restores the historical balance-only objective; the reference is the over-split answer, kept as the counterpart of `halo-trade`. |
 | `split-solution` | Validate the full BCB - ICB - MDB chain: a grid carrying a solution field is partitioned without interpolation, and the phase-prefixed BC files are split. |
+| `coupled-phases` | Validate the two-phase interface: type-103 donors are numbered in the other phase and must be remapped against that phase's decomposition, not the one being split. |
+| `dispersed-populations` | Validate the dispersed-phase BC file: the boundary table repeated once per (material, population) pair, and no property line under a dispersed wall or symmetry. |
 
 Every case verifies three things:
 
@@ -17,7 +19,9 @@ Every case verifies three things:
   block dimensions match the map, cells are conserved and claimed exactly once,
   and every nodal and cell-centred value equals its parent's.
 - **`scripts/check-bc.py`** — the split BC file on its own terms: every boundary
-  cell present exactly once, every connection record reciprocal.
+  cell present the same number of times, every connection record reciprocal.
+  A dispersed-phase file needs `--dispersed`, which selects the property-line
+  convention BCB wrote it with.
 - **`diff` against `reference/`** — the decomposition map and the BC files, which
   pin the cut placement, the block numbering and the canonical record order.
 
