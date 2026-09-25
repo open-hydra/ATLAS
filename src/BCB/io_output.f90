@@ -43,9 +43,10 @@ module io_write_bc_mod
 
     if (match) then
       if (level > 1) then
-        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc'//trim(str(.true.,level))//'.txt',action='write')
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc'//trim(str(.true.,level))//'.txt', &
+             action='write',status='replace')
       else
-        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write',status='replace')
       endif
     else
       return
@@ -162,9 +163,10 @@ module io_write_bc_mod
 
     if (match) then
       if (level > 1) then
-        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc'//trim(str(.true.,level))//'.txt',action='write')
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc'//trim(str(.true.,level))//'.txt', &
+             action='write',status='replace')
       else
-        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write',status='replace')
       endif
     else
       return
@@ -246,12 +248,13 @@ module io_write_bc_mod
   end subroutine write_sp_bc
 
 
-  subroutine write_dp_bc(name,blk)
+  subroutine write_dp_bc(name,blk,level)
     use bc_block_mod, only: BC_block
     use grid_mod, only: fmn2ijk, mesh_cfg
     implicit none
     character(len=*), intent(in) :: name
     type(BC_block),   intent(in) :: blk(:)
+    integer, intent(in)          :: level
     character(len=len(name))     :: name_
     integer                      :: i, j, b, mm, p, f, m, n, mend(6), nend(6), pCD
     integer                      :: print_id
@@ -274,7 +277,12 @@ module io_write_bc_mod
     enddo
 
     if (match) then
-      open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write')
+      if (level > 1) then
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc'//trim(str(.true.,level))//'.txt', &
+             action='write',status='replace')
+      else
+        open(newunit=unitfile,FILE=outpath//trim(name_)//'bc.txt',action='write',status='replace')
+      endif
     else
       return
     endif
