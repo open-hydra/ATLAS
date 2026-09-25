@@ -219,6 +219,11 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-multigrid"
 )
 set_tests_properties(DP-multigrid PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-z-variable-krho (z-profile krho file, phase-prefixed keys) -------------
 add_test(
     NAME    DP-z-variable-krho
