@@ -68,7 +68,7 @@
 | interface |  | VLE,LK | no | Per-material override of the interface model. |
 | boiling |  | clamp,ZGR | no | Per-material override of the boiling branch. |
 | combustion |  | Beckstead | no | Metal combustion model; presence switches this material to the metal track (mutually exclusive with evaporation and breakup). |
-| solidification |  | on,off | no | Solidification with supercooling/recalescence; not implemented yet (phase M3). |
+| solidification |  | on,off | no | Solidification of a molten particle with supercooling and recalescence (IGLOO; ICE refuses solidification=on). |
 | alpha-e |  |  | no | Langmuir-Knudsen evaporation accommodation coefficient (interface=LK). |
 | k-liq |  |  | no | Liquid thermal conductivity [W/m/K] (required if liquid-conduction=P2T). |
 | mu-liq |  |  | no | Liquid viscosity [Pa s] (liquid-conduction=P2T). |
