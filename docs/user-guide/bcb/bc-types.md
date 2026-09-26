@@ -62,7 +62,7 @@ face4 = wall_hot        ; a named section, defined below
 | Keyword | Output ID | Notes |
 |---|---|---|
 | `null` | `0` | Placeholder; no payload. |
-| `axisymmetric` | `200` | No payload. A named section may send a dispersed phase out through the axis, see [Dispersed-phase override on the axis](#dispersed-phase-override-on-the-axis). |
+| `axisymmetric` | `200` | No payload. A named section may let a dispersed phase out through the axis or mirror it there, see [Dispersed-phase override on the axis](#dispersed-phase-override-on-the-axis). |
 | `symmetry` | `300` | No payload. |
 | `extrapolation` | `400` | No payload. |
 | `connection` | `101` / `103` | Resolved by face-centre matching during the connection pass. |
@@ -384,21 +384,27 @@ p2-dp = 0.001
 
 On a 2D-axisymmetric mesh the axis face is `axisymmetric` (`200`) for every phase. A
 Lagrangian dispersed phase may instead be let out through it: give the face a named
-section with the keyword type and add `<phase>-type = outlet` for that phase only.
+section with the keyword type and add `<phase>-type = outlet` for that phase only. An
+Eulerian phase is mirrored at the axis with `<phase>-type = symmetry` (`300` in that
+phase's file).
 
 ```ini
 [BCB-Block1]
 face3 = ax
 
 [ax]
-type       = axisymmetric   ; gas: 200 as before
-partL-type = outlet         ; partL only: 400 (particles leave through the axis)
+; gas: 200 as before
+type       = axisymmetric
+; partL only: 400 (particles leave through the axis)
+partL-type = outlet
+; partE only: 300 (the phase is mirrored at the axis)
+partE-type = symmetry
 ```
 
-`gas-bc.txt` keeps `200` on face 3; `partL-bc.txt` carries `400` there (no payload). Only
-`outlet` is accepted — any other word stops BCB with `[ERROR] partL-type = <word>: only
-"outlet" is allowed ...`. The wedge faces BCB auto-tags on a 2Daxi mesh carry no section and
-always stay `200`.
+`gas-bc.txt` keeps `200` on face 3; `partL-bc.txt` carries `400` there and `partE-bc.txt`
+`300` (no payload in either). Only `outlet` and `symmetry` are accepted — any other word
+stops BCB with `[ERROR] partL-type = <word>: only "outlet" or "symmetry" is allowed ...`.
+The wedge faces BCB auto-tags on a 2Daxi mesh carry no section and always stay `200`.
 
 ---
 

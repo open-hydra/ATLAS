@@ -166,7 +166,7 @@ contains
 
     case(trim(MARKER_AXIS))
       self % gp_id = 200
-      ! [<face>] <phase>-type = outlet : that dispersed phase leaves through the axis (400)
+      ! [<face>] <phase>-type = outlet | symmetry : that dispersed phase gets 400 | 300 on the axis
       if (phase % type == 'DP') call dispersed_axis_override(self, sourceini, section, phase)
       return
 
@@ -286,11 +286,11 @@ contains
 
 
   !> Dispersed-phase override on an axisymmetric face:
-  !>   [<face>]  type = axisymmetric  +  <phase>-type = outlet
-  !> The gas keeps 200; this phase's slot gets 400 (particles leave through the axis).
-  !> Only 'outlet' is accepted: the wedge faces IGLOO folds on must stay 200 and nothing
-  !> else makes sense on an axis. The auto-tagged wedge faces of a 2Daxi mesh carry no
-  !> section, so the key is absent there and they keep 200.
+  !>   [<face>]  type = axisymmetric  +  <phase>-type = outlet | symmetry
+  !> outlet: the phase leaves through the axis (400); symmetry: the phase is mirrored at
+  !> the axis (300, what an Eulerian phase wants). The gas keeps 200 either way. The
+  !> auto-tagged wedge faces of a 2Daxi mesh carry no section, so the key is absent
+  !> there and they keep 200.
   subroutine dispersed_axis_override(self, sourceini, section, phase)
     implicit none
     class(bc_t),          intent(inout) :: self
@@ -309,9 +309,12 @@ contains
     case ('outlet')
       self % dp(k) % id = 400
       self % dp(k) % n  = 0
+    case ('symmetry')
+      self % dp(k) % id = 300
+      self % dp(k) % n  = 0
     case default
       write(*,'(A)') '[ERROR] '//trim(phase % name)//'-type = '//trim(adjustl(w))// &
-                     ': only "outlet" is allowed for a dispersed phase on an axisymmetric face'
+                     ': only "outlet" or "symmetry" is allowed for a dispersed phase on an axisymmetric face'
       stop 1
     end select
   end subroutine dispersed_axis_override

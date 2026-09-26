@@ -340,6 +340,35 @@ set_tests_properties(DP-axis-override PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-axis-symmetry (dispersed phase mirrored at the axis) -------------
+# Same mesh as DP-axis-override. [ax] type = axisymmetric + partL-type = symmetry:
+# gas-bc.txt keeps 200 on the axis face 3, partL-bc.txt carries 300 there (no payload);
+# the auto-tagged wedge faces 5/6 stay 200 in both.
+add_test(
+    NAME    DP-axis-symmetry
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/partL-bc.txt reference/partL-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-axis-symmetry"
+)
+set_tests_properties(DP-axis-symmetry PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-axis-refused (any other axis override word is refused) ----------
+# [ax] partL-type = wall must stop BCB with exit 1; the grep pins the message naming
+# both accepted words. Same expect-failure form as DP-bad-name.
+add_test(
+    NAME    DP-axis-refused
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q 'or .symmetry. is allowed' bcb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-axis-refused"
+)
+set_tests_properties(DP-axis-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable
