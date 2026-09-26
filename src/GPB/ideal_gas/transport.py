@@ -26,6 +26,7 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
 
         solution.basis = 'mass'
         identity_matrix = np.eye(solution.n_species)
+        Y_mix = solution.Y.copy()   # the per-species loop below overwrites the composition
         
         species_names_aux = []
         viscosity_aux = {}
@@ -88,7 +89,7 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                 mix_name = solution.name[:-7]
             species_names.append(mix_name)
             for i, T in enumerate(temperatures):
-                solution.TP = T, ct.one_atm
+                solution.TPY = T, ct.one_atm, Y_mix
                 if (model == 'cantera'):
                     mu = solution.viscosity
                     k = solution.thermal_conductivity
