@@ -597,3 +597,46 @@ set_tests_properties(IG-mixture-cantera PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : CP-psat-water (psat-vapour -> Psat column from the database's liquid/vapour pair) -------
+# CP-fixmat-h0's water on 280..380 K plus `psat-vapour = H2O`: the table gains "Psat" [Pa] after
+# "Enthalpy_abs", p_sat = 1e5*exp(-(g_H2O - g_H2O(L))/(R T)) from nasa9.yaml. check_psat.sh holds it to
+# IAPWS at 300 and 350 K; the phase file stays CP-fixmat-h0's (the keys are not material-line tokens).
+add_test(
+    NAME    CP-psat-water
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt ../CP-fixmat-h0/reference/part-phase.txt && bash check_psat.sh fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-psat-water"
+)
+set_tests_properties(CP-psat-water PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-psat-water-eulerian (the Psat column does not depend on the solver treatment) --------
+# CP-psat-water with `modeling = eulerian`: line 1 of the phase file carries modeling=eulerian and the
+# table is CP-psat-water's (ICE reads the same column as IGLOO).
+add_test(
+    NAME    CP-psat-water-eulerian
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../CP-psat-water/reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-psat-water-eulerian"
+)
+set_tests_properties(CP-psat-water-eulerian PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-psat-refuse (a pair of different compositions is refused) ----------------------------
+# CP-psat-water with `psat-vapour = O2`: GPB must stop with exit 1 and the composition message
+# (same expect-failure form as DP-bad-name).
+add_test(
+    NAME    CP-psat-refuse
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'different elemental compositions' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-psat-refuse"
+)
+set_tests_properties(CP-psat-refuse PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

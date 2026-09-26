@@ -9,6 +9,8 @@ from config import setup_cantera_dirs, CEA_TRANS_FILE
 setup_cantera_dirs()
 CEAtransdir = CEA_TRANS_FILE
 
+THERMO_FILES = {'NASA7': 'nasa_condensed.yaml', 'NASA9': 'nasa9.yaml', 'Burcat': 'burcat.yaml'}
+
 class Material:
     def __init__(self, name, type):
         self.name = name
@@ -18,6 +20,7 @@ class Material:
         self.specific_heat = None
         self.thermal_conductivity = None
         self.h0 = None   # [J/kg] enthalpy at 298.15 K, fixed-cp materials only (optional [GPB-Phase*] h0)
+        self.psat_pair = None   # (liquid, vapour) cantera Species giving p_sat(T) (optional psat-vapour)
     
     def load_from_cantera(self, cantera_solution):
         """
@@ -57,12 +60,8 @@ def build(type,inifile,section,modeling=None):
     # Load the Thermo Model
     # ---------------------------------------------------
     if thermo_model is None: thermo_model = 'NASA9'
-    if thermo_model == 'NASA7':
-        all_mat = ct.Species.list_from_file('nasa_condensed.yaml')
-    elif thermo_model == 'NASA9':
-        all_mat = ct.Species.list_from_file('nasa9.yaml')
-    elif thermo_model == 'Burcat':
-        all_mat = ct.Species.list_from_file('burcat.yaml')
+    if thermo_model in THERMO_FILES:
+        all_mat = ct.Species.list_from_file(THERMO_FILES[thermo_model])
 
     # ---------------------------------------------------
     # Build the specific heat
@@ -113,6 +112,26 @@ def build(type,inifile,section,modeling=None):
             material = Material(name=material_names[i],type='SP-database')
             material_group.append(material)
     # ---------------------------------------------------
+
+    # ---------------------------------------------------
+    # Optional saturation pressure: per material, a liquid/vapour
+    # species pair of the loaded database (psat-vapour, psat-liquid);
+    # compute_properties tabulates it as the Psat column
+    # ---------------------------------------------------
+    psat_pairs = CP_read_psat_pairs(inifile, section, [m.name for m in material_group])
+    if psat_pairs is not None:
+        if not header.endswith('-dispersed'):
+            raise SystemExit(f"[ERROR] [{section}] psat-vapour: a solid phase has no Psat column (dispersed phases only)")
+        if thermo_model not in ('NASA9', 'Burcat'):
+            loaded = (f"{THERMO_FILES[thermo_model]}, which holds no vapour species" if thermo_model in THERMO_FILES
+                      else "no species database")
+            raise SystemExit(f"[ERROR] [{section}] psat-vapour needs thermo = NASA9 or Burcat: "
+                             f"thermo = {thermo_model} loads {loaded}")
+        species = {s.name: s for s in all_mat}
+        for material, pair in zip(material_group, psat_pairs):
+            if pair is not None:
+                material.psat_pair = CP_properties.resolve_psat_pair(section, material.name, pair, species,
+                                                                     THERMO_FILES[thermo_model])
 
     # ---------------------------------------------------
     # Per-material solver model tokens: validated here so a bad key
