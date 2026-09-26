@@ -585,3 +585,15 @@ set_tests_properties(CP-fixmat-tokens PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : IG-mixture-cantera (frozen air mixture, Cantera transport: the mix zone must hold air) ----
+add_test(
+    NAME    IG-mixture-cantera
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && bash check_transport.sh fromATLAStoSolver/gas-transport.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-transport.dat fromATLAStoSolver/gas-transport.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-mixture-cantera"
+)
+set_tests_properties(IG-mixture-cantera PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
