@@ -763,6 +763,21 @@ set_tests_properties(CP-fixmat-tokens PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-massfraction-range (a y<species> value outside [0, 1] stops BCB with one message, the same
+# ----       below 0 and above 1, naming the key and the value; nothing is written. A value outside [0, 1]
+# ----       by rounding only (1.0000000000000002, -1.0e-20) is read as 1 and 0: bc.txt equals the one of
+# ----       yO2 = 1, yCH4 = 0) -------------
+add_test(
+    NAME    IG-massfraction-range
+    COMMAND bash -c "rm -rf fromATLAStoSolver exact && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input exact.ini < /dev/null && mv fromATLAStoSolver exact && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input rounding.ini < /dev/null && diff exact/bc.txt fromATLAStoSolver/bc.txt && rm -rf fromATLAStoSolver exact || exit 1; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input negative.ini 2>&1 < /dev/null); rc=$?; out2=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input above.ini 2>&1 < /dev/null); rc2=$?; echo \"$out\" | tail -n 2; echo \"$out2\" | tail -n 2; test $rc -eq 1 && test $rc2 -eq 1 && grep -q -F '[ERROR] key yCH4 = -0.1: the mass fraction must lie in [0, 1]' <<< \"$out\" && grep -q -F '[ERROR] key yO2 = 1.5: the mass fraction must lie in [0, 1]' <<< \"$out2\" && test $(grep -c -F '[ERROR]' <<< \"$out\") -eq 1 && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-massfraction-range"
+)
+set_tests_properties(IG-massfraction-range PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : mesh-tec-single-plane (a Tecplot mesh with x y z on one node plane, K = 1, follows the rule of a PLOT3D
 # ----       mesh written Ni Nj 1: on the plane z = 0 and on a tilted plane it gives the bc.txt of mesh-p3d-single-plane,
 # ----       with a WARNING for the tilted plane; on the plane x-z it is refused) -------------

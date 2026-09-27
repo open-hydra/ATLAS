@@ -122,12 +122,17 @@ contains
 
   contains
 
+    !> The value of a y<species> key: one number in [0, 1]; anything else is an ERROR. This is the
+    !> only check of the range (the key validator reads the value as a number and leaves the range here).
+    !> A value outside [0, 1] by rounding only, at most YROUND (1.0000000000000002 left by a sum,
+    !> -1e-20), is set exactly to the bound it passes.
     function read_massf(key, value) result(y)
       implicit none
       character(len=*), intent(in)  :: key, value
       real(R8)                      :: y
       character(len=:), allocatable :: token
       integer                       :: ios
+      real(R8), parameter           :: YROUND = 1.0e-12_R8
 
       token = trim(adjustl(value))
       ios = 1
@@ -139,6 +144,8 @@ contains
         write(*,'(A)') '[ERROR] key '//key//' = '//token//': the mass fraction must be one number'
         stop 1
       endif
+      if (y < 0.0_R8 .and. y >= -YROUND) y = 0.0_R8
+      if (y > 1.0_R8 .and. y <= 1.0_R8 + YROUND) y = 1.0_R8
       if (y < 0.0_R8 .or. y > 1.0_R8) then
         write(*,'(A)') '[ERROR] key '//key//' = '//token//': the mass fraction must lie in [0, 1]'
         stop 1
