@@ -708,6 +708,22 @@ set_tests_properties(IG-time-file-long-name PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-linefile-sector-axis -------------
+# A line-file strip that covers a quarter of the lap, n-repeat = 4, mapped about the key axis x onto face 6 of an
+# annulus about x, whose inward normal is -x: each face cell holds the closed-form law of the strip at 4 theta,
+# the axial velocity of the record enters the domain (check-mapping.py computes both from mesh.tec and the law),
+# and one INFO line names the axis and the normal. With axis = y (axis-y.ini), parallel to the face, BCB stops.
+add_test(
+    NAME    IG-linefile-sector-axis
+    COMMAND bash -c "rm -rf fromATLAStoSolver mapped.tec; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -x -F -- '[INFO] Block 1 face 6: line-file mapped about axis x, inward normal along -x: a positive axial velocity of the record enters the domain' <<< \"$out\" && python3 check-mapping.py && rm -rf fromATLAStoSolver mapped.tec && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input axis-y.ini > axis-y.log 2>&1 && grep -q -F 'the face is parallel to the y axis' axis-y.log && grep -q -F '[ERROR] face 6: not aligned with a Cartesian axis on any block' axis-y.log && test ! -e mapped.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-linefile-sector-axis"
+)
+set_tests_properties(IG-linefile-sector-axis PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

@@ -23,6 +23,7 @@ module unwrapped_to_3D_mod
     real(R8), allocatable :: theta(:), vars(:,:)
     character(32), allocatable :: varnames(:)
     integer :: circ_idx   ! auto-detected: 1=x, 2=y
+    real(R8) :: period = 0.0_R8   ! node span of the strip = one lap (2*pi*R_2D)
   end type strip_t
 
   public :: map_unwrapped_to_3D
@@ -31,30 +32,41 @@ contains
 
   !----------------------------------------
   ! Read 3D mesh and line-file, interpolate strip onto each block, write Tecplot output
-  subroutine map_unwrapped_to_3D(linefile, outfile, face, strip_j_face, cyl_center)
+  subroutine map_unwrapped_to_3D(linefile, outfile, face, strip_j_face, cyl_center, axis_key, n_repeat)
     implicit none
-    character(len=*), intent(in) :: linefile, outfile
-    integer, intent(in)          :: face, strip_j_face
+    character(len=*), intent(in) :: linefile, outfile, axis_key
+    integer, intent(in)          :: face, strip_j_face, n_repeat
     real(R8), intent(in)         :: cyl_center(3)
 
     type(bc_block), allocatable :: blk(:)
     type(orion_data) :: orion, mesh_orion
     type(strip_t) :: strip
-    integer :: b, nzones, zone, ax_idx
+    integer :: b, nzones, zone
+    integer,  allocatable :: ax_idx(:), ax_sign(:)
+    logical,  allocatable :: frame_ok(:)
     real(R8), allocatable :: times(:)
     character(len=32), allocatable :: varnames(:)
     integer :: file_unit
     logical :: file_opened
 
-    ax_idx = face_to_axis(face)
-
     call read_mesh(mesh_orion)
     allocate(blk(size(mesh_orion%block)))
     call import_nodes(input=mesh_orion, output=blk)
+    allocate(ax_idx(size(blk)), ax_sign(size(blk)), frame_ok(size(blk)))
     do b = 1, size(blk)
       call blk(b)%build_geometry()
       call blk(b)%compute_face_centers()
+      ! Cylinder axis and axial sign from the face geometry (inward normal), not from the logical face index
+      call face_frame(blk(b), face, axis_key, b, ax_idx(b), ax_sign(b), frame_ok(b))
     enddo
+    ! Face `face` of EVERY block is mapped but its zone is used only where the block carries this inlet:
+    ! a block face without a geometric axis is written about the logical axis (warned in face_frame);
+    ! stop only when no block of the mesh gives an axis.
+    if (.not. any(frame_ok)) then
+      write(*,'(A,I0,A)') "[ERROR] face ", face, ": not aligned with a Cartesian axis on any block (or no mean normal, or parallel"// &
+        " to the key axis, see the warnings above): give axis = x|y|z normal to the inlet face in the inlet section"
+      stop 1
+    endif
 
     if (verbose) write(*,'(A,3F10.4)') " [LOG] Cylinder center: ", cyl_center
 
@@ -70,13 +82,31 @@ contains
       stop 1
     endif
     nzones = size(orion%block)
+    ! ORION takes the number of coordinate columns from the zone dimensions and the header (its Fortran API guide:
+    ! K > 1 -> x y z; K = 1 -> x y, or x y z for a slice whose first three variables are x y z; J = K = 1 -> x) and reads
+    ! every other column as a variable, by position. The unwrapped record is a 2-D strip: every zone must be K = 1 with
+    ! J >= 2 nodes and the header x y + the variables, and strip-j-face one of its node rows.
+    do zone = 1, nzones
+      if (orion%block(zone)%Nk /= 0 .or. orion%block(zone)%Nj < 1) then
+        write(*,'(A,I0,A,I0,A,I0,A,I0,A)') "[ERROR] line-file "//trim(linefile)//": zone ", zone, " has I=", &
+          orion%block(zone)%Ni+1, ", J=", orion%block(zone)%Nj+1, ", K=", orion%block(zone)%Nk+1, &
+          " nodes; the unwrapped record must be a 2-D zone with J >= 2 and K = 1"
+        stop 1
+      endif
+      if (strip_j_face < 1 .or. strip_j_face > orion%block(zone)%Nj) then
+        write(*,'(A,I0,A,I0,A,I0)') "[ERROR] line-file "//trim(linefile)//": strip-j-face = ", strip_j_face, &
+          " is not a node row of zone ", zone, ": 1 to ", orion%block(zone)%Nj
+        stop 1
+      endif
+    enddo
 
     call read_solution_times(linefile, times, nzones)
-    call filter_varnames(orion%varnames, varnames)
+    call filter_varnames(orion%varnames, varnames, trim(linefile))
 
     if (verbose) then
       write(*,'(A,I0,A,I0)') " [LOG] Zones: ", nzones, ", Variables: ", size(varnames)
-      write(*,'(A,I0,A,I0)') " [LOG] Face: ", face, ", Axis: ", ax_idx
+      write(*,'(A,I0,A,I0)') " [LOG] Face: ", face, ", Axis: ", ax_idx(1)
+      write(*,'(A,I0)') " [LOG] n-repeat: ", n_repeat
     endif
 
     ! Open output file once
@@ -84,13 +114,30 @@ contains
     do zone = 1, nzones
       call extract_strip(orion, zone, varnames, strip_j_face, strip)
       if (zone == 1) then
-        if (strip%npts < 2) stop "[ERROR] Unwrapped strip < 2 points"
-        if (strip%nvar < 1) stop "[ERROR] Unwrapped strip has no variables"
-        if (strip%circ_idx < 1 .or. strip%circ_idx > 2) stop "[ERROR] circ_idx auto-detect failed"
+        ! write + stop 1: a bare stop "<text>" returns status 0 with gfortran and the
+        ! pipeline "ATLAS.sh BCB && solver" would continue without bc.txt.
+        if (strip%npts < 2) then
+          write(*,'(A)') "[ERROR] Unwrapped strip < 2 points"
+          stop 1
+        endif
+        if (strip%nvar < 1) then
+          write(*,'(A)') "[ERROR] Unwrapped strip has no variables"
+          stop 1
+        endif
+        if (strip%circ_idx < 1 .or. strip%circ_idx > 2) then
+          write(*,'(A)') "[ERROR] circ_idx auto-detect failed"
+          stop 1
+        endif
+        if (verbose) write(*,'(A,I0,A,ES12.5,A,ES12.5)') " [LOG] Strip: ", strip%npts, &
+          " cells, period (node span) = ", strip%period, ", equivalent radius L/2pi = ", strip%period / TWOPI
+        do b = 1, size(blk)
+          if (frame_ok(b)) call check_face_radius(blk(b), face, ax_idx(b), cyl_center, n_repeat * strip%period / TWOPI, b)
+        enddo
       endif
 
       do b = 1, size(blk)
-        call map_strip_to_block(blk(b), strip, ax_idx, cyl_center, face, outfile, file_unit, file_opened, times(zone), b, zone)
+        call map_strip_to_block(blk(b), strip, ax_idx(b), ax_sign(b), n_repeat, cyl_center, face, outfile, file_unit, file_opened, &
+                                times(zone), b, zone)
       enddo
     enddo
     if (file_opened) close(file_unit)
@@ -134,15 +181,21 @@ contains
       centers(i) = 0.5_R8 * (orion%block(zone)%mesh(strip%circ_idx, i-1, j_face, 0) + orion%block(zone)%mesh(strip%circ_idx, i, j_face, 0))
     enddo
 
-    ! Convert to theta: [0, 2pi)
-    s_min = minval(centers)
-    s_max = maxval(centers)
+    ! Convert to theta in (0, 2pi). The strip covers one lap: node 0 and node
+    ! npts are the two sides of the seam, so the period is the NODE span
+    ! s_N - s_0, not the cell-centre span (one cell shorter: normalising on it
+    ! stretches the strip by npts/(npts-1) and puts cells 1 and npts on the
+    ! same angle). Cell centres then sit half a cell away from the seam and the
+    ! wrap interval closed by periodic_search is exactly one cell wide.
+    s_min = minval(orion%block(zone)%mesh(strip%circ_idx, 0:npts, j_face, 0))
+    s_max = maxval(orion%block(zone)%mesh(strip%circ_idx, 0:npts, j_face, 0))
     if (s_max - s_min < 1.0e-12_R8) then
       write(*,'(A)') "[ERROR] Unwrapped circular range <= 0"
       stop 1
     endif
+    strip%period = s_max - s_min
     do i = 1, npts
-      strip%theta(i) = (centers(i) - s_min) / (s_max - s_min) * TWOPI
+      strip%theta(i) = (centers(i) - s_min) / strip%period * TWOPI
     enddo
 
     ! Variables
@@ -160,10 +213,10 @@ contains
 
   !----------------------------------------
   ! Interpolate unwrapped strip onto a block face and write Tecplot zone
-  subroutine map_strip_to_block(block, strip, ax_idx, center, face, filename, file_unit, file_opened, time, b_num, z_num)
+  subroutine map_strip_to_block(block, strip, ax_idx, ax_sign, n_repeat, center, face, filename, file_unit, file_opened, time, b_num, z_num)
     type(bc_block), intent(in) :: block
     type(strip_t), intent(in) :: strip
-    integer, intent(in) :: ax_idx, face, b_num, z_num
+    integer, intent(in) :: ax_idx, ax_sign, n_repeat, face, b_num, z_num
     real(R8), intent(in) :: center(3), time
     character(len=*), intent(in) :: filename
     integer, intent(inout) :: file_unit
@@ -176,7 +229,7 @@ contains
     call extract_geometry(block, face, n1, n2, nodes, centers)
 
     allocate(vars(strip%nvar, n1, n2))
-    call interpolate_vars(centers, vars, strip, ax_idx, center, n1, n2)
+    call interpolate_vars(centers, vars, strip, ax_idx, ax_sign, n_repeat, center, n1, n2)
 
     ! Tecplot output (open file on first call only)
     if (.not. file_opened) then
@@ -210,14 +263,14 @@ contains
 
   !----------------------------------------
   ! Interpolate unwrapped variables onto 3D face (periodic in theta, with velocity transformation)
-  subroutine interpolate_vars(centers, vars, strip, ax_idx, center, n1, n2)
+  subroutine interpolate_vars(centers, vars, strip, ax_idx, ax_sign, n_repeat, center, n1, n2)
     real(R8), intent(in) :: centers(:,:,:), center(3)
     real(R8), intent(out) :: vars(:,:,:)
     type(strip_t), intent(in) :: strip
-    integer, intent(in) :: ax_idx, n1, n2
+    integer, intent(in) :: ax_idx, ax_sign, n_repeat, n1, n2
 
     integer :: i1, i2, v, i0_, i1_, p1, p2, u_idx, v_idx, w_idx, tang_idx, ax_vel_idx
-    real(R8) :: theta, wt, vt, va, st, ct, comp(3)
+    real(R8) :: theta, theta_s, wt, vt, va, st, ct, comp(3)
     logical :: has_vel
 
     u_idx = find_var(strip%varnames, 'u')
@@ -239,11 +292,14 @@ contains
       case default; p1 = 1; p2 = 2
     end select
 
-    !$OMP PARALLEL DO PRIVATE(i1,i2,v,theta,i0_,i1_,wt,vt,va,st,ct,comp) COLLAPSE(2)
+    !$OMP PARALLEL DO PRIVATE(i1,i2,v,theta,theta_s,i0_,i1_,wt,vt,va,st,ct,comp) COLLAPSE(2)
     do i2 = 1, n2
       do i1 = 1, n1
         theta = compute_theta(centers(:,i1,i2), center, ax_idx)
-        call periodic_search(strip%theta, strip%npts, theta, i0_, i1_, wt)
+        ! Sector strip (n_repeat > 1): the strip covers 2 pi / n_repeat of the face and is repeated n_repeat times
+        theta_s = theta
+        if (n_repeat > 1) theta_s = modulo(n_repeat * theta, TWOPI)
+        call periodic_search(strip%theta, strip%npts, theta_s, i0_, i1_, wt)
 
         comp = 0.0_R8
         if (has_vel) then
@@ -251,7 +307,7 @@ contains
           if (tang_idx > 0) vt = (1.0_R8 - wt) * strip%vars(tang_idx,i0_) + wt * strip%vars(tang_idx,i1_)
           if (ax_vel_idx > 0) va = (1.0_R8 - wt) * strip%vars(ax_vel_idx,i0_) + wt * strip%vars(ax_vel_idx,i1_)
           st = sin(theta); ct = cos(theta)
-          comp(ax_idx) = va
+          comp(ax_idx) = ax_sign * va   ! along the inward normal of the face: positive va = inflow
           comp(p1) = -vt * st
           comp(p2) =  vt * ct
         endif
@@ -282,7 +338,7 @@ contains
     !$omp parallel do collapse(2) private(i1,i2)
     do i2 = 0, n2
       do i1 = 0, n1
-        nodes(:,i1,i2) = get_face_node(blk, face, i1, i2)
+        nodes(:,i1,i2) = get_face_node(blk, face, i1, i2, 0)
       enddo
     enddo
     !$omp end parallel do
@@ -298,20 +354,28 @@ contains
 
 
   !----------------------------------------
-  ! Coordinates of node (i1,i2) on the block face
-  pure function get_face_node(blk, face, i1, i2) result(c)
+  ! Coordinates of node (i1,i2) on the block face (layer 0) or `layer` node layers inward
+  pure function get_face_node(blk, face, i1, i2, layer) result(c)
     type(bc_block), intent(in) :: blk
-    integer, intent(in) :: face, i1, i2
+    integer, intent(in) :: face, i1, i2, layer
     real(R8) :: c(3)
+    integer :: i, j, k
+    ! The three subscripts are selected first and the node array is read once.
+    ! With the constant-subscript form blk%node(0, i1, i2)%c(1:3), ifx 2023.1
+    ! at -O2/-O3 -xHost drops the lower-bound offset of the first dimension
+    ! (ghost layers: lbound = -gc) and returns the ghost node i = -gc for
+    ! face 1 (x = x_face - gc*dx on every node); gfortran, ifx -O0/-O1 and
+    ! ifx without -xHost read node 0.
     select case(face)
-      case(1); c = blk%node(0, i1, i2)%c(1:3)
-      case(2); c = blk%node(blk%dim(1), i1, i2)%c(1:3)
-      case(3); c = blk%node(i1, 0, i2)%c(1:3)
-      case(4); c = blk%node(i1, blk%dim(2), i2)%c(1:3)
-      case(5); c = blk%node(i1, i2, 0)%c(1:3)
-      case(6); c = blk%node(i1, i2, blk%dim(3))%c(1:3)
-      case default; c = 0.0_R8
+      case(1); i = layer;              j = i1; k = i2
+      case(2); i = blk%dim(1) - layer; j = i1; k = i2
+      case(3); i = i1; j = layer;              k = i2
+      case(4); i = i1; j = blk%dim(2) - layer; k = i2
+      case(5); i = i1; j = i2; k = layer
+      case(6); i = i1; j = i2; k = blk%dim(3) - layer
+      case default; c = 0.0_R8; return
     end select
+    c = blk%node(i, j, k)%c(1:3)
   end function
 
 
@@ -329,7 +393,100 @@ contains
 
 
   !----------------------------------------
-  ! Normal axis index for a face (1,2->x, 3,4->y, 5,6->z)
+  ! Axis and axial sign of a block face from its geometry: N = area-weighted mean
+  ! normal of the face cells, oriented INWARD with the first interior node layer.
+  ! axis = key `axis` when given, else the dominant component of N (refused when
+  ! N is more than 30 deg off every Cartesian axis: oblique face); sign = sign of
+  ! N along the axis. WARNING when a face cell is more than 5 deg off the axis:
+  ! the mapping imposes v_r = 0, consistent only with a planar face normal to it.
+  subroutine face_frame(blk, face, axis_key, b_num, ax_idx, ax_sign, ok)
+    type(bc_block),   intent(in)  :: blk
+    integer,          intent(in)  :: face, b_num
+    character(len=*), intent(in)  :: axis_key
+    integer,          intent(out) :: ax_idx, ax_sign
+    logical,          intent(out) :: ok
+    real(R8), parameter :: DEG = 180.0_R8 / PI, AUTO_MAX_DEG = 30.0_R8, PLANAR_MAX_DEG = 5.0_R8
+    character(len=1), parameter :: AXNAME(3) = ['x', 'y', 'z']
+    integer :: n1, n2, i1, i2
+    real(R8) :: nc(3), nsum(3), din(3), dev_max, area
+    real(R8), allocatable :: nodes(:,:,:), centers(:,:,:)
+
+    call face_dims(blk%dim, face, n1, n2)
+    call extract_geometry(blk, face, n1, n2, nodes, centers)
+    nsum = 0.0_R8; din = 0.0_R8; area = 0.0_R8
+    do i2 = 1, n2
+      do i1 = 1, n1
+        nc = cell_normal(nodes, i1, i2)
+        nsum = nsum + nc; area = area + norm2(nc)
+      enddo
+    enddo
+    do i2 = 0, n2
+      do i1 = 0, n1
+        din = din + (get_face_node(blk, face, i1, i2, 1) - nodes(:,i1,i2))
+      enddo
+    enddo
+    ok = .false.; ax_idx = face_to_axis(face); ax_sign = 1   ! fallback: the logical axis of the face (face_to_axis)
+    if (area <= 0.0_R8 .or. norm2(nsum) <= 1.0e-6_R8 * area) then
+      write(*,'(A,I0,A,I0,A,I0,A)') "[WARNING] Block ", b_num, " face ", face, ": no mean normal (zero-area or closed face),"// &
+        " it cannot carry this inlet: zone written about the logical axis ", ax_idx, ", not usable as an inflow"
+      return
+    endif
+    nsum = nsum / norm2(nsum)
+    if (dot_product(nsum, din) < 0.0_R8) nsum = -nsum   ! inward
+
+    select case (lowercase(trim(axis_key)))
+      case ('x'); ax_idx = 1
+      case ('y'); ax_idx = 2
+      case ('z'); ax_idx = 3
+      case default; ax_idx = maxloc(abs(nsum), 1)
+    end select
+    if (len_trim(axis_key) == 0 .and. acos(min(1.0_R8, abs(nsum(ax_idx)))) * DEG > AUTO_MAX_DEG) then
+      write(*,'(A,I0,A,I0,A,3F8.4,A,I0,A)') "[WARNING] Block ", b_num, " face ", face, ": mean inward normal (", nsum, &
+        ") is not aligned with a Cartesian axis (> 30 deg): its zone is written about the logical axis ", face_to_axis(face), &
+        " and is usable only if this block does not carry the inlet; otherwise give axis = x|y|z in the inlet section"
+      ax_idx = face_to_axis(face); ax_sign = 1
+      return
+    endif
+    if (abs(nsum(ax_idx)) <= 1.0e-6_R8) then
+      write(*,'(A,I0,A,I0,A,A,A)') "[WARNING] Block ", b_num, " face ", face, ": the face is parallel to the ", AXNAME(ax_idx), &
+        " axis (no inward component along it): it cannot carry this inlet, its zone is written with axial sign 1"
+      ax_sign = 1
+      return
+    endif
+    ok = .true.
+    ax_sign = int(sign(1.0_R8, nsum(ax_idx)))
+
+    dev_max = 0.0_R8
+    do i2 = 1, n2
+      do i1 = 1, n1
+        nc = cell_normal(nodes, i1, i2)
+        if (norm2(nc) > 0.0_R8) dev_max = max(dev_max, acos(min(1.0_R8, abs(nc(ax_idx)) / norm2(nc))) * DEG)
+      enddo
+    enddo
+    if (verbose) then
+      if (len_trim(axis_key) > 0) then
+        write(*,'(A,I0,A,I0,A,A,A,I0,A,F7.2,A)') " [LOG] Block ", b_num, " face ", face, ": axis ", AXNAME(ax_idx), &
+          " (key axis), axial sign ", ax_sign, " (2D axial velocity imposed along the inward normal), max cell deviation from the axis ", &
+          dev_max, " deg"
+      else
+        write(*,'(A,I0,A,I0,A,A,A,3F8.4,A,I0,A,F7.2,A)') " [LOG] Block ", b_num, " face ", face, ": axis ", AXNAME(ax_idx), &
+          " (from the mean inward normal", nsum, "), axial sign ", ax_sign, ", max cell deviation from the axis ", dev_max, " deg"
+      endif
+    endif
+    ! Printed at every run, whatever the verbosity: the axial component of the record is imposed along the
+    ! inward normal of the face (a positive value enters the domain on every face), so a deck that negated
+    ! it to get an inflow on a face whose inward normal is -axis sees here that it now gets an outflow.
+    write(*,'(A,I0,A,I0,A,A,A,A,A,A)') "[INFO] Block ", b_num, " face ", face, ": line-file mapped about axis ", &
+      AXNAME(ax_idx), ", inward normal along ", merge('+', '-', ax_sign > 0), AXNAME(ax_idx), &
+      ": a positive axial velocity of the record enters the domain"
+    if (dev_max > PLANAR_MAX_DEG) write(*,'(A,I0,A,I0,A,F7.2,A,A,A)') "[WARNING] Block ", b_num, " face ", face, &
+      ": face cells deviate up to ", dev_max, " deg from the ", AXNAME(ax_idx), &
+      " axis: the mapping imposes v_r = 0, consistent only with a planar face normal to the axis"
+  end subroutine face_frame
+
+  !----------------------------------------
+  ! Normal axis index for a face (1,2->x, 3,4->y, 5,6->z): the logical axis, used by face_frame
+  ! when the face geometry gives no usable axis
   pure integer function face_to_axis(face) result(ax)
     integer, intent(in) :: face
     select case(face)
@@ -337,6 +494,117 @@ contains
       case(3,4); ax = 2
       case default; ax = 3
     end select
+  end function face_to_axis
+
+
+  !----------------------------------------
+  ! Area vector of face cell (i1,i2) from the diagonals of its four nodes (|n| = area)
+  pure function cell_normal(nodes, i1, i2) result(n)
+    real(R8), intent(in) :: nodes(:,0:,0:)
+    integer,  intent(in) :: i1, i2
+    real(R8) :: n(3), d1(3), d2(3)
+    d1 = nodes(:,i1,i2) - nodes(:,i1-1,i2-1)
+    d2 = nodes(:,i1-1,i2) - nodes(:,i1,i2-1)
+    n(1) = 0.5_R8 * (d1(2)*d2(3) - d1(3)*d2(2))
+    n(2) = 0.5_R8 * (d1(3)*d2(1) - d1(1)*d2(3))
+    n(3) = 0.5_R8 * (d1(1)*d2(2) - d1(2)*d2(1))
+  end function
+
+
+  !----------------------------------------
+  ! Face radii about `center` vs the strip's equivalent radius R_2D = n-repeat * L / 2 pi.
+  ! The mapping is angular (thin-annulus assumption: the wave-frame kinematics of
+  ! the 2D solution are exact only at r = R_2D). WARNING when R_2D lies outside the
+  ! face radius range or more than R_TOL off the mean face radius (sector strip
+  ! without n-repeat, or a strip of another geometry).
+  subroutine check_face_radius(blk, face, ax_idx, center, r_2d, b_num)
+    type(bc_block), intent(in) :: blk
+    integer,        intent(in) :: face, ax_idx, b_num
+    real(R8),       intent(in) :: center(3), r_2d
+    real(R8), parameter :: R_TOL = 0.10_R8
+    integer :: n1, n2, i1, i2
+    real(R8) :: r, r_min, r_max, r_mean, rn_min, rn_max
+    real(R8), allocatable :: nodes(:,:,:), centers(:,:,:)
+
+    call face_dims(blk%dim, face, n1, n2)
+    call extract_geometry(blk, face, n1, n2, nodes, centers)
+    r_min = huge(1.0_R8); r_max = 0.0_R8; r_mean = 0.0_R8
+    do i2 = 1, n2
+      do i1 = 1, n1
+        r = compute_radius(centers(:,i1,i2), center, ax_idx)
+        r_min = min(r_min, r); r_max = max(r_max, r); r_mean = r_mean + r
+      enddo
+    enddo
+    r_mean = r_mean / real(n1 * n2, R8)
+    ! radial extent of the face from its NODES (cell centres of a single radial cell all sit at one radius)
+    rn_min = huge(1.0_R8); rn_max = 0.0_R8
+    do i2 = 0, n2
+      do i1 = 0, n1
+        r = compute_radius(nodes(:,i1,i2), center, ax_idx)
+        rn_min = min(rn_min, r); rn_max = max(rn_max, r)
+      enddo
+    enddo
+    if (verbose) then
+      write(*,'(A,I0,A,I0,A,ES12.5,A,ES12.5)') " [LOG] Block ", b_num, " face ", face, &
+        ": radius range about center = ", r_min, " - ", r_max
+      write(*,'(A,I0,A,I0,A,ES12.5,A,ES12.5)') " [LOG] Block ", b_num, " face ", face, &
+        ": mean face radius = ", r_mean, ", strip equivalent radius R_2D = n-repeat*L/2pi = ", r_2d
+      write(*,'(A,I0,A,I0,A,ES12.5,A,ES12.5,A)') " [LOG] Block ", b_num, " face ", face, &
+        ": node radius interval = [", rn_min, ", ", rn_max, "] (R_2D must lie inside it)"
+    endif
+    if (r_2d < rn_min .or. r_2d > rn_max .or. abs(r_2d - r_mean) > R_TOL * r_mean) then
+      write(*,'(A,I0,A,I0,A,ES12.5,A,ES12.5,A,ES12.5,A,ES12.5,A)') "[WARNING] Block ", b_num, " face ", face, &
+        ": strip equivalent radius R_2D = n-repeat*L/2pi = ", r_2d, " m vs face radius min/mean/max = ", rn_min, "/", r_mean, "/", &
+        rn_max, " m: the mapping is angular (thin-annulus assumption, wave kinematics exact only at r = R_2D); a sector strip needs n-repeat"
+    endif
+  end subroutine check_face_radius
+
+
+  !----------------------------------------
+  ! Copy of a header line with every double-quoted string (quotes included) blanked
+  pure function blank_quoted(str) result(out)
+    character(len=*), intent(in) :: str
+    character(len=len(str)) :: out
+    integer :: i
+    logical :: inq
+    out = str; inq = .false.
+    do i = 1, len(str)
+      if (str(i:i) == '"') then
+        inq = .not. inq; out(i:i) = ' '
+      elseif (inq) then
+        out(i:i) = ' '
+      endif
+    enddo
+  end function
+
+
+  !----------------------------------------
+  ! .true. when the word `zone` stands alone in `line` (lowercase, quotes blanked):
+  ! neither preceded nor followed by a letter, digit or underscore (ZONETYPE is not a zone)
+  pure logical function is_zone_keyword(line)
+    character(len=*), intent(in) :: line
+    character(len=*), parameter :: WORD = 'abcdefghijklmnopqrstuvwxyz0123456789_'
+    integer :: p, s
+    logical :: ok
+    is_zone_keyword = .false.
+    s = 1
+    do
+      p = index(line(s:), 'zone')
+      if (p == 0) return
+      p = p + s - 1
+      ok = .true.
+      if (p > 1) then
+        if (index(WORD, line(p-1:p-1)) > 0) ok = .false.
+      endif
+      if (p + 4 <= len(line)) then
+        if (index(WORD, line(p+4:p+4)) > 0) ok = .false.
+      endif
+      if (ok) then
+        is_zone_keyword = .true.; return
+      endif
+      s = p + 4
+      if (s > len(line)) return
+    enddo
   end function
 
 
@@ -355,21 +623,41 @@ contains
 
 
   !----------------------------------------
-  ! Filter unwrapped varnames (skip x,y,z), add 'w' if missing and u or v present
-  subroutine filter_varnames(input, output)
+  ! Filter unwrapped varnames (skip the coordinates x y), add 'w' if missing and u or v present
+  subroutine filter_varnames(input, output, name)
     character(len=*), intent(in) :: input(:)
+    character(len=*), intent(in) :: name
     character(len=32), allocatable, intent(out) :: output(:)
     integer :: offset, n, nout, i
     logical :: has_w, has_vel
     character(len=32) :: lname
 
-    n = size(input); offset = 0
-    if (n >= 2 .and. lowercase(trim(input(1))) == 'x' .and. lowercase(trim(input(2))) == 'y') then
-      offset = 2
-      if (n >= 3 .and. lowercase(trim(input(3))) == 'z') offset = 3
+    n = size(input); offset = 2
+    ! Every zone is 2-D (checked by the caller). With the header x y followed by the variables, ORION reads the first two
+    ! columns as the coordinates and the others as variables, by position, so the header must start with x y and carry
+    ! only the variables after them. n is tested first: input(2) is never referenced for n = 1 (Fortran does not
+    ! short-circuit .and.).
+    if (n <= offset) then
+      write(*,'(A)') "[ERROR] Unwrapped file has no variables"
+      stop 1
     endif
-
-    if (n - offset <= 0) stop "[ERROR] Unwrapped file has no variables"
+    if (lowercase(trim(input(1))) /= 'x' .or. lowercase(trim(input(2))) /= 'y') then
+      write(*,'(A)') "[ERROR] line-file "//name//": header starts with "//trim(input(1))//" "//trim(input(2))// &
+        "; the unwrapped record must carry only x y and the variables"
+      stop 1
+    endif
+    ! A coordinate name among the variables is refused: the line-file is a 2-D record, x y and the variables.
+    ! The pinned ORION reads a K = 1 slice whose first three names are x y z with three coordinates, so a z
+    ! column is not a variable either way (with the ORION that main pinned, K = 1 meant two coordinates: the z
+    ! column was read as the first variable and every variable took the values of the column before it).
+    do i = offset+1, n
+      lname = lowercase(trim(input(i)))
+      if (lname == 'x' .or. lname == 'y' .or. lname == 'z') then
+        write(*,'(A)') "[ERROR] line-file "//name//": header has a "//trim(lname)// &
+          " column; the unwrapped record must carry only x y and the variables"
+        stop 1
+      endif
+    enddo
 
     ! Check if 'w' already exists and if velocity components are present
     has_w = .false.; has_vel = .false.
@@ -389,42 +677,88 @@ contains
 
 
   !----------------------------------------
-  ! Read SOLUTIONTIME from Tecplot zone headers
+  ! SOLUTIONTIME of every zone of the line-file, from the zone headers.
+  ! A line is a zone header only when the keyword `zone` stands outside double
+  ! quotes and is not part of a longer word (ZONETYPE=Ordered, TITLE="exit zone
+  ! probe" and `#` comment lines never count); a header may span several lines,
+  ! so the SOLUTIONTIME is taken from any header line of the current zone. The
+  ! count must equal the number of zones read by ORION; SOLUTIONTIME missing on
+  ! some zones only = error (the time axis would be corrupted silently); missing
+  ! on every zone of a multi-zone file, or times not strictly increasing = warning.
   subroutine read_solution_times(filename, times, nzones)
     implicit none
     character(len=*),      intent(in)  :: filename
     integer,               intent(in)  :: nzones
     real(R8), allocatable, intent(out) :: times(:)
     ! Local variables
-    integer :: u, ios, z, ia
-    character(len=llen) :: line
-    character(len=100) :: args(40), subargs(2)
+    integer :: u, ios, z, p, q, lt, nmiss
+    character(len=1024) :: line
+    logical, allocatable :: has_time(:)
 
-    allocate(times(nzones)); times = -1.0_R8
+    allocate(times(nzones), has_time(nzones)); times = -1.0_R8; has_time = .false.
     open(newunit=u, file=trim(filename), status='old', iostat=ios)
-    if (ios /= 0) return
+    if (ios /= 0) then
+      write(*,'(A,A)') "[ERROR] cannot reopen the line-file to read its zone headers: ", trim(filename)
+      stop 1
+    endif
 
     z = 0
     do
       read(u, '(A)', iostat=ios) line
-      if (ios == iostat_end) exit
-      if (index(lowercase(line), 'zone') > 0) then
-        z = z + 1
-        if (z > nzones) exit
-        if (index(lowercase(line), 'solutiontime') > 0) then
-          call parse(line, ',', args)
-          do ia = 1, size(args)
-            if (index(lowercase(args(ia)), 'solutiontime') > 0) then
-              call parse(args(ia), '=', subargs)
-              read(subargs(2), *, iostat=ios) times(z)
-              exit
-            endif
-          enddo
-        endif
+      if (ios /= 0) exit
+      p = verify(line, ' ')
+      if (p == 0) cycle
+      if (index('0123456789+-.#', line(p:p)) > 0) cycle   ! data line or comment
+      lt = len_trim(line)
+      line(1:lt) = lowercase(blank_quoted(line(1:lt)))
+      if (is_zone_keyword(line(1:lt))) z = z + 1
+      if (z < 1 .or. z > nzones) cycle
+      p = index(line(1:lt), 'solutiontime')
+      if (p == 0) cycle
+      q = index(line(p:lt), '=')
+      ios = 1
+      if (q > 0) read(line(p+q:lt), *, iostat=ios) times(z)
+      if (ios /= 0) then
+        write(*,'(A,I0,A,A)') "[ERROR] cannot parse the SOLUTIONTIME of line-file zone ", z, ": ", trim(line)
+        stop 1
       endif
+      has_time(z) = .true.
     enddo
     close(u)
-  end subroutine
+
+    if (z /= nzones) then
+      write(*,'(A,I0,A,I0,A,A)') "[ERROR] line-file zone headers: ", z, " ZONE keywords found, but the reader has ", nzones, &
+        " zones: ", trim(filename)
+      stop 1
+    endif
+    nmiss = count(.not. has_time)
+    if (nmiss == nzones) then
+      ! A multi-zone record without times cannot be a time series (MOSE would read
+      ! every zone at t = 0 and keep the last one); a single zone without time is a steady record at t = 0
+      if (nzones > 1) then
+        write(*,'(A,I0,A)') "[ERROR] line-file: none of the ", nzones, &
+          " zones has a SOLUTIONTIME: a multi-zone time record needs one per zone (MOSE would read every zone"// &
+          " at t = 0 and keep the last zone of each block)"
+        stop 1
+      endif
+      write(*,'(A)') "[WARNING] line-file: the single zone has no SOLUTIONTIME: written at t = 0 (a steady inflow)"
+    elseif (nmiss > 0) then
+      do z = 1, nzones
+        if (.not. has_time(z)) exit
+      enddo
+      write(*,'(A,I0,A,I0,A,I0,A)') "[ERROR] line-file zone ", z, " has no SOLUTIONTIME (", nmiss, " of ", nzones, &
+        " zones without one): every zone of a time record needs one"
+      stop 1
+    else
+      do z = 2, nzones
+        if (times(z) <= times(z-1)) then
+          write(*,'(A,I0,A,ES12.5,A,ES12.5,A)') "[WARNING] line-file SOLUTIONTIME is not strictly increasing at zone ", z, &
+            " (", times(z-1), " then ", times(z), "): the solver orders the frames by time"
+          exit
+        endif
+      enddo
+    endif
+  end subroutine read_solution_times
 
   !----------------------------------------
   ! Theta angle of a point w.r.t. cylinder center (right-handed, any axis)
@@ -440,6 +774,22 @@ contains
       case default; c1 = d(1); c2 = d(2)  ! z-axis: x-y plane
     end select
     theta = modulo(atan2(c2, c1), TWOPI)
+  end function
+
+
+  !----------------------------------------
+  ! Distance of a point from the cylinder axis (same plane convention as compute_theta)
+  pure real(R8) function compute_radius(xyz, center, ax_idx) result(r)
+    real(R8), intent(in) :: xyz(3), center(3)
+    integer, intent(in)  :: ax_idx
+    real(R8) :: d(3)
+
+    d = xyz - center
+    select case(ax_idx)
+      case(1); r = sqrt(d(2)**2 + d(3)**2)
+      case(2); r = sqrt(d(3)**2 + d(1)**2)
+      case default; r = sqrt(d(1)**2 + d(2)**2)
+    end select
   end function
 
 

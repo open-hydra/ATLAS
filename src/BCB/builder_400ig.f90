@@ -6,7 +6,17 @@ submodule (bc_mod) ig_inflow_outflow_mod
   use composition_check_mod,  only: check_composition
   implicit none
 
-  character(len=128) :: mod_linefile='null'
+  ! Registry of the unwrapped->3D mappings already written in this run. One
+  ! mapping writes the requested face of EVERY block into its time-file, so
+  ! the file content depends only on (line-file, face, strip-j-face, center):
+  ! an exact repeat (same section on another block, or on another MG level)
+  ! is skipped, while the same time-file requested with a different key is
+  ! refused, because one file cannot hold two mappings.
+  type :: unwrapped_done_t
+    type(bcb_unwrapped_config_t) :: cfg
+    character(len=256)           :: outfile = ''
+  end type unwrapped_done_t
+  type(unwrapped_done_t), allocatable :: unwrapped_done(:)
   ! L4 (per-type honoured keys) under strict-keys = false: one WARNING per (bc, key), the
   ! builder runs once per face cell
   character(len=128), allocatable :: warned_keys(:)
@@ -766,15 +776,25 @@ contains
     character(len=*), intent(in) :: section
     ! Local variables
     type(bcb_unwrapped_config_t) :: local_cfg
+    type(unwrapped_done_t)       :: entry
+    integer :: i
 
     ! Load complete configuration
     call load_bcb_unwrapped_config(sourceini, section, local_cfg)
 
-    if (local_cfg%linefile==mod_linefile) then
-      return
-    else
-      mod_linefile = local_cfg%linefile
-    endif
+    ! The mapping is optional for BC 410: a plain time-file section (no
+    ! line-file key) is user data and passes through untouched.
+    if (.not. local_cfg%has_linefile) return
+
+    if (.not. allocated(unwrapped_done)) allocate(unwrapped_done(0))
+    do i = 1, size(unwrapped_done)
+      if (trim(outfile) /= trim(unwrapped_done(i)%outfile)) cycle
+      if (same_unwrapped_key(local_cfg, unwrapped_done(i)%cfg)) return
+      write(*,'(A)') '[ERROR] time-file '//trim(outfile)//' was already written from line-file '// &
+                     trim(unwrapped_done(i)%cfg%linefile)//' with a different face/center/strip-j-face/axis/n-repeat:'
+      write(*,'(A)') '        one time-file cannot hold two mappings, give each mapping its own time-file'
+      stop 1
+    enddo
 
     if (.not. local_cfg%has_center) then
       write(*,*) '[ERROR] Missing center in input (x y z)'
@@ -782,9 +802,20 @@ contains
     endif
 
     ! Execute unwrapped to 3D mapping
-    call map_unwrapped_to_3D(local_cfg%linefile, outfile, local_cfg%face, local_cfg%strip_j_face, local_cfg%center)
+    call map_unwrapped_to_3D(local_cfg%linefile, outfile, local_cfg%face, local_cfg%strip_j_face, local_cfg%center, &
+                             local_cfg%axis, local_cfg%n_repeat)
+    entry%cfg = local_cfg
+    entry%outfile = outfile
+    unwrapped_done = [unwrapped_done, entry]
 
   end subroutine apply_unwrapped_to_3D
+
+  pure logical function same_unwrapped_key(a, b)
+    type(bcb_unwrapped_config_t), intent(in) :: a, b
+    same_unwrapped_key = trim(a%linefile) == trim(b%linefile) .and. a%face == b%face .and. &
+                         a%strip_j_face == b%strip_j_face .and. all(a%center == b%center) .and. &
+                         a%axis == b%axis .and. a%n_repeat == b%n_repeat
+  end function same_unwrapped_key
 
       ! if (present(SRMswitch)) then
       !   m = size(self_properties)
