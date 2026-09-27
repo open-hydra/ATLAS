@@ -30,6 +30,12 @@ If the phase has no name, the prefix is omitted (`ic.vtm`).
 
 Each output contains cell-centered initialized variables for each associated block.
 
+When ORION returns an error while writing the initial condition, ICB stops with `[ERROR] writing
+fromATLAStoSolver/<phase>-ic.<ext> (ORION error <n>, see its message above): no initial condition was
+written for this phase` and exit status 1 instead of ending as a success. With the pinned ORION the
+binary Tecplot writer (`.szplt`, TecIO builds) reports such errors, for example a folder that cannot be
+written or a full disk.
+
 Variable payload depends on phase type:
 
 | Phase | Typical variables |

@@ -778,6 +778,12 @@ contains
         orion%vtk%node = .false.
         E_IO = vtk_write_structured_multiblock(orion=orion,vtspath=trim(localpath_vtk), &
                                                vtmpath=trim(localpath)//'/'//trim(name_)//'ic',varnames=varnames)
+        ! a file ORION could not write (its message is above) must not end the run as a success
+        if (E_IO /= 0) then
+          write(*,'(A,I0,A)') '[ERROR] writing '//trim(localpath)//'/'//trim(name_)//'ic.vtm (ORION error ', E_IO, &
+            ', see its message above): no initial condition was written for this phase'
+          stop 1
+        endif
       else
         write(*,*)' - Writing tec-fomat file'
         if (index(ICformat,'binary')>0) then
@@ -793,6 +799,13 @@ contains
         endif
         orion%tec%node = .false.
         E_IO = tec_write_structured_multiblock(orion=orion,varnames=varnames, filename=trim(filename))
+        ! a file ORION could not write (e.g. a binary file TecIO cannot create: its message is above)
+        ! must not end the run as a success
+        if (E_IO /= 0) then
+          write(*,'(A,I0,A)') '[ERROR] writing '//trim(filename)//' (ORION error ', E_IO, &
+            ', see its message above): no initial condition was written for this phase'
+          stop 1
+        endif
       endif
     
     write(*,*)

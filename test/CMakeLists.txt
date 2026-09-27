@@ -461,6 +461,22 @@ set_tests_properties(IG-interp-multiple-x3-linear PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-ic-write-failure (TecIO builds: the binary initial condition cannot be written, because a folder
+# ----       stands where the file goes; ORION returns an error and ICB stops with exit status 1 naming the file,
+# ----       instead of ending as a success without an initial condition) -------------
+if(USE_TECIO)
+add_test(
+    NAME    IG-ic-write-failure
+    COMMAND bash -c "rm -rf fromATLAStoSolver && mkdir -p fromATLAStoSolver/ic.szplt && if ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB > icb.log 2>&1 < /dev/null; then cat icb.log; false; else cat icb.log; grep -q -F 'ic.szplt (ORION error' icb.log && grep -q -F 'no initial condition was written for this phase' icb.log; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-ic-write-failure"
+)
+set_tests_properties(IG-ic-write-failure PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+endif()
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 

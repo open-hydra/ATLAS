@@ -46,6 +46,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-nozzle-plenum-order` | ICB | `ICB/IG-nozzle-plenum-order` | The plenum rows of a nozzle zone and another zone overwrite each other in the zone order: a `[WARNING]` names each case and the products do not change. |
 | `IG-interp-multiple-x3-3D` | ICB | `ICB/IG-interp-multiple-x3-3D` | A uniform 2x2x2 source refined by 3 in 3-D with `interpolation-law = multiple` stays uniform: the product equals the one of `minimum_distance`. |
 | `IG-interp-multiple-x3-linear` | ICB | `ICB/IG-interp-multiple-x3-linear` | A field linear in the cell indices, refined by 3 with `interpolation-law = multiple`, is reproduced exactly inside the block in 2-D and in 3-D. |
+| `IG-ic-write-failure` | ICB | `ICB/IG-ic-write-failure` | When ORION cannot write the binary initial condition (a folder stands where `ic.szplt` goes), ICB stops with exit status 1 naming the file (registered in builds with TecIO). |
 | `IG-inflow-nozzle` | BCB | `BCB/IG-inflow-nozzle` | Nozzle inflow boundary-condition construction. |
 | `IG-inflow-ceafile-inertmix` | BCB | `BCB/IG-inflow-ceafile-inertmix` | Inflow BC creation using CEA-based inert-mixture inputs. |
 | `IG-multipatch-file` | BCB | `BCB/IG-multipatch-file` | Multipatch BC assignment when patches are provided by file. |
