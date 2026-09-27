@@ -40,9 +40,22 @@ A reduced H₂/O₂ mechanism with 7 species developed for supersonic combustion
 - **Files**: `ONERA-7.yaml` (14 irreversible), `ONERA-7_rev.yaml` (7 reversible)
 - **Species / Reactions**: 7 / 7–14
 - **FLINT**: the phase name `ONERA-7` selects a compiled FLINT routine, which serves the 14 irreversible reactions of `ONERA-7.yaml`; `ONERA-7-rev` deliberately selects none, and FLINT runs `ONERA-7_rev.yaml` with its `general` procedure
+- **Species / Reactions**: 7 / 14 (`ONERA-7.yaml`), 7 / 7 (`ONERA-7_rev.yaml`)
 - **Primary fuels**: H₂/air (scramjet)
 
-> D. Scherrer, O. Dessornes, M. Ferrier, et al., "Research on supersonic combustion and scramjet combustors at ONERA," *Aerospace Lab*, Issue 11, 2016.
+> Davidenko, Gökalp, Dufour, Magre, AIAA Paper 2006-7913, 2006, Table A.1. DOI: [10.2514/6.2006-7913](https://doi.org/10.2514/6.2006-7913).
+>
+> Davidenko, Gökalp, Kudryavtsev, West-East High Speed Flow Field Conference, 2007 (the same model for H₂–O₂ rotating detonation).
+
+## Gerlinger-9
+
+A reduced H₂/air mechanism (a modified Jachimowski 1988 model) with 9 species and 19 reactions.
+
+- **File**: `Gerlinger-9.yaml` (phase `Gerlinger-9`)
+- **Species / Reactions**: 9 / 19
+- **Primary fuels**: H₂/air
+
+> Gerlinger, Möbus, Brüggemann, *J. Comput. Phys.*, 167:247–276, 2001. DOI: [10.1006/jcph.2000.6671](https://doi.org/10.1006/jcph.2000.6671).
 
 ## Nassini
 
@@ -54,7 +67,9 @@ A global single-step mechanism for H₂/air detonation with 4 species (H₂, O�
 - **Species / Reactions**: 4 / 2
 - **Primary fuels**: H₂/air (detonation)
 
-> P.C. Nassini, A. Andreini, M.D. Bohon, "Characterization of refill region and mixing state immediately ahead of a hydrogen-air rotating detonation using LES," *Combust. Flame*, 258:113073, 2023. DOI: [10.1016/j.combustflame.2023.113073](https://doi.org/10.1016/j.combustflame.2023.113073).
+> P.C. Nassini, "High-fidelity Numerical Investigations of a Hydrogen Rotating Detonation Combustor," PhD thesis, University of Florence (DIEF), XXXIV cycle, 2018–2021. The Original model: Chapter 2 (Eqs. 2.36–2.39, Table 2.7).
+
+> P.C. Nassini, A. Andreini, M.D. Bohon, "Characterization of refill region and mixing state immediately ahead of a hydrogen-air rotating detonation using LES," *Combust. Flame*, 258:113050, 2023. DOI: [10.1016/j.combustflame.2023.113050](https://doi.org/10.1016/j.combustflame.2023.113050).
 
 ## Frolov
 
@@ -67,7 +82,7 @@ A global single-step mechanism for H₂/air combustion with 4 species (H₂, O�
 - **Species / Reactions**: 4 / 1
 - **Primary fuels**: H₂/air (detonation)
 
-> S.M. Frolov, V.S. Aksenov, V.S. Ivanov, "Large-scale hydrogen–air continuous detonation combustor," *Int. J. Hydrogen Energy*, 40(3):1616–1623, 2015. DOI: [10.1016/j.ijhydene.2014.11.112](https://doi.org/10.1016/j.ijhydene.2014.11.112).
+> Frolov, Dubrovskii, Ivanov, *Progress in Propulsion Physics*, 4:467–488, 2013, Eq. (11), p. 474. DOI: [10.1051/eucass/201304467](https://doi.org/10.1051/eucass/201304467).
 
 ---
 
@@ -103,6 +118,7 @@ Detailed chemical kinetic reaction models developed through a collaboration betw
 - **FFCMy-12**
   - **File**: `FFCMy_12.yaml` (phase `FFCMy-12`, from the previous ATLAS repository)
   - **Species / Reactions**: 13 / 38 (no falloff-SRI)
+  - **Reference**: Xu et al., *Combust. Flame*, 263:113380, 2024 (derived from an early version, FFCMy, of FFCM-2). DOI: [10.1016/j.combustflame.2024.113380](https://doi.org/10.1016/j.combustflame.2024.113380)
   - **FLINT**: the phase name `FFCMy-12` selects a compiled FLINT routine; its structure (species order, reactions, third-body efficiencies, falloff types) is checked against this file by the ctest `database-flint-contract`
 
 > https://web.stanford.edu/group/haiwanglab/FFCM1/
@@ -118,7 +134,7 @@ A detailed chemical kinetic model for methane oxidation under high-pressure cond
 - **Species / Reactions**: 68 / 631
 - **Primary fuels**: CH₄
 
-> H. Hashemi, J.M. Christensen, S. Gersen, H. Levinsky, S.J. Klippenstein, P. Glarborg, "High-Pressure Oxidation of Methane," *Combust. Flame*, 2016. DOI: [10.1016/j.combustflame.2016.07.016](https://doi.org/10.1016/j.combustflame.2016.07.016).
+> H. Hashemi, J.M. Christensen, S. Gersen, H. Levinsky, S.J. Klippenstein, P. Glarborg, "High-Pressure Oxidation of Methane," *Combust. Flame*, 172:349–364, 2016. DOI: [10.1016/j.combustflame.2016.07.016](https://doi.org/10.1016/j.combustflame.2016.07.016).
 
 ---
 
@@ -138,7 +154,7 @@ A family of skeletal mechanisms for methane–oxygen combustion at high pressure
 
 - **Developer**: M. Valorani, R. Malpica Galassi, P.P. Ciottoli, P.E. Lapenna, F. Creta — Sapienza University of Rome
 
-> J. Liberatori, R. Malpica Galassi, D. Bianchi, F. Nasuti, F. Creta, M. Valorani, "Family of Skeletal Reaction Mechanisms for Methane–Oxygen Combustion in Rocket Propulsion," *J. Propul. Power*, 40(2):232–248, 2024. DOI: [10.2514/1.B39283](https://doi.org/10.2514/1.B39283).
+> J. Liberatori, R. Malpica Galassi, D. Bianchi, F. Nasuti, M. Valorani, P.P. Ciottoli, "Family of Skeletal Reaction Mechanisms for Methane–Oxygen Combustion in Rocket Propulsion," *J. Propul. Power*, 40(2):303–319, 2024. DOI: [10.2514/1.B39283](https://doi.org/10.2514/1.B39283).
 
 ## Zhukov-Kong (ZK) Mechanism
 
@@ -210,6 +226,8 @@ A simplified global kinetic model for hydrocarbon combustion with 5 species and 
 - **Primary fuels**: CH₄
 
 > C.K. Westbrook, F.L. Dryer, "Chemical Kinetic Modeling of Hydrocarbon Combustion," *Prog. Energy Combust. Sci.*, 10(1):1–57, 1984.
+
+> J. Andersen, C.L. Rasmussen, T. Giselsson, P. Glarborg, "Global Combustion Mechanisms for Use in CFD Modeling under Oxy-Fuel Conditions," *Energy & Fuels*, 23(3):1379–1389, 2009. DOI: [10.1021/ef8003619](https://doi.org/10.1021/ef8003619) (the WD-Andersen variant).
 
 ---
 
@@ -308,7 +326,7 @@ A global mechanism for 1,3-butadiene (C₄H₆) combustion with 9 species and 6 
 - **Species / Reactions**: 9 / 6
 - **Primary fuels**: C₄H₆ (HTPB pyrolysis product)
 
-> A. Coronetti, W.A. Sirignano, "Numerical Analysis of Hybrid Rocket Combustion," *J. Propul. Power*, 29(5):1059–1069, 2013. DOI: [10.2514/1.B34760](https://doi.org/10.2514/1.B34760).
+> A. Coronetti, W.A. Sirignano, "Numerical Analysis of Hybrid Rocket Combustion," *J. Propul. Power*, 29(2):371–384, 2013. DOI: [10.2514/1.B34760](https://doi.org/10.2514/1.B34760).
 
 ## Singh-WC32
 
@@ -319,7 +337,7 @@ A global mechanism for dotriacontane (C₃₂H₆₆) combustion with 10 species
 - **Species / Reactions**: 10 / 11
 - **Primary fuels**: C₃₂H₆₆/GOX (paraffin wax hybrid rocket)
 
-> M.T. Migliorino, D. Bianchi, F. Nasuti, "Numerical Analysis of Paraffin-Wax/Oxygen Hybrid Rocket Engines," *J. Propul. Power*, 36(5):806–819, 2020. DOI: [10.2514/1.B37914](https://doi.org/10.2514/1.B37914).
+> M.T. Migliorino, D. Bianchi, F. Nasuti, "Numerical Analysis of Paraffin-Wax/Oxygen Hybrid Rocket Engines," *J. Propul. Power*, 36(6):806–819, 2020. DOI: [10.2514/1.B37914](https://doi.org/10.2514/1.B37914).
 
 ---
 
@@ -334,14 +352,15 @@ A detailed chlorine chemistry mechanism covering the high-temperature chemistry 
 - **Species / Reactions**: 25 / 103
 - **Primary fuels**: HCl/Cl₂ (chlorine inhibition chemistry)
 
-> M. Pelucchi, A. Frassoldati, T. Faravelli, B. Ruscic, P. Glarborg, "High-temperature chemistry of HCl and Cl₂," *Combust. Flame*, 162(6):2539–2554, 2015. DOI: [10.1016/j.combustflame.2015.03.011](https://doi.org/10.1016/j.combustflame.2015.03.011).
+> M. Pelucchi, A. Frassoldati, T. Faravelli, B. Ruscic, P. Glarborg, "High-temperature chemistry of HCl and Cl₂," *Combust. Flame*, 162(6):2693–2704, 2015. DOI: [10.1016/j.combustflame.2015.04.002](https://doi.org/10.1016/j.combustflame.2015.04.002).
 
 ## Cross
 
-A mechanism for SRM plume afterburning with 20 species and 33 reactions. Includes hydrocarbons (C₂H₂, CH₂O, CH₃, CH₄), chlorine species (Cl, Cl₂, ClO, HCl), and nitrogen species (HCN, N₂). Uses NASA-9 polynomial thermodynamics.
+A mechanism for SRM plume afterburning with 19 species and 33 reactions. Includes hydrocarbons (C₂H₂, CH₂O, CH₃, CH₄), chlorine species (Cl, Cl₂, ClO, HCl), and nitrogen species (HCN, N₂). Uses NASA-9 polynomial thermodynamics.
 
 - **File**: `cross.yaml`
 - **Species / Reactions**: 19 / 33
+- **Reference**: to be confirmed
 - **Primary fuels**: SRM exhaust plume (H₂/CO/HCl/HCN afterburning)
 
 ## Ecker
