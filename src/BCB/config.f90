@@ -334,6 +334,13 @@ contains
 
     call sini%get(section_name=trim(bc_name), option_name='direction', val=cfg%direction, error=error)
     cfg%has_direction = error == 0
+    if (cfg%has_direction) then
+      if (verify(trim(adjustl(cfg%direction)), 'xyzrtijk') /= 0 .or. len_trim(cfg%direction) == 0) then
+        write(*,'(A)') '[ERROR] key direction of section ['//trim(bc_name)//']: value '//trim(cfg%direction)// &
+          ' is not a direction (letters x, y, z, r, t, i, j, k, lower case)'
+        stop 1
+      endif
+    endif
 
     if (.not. cfg%multipatch) return
     if (.not. cfg%has_direction) return

@@ -778,6 +778,18 @@ set_tests_properties(IG-multigrid-2D PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : BCB-direction-refused (a direction letter outside x, y, z, r, t, i, j, k (here X) stops BCB naming the key) -------------
+add_test(
+    NAME    BCB-direction-refused
+    COMMAND bash -c "rm -rf _run-dir && mkdir _run-dir && cp *.ini *.tec *.txt *.dat _run-dir/ 2>/dev/null; cd _run-dir && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input direction-X.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F 'key direction of section [isoth]: value X is not a direction' <<< \"$out\""
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-xtheta-variable-T"
+)
+set_tests_properties(BCB-direction-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable
