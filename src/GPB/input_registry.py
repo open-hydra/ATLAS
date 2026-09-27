@@ -55,7 +55,7 @@ REGISTRY_ENTRIES: List[RegistryEntry] = [
 
     RegistryEntry(
         'GPB-IdealGas', 'phase', '', '', False,
-        'Existing Cantera phase file stem (without .yaml).'
+        'Existing Cantera phase file stem (without .yaml): the name of the database file, which may differ from the phase name inside it.'
     ),
     RegistryEntry(
         'GPB-IdealGas', 'thermo', '', 'NASA7,NASA9,Burcat', False,
@@ -324,7 +324,7 @@ GPB_PHASE = [
 ]
 
 GPB_IDEALGAS = [
-    RegistryEntry('GPB-IdealGas', 'phase', '', '', False, 'Existing Cantera phase file stem (without .yaml).'),
+    RegistryEntry('GPB-IdealGas', 'phase', '', '', False, 'Existing Cantera phase file stem (without .yaml): the name of the database file, which may differ from the phase name inside it.'),
     RegistryEntry('GPB-IdealGas', 'thermo', '', 'NASA7,NASA9,Burcat', False, 'Thermodynamic species database selector.'),
     RegistryEntry('GPB-IdealGas', 'transport', '', 'CEA,cantera', False, 'Transport model source.'),
     RegistryEntry('GPB-IdealGas', 'reactions', '', '', False, 'Reaction mechanism file stem (without .yaml).'),

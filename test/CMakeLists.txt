@@ -717,3 +717,15 @@ set_tests_properties(GPB-falloff-form-refused PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : IG-phase-file-name-hint (phase = takes the yaml file name: phase = WD-Andersen, the phase name inside WD-andersen.yaml, stops with an error that suggests WD-andersen) -------------
+add_test(
+    NAME    IG-phase-file-name-hint
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1; then cat gpb.log; false; else grep -q -F 'did you mean phase = WD-andersen?' gpb.log; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-phase-file-name-hint"
+)
+set_tests_properties(IG-phase-file-name-hint PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

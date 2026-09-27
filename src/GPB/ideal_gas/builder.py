@@ -17,6 +17,50 @@ CEAtransdir = CEA_TRANS_FILE
 # Every message goes to stdout; nothing is ever written into the product files
 # (the reader of the tables reads them positionally).
 # ---------------------------------------------------------------------------
+def _ct_error_line(e):
+    """The informative line of a CanteraError (the banner lines of asterisks and the 'thrown by' header are dropped)."""
+    lines = [l.strip() for l in str(e).splitlines() if l.strip() and not l.strip().startswith('*')]
+    body = [l for l in lines if 'thrown by' not in l]
+    return body[0] if body else (lines[-1] if lines else str(e).strip())
+
+def _yaml_phase_names(path):
+    """Names of the phases declared in a Cantera yaml file (top-level 'phases:' list), read as text."""
+    names, inside = [], False
+    try:
+        with open(path, errors='replace') as f:
+            for line in f:
+                if line.startswith('phases:'):
+                    inside = True
+                elif inside and line[:1].isalpha():
+                    break
+                elif inside:
+                    m = re.match(r'^\s*(?:-\s+)?name:\s*["\']?([^"\'\s#]+)', line)   # '- name: X' or 'name: X' of a list item
+                    if m:
+                        names.append(m.group(1))
+    except OSError:
+        pass
+    return names
+
+def _file_hint(key, stem, err):
+    """For a yaml file that was not found: the files the user may have meant. phase = and reactions = take the
+    name of the file without .yaml, which may differ from the phase name inside it (e.g. WD-andersen.yaml holds
+    the phase WD-Andersen)."""
+    if 'not found' not in str(err):
+        return ''
+    hits = []
+    for d in (os.getcwd(), CHEMISTRY_DIR):
+        try:
+            files = sorted(f for f in os.listdir(d) if f.endswith('.yaml'))
+        except OSError:
+            continue
+        for f in files:
+            if f[:-5] != stem and (f[:-5].lower() == stem.lower() or stem in _yaml_phase_names(os.path.join(d, f))):
+                hits.append(f[:-5])
+    hits = list(dict.fromkeys(hits))
+    if not hits:
+        return ''
+    return f" ({key} = takes the name of the yaml file without .yaml, not the phase name inside it: did you mean {key} = {' or '.join(hits)}?)"
+
 def _flint_guards(phase):
     """Refuse the falloff forms other than Troe and Lindemann and the chemically-activated reactions; warn on the name 'gas' and on pressure-dependent rates, which the tables hold at 1 atm only."""
     eff = phase.name.strip()
@@ -148,6 +192,10 @@ def build(inifile,section):
         if transport_model == 'CEA' or CEA_equilibrium:
             CEAdata = IG_IO.read_yaml_file(CEAtransdir)
     else:
+        # phase = <file> takes thermo, transport and reactions from the yaml file: say which keys are ignored
+        ignored = [k for k, v in (('thermo', thermo_model), ('transport', transport_model), ('reactions', reaction_model)) if v is not None]
+        if ignored:
+            print(f"[WARNING] GPB: phase = {phase_model}: keys ignored (the yaml file gives the thermo, transport and reactions): {', '.join(ignored)}")
         transport_model = 'cantera'
 
 
@@ -159,10 +207,19 @@ def build(inifile,section):
     # Direct address of a phase solution.
     if phase_model is not None:
         print(' -- Found phase model:',phase_model)
-        phase = ct.Solution(phase_model + '.yaml')
+        try:
+            phase = ct.Solution(phase_model + '.yaml')
+        except ct.CanteraError as e:   # a file Cantera refuses (e.g. a declared transport model with a species without transport data)
+            print(f"[ERROR] key phase of section [{section}]: {phase_model}.yaml cannot be loaded by Cantera: {_ct_error_line(e)}{_file_hint('phase', phase_model, e)}")
+            sys.exit(1)
+        if phase.transport_model == 'none':   # phase = forces transport = cantera; a phase without a transport model raises at the viscosity
+            print(f"[ERROR] key phase of section [{section}]: {phase_model}.yaml declares no transport model for the phase (or its species lack transport data): add 'transport: mixture-averaged' and the Lennard-Jones records to the file")
+            sys.exit(1)
         if (phase.n_reactions>0):
             mechanism = phase
             reaction_model = phase
+        else:
+            reaction_model = None   # reactions = is ignored with phase = (a file without reactions gets no chemistry tables)
         species_group.append(phase)
     # ---------------------------------------------------
 
@@ -174,7 +231,11 @@ def build(inifile,section):
     if reaction_model is not None and phase_model is None:
         print(' -- Found reaction model:',reaction_model)
         # Load the full mechanism
-        raw_mechanism = ct.Solution(reaction_model + '.yaml')
+        try:
+            raw_mechanism = ct.Solution(reaction_model + '.yaml')
+        except ct.CanteraError as e:   # a file Cantera refuses (e.g. a declared transport model with a species without transport data)
+            print(f"[ERROR] key reactions of section [{section}]: {reaction_model}.yaml cannot be loaded by Cantera: {_ct_error_line(e)}{_file_hint('reactions', reaction_model, e)}")
+            sys.exit(1)
         # Species of the file without transport data: transport = cantera needs the file records (refused before any
         # product); transport = CEA takes the CEApolynomials records (simplified law without a record); without a
         # transport key no transport table is written. The database record of such a species keeps its (empty)
@@ -185,6 +246,9 @@ def build(inifile,section):
             sys.exit(1)
         if notr and transport_model == 'CEA':
             print(f"[INFO] GPB: transport = CEA: {len(notr)} species of {reaction_model}.yaml carry no transport data and take the CEApolynomials record: {', '.join(notr[:10])}{' ...' if len(notr) > 10 else ''}")
+        if transport_model == 'cantera' and raw_mechanism.transport_model == 'none':
+            print(f"[ERROR] key reactions of section [{section}]: {reaction_model}.yaml declares no transport model for the phase: add 'transport: mixture-averaged' to the phase in the file, or use transport = CEA")
+            sys.exit(1)
         # Create a dictionary for quick lookup of species
         # (none with reactions = without thermo: every species keeps the thermo and transport records of the file)
         all_species_dict = {} if file_thermo else {s.name: s for s in all_species}

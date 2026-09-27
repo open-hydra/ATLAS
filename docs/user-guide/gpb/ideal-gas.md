@@ -57,6 +57,8 @@ type      = ideal-gas
 phase     = gri30
 ```
 
+`phase` (like `reactions`) takes the **name of the yaml file** without `.yaml`, searched in the working directory and in `database/chemistry/`; it may differ from the phase name written inside the file, which is the name FLINT uses to select its routine. Example: `phase = WD-andersen` loads `database/chemistry/WD-andersen.yaml`, whose phase is named `WD-Andersen`; `phase = WD-Andersen` is not a file and GPB stops with an error that suggests `WD-andersen`.
+
 ### Finite-rate chemistry model
 
 Species list imported from the specified chemical mechanism.
