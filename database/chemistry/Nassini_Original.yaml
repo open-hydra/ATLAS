@@ -1,4 +1,7 @@
 description: |-
+  ZND/CJ figures quoted in the original block below (CJ speed, von Neumann state, half-reaction thickness):
+  verified with SDToolbox; the CJ speed and the von Neumann state also with an independent Hugoniot
+  computation (D_CJ,eq 1975.44 m/s with the file thermo).
   -------------------------------------------------------------------------------
    Global mechanism for H2-air detonation
    4 species single step

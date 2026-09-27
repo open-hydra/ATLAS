@@ -1,4 +1,12 @@
-description: |- 
+description: |-
+  Thermodynamic data identical to database/thermo/burcat.yaml for all 7 species. With GPB thermo = NASA7
+  (Cantera nasa_gas.yaml) GPB replaces OH by a record with dHf(298.15 K) = 39.35 kJ/mol instead of 37.30
+  (+2.047 kJ/mol = NASA7 minus Burcat, the sign GPB prints as 'database - file' in its thermo replacement line);
+  use thermo = Burcat (identical records) or NASA9 (max |dh| 0.06 kJ/mol, 300-5000 K).
+  Backward rates: the 14 published rate constants (Davidenko et al. 2006, Table A.1, transcribed 14/14) are used as
+  written; the published k'' differ from the exact k'/K_c by up to 51 % on the reaction pairs; ONERA-7-rev
+  (ONERA-7_rev.yaml: 7 reversible reactions, backward from K_c) is the thermodynamically consistent variant
+  (documentation only: the published constants are kept).
 
 generator: Alessandro Montanari
 date: Wed, 19 Feb 2025
