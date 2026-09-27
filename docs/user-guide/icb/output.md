@@ -52,3 +52,4 @@ Main wrote the seven bands on a pure-2D target too, so Q2D read `ru'w'` as omega
 - VTK/Tecplot selection is entirely controlled through `IC-format`.
 - Output file names are phase-aware and include `<phase>-` only for named phases.
 
+ICB writes no passive-scalar band: a solver run with passive scalars (npass > 0) reads its `Pass` bands from an IC file that does not carry them, so passive scalars cannot be initialised by ICB today.

@@ -32,6 +32,7 @@ module ic_builder_mod
     real(R8)                      :: zonerange(6)
     character(len=20)             :: wholestring, args(3), phase_name
     logical                       :: has_direction, found_phase
+    integer                       :: nopt
     character(len=:), allocatable :: declared
 
     do b = 1, size(blocks)
@@ -93,6 +94,16 @@ module ic_builder_mod
       enddo
 
       call input_keys_check_section(sini, section_name, 'block')
+      ! a block that no section describes would be written from a zero state
+      nopt = 0
+      do while (sini%loop(section_name=section_name, option_pairs=option_pairs))
+        nopt = nopt + 1
+      enddo
+      if (nopt == 0) then
+        write(*,'(A,I0,A)') '[ERROR] build_IC: block ', b, ' has no initial state: give a section ['//trim(section_name)// &
+          '] (or [ICB-Block*]) with its keys'
+        stop 1
+      endif
       call sini%get(section_name=section_name, option_name='type', val=blk%type, error=error)
       if (error/=0) blk%type = 'homogeneous'
       ! Multizone

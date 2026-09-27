@@ -366,6 +366,19 @@ set_tests_properties(IG-interp-2D-wband PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-block-no-section (a block that no [ICB-Block<n>] or [ICB-Block*] section describes stops ICB
+# ----       naming the block; nothing is written) -------------
+add_test(
+    NAME    IG-block-no-section
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F 'block 1 has no initial state: give a section [ICB-Block1]' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-block-no-section"
+)
+set_tests_properties(IG-block-no-section PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 
