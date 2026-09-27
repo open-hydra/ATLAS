@@ -210,8 +210,10 @@ contains
           call ini_o%add(section_name='cell', option_name='face_inj', val=Inj_phi_R(5, ninj))
           exit
         else
-          if (ninj == size(Inj_phi_R, 2)) &
-            stop "[ERROR] Plate is not fully covered, cell is missing an injector"
+          if (ninj == size(Inj_phi_R, 2)) then
+            write(*,'(A)') "[ERROR] Plate is not fully covered, cell is missing an injector"
+            stop 1
+          endif
         end if
       end do
 
