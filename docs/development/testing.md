@@ -31,6 +31,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
 | `mg3-granularity` | MDB | `MDB/mg3-granularity` | Partition granularity under 3 multigrid levels. |
 | `split-longest` | MDB | `MDB/split-longest` | Splitting along the longest block direction. |
+| `grid-p3d-3D` | BCB + MDB | `MDB/grid-p3d-3D` | A 3D grid given to MDB as a PLOT3D file is split as the same grid in Tecplot. |
 | `split-solution` | MDB | `MDB/split-solution` | Splitting a case that carries a solution field. |
 | `coupled-phases` | BCB + MDB | `MDB/coupled-phases` | Two-phase interface: type-`103` donors remapped against the other phase's decomposition. |
 | `x-variable` | STB | `STB/x-variable` | Spatially varying source-term generation along x. |
@@ -83,6 +84,7 @@ KAnT tests check chemistry-analysis workflows produce expected trends and output
 MDB tests check that a mesh and its BC data are split consistently across parallel partitions.
 
 - `split-longest`, `block-directions`: validate the choice of split direction.
+- `grid-p3d-3D`: validate a 3D grid given to MDB as a PLOT3D file (read as 3D: the products of the same grid in Tecplot).
 - `balance-only`: validate load balancing when no split is required.
 - `halo-trade`: validate halo/ghost bookkeeping between partitions.
 - `mg3-granularity`: validate partition sizing under multigrid constraints.

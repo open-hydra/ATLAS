@@ -484,6 +484,22 @@ set_tests_properties(split-longest PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- MDB : grid-p3d-3D (a 3D grid given as PLOT3D) -------------
+# MDB reads the grid of [MDB-Parameters] grid by its path: a PLOT3D file with five node planes (grid.p3d) must be split
+# as the same grid given as mesh.tec, i.e. the products equal those of the same deck with grid = mesh.tec (run again in
+# fromATLAStoSolver/tecplot): decomposition.map, INPUT-split/bc.txt and the nodes of mesh-split.tec (its ZONE lines
+# carry the solution time of the grid file, which a PLOT3D file does not hold: its zones carry SOLUTIONTIME=0).
+add_test(
+    NAME    grid-p3d-3D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && mkdir fromATLAStoSolver/tecplot && cp phase.txt mesh.tec fromATLAStoSolver/tecplot/ && sed 's/grid = grid.p3d/grid = mesh.tec/' input.ini > fromATLAStoSolver/tecplot/input.ini && cd fromATLAStoSolver/tecplot && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && diff ../decomposition.map fromATLAStoSolver/decomposition.map && diff ../INPUT-split/bc.txt fromATLAStoSolver/INPUT-split/bc.txt && diff <(grep -v ZONE ../mesh-split.tec) <(grep -v ZONE fromATLAStoSolver/mesh-split.tec) && ! grep ZONE ../mesh-split.tec | grep -q -v -F 'SOLUTIONTIME=0.000000000000000E+000'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/grid-p3d-3D"
+)
+set_tests_properties(grid-p3d-3D PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- MDB : block-directions (per-block split-directions) -------------
 add_test(
     NAME    block-directions
