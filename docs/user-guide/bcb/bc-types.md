@@ -373,6 +373,13 @@ p2-dp = 0.001
 !!! warning "Phase name requirements"
     For the dispersed phase, the phase name may be added in front of the entry name to assign a property to that phase. This is mandatory when multiple phases are injected together through the same boundary face.
 
+!!! note "Values per population"
+    A dispersed phase injects every population of every material of `<name>phase.txt`, and `<name>-bc.txt` holds one copy
+    of the boundary table per (material, population) pair, material by material, populations in order. Each key above takes
+    one value, which every pair receives, or one value per pair in that order: with `alumina 2` and `water 1`,
+    `p1-dp = 0.01 0.02 0.03` gives alumina's populations 0.01 and 0.02 and water's 0.03. Any other count stops BCB. The
+    variant is chosen once for the phase: `402` needs a non-zero velocity magnitude in every population.
+
 !!! note "One record set per dispersed phase"
     Each named dispersed phase gets its own ids and payloads in its own `<name>-bc.txt`:
     on a face shared by `p1` and `p2`, the `p1-*` keys reach only `p1-bc.txt` and the

@@ -241,6 +241,33 @@ set_tests_properties(DP-multigrid PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-population-list (a per-population key: one value per (material, population)) --------
+# DP-multigrid's phase (alumina 2 populations, water 1) on one level: drop-Tp and drop-dp list the three
+# pairs in phase-file order, the other keys are scalars and reach every copy of the table.
+add_test(
+    NAME    DP-population-list
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py --dispersed fromATLAStoSolver/drop-bc.txt && diff fromATLAStoSolver/drop-bc.txt reference/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-population-list"
+)
+set_tests_properties(DP-population-list PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-population-count (any count other than 1 or one per pair is refused) ----------------
+# drop-Tp gives two values for three (material, population) pairs: BCB must stop with exit 1.
+add_test(
+    NAME    DP-population-count
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q 'drop-Tp: 2 value(s) for 3 (material, population) pairs' bcb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-population-count"
+)
+set_tests_properties(DP-population-count PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-z-variable-krho (z-profile krho file, phase-prefixed keys) -------------
 add_test(
     NAME    DP-z-variable-krho
