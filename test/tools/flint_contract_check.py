@@ -22,9 +22,14 @@ For every database/chemistry/*.yaml (Cantera parse = the parse GPB uses):
   3. one phase name = one structural content: two files with the same phase name must have the same species
      list and the same reaction structure (reactants, products, effective orders, reversibility, table
      class, efficiencies); rate parameters may differ;
-  4. a file whose description starts with 'BROKEN:' is skipped (and listed);
-  5. --expect FILE=ROUTINE (repeatable; not with --only) pins a hook: ERROR if FILE does not select
+  4. an ATLAS-defined calibrated species (a name that is not a chemical formula and exists in
+     database/thermo/nasa9.yaml, e.g. H2ONassini) must carry the nasa9.yaml record in every file that uses it;
+  5. a file whose description starts with 'BROKEN:' is skipped (and listed);
+  6. --expect FILE=ROUTINE (repeatable; not with --only) pins a hook: ERROR if FILE does not select
      ROUTINE ('general' = must not be a case) or is missing/skipped;
+  7. a derived rate closure listed in CLOSURES (today Nassini_Montanari_Grossi.yaml: reaction 2 = k_f(1) sqrt(p0/RT)/K_c(1),
+     the thesis closure k_b = k_f sqrt(p0/RT)/K_c, p0 = 1 bar, K_c in Cantera's convention) must hold on the 1 K grid of its range
+     within its tolerance, so a change of a thermo record of the file without a recomputation of the Chebyshev fails.
 Exit status 1 on any ERROR.   Usage: flint_contract_check.py <database dir> [--only FILE.yaml]
 [--require-fingerprint] [--contract JSON] [--expect FILE=ROUTINE ...]   (Python >= 3.6, Cantera, PyYAML)
 """
@@ -47,6 +52,11 @@ def table_class(rtype):
     if 'Lindemann' in rtype: return 'lindemann'
     return 'arrhenius'
 
+import re
+def is_formula(name):
+    """a name made of element-like tokens (CH4, C32H66, HCL, CH2(S)): not an ATLAS-defined calibrated species"""
+    return re.fullmatch(r"(?:[A-Z][a-z]?\d*)+(?:\([A-Za-z0-9]+\))?(?:[+-])?", name) is not None
+
 NAME_READ = 'whole line (trimmed)'   # how FLINT reads line 1 of chemistry-info.txt (a constant of this checker)
 
 def effective_name(name):
@@ -58,6 +68,9 @@ def effective_name(name):
     for sep in (' ', ',', '/'):
         name = name.split(sep)[0]
     return name
+
+# 7. derived rate closures: file -> forward/backward reaction (1-based), p0 [Pa], 1 K grid range, tolerance
+CLOSURES = {'Nassini_Montanari_Grossi.yaml': dict(forward=1, backward=2, p0=1.0e5, Tmin=200, Tmax=6000, rtol=1.1e-4, law='k_f(r1) sqrt(p0/RT)/K_c(r1), p0 = 1 bar')}
 
 def yaml_reactions(g):
     """structural description of every reaction (1-based slots)"""
@@ -134,9 +147,10 @@ def main():
     src = os.path.join(os.path.dirname(os.path.abspath(contract)), 'flint_mechanism_contract.source')
     origin = open(src).read().strip() if os.path.exists(src) else 'origin not recorded'
     print('FLINT mechanism contract: %s (%s; %d cases; name read %s)' % (os.path.basename(contract), origin, len(cases), NAME_READ))
+    n9 = {s['name']: s for s in yaml.load(open(os.path.join(a.database, 'thermo', 'nasa9.yaml')), Loader=_Loader)['species']}
     files = sorted(glob.glob(os.path.join(chem, '*.yaml')))
     if a.only and a.require_fingerprint: files = [f for f in files if os.path.basename(f) == a.only]
-    errors, flags, skipped, byname, byeff, checked = [], [], [], {}, {}, set()
+    errors, flags, skipped, byname, byeff, named, checked = [], [], [], {}, {}, {}, set()
     for f in files:
         fn = os.path.basename(f)
         doc = yaml.load(open(f, encoding='utf-8'), Loader=_Loader)
@@ -155,6 +169,25 @@ def main():
         byname.setdefault(name, []).append((fn, g)); byeff.setdefault(eff, set()).add(name)
         if a.only and fn != a.only: continue
         checked.add(fn)
+        cl = CLOSURES.get(fn)
+        if cl:   # 7. the backward step must be the declared closure of the forward step on the whole range (K_c = Cantera's, from the file's own thermo)
+            fi, bi, worst = cl['forward'] - 1, cl['backward'] - 1, (0.0, 0)
+            for T in range(int(cl['Tmin']), int(cl['Tmax']) + 1):
+                g.TP = T, ct.one_atm; kf = g.forward_rate_constants
+                err = abs(kf[bi] / (kf[fi] * (cl['p0'] / (ct.gas_constant * T)) ** 0.5 / g.equilibrium_constants[fi]) - 1.0)
+                if err > worst[0]: worst = (err, T)
+            if worst[0] > cl['rtol']: errors.append('%s: reaction %d is not the closure %s: max relative error %.3e at %d K (tolerance %g on %g-%g K)' % (fn, bi + 1, cl['law'], worst[0], worst[1], cl['rtol'], cl['Tmin'], cl['Tmax']))
+            else: print('  %-32s closure: reaction %d = %s to %.3e (max, at %d K; tolerance %g on %g-%g K)' % (fn, bi + 1, cl['law'], worst[0], worst[1], cl['rtol'], cl['Tmin'], cl['Tmax']))
+        # one name = one content for ATLAS-defined calibrated species: a species name that is not a chemical formula AND
+        # exists in database/thermo/nasa9.yaml (e.g. H2ONassini) must carry that record in every file that uses it
+        for s in doc.get('species', []):
+            if is_formula(str(s['name'])) or s['name'] not in n9: continue
+            th = s.get('thermo', {}); ref = n9[s['name']]['thermo']
+            if th.get('model') != ref.get('model') or th.get('temperature-ranges') != ref.get('temperature-ranges') or th.get('data') != ref.get('data'):
+                errors.append('%s: record of %s differs from database/thermo/nasa9.yaml (one name = one content)' % (fn, s['name']))
+            key = json.dumps(th, sort_keys=True, default=str)
+            prev = named.setdefault(s['name'], (fn, key))
+            if prev[1] != key: errors.append('%s: record of %s differs from the one in %s (one name = one content)' % (fn, s['name'], prev[0]))
         c = cases.get(eff)
         if fn in expect:   # hook pinned by the ctest registration: a renamed file fails
             want, got = expect.pop(fn), (c['routine'] if c else 'general')

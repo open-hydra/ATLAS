@@ -1,7 +1,37 @@
-description: Nassini 4S1R |- 
+description: |-
+  Nassini 4S1R (4 species, 2 irreversible reactions): one-step H2-air detonation model of P. C. Nassini's PhD
+  thesis, Chapter 2 (Eqs. 2.36-2.39, Table 2.7), Montanari-Grossi variant (forward parameters below).
+  Forward (reaction 1): k_f = A exp(-Ea/RT), A = 3.1e10 dm3/(mol s), Ea/R = 11562.4 K, orders n_H2 = n_O2 = 1.
+  Backward (reaction 2) = the thesis closure (Eq. 2.39), dimensionally consistent reading with p0 = 1 bar:
+      k_b(T) = k_f(T) * (p0/(R T))^(n_H2 + n_O2 - 1) / K_p(T) = k_f(T) * sqrt(p0/(R T)) / K_c(T),
+      K_p(T) = exp(-(g0_H2ONassini - g0_H2 - 0.5 g0_O2)/(R T)) at the standard pressure p0,
+  represented EXACTLY as a Chebyshev rate in 1/T with a single pressure column (pressure independent):
+  21 coefficients, max relative error <= 1.1e-4 on 200-6000 K and <= 7.3e-5 on 1000-5000 K (1 K grid) with
+  respect to the closure evaluated on the thermodynamic data of THIS file.
+  NASA9 only: the coefficients were computed on the NASA9 records below; with GPB thermo = NASA7 or Burcat
+  the database replaces O2, H2 and N2 and the closure moves by 0.15-0.26% in 1000-5000 K: use thermo = NASA9.
+  K_c convention: the closure is evaluated with Cantera's K_c, i.e. the species reference pressure 1 atm (the yaml
+  carries no reference-pressure key), while the thesis states p0 = 1 bar: a K_c referred to 1 bar would lower k_b by
+  0.66% (sqrt(1e5/101325)) at every T; a convention difference, not an error.
+  Single pressure column; first Chebyshev reaction of the ATLAS database: GPB tabulates it as an Arrhenius
+  zone (zone 2 of the Arrhenius table = the closure) and FLINT counts it as an Arrhenius reaction.
+  The (1,1) orders do not move every observable towards equilibrium (T_ad kinetic 2215 K vs equilibrium
+  2336 K, stoichiometric H2-air at 1 atm): a property of the one-step model, not of the closure.
+  Replaces the previous two-parameter fit of the backward rate (A = 5.78089e10 1/s, Ea/R = 38821.1 K), which
+  was 1-36% below Eq. 2.39 between 1000 and 5000 K (14-36% up to 4000 K). Below 200 K the polynomial is extrapolated and decreases
+  monotonically to 0 (checked on GPB's default table, Tmin = 1 K).
+
+  Thermodynamics: thesis = SanDiego coefficients + delta a7 = 1343 K (Eq. 2.46, dHf(H2O) = -230.66 kJ/mol);
+  here the NASA Glenn NASA9 base of database/thermo/nasa9.yaml (records O2, H2ONassini, H2, N2 byte-identical
+  to that file, the same records GPB uses with thermo = NASA9): max |dh| 0.02 kJ/mol below 3500 K vs
+  SanDiego + 1343 K. Transport: Lennard-Jones data of the previous file. Deck composition keys: yH2ONassini.
+
+  FLINT: the phase name must stay 'Nassini' and the species order [O2, H2ONassini, H2, N2]: GPB writes them
+  on line 1 of chemistry-info.txt and in the tables, and FLINT selects its compiled routine by that name (see
+  docs/user/chemistry_routines.md in the FLINT repository).
 
 generator: Alessandro Montanari
-date: Tue, 18 Feb 2025
+date: Thu, 24 Sep 2026
 
 units: {length: dm, time: s, quantity: mol, activation-energy: K}
 
@@ -18,34 +48,19 @@ phases:
     P: 1.01325e+05
 
 species:
-- name: H2
-  composition: {H: 2}
-  thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 6000.0]
-    data:
-    - [2.34433112, 7.98052075e-03, -1.9478151e-05, 2.01572094e-08, -7.37611761e-12,
-      -917.935173, 0.683010238]
-    - [2.93286575, 8.26608026e-04, -1.46402364e-07, 1.54100414e-11, -6.888048e-16,
-      -813.065581, -1.02432865]
-  transport:
-    model: gas
-    geometry: linear
-    diameter: 2.92
-    well-depth: 38.0
-    polarizability: 0.79
-    rotational-relaxation: 280.0
-  note: TPIS78
 - name: O2
   composition: {O: 2}
   thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 6000.0]
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
     data:
-    - [3.78245636, -2.99673416e-03, 9.84730201e-06, -9.68129509e-09, 3.24372837e-12,
-      -1063.94356, 3.65767573]
-    - [3.66096065, 6.56365811e-04, -1.41149627e-07, 2.05797935e-11, -1.29913436e-15,
-      -1215.97718, 3.41536279]
+    - [-3.42556342e+04, 484.700097, 1.119010961, 4.29388924e-03, -6.83630052e-07,
+      -2.0233727e-09, 1.039040018e-12, -3391.45487, 18.4969947]
+    - [-1.037939022e+06, 2344.830282, 1.819732036, 1.267847582e-03, -2.188067988e-07,
+      2.053719572e-11, -8.19346705e-16, -1.689010929e+04, 17.38716506]
+    - [4.9752943e+08, -2.866106874e+05, 66.9035225, -6.16995902e-03, 3.016396027e-07,
+      -7.4214166e-12, 7.27817577e-17, 2.293554027e+06, -553.062161]
+    note: Ref-Elm. Gurvich,1989 pt1 p94 pt2 p9. [tpis89]
   transport:
     model: gas
     geometry: linear
@@ -53,17 +68,17 @@ species:
     well-depth: 107.4
     polarizability: 1.6
     rotational-relaxation: 3.8
-  note: RUS89
 - name: H2ONassini
   composition: {H: 2, O: 1}
   thermo:
-    model: NASA7
+    model: NASA9
     temperature-ranges: [200.0, 1000.0, 6000.0]
     data:
-    - [4.1986352, -2.0364017e-03, 6.5203416e-06, -5.4879269e-09, 1.771968e-12,
-       -2.89502838e+04, -0.84900901]   # a6 shifted (+1343.442205852)
-    - [2.6770389, 2.9731816e-03, -7.7376889e-07, 9.4433514e-11, -4.2689991e-15,
-       -2.85424518e+04, 6.88255]       # a6 shifted (+1343.442205852)
+    - [-3.94796083e+04, 5.75573102e+02, 9.31782653e-01, 7.22271286e-03, -7.34255737e-06,
+       4.95504349e-09, -1.336933246e-12, -3.16963009e+04, 1.724205775e+01]   # a8 = -3.30397431e+04 + 1343.442205852
+    - [ 1.034972096e+06, -2.412698562e+03, 4.64611078e+00, 2.291998307e-03, -6.83683048e-07,
+       9.42646893e-11, -4.82238053e-15, -1.24994229e+04, -7.97814851e+00]     # a8 = -1.384286509e+04 + 1343.442205852
+    note: Hf adjusted to -230.66 kJ/mol @298 K; enthalpy continuous at 1000 K
   transport:
     model: gas
     geometry: nonlinear
@@ -71,17 +86,39 @@ species:
     well-depth: 572.4
     dipole: 1.844
     rotational-relaxation: 4.0
-  note: Hf = -230.66 kJ/mol @298 K; enthalpy continuous at 1000 K
+- name: H2
+  composition: {H: 2}
+  thermo:
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+    data:
+    - [4.07832321e+04, -800.918604, 8.21470201, -0.01269714457, 1.753605076e-05,
+      -1.20286027e-08, 3.36809349e-12, 2682.484665, -30.43788844]
+    - [5.60812801e+05, -837.150474, 2.975364532, 1.252249124e-03, -3.74071619e-07,
+      5.9366252e-11, -3.6069941e-15, 5339.82441, -2.202774769]
+    - [4.96688412e+08, -3.147547149e+05, 79.8412188, -8.41478921e-03, 4.75324835e-07,
+      -1.371873492e-11, 1.605461756e-16, 2.488433516e+06, -669.572811]
+    note: Ref-Elm. Gurvich,1978 pt1 p103 pt2 p31. [tpis78]
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 2.92
+    well-depth: 38.0
+    polarizability: 0.79
+    rotational-relaxation: 280.0
 - name: N2
   composition: {N: 2}
   thermo:
-    model: NASA7
-    temperature-ranges: [200.0, 1000.0, 6000.0]
+    model: NASA9
+    temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
     data:
-    - [3.53100528, -1.23660988e-04, -5.02999433e-07, 2.43530612e-09, -1.40881235e-12,
-      -1046.97628, 2.96747038]
-    - [2.95257637, 1.3969004e-03, -4.92631603e-07, 7.86010195e-11, -4.60755204e-15,
-      -923.948688, 5.87188762]
+    - [2.210371497e+04, -381.846182, 6.08273836, -8.53091441e-03, 1.384646189e-05,
+      -9.62579362e-09, 2.519705809e-12, 710.846086, -10.76003744]
+    - [5.87712406e+05, -2239.249073, 6.06694922, -6.1396855e-04, 1.491806679e-07,
+      -1.923105485e-11, 1.061954386e-15, 1.283210415e+04, -15.86640027]
+    - [8.31013916e+08, -6.42073354e+05, 202.0264635, -0.03065092046, 2.486903333e-06,
+      -9.70595411e-11, 1.437538881e-15, 4.93870704e+06, -1672.09974]
+    note: Ref-Elm. Gurvich,1978 pt1 p280 pt2 p207. [tpis78]
   transport:
     model: gas
     geometry: linear
@@ -89,16 +126,34 @@ species:
     well-depth: 97.53
     polarizability: 1.76
     rotational-relaxation: 4.0
-  note: G8/02
 
 reactions:
 - equation: H2 + 0.5 O2 => H2ONassini
   rate-constant: {A: 3.1e+10, b: 0, Ea: 11562.4}
   orders: {H2: 1, O2: 1}
 - equation: H2ONassini => H2 + 0.5 O2
-  rate-constant: {A: 5.78089e+10, b: 0, Ea: 38821.1}
-  orders: {H2ONassini: 1}
-
-
-
-
+  type: Chebyshev
+  temperature-range: [200.0, 6000.0]
+  pressure-range: [0.001 atm, 1000.0 atm]
+  data:
+  - [-32.79107823055]
+  - [40.89699210608]
+  - [-0.04441572240787]
+  - [-0.0476037942719]
+  - [-0.03833878574827]
+  - [-0.02666906587186]
+  - [-0.01723821900774]
+  - [-0.01060438800669]
+  - [-0.006264218503448]
+  - [-0.003582236272861]
+  - [-0.00200265253279]
+  - [-0.001105299571823]
+  - [-0.0006065889305429]
+  - [-0.0003322895366163]
+  - [-0.0001823264322984]
+  - [-0.0001010233993933]
+  - [-5.738109701335e-05]
+  - [-3.399821651088e-05]
+  - [-2.128377841673e-05]
+  - [-1.4224952683e-05]
+  - [-1.0317579026e-05]

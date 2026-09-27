@@ -50,7 +50,7 @@ A global single-step mechanism for H₂/air detonation with 4 species (H₂, O�
 
 - **Developer**: P.C. Nassini — University of Florence; A. Montanari, M. Grossi (modified variant)
 - **Files**: `Nassini_Original.yaml`, `Nassini_Montanari_Grossi.yaml`
-- **FLINT**: phase `Nassini` (both files) selects a compiled FLINT routine; species order O₂, H₂ONassini, H₂, N₂ (N₂ inert; reaction 2 = the backward step)
+- **FLINT**: phase `Nassini` (both files) selects a compiled FLINT routine; species order O₂, H₂ONassini, H₂, N₂ (N₂ inert; reaction 2 = the backward step). Thermodynamics of both files = the NASA9 records of `database/thermo/nasa9.yaml` (Glenn base + Δa7 = 1343 K for the water), the same records GPB uses with `thermo = NASA9`
 - **Species / Reactions**: 4 / 2
 - **Primary fuels**: H₂/air (detonation)
 
