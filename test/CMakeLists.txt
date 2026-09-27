@@ -657,3 +657,27 @@ set_tests_properties(IG-transport-CEA-species-without-data PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : CP-tmin-noninteger (a non-integer Tmin of a condensed phase is refused naming the key; the ideal-gas phase before it, with an integer Tmin = 300, is accepted) -------------
+add_test(
+    NAME    CP-tmin-noninteger
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1; then cat gpb.log; false; else grep -q -F '[ERROR] key Tmin of section [GPB-Phase2]: Tmin = 300.5 is not an integer number of kelvin' gpb.log && ! grep -q 'section \\[GPB-Phase1\\]' gpb.log; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-tmin-noninteger"
+)
+set_tests_properties(CP-tmin-noninteger PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : GPB-tmin-range (Tmin at or below 0 K, or above Tmax, stops GPB naming the key (ideal gas and condensed phase)) -------------
+add_test(
+    NAME    GPB-tmin-range
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input tmin-zero.ini 2>&1); test $? -eq 1 && grep -q -F '[ERROR] key Tmin of section [GPB-Phase1]: Tmin = 0 is not a temperature above 0 K' <<< \"$out\" && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input tmin-above-tmax.ini 2>&1); test $? -eq 1 && grep -q -F 'Tmin = 450 is above Tmax = 400' <<< \"$out\" && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input cp-tmin-zero.ini 2>&1); test $? -eq 1 && grep -q -F 'Tmin = 0 is not a temperature above 0 K' <<< \"$out\""
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/GPB-tmin-range"
+)
+set_tests_properties(GPB-tmin-range PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

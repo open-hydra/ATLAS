@@ -5,6 +5,7 @@ from . import thermo as IG_thermo
 from . import io as IG_IO
 from .cea_compat import CEA
 from ini import *
+from PiNeR import get
 import os, sys, re
 from config import setup_cantera_dirs, CEA_TRANS_FILE
 
@@ -360,6 +361,18 @@ def build(inifile,section):
         new_phase.transport_model = solution.transport_model
         species_group[i] = new_phase
 
+
+    tmin_given = get(inifile, section, 'Tmin', str) is not None
+    # Below the polynomial range of a species thermo.py extrapolates cp, h, s linearly (said only for an explicit Tmin)
+    lo = {sp.name: sp.thermo.min_temp for sol in species_group for sp in sol.species()}
+    if tmin_given and lo and T1 < max(lo.values()):
+        worst = max(lo, key=lo.get)
+        print(f"[WARNING] GPB: Tmin = {T1} K is below the polynomial range of {sum(1 for v in lo.values() if v > T1)} species (up to {lo[worst]:g} K for {worst}): cp, h, s are extrapolated linearly below the range")
+    # Above the polynomial maximum of a species cp is frozen at the bound (h, s extended linearly): one [INFO] line
+    hi = {sp.name: sp.thermo.max_temp for sol in species_group for sp in sol.species()}
+    frozen = sorted(n for n, v in hi.items() if v < T2)
+    if frozen:
+        print(f"[INFO] GPB: cp frozen at the polynomial maximum for {len(frozen)} species above their range (from {min(hi[n] for n in frozen):g} K) up to Tmax = {T2} K: {', '.join(frozen[:10])}{' ...' if len(frozen) > 10 else ''}")
 
     # ---------------------------------------------------
     # Build thermodynamic properties
