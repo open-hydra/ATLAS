@@ -658,10 +658,10 @@ set_tests_properties(IG-transport-CEA-species-without-data PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-tmin-noninteger (a non-integer Tmin of a condensed phase is refused naming the key; the ideal-gas phase before it, with an integer Tmin = 300, is accepted) -------------
+# ---- GPB : CP-tmin-noninteger (a non-integer Tmin of a condensed phase is refused naming the key; the products of the ideal-gas phase before it, with an integer Tmin = 300, are not left behind) -------------
 add_test(
     NAME    CP-tmin-noninteger
-    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1; then cat gpb.log; false; else grep -q -F '[ERROR] key Tmin of section [GPB-Phase2]: Tmin = 300.5 is not an integer number of kelvin' gpb.log && ! grep -q 'section \\[GPB-Phase1\\]' gpb.log; fi"
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1; then cat gpb.log; false; else grep -q -F '[ERROR] key Tmin of section [GPB-Phase2]: Tmin = 300.5 is not an integer number of kelvin' gpb.log && ! grep -q 'section \\[GPB-Phase1\\]' gpb.log && test ! -e fromATLAStoSolver && ! ls -d .gpb-tmp-* 2>/dev/null; fi"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-tmin-noninteger"
 )
 set_tests_properties(CP-tmin-noninteger PROPERTIES

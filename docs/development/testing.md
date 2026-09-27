@@ -20,7 +20,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-strict-thermo` | GPB | `GPB/IG-strict-thermo` | `strict-thermo = true` refuses a database thermo record that differs from the file record by more than 1 kJ/mol. |
 | `IG-fixgas-gas-constant` | GPB | `GPB/IG-fixgas-gas-constant` | A species given by `gamma` and `mw`: `cp = gamma/(gamma-1) R_u/mw` with the exact `R_u`. |
 | `IG-transport-CEA-species-without-data` | GPB | `GPB/IG-transport-CEA-species-without-data` | `transport = CEA` with a mechanism species that has no transport data but is in the thermo database: accepted, `transport.dat` equal to the one with transport records. |
-| `CP-tmin-noninteger` | GPB | `GPB/CP-tmin-noninteger` | A non-integer `Tmin` of a condensed phase is refused naming the key; an integer `Tmin = 300` is accepted. |
+| `CP-tmin-noninteger` | GPB | `GPB/CP-tmin-noninteger` | A non-integer `Tmin` of a condensed phase is refused naming the key; an integer `Tmin = 300` is accepted; no product is left behind. |
 | `GPB-tmin-range` | GPB | `GPB/GPB-tmin-range` | `Tmin` at or below 0 K, or above `Tmax`, stops GPB naming the key (ideal gas and condensed phase). |
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |

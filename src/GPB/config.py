@@ -42,3 +42,27 @@ def setup_cantera_dirs():
 def ensure_output_dir():
     """Create the output directory if it does not exist."""
     os.makedirs(OUTPATH, exist_ok=True)
+
+
+# The products of a run are written into a temporary sibling directory and moved into OUTPATH only when every phase
+# of the deck succeeded; a refusal or a crash leaves nothing behind (the temporary directory is removed); files already
+# present in OUTPATH are never removed (a product of the same name is replaced).
+FINAL_OUTPATH = OUTPATH
+def stage_output():
+    """Redirect OUTPATH to the staging directory. Call before the builder modules are imported (they bind OUTPATH at import)."""
+    global OUTPATH
+    OUTPATH = f".gpb-tmp-{os.getpid()}/"
+    return OUTPATH
+
+def commit_output():
+    """Move every staged product into FINAL_OUTPATH (a rename per file; a copy when FINAL_OUTPATH is on another file system) and drop the staging directory."""
+    import shutil
+    os.makedirs(FINAL_OUTPATH, exist_ok=True)
+    for f in sorted(os.listdir(OUTPATH)):
+        shutil.move(os.path.join(OUTPATH, f), os.path.join(FINAL_OUTPATH, f))
+    os.rmdir(OUTPATH)
+
+def discard_output():
+    """Remove the staging directory and whatever it holds (only files written by this run)."""
+    import shutil
+    shutil.rmtree(OUTPATH, ignore_errors=True)
