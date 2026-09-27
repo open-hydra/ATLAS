@@ -750,6 +750,20 @@ set_tests_properties(IG-ablation PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-table-no-data -------------
+# A T-file that exists but holds no row of two numbers (a header and a comment) is refused as a file without data
+# rows, not reported as missing; no bc.txt.
+add_test(
+    NAME    IG-table-no-data
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] BC file Twall.dat has no data row' bcb.log && ! grep -q -F 'BC file Twall.dat not found' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-no-data"
+)
+set_tests_properties(IG-table-no-data PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

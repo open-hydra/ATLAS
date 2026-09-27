@@ -44,6 +44,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-linefile-sector-axis` | BCB | `BCB/IG-linefile-sector-axis` | A line-file strip over a quarter of the lap, `n-repeat = 4` and `axis = x`, on a face whose inward normal is -x: every face cell holds the closed-form law of the strip at 4 theta, the axial velocity enters the domain, one `[INFO]` line; `axis = y`, parallel to the face, stops BCB. |
 | `IG-multipatch-410-linefile` | BCB | `BCB/IG-multipatch-410-linefile` | A 410 inlet written from a line-file as the one patch of a multipatch face gives the `bc.txt` of the same face declared directly; two patches run. |
 | `IG-ablation` | BCB | `BCB/IG-ablation` | BC 505 (ablation, surface reactions): the model id is written as an integer, as the solver reads it. |
+| `IG-table-no-data` | BCB | `BCB/IG-table-no-data` | A table file without any row of two numbers is refused as a file without data rows, not as a missing file. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
@@ -98,13 +99,13 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `IG-borda-2D`: validate the BC 421 Borda injector (a Q2D-only record on a 2D mesh).
 - `mesh-p3d-fallback`: validate the mesh search (`mesh.tec` -> `mesh.p3d` -> `mesh.szplt`) when `mesh.p3d` cannot be read.
 - `IG-table-not-monotone`: validate the refusal of a table whose coordinate column turns back (the message says the file is refused, not missing).
+- `IG-table-decreasing`, `IG-table-no-data`: validate a table with decreasing coordinates (read in increasing order) and the refusal of a table file without data rows (not reported as missing).
 - `IG-duplicate-section-lenient`: validate the lenient key check of a section written twice (the options of the next sections are all read).
 - `IG-duplicate-section-identical`, `IG-duplicate-section-conflict`: validate the rule for a section written twice: two copies with the same keys and values only warn, copies that differ stop the tool unless `strict-keys = false`.
 - `mesh-p3d-single-plane`: validate a PLOT3D mesh written with one node plane (read as the pure-2D mesh of its x-y plane).
 - `mesh-p3d-plane-perpendicular`: validate the refusal of a single node plane perpendicular to x-y.
 - `mesh-tec-single-plane`: validate the same rule for a Tecplot mesh with x y z on one node plane (`K = 1`).
 - `IG-force-connect-plate`, `IG-plate-keys`, `IG-keys-documented`, `IG-renamed-keys-lenient`, `IG-time-file-long-name`, `IG-table-header-skipped`: validate `BC-force-connect` on a declared inlet, the documented keys and defaults that must not stop BCB, the keys of older decks, the series file names and the tables with a non-numeric row.
-- `IG-table-decreasing`: validate a table with decreasing coordinates (read in increasing order).
 
 ### GPB Cases (`test/GPB/`)
 

@@ -134,8 +134,9 @@ Supported `*-file` keys: `ks-file`, `q-file`, `T-file`, `Tref-file`, `hconv-file
 
 A one-direction file holds one `coordinate value` pair per row, coordinates in order (increasing or
 decreasing; a decreasing file is read as the same rows in increasing order): a row that is not two numbers
-is skipped with `[WARNING] table file ...`, and a coordinate that turns back is refused (`[ERROR] table file ...:
-the coordinate column is not monotone at row n`).
+is skipped with `[WARNING] table file ...`, a coordinate that turns back is refused (`[ERROR] table file ...:
+the coordinate column is not monotone at row n`), and a file without any row of two numbers is refused
+(`[ERROR] BC file ... has no data row`).
 
 Mass-flux varying along `y` from a file:
 
