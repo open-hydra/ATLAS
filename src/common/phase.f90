@@ -10,7 +10,7 @@ module phase_mod
   use cea_units,       only : convert_units_to_si
   implicit none
 
-  real(8), parameter :: Runi = 8314.51d0  !< Universal gas constant [J/(kmol·K)]
+  real(8), parameter :: Runi = 8314.46261815324d0  !< Universal gas constant [J/(kmol·K)], exact SI 2019 (N_A k_B)
 
   type :: base_species_t
     integer :: n = 0
