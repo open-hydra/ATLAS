@@ -43,6 +43,7 @@ module config_shared_mod
   end type config_composition_doc_t
 
   public :: load_atlas_parameters
+  public :: load_ini_file
   public :: load_shared_velocity_config
   public :: load_shared_turbulence_config
   public :: add_atlas_registry_entries
@@ -93,7 +94,8 @@ contains
     cfg%bc_chimera = .false.
     cfg%bc_force_chimera = .false.
 
-    call fini%load(filename=trim(ini_filename))
+    call load_ini_file(fini, trim(ini_filename))
+
     ! strict-keys and the key check of the section come before the gets below: FiNeR reads an
     ! integer (MG-levels = 1e0) or a logical (strict-keys = maybe) without iostat and would stop
     ! with a runtime error instead of the diagnostic
@@ -335,5 +337,40 @@ contains
       option_name = 'BCB-file'
     end select
   end function atlas_input_option_name
+
+  !> Load an ini file into fini without its full-line comments (a line whose first non-blank character is
+  !> '#', ';' or '!'). FiNeR counts the options of a section by their '=' signs, comment lines included, and
+  !> stops with a segmentation fault on a comment that holds one ('# p0 = 10 bar'): the file is read here,
+  !> the comment lines are left out and the rest goes to FiNeR unchanged. Inline comments stay FiNeR's.
+  subroutine load_ini_file(fini, filename)
+    type(file_ini),   intent(inout) :: fini
+    character(len=*), intent(in)    :: filename
+    character(len=:), allocatable :: src, line
+    character(len=1024) :: buf
+    integer :: u, ios, sz, c
+    open(newunit=u, file=trim(filename), status='old', action='read', form='formatted', iostat=ios)
+    if (ios /= 0) then
+      call fini%load(filename=trim(filename))   ! FiNeR's own handling of a file it cannot read
+      return
+    endif
+    src = ''
+    do
+      line = ''
+      do
+        read(u, '(A)', advance='no', iostat=ios, size=sz) buf
+        line = line//buf(1:sz)
+        if (ios /= 0) exit
+      enddo
+      if (.not. (is_iostat_eor(ios) .or. (is_iostat_end(ios) .and. len(line) > 0))) exit
+      c = verify(line, ' '//char(9))
+      if (c > 0) then
+        if (index('#;!', line(c:c)) > 0) line = ''
+      endif
+      src = src//line//new_line('a')
+      if (is_iostat_end(ios)) exit
+    enddo
+    close(u)
+    call fini%load(source=src)
+  end subroutine load_ini_file
 
 end module config_shared_mod

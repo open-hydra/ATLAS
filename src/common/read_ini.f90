@@ -1,5 +1,5 @@
 module io_ini_mod
-  use config_shared_mod, only: atlas_parameters_t, load_atlas_parameters
+  use config_shared_mod, only: atlas_parameters_t, load_atlas_parameters, load_ini_file
   use input_keys_mod, only: input_keys_check_duplicate_sections
   use finer, only: file_ini
   implicit none
@@ -45,7 +45,7 @@ contains
       write(*,'(A)')  '        Check the '//trim(prog)//'-file key in [ATLAS-Parameters].'
       stop 1
     endif
-    call fini%load(filename=atlas_cfg%input_file)
+    call load_ini_file(fini, atlas_cfg%input_file)
     call input_keys_check_duplicate_sections(trim(atlas_cfg%input_file), fini)   ! the <PROG>-file deck when it is another file
     inisource = generate_sections_input(prog,fini,nb)
 

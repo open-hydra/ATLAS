@@ -149,6 +149,18 @@ set_tests_properties(IG-inflow-ceafile-inertmix PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-comment-lines (comment lines starting with #, ; or ! that hold an equals sign are ignored: bc.txt equals the one of the deck without them) -------------
+add_test(
+    NAME    IG-comment-lines
+    COMMAND bash -c "rm -rf _run-comments && mkdir _run-comments && cp *.ini *.tec *.txt *.dat _run-comments/ 2>/dev/null; cd _run-comments && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && mv fromATLAStoSolver plain && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input comments.ini && diff plain/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-basic"
+)
+set_tests_properties(IG-comment-lines PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : mesh-p3d-fallback -------------
 # Without a path the mesh is searched as mesh.tec, mesh.p3d, mesh.szplt. A mesh.p3d that cannot be read (40
 # bytes here) is followed by mesh.szplt, as upstream, with a WARNING naming both files; mesh.szplt is a
