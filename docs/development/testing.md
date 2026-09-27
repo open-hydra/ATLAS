@@ -43,6 +43,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-phase-unbuilt` | ICB | `ICB/IG-phase-unbuilt` | A phase that no block names is not written (one `[WARNING]`, no `part-ic.tec`). |
 | `IG-interp-spherical-3D` | ICB | `ICB/IG-interp-spherical-3D` | `interpolation-law = spherical_minimum_distance` on a 3-D target: from a one-cell source it equals `minimum_distance`. |
 | `IG-interp-src-3coord-plane` | ICB | `ICB/IG-interp-src-3coord-plane` | An interpolation source written as a slice (x y z on one node plane, `K = 1`, z nodal, bands cell-centred) gives the `ic.tec` of the same source written with x y only. |
+| `IG-nozzle-plenum-order` | ICB | `ICB/IG-nozzle-plenum-order` | The plenum rows of a nozzle zone and another zone overwrite each other in the zone order: a `[WARNING]` names each case and the products do not change. |
 | `IG-inflow-nozzle` | BCB | `BCB/IG-inflow-nozzle` | Nozzle inflow boundary-condition construction. |
 | `IG-inflow-ceafile-inertmix` | BCB | `BCB/IG-inflow-ceafile-inertmix` | Inflow BC creation using CEA-based inert-mixture inputs. |
 | `IG-multipatch-file` | BCB | `BCB/IG-multipatch-file` | Multipatch BC assignment when patches are provided by file. |

@@ -122,6 +122,22 @@ nozzle-direction = dx
 nozzle-threshold = 0.0
 ```
 
+The plenum of a `nozzle` zone is every row of cells upstream of `nozzle-threshold` (along
+`nozzle-direction`), over the whole cross-section of the block: in a multizone block the plenum rows
+are written also outside the `range<n>` of the zone, and only the rows downstream take the nozzle law
+inside the range. The zone order therefore decides the state of the plenum cells that lie in the range
+of another zone:
+- a `nozzle` zone listed after another zone overwrites the cells of its plenum rows that the earlier
+  zone wrote (`[WARNING] build_IG_field block <b> (section [<zone>]): the plenum rows of this nozzle zone
+  ... overwrite <n> cells that an earlier zone wrote: the zone order decides their state`);
+- a zone listed after a `nozzle` zone overwrites, inside its own range, the plenum cells that lie
+  outside the range of the nozzle zone (`[WARNING] build_IG_field block <b> (section [<zone>]): this zone
+  overwrites <n> cells that the plenum rows of an earlier nozzle zone wrote outside the range of that
+  zone ...`).
+
+To keep the state of another zone upstream of the nozzle, list the `nozzle` zone first and the other
+zone after it; the WARNING then names the cells the later zone takes back.
+
 ## Interpolation
 
 | Strategy | `type` | Phase | When to use |
@@ -155,8 +171,9 @@ target may have another resolution. The target mesh must be 3D. `theta` and `nz`
 
 Every cell of every block must be written by a zone, for every phase of the block. Each writer
 records the cells it assigns: the cells of its range (an `interpolation` zone too: it writes its
-range only, like every other zone type), the plenum rows of a `nozzle` zone, every cell of the block
-for the dispersed phase. A cell that no zone wrote stops ICB (`[ERROR] build_IC block <b>, <type> phase <name>: <n> of <N> cells are initialised by no zone (first cell (i,j,k))`, followed by the cells written after each zone) instead of reaching the IC file with the content of unset memory. Under an omega turbulence model (k-omega, Reynolds stresses) the turbulence bands that no zone sets are refused in the same way; under SA they are reported with a `[WARNING]`.
+range only, like every other zone type), the plenum rows of a `nozzle` zone (the whole cross-section
+upstream of `nozzle-threshold`, also outside its range: the zone order decides, see
+[Nozzle Initialization](#nozzle-initialization)), every cell of the block for the dispersed phase. A cell that no zone wrote stops ICB (`[ERROR] build_IC block <b>, <type> phase <name>: <n> of <N> cells are initialised by no zone (first cell (i,j,k))`, followed by the cells written after each zone) instead of reaching the IC file with the content of unset memory. Under an omega turbulence model (k-omega, Reynolds stresses) the turbulence bands that no zone sets are refused in the same way; under SA they are reported with a `[WARNING]`.
 `range<n>` holds one pair `low high` per letter of `direction` (six values for `xyz`); the letters are
 written in the order x, y, z, r, t, i, j, k; an index letter (`i`, `j`, `k`) ranges cell indices
 (`range1 = 1 4` = the cells 1 to 4 along that index). A `zone<n>` after a missing index is never read

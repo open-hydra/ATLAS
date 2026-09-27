@@ -55,6 +55,9 @@ module ic_block_mod
     ! cells whose state each phase writer has assigned (per phase; per band for the turbulence), set by
     ! the writers themselves and checked after the last zone of the block (build_IC)
     logical, dimension(:,:,:), allocatable     :: set_ig, set_rf, set_sp, set_dp
+    ! cells that the plenum rows of a nozzle zone wrote outside the range of that zone (the plenum
+    ! covers the whole cross-section upstream of nozzle-threshold): a later zone that writes them is reported
+    logical, dimension(:,:,:), allocatable     :: plenum_ig
     logical, dimension(:,:,:,:), allocatable   :: set_turb_ig, set_turb_rf
   contains
     private

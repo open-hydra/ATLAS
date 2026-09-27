@@ -176,12 +176,14 @@ module ic_builder_mod
     if (allocated(blk%set_rf)) deallocate(blk%set_rf)
     if (allocated(blk%set_sp)) deallocate(blk%set_sp)
     if (allocated(blk%set_dp)) deallocate(blk%set_dp)
+    if (allocated(blk%plenum_ig)) deallocate(blk%plenum_ig)
     if (allocated(blk%set_turb_ig)) deallocate(blk%set_turb_ig)
     if (allocated(blk%set_turb_rf)) deallocate(blk%set_turb_rf)
     allocate(blk%set_ig(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
     allocate(blk%set_rf(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
     allocate(blk%set_sp(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
     allocate(blk%set_dp(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
+    allocate(blk%plenum_ig(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
   end subroutine new_written_masks
 
   !> After the zones: the cells written so far by each phase of the block, for the message of refuse_unwritten_cells
@@ -223,6 +225,7 @@ module ic_builder_mod
     if (allocated(blk%set_turb_ig)) call refuse_turbulence(blk%set_turb_ig, 'IG')
     if (allocated(blk%set_turb_rf)) call refuse_turbulence(blk%set_turb_rf, 'RF')
     deallocate(blk%set_ig, blk%set_rf, blk%set_sp, blk%set_dp)
+    if (allocated(blk%plenum_ig)) deallocate(blk%plenum_ig)
     if (allocated(blk%set_turb_ig)) deallocate(blk%set_turb_ig)
     if (allocated(blk%set_turb_rf)) deallocate(blk%set_turb_rf)
   contains

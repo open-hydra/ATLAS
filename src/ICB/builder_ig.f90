@@ -67,6 +67,8 @@ contains
     character(len=64)             :: xsect          ! the deck section of the zone (x-section), for messages
     character(len=:), allocatable :: zsuffix        ! ' (section [<deck section>])'
     integer                       :: ierr_xs
+    ! plenum rows of a nozzle zone outside its range (assign_nozzle): recorded in blk%plenum_ig after the zone
+    logical, allocatable          :: plenum_new(:,:,:)
 
     is_variable = .false.
     interp_turb = .false.
@@ -175,6 +177,7 @@ contains
         stop 1
 
     end select
+    call report_plenum_overwritten()
 
     ! Turbulence free-stream constants of THIS zone: applied to the cells of the
     ! zone range only (exactly like p, T, u), never block-wide, so a patch zone
@@ -231,6 +234,28 @@ contains
       if (allocated(blk%set_turb_ig)) deallocate(blk%set_turb_ig)
       allocate(blk%set_turb_ig(blk%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)), source=.false.)
     end subroutine new_turbulence_mask
+
+    ! The plenum rows of a nozzle zone cover the whole cross-section upstream of nozzle-threshold, also
+    ! outside the range of the zone, so in a multizone block the zone order decides the state of those
+    ! cells. The behaviour is kept and reported: this zone overwrites cells that the plenum of an earlier
+    ! nozzle zone wrote outside that zone's range (the cells of this zone's range); then the plenum cells
+    ! of this zone, if it is a nozzle zone, are recorded for the zones after it.
+    subroutine report_plenum_overwritten()
+      implicit none
+      integer :: nover, ic, jc, kc
+      if (.not. allocated(blk%plenum_ig)) return
+      nover = 0
+      do kc = 1, blk%dim(3); do jc = 1, blk%dim(2); do ic = 1, blk%dim(1)
+        if (.not. blk%plenum_ig(ic,jc,kc)) cycle
+        if (.not. cell_in_range(ic,jc,kc)) cycle
+        nover = nover + 1
+        blk%plenum_ig(ic,jc,kc) = .false.
+      enddo; enddo; enddo
+      if (nover > 0) write(*,'(A,I0,A)') '[WARNING] build_IG_field block '//trim(blk_id_txt())//zsuffix//': this zone '// &
+        'overwrites ', nover, ' cells that the plenum rows of an earlier nozzle zone wrote outside the range of that zone'// &
+        ' (the plenum covers the whole cross-section upstream of nozzle-threshold): the zone order decides their state'
+      if (allocated(plenum_new)) blk%plenum_ig = blk%plenum_ig .or. plenum_new
+    end subroutine report_plenum_overwritten
 
     subroutine warn_unset(what)
       implicit none
@@ -730,7 +755,7 @@ contains
     subroutine assign_nozzle()
       implicit none
       real(R8), allocatable :: radius_ext(:), radius_int(:), area(:)
-      integer :: ib1, ib2, ib3, throat_cell, L_threshold_cell
+      integer :: ib1, ib2, ib3, throat_cell, L_threshold_cell, nplenum_over
 
       associate( T0c => T0(1,1,1), p0c => p0(1,1,1) )
       ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
@@ -786,6 +811,24 @@ contains
         ib2 = L_threshold_cell+1
         ib3 = 1
       endif
+
+      ! plenum rows outside the range of this zone: the cells an earlier zone wrote there are overwritten
+      ! (reported), and the zones after this one are checked against them (report_plenum_overwritten)
+      allocate(plenum_new(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)), source=.false.)
+      nplenum_over = 0
+      do i = ib1, ib2, ip
+        do k = 1, blk%dim(3)
+          do j = 1, blk%dim(2)
+            if (cell_in_range(i,j,k)) cycle
+            plenum_new(i,j,k) = .true.
+            if (blk%set_ig(i,j,k)) nplenum_over = nplenum_over + 1
+          enddo
+        enddo
+      enddo
+      if (nplenum_over > 0) write(*,'(A,I0,A)') '[WARNING] build_IG_field block '//trim(blk_id_txt())//zsuffix// &
+        ': the plenum rows of this nozzle zone (the whole cross-section upstream of nozzle-threshold, also outside'// &
+        ' the range of the zone) overwrite ', nplenum_over, ' cells that an earlier zone wrote: the zone order decides'// &
+        ' their state'
 
       do i = ib1, ib2, ip
         do s = 1, sp%n
