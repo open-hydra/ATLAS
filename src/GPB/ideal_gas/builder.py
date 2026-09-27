@@ -314,13 +314,9 @@ def build(inifile,section):
                 eq_phase.name = 'cte-mixture'
             else:
                 eq_phase.name = 'cte-species'
-            # Extract mass fractions for the species in the original solution
-            mass_fractions = []
-            for s in eq_gas.species_names:
-                if eq_gas[s].Y > 0:
-                    mass_fractions.append(eq_gas[s].Y)
-            # Map species names to their mass fractions
-            species_fraction_dict = dict(zip([s.name for s in eq_species], mass_fractions))
+            # Map the name of each kept species to its own equilibrium mass fraction (by name: the kept
+            # species are a subset of the equilibrium species, so the two lists do not match by position)
+            species_fraction_dict = {s.name: eq_gas.Y[eq_gas.species_index(s.name)] for s in eq_species}
             # Convert the species fraction dictionary into an ordered array of mass fractions
             mass_fraction_array = np.array([species_fraction_dict[s.name] if s.name in species_fraction_dict else 0.0
                                             for s in eq_phase.species()])
@@ -371,8 +367,8 @@ def build(inifile,section):
                 print(f"No transport data found for species: {s.name}")
         if reaction_model is not None:
             manual_inert_species = [s for s in manual_inert_species if s.name not in raw_mechanism.species_names]
-        if (cantera_equilibrium):
-            manual_inert_species = [s for s in manual_inert_species if s.name not in cte_phase.species_names]
+        if (cantera_equilibrium) and eq_species:
+            manual_inert_species = [s for s in manual_inert_species if s.name not in eq_phase.species_names]
         if (CEA_equilibrium):
             manual_inert_species = [s for s in manual_inert_species if s.name not in cea.SE.species.name]
         if manual_inert_species != []:

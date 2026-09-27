@@ -49,5 +49,7 @@ ATLAS GPB
 ## Expected Output
 
 ```
-fromATLAStoSolver/gasmix.bin
+fromATLAStoSolver/gasmix-phase.txt
+fromATLAStoSolver/gasmix-composition.txt
+fromATLAStoSolver/gasmix-thermo.dat
 ```

@@ -743,3 +743,18 @@ set_tests_properties(IG-ct-equilibrium PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : IG-ct-equilibrium-inerts -------------
+# Cantera equilibrium at a rich mixture (eq-of = 2) with inerts-mixing = true and add-species = N2: the cte-mixture
+# pseudo-species has the mean molecular weight of the kept equilibrium species (H, H2, H2O), each with its own mass
+# fraction, and the added N2 stays a separate species of the phase.
+add_test(
+    NAME    IG-ct-equilibrium-inerts
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gasmix-phase.txt fromATLAStoSolver/gasmix-phase.txt && diff fromATLAStoSolver/gasmix-composition.txt reference/gasmix-composition.txt && test -s fromATLAStoSolver/gasmix-thermo.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-ct-equilibrium-inerts"
+)
+set_tests_properties(IG-ct-equilibrium-inerts PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

@@ -27,6 +27,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `GPB-falloff-form-refused` | GPB | `GPB/IG-falloff-irreversible-orders` | A falloff form other than Troe and Lindemann (here Tsang) stops GPB naming the reaction. |
 | `IG-phase-file-name-hint` | GPB | `GPB/IG-phase-file-name-hint` | `phase =` naming a file that does not exist stops GPB with an error that suggests the file holding that phase. |
 | `IG-ct-equilibrium` | GPB | `GPB/IG-ct-equilibrium` | The Cantera equilibrium of the tutorial builds the phase: species and composition files as in the reference. |
+| `IG-ct-equilibrium-inerts` | GPB | `GPB/IG-ct-equilibrium-inerts` | Cantera equilibrium with `inerts-mixing = true` and `add-species`: the `cte-mixture` molecular weight of the kept species, each with its own mass fraction; N2 a separate species. |
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |
@@ -67,7 +68,7 @@ GPB tests check that phase-property builders generate physically consistent tabl
 - `IG-fixgas`, `IG-party`: validate fixed ideal-gas workflows.
 - `IG-reactive`, `IG-ceafile-reactive-*`: validate reactive chemistry table generation from CEA/case inputs.
 - `IG-ceafile-frozen-mixing-HG`, `IG-mixture-HG`: validate heavy-gas and mixing assumptions.
-- `IG-ct-equilibrium`, `*-cantera`: validate Cantera-backed equilibrium/property paths.
+- `IG-ct-equilibrium`, `IG-ct-equilibrium-inerts`, `*-cantera`: validate Cantera-backed equilibrium/property paths (the equilibrium phase with inert mixing and added species).
 - `RF-*`: validate real-fluid table generation (e.g., water, CO2).
 - `CP-*`, `SP-*`: validate condensed and solid phase-property workflows.
 
