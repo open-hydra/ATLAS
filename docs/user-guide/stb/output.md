@@ -43,4 +43,5 @@ where `<N>` is the 1-based block index.
 
 - STB always creates `fromATLAStoSolver/` if it does not exist.
 - Area-variation files are optional and independent from `qvol` source-field output.
+- `qvol-file` requires `direction`; STB stops with an error otherwise. `direction` is a letter of x, y, z, r, t; a combination of letters (e.g. `xy`) is accepted and read along its first letter by priority x > y > z > r > t, with a `[WARNING]` naming it. A `direction` without `qvol-file` is not used and is reported with a `[WARNING]`. The profile must cover every cell centre of the block along `direction` (values are never extrapolated): STB stops with `[ERROR] ... qvol-file profile does not cover the block` if it does not.
 - For `theta-areavariation`, input theta is interpreted in degrees and converted internally.

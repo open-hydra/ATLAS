@@ -64,6 +64,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `coupled-phases-ksfile` | BCB + MDB | `MDB/coupled-phases-ksfile` | The same interface with a real-fluid gas and `ks` read from a file along x: each 103 record gets the value at its own centre. |
 | `x-variable` | STB | `STB/x-variable` | Spatially varying source-term generation along x. |
 | `area-any-order` | STB | `STB/area-any-order` | An area profile in any row order gives the area law of the sorted profile. |
+| `qvol-direction-combined` | STB | `STB/qvol-direction-combined` | A qvol profile with `direction = xy` is read along x with a `[WARNING]`: `st.tec` equals the one of `direction = x`. |
 | `mesh-p3d-fallback` | BCB | `BCB/mesh-p3d-fallback` | An unreadable `mesh.p3d` is followed by `mesh.szplt` with a WARNING naming both files. |
 | `IG-table-header-skipped` | BCB | `BCB/IG-table-header-skipped` | A table row that is not two numbers is skipped with a WARNING; the product is that of the file without the row. |
 | `IG-table-not-monotone` | BCB | `BCB/IG-table-not-monotone` | A table whose coordinate column turns back is refused: the table reader names the row where it turns back; no `bc.txt`. |
@@ -162,6 +163,7 @@ STB tests check source-term field generation.
 
 - `uniform`: validate constant source-term generation.
 - `x-variable`: validate spatially varying source terms.
+- `qvol-direction-combined`: validate a combined `direction` of a qvol profile (read along its first letter, with a warning).
 - `area-any-order`: validate an area profile given in any row order.
 
 ## Running The Registered Regression Set

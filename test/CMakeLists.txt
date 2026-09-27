@@ -862,6 +862,21 @@ set_tests_properties(area-any-order PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- STB : qvol-direction-combined -------------
+# A qvol profile with direction = xy: the profile is 1D and is read along x (the first letter by priority
+# x > y > z > r > t) with a WARNING naming it; st.tec equals the one of the same deck with direction = x (run again in
+# fromATLAStoSolver/x).
+add_test(
+    NAME    qvol-direction-combined
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh STB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 0 && grep -q -F \"direction = 'xy' combines letters: the qvol profile is 1D and is read along x\" <<< \"$out\" && mkdir fromATLAStoSolver/x && cp mesh.tec qvol.txt fromATLAStoSolver/x/ && sed 's/direction = xy/direction = x/' input.ini > fromATLAStoSolver/x/input.ini && cd fromATLAStoSolver/x && ${CMAKE_SOURCE_DIR}/ATLAS.sh STB && diff ../st.tec fromATLAStoSolver/st.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/qvol-direction-combined"
+)
+set_tests_properties(qvol-direction-combined PROPERTIES
+    LABELS      "STB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---------------------------------------------------------------------------
 #  MDB : mesh decomposition
 # ---------------------------------------------------------------------------

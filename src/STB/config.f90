@@ -65,6 +65,7 @@ contains
 
   ! Load area variation configuration for a single STB block from INI file
   subroutine load_area_variation_config(section_name, sini, cfg)
+    use input_keys_mod, only: input_keys_check_section
     implicit none
     character(*), intent(in) :: section_name
     type(file_ini), intent(in) :: sini
@@ -72,6 +73,9 @@ contains
 
     integer :: error
 
+    ! every block passes here first (build_area_variation precedes build_st)
+    call input_keys_check_section(sini, section_name, 'block')
+    call check_direction_value(sini, section_name)
     cfg%has_profile = .false.
     cfg%file = ''
     cfg%direction = ''
@@ -110,9 +114,11 @@ contains
   end subroutine load_area_variation_config
 
   ! Generate STB registry documentation (Markdown format, registry-based like ICB)
-  subroutine write_stb_registry_markdown(filename)
+  subroutine write_stb_registry_markdown(filename, keys_only)
+    use input_keys_mod, only: input_keys_snapshot
     implicit none
     character(*), intent(in), optional :: filename
+    logical, intent(in), optional      :: keys_only   ! .true.: snapshot the keys for input_keys_mod, no file
 
     type(registry_t) :: stb_registry
     type(atlas_parameters_t), target :: atlas_cfg
@@ -146,14 +152,20 @@ contains
       fileout = 'stb-input.md'
     endif
 
+    call input_keys_snapshot(stb_registry, 'STB')
+    if (present(keys_only)) then
+      if (keys_only) return
+    endif
+
     call stb_registry%generate_markdown(trim(fileout), 'ATLAS STB Input Parameters')
 
   contains
 
     subroutine add_stb_block_entries()
       call stb_registry%add('STB-Block*', 'direction', direction, '', &
-                           'Direction for 1D profiles: x,y,z,r,t or combinations.', &
-                           'x,y,z,r,t', .false.)
+                           'Direction for 1D profiles: x,y,z,r,t or combinations (a combination is read along its first'// &
+                           ' letter by priority x > y > z > r > t, with a WARNING).', &
+                           '', .false.)
       call stb_registry%add('STB-Block*', 'x-areavariation', qvol_cfg%file, '', &
                            'Area profile file for x-directed variation.', '', .false.)
       call stb_registry%add('STB-Block*', 'y-areavariation', qvol_cfg%file, '', &
@@ -178,5 +190,23 @@ contains
     end subroutine add_source_entries
 
   end subroutine write_stb_registry_markdown
+
+  !> direction (coordinate of a qvol profile): the letters x, y, z, r, t or a combination of them.
+  !> Checked when the block section is first read, before any product of the block is written.
+  subroutine check_direction_value(sini, section_name)
+    use finer, only: file_ini
+    implicit none
+    type(file_ini),   intent(in) :: sini
+    character(len=*), intent(in) :: section_name
+    character(len=64) :: d
+    integer :: error
+    call sini%get(section_name=section_name, option_name='direction', val=d, error=error)
+    if (error /= 0) return
+    if (len_trim(d) == 0 .or. verify(trim(d), 'xyzrt') /= 0) then
+      write(*,'(A)') "[ERROR] key direction of section ["//trim(section_name)//"] (or [STB-Block*]): value '"// &
+        trim(d)//"' not allowed (allowed: the letters x, y, z, r, t or a combination of them)"
+      stop 1
+    endif
+  end subroutine check_direction_value
 
 end module config_stb_mod

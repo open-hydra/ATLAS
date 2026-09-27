@@ -37,11 +37,28 @@ contains
       ! Load qvol configuration from INI
       call load_var_config(section_name, sini, 'qvol', cfg)
       
+      ! L6: conflicting keys are refused (the uniform value used to win silently, a lone
+      ! direction was dropped, qvol = 0 next to a profile hid the profile)
+      if (cfg%var%has_value .and. cfg%var%has_file) then
+        write(*,'(A)') '[ERROR] key qvol of section ['//trim(section_name)//'] (or [STB-Block*]): qvol and qvol-file'// &
+                       ' are both given (keep one: the uniform value or the profile)'
+        stop 1
+      elseif (cfg%var%has_direction .and. .not. cfg%var%has_file) then
+        write(*,'(A)') '[WARNING] key direction of section ['//trim(section_name)//'] (or [STB-Block*]): direction'// &
+                       ' without qvol-file is not used (it selects the coordinate of a 1D qvol profile)'
+      endif
+      if (cfg%var%has_direction) call check_direction_letters(section_name, cfg%var%direction, cfg%var%has_file)
       ! Build appropriate type
       if (cfg%var%has_value) then
         call build_uniform(cfg, blocks(b), var_blocks(b))
       else if (cfg%var%has_file .and. cfg%var%has_direction) then
         call build_1d(cfg, blocks(b), var_blocks(b))
+      else if (cfg%var%has_file) then
+        write(*,*) '[ERROR] '//trim(section_name)//': qvol-file requires the direction key'
+        stop 1
+      else
+        ! No source in this block: it is written with qvol = 0 (say so, like the other cases)
+        write(*,'(A,I3,A)') '   Block ', b, ' - no volumetric source (qvol = 0)'
       endif
 
     enddo
@@ -107,6 +124,17 @@ contains
                                                coord(i-1,j,k-1)   + coord(i,j,k-1)) * 0.5_R8
           endif
           found = interp_1d(coord_val, xin, qin, size(xin), interp_val)
+          if (.not. found) then
+            ! interp_1d leaves interp_val UNDEFINED outside (xin(1), xin(n)]: never write it.
+            if (coord_val >= xin(1) .and. coord_val <= xin(size(xin))) then
+              interp_val = qin(1)   ! the cell centre sits exactly on the first profile point
+            else
+              write(*,'(A,I3,A,ES12.5,A,ES12.5,A,ES12.5,A)') '[ERROR] Block ', var_blk%id, &
+                ': qvol-file profile does not cover the block (cell coordinate ', coord_val, &
+                ' outside [', xin(1), ', ', xin(size(xin)), '])'
+              stop 1
+            endif
+          endif
           var_blk%var(i,j,k) = interp_val
         enddo
       enddo
@@ -118,6 +146,29 @@ contains
   end subroutine build_1d
 
   ! Extract coordinate value from node positions based on direction key
+  !> direction of a qvol profile: letters of x, y, z, r, t; a profile is 1D, so a combination of letters
+  !> is read along its first letter by priority x > y > z > r > t (the letter parse_direction returns
+  !> first), with a WARNING naming it
+  subroutine check_direction_letters(section_name, direction, used)
+    character(len=*), intent(in) :: section_name, direction
+    logical,          intent(in) :: used      ! .false.: no qvol-file reads it (the letters are still checked)
+    character(len=*), parameter  :: letters = 'xyzrt'
+    integer :: n
+    if (verify(trim(direction), letters) /= 0) then
+      write(*,'(A)') "[ERROR] key direction of section ["//trim(section_name)//"] (or [STB-Block*]): value '"// &
+        trim(direction)//"' not allowed (allowed: the letters x, y, z, r, t or a combination of them)"
+      stop 1
+    endif
+    if (used .and. len_trim(direction) > 1) then
+      do n = 1, len(letters)
+        if (index(direction, letters(n:n)) > 0) exit
+      enddo
+      write(*,'(A)') "[WARNING] key direction of section ["//trim(section_name)//"] (or [STB-Block*]): direction = '"// &
+        trim(direction)//"' combines letters: the qvol profile is 1D and is read along "//letters(n:n)// &
+        " (the first letter by priority x > y > z > r > t)"
+    endif
+  end subroutine check_direction_letters
+
   function get_direction_coord(xn, yn, zn, dir_key) result(coord)
     use direction_mod, only: parse_direction
     real(R8), intent(in) :: xn(:,:,:), yn(:,:,:), zn(:,:,:)
