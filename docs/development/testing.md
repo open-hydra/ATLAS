@@ -24,6 +24,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `GPB-tmin-range` | GPB | `GPB/GPB-tmin-range` | `Tmin` at or below 0 K, or above `Tmax`, stops GPB naming the key (ideal gas and condensed phase). |
 | `IG-falloff-irreversible-orders` | GPB | `GPB/IG-falloff-irreversible-orders` | `k_c = 0` on the rows of an irreversible falloff reaction; the explicit orders written as the orders block of `chemistry-info.txt`. |
 | `IG-orders-block-always` | GPB | `GPB/IG-falloff-irreversible-orders` | The orders block ends `chemistry-info.txt` whatever the phase name: a phase named `WD` keeps its explicit orders. |
+| `GPB-falloff-form-refused` | GPB | `GPB/IG-falloff-irreversible-orders` | A falloff form other than Troe and Lindemann (here Tsang) stops GPB naming the reaction. |
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |

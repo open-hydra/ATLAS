@@ -705,3 +705,15 @@ set_tests_properties(IG-orders-block-always PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : GPB-falloff-form-refused (a falloff form other than Troe and Lindemann (here Tsang) stops GPB naming the reaction: the tables could not hold it) -------------
+add_test(
+    NAME    GPB-falloff-form-refused
+    COMMAND bash -c "rm -rf _run-tsang && mkdir _run-tsang && cp *.ini *.yaml *.txt _run-tsang/ 2>/dev/null; cd _run-tsang && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input tsang.ini 2>&1); test $? -eq 1 && grep -q -F '1 (H + O2 (+M) <=> HO2 (+M); falloff-Tsang)' <<< \"$out\" && test ! -e fromATLAStoSolver/chemistry-info.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-falloff-irreversible-orders"
+)
+set_tests_properties(GPB-falloff-form-refused PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

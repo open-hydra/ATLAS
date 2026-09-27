@@ -1,4 +1,5 @@
 description: |-
+  NOTE: contains falloff-SRI reactions, which the GPB tables for FLINT cannot carry: GPB refuses this file for FLINT; usable in Cantera and KAnT
   FFCM-1
   H2/CO/C1 reaction model - Chemkin form - Draft v1.0c
   Release date: 05/31/3016.

@@ -18,9 +18,17 @@ CEAtransdir = CEA_TRANS_FILE
 # (the reader of the tables reads them positionally).
 # ---------------------------------------------------------------------------
 def _flint_guards(phase):
+    """Refuse the falloff forms other than Troe and Lindemann and the chemically-activated reactions; warn on the name 'gas' and on pressure-dependent rates, which the tables hold at 1 atm only."""
     eff = phase.name.strip()
     rx = list(phase.reactions())
     shown = phase.name
+    # the tables carry the Arrhenius, falloff-Troe and falloff-Lindemann forms only: every other falloff form (SRI, Tsang, ...)
+    # and every chemically-activated reaction would be in no table
+    bad = [f'{i+1} ({r.equation}; {r.reaction_type})' for i, r in enumerate(rx) if 'chemically-activated' in r.reaction_type
+           or ('falloff' in r.reaction_type and r.reaction_type not in ('falloff-Troe', 'falloff-Lindemann'))]
+    if bad:
+        print(f"[ERROR] GPB: phase {shown}: {len(bad)} reactions have a form the chemistry tables cannot hold (they carry the Arrhenius, falloff-Troe and falloff-Lindemann forms only): {', '.join(bad)}")
+        sys.exit(1)
     if eff == 'gas':
         print("[WARNING] GPB: phase name 'gas' identifies no mechanism: FLINT falls back to the general procedure; name the mechanism in the yaml")
     pdep = [f'{i+1} ({r.equation})' for i, r in enumerate(rx) if 'pressure-dependent-Arrhenius' in r.reaction_type or ('Chebyshev' in r.reaction_type and r.rate.n_pressure > 1)]
