@@ -353,6 +353,19 @@ set_tests_properties(IG-species-profile-linear PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-interp-2D-wband (the source of IG-interp-2D with a third velocity band w = 0 after v: a pure-2D
+# ----       source that carries the w band is read, the product is that of IG-interp-2D) -------------
+add_test(
+    NAME    IG-interp-2D-wband
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/gas-ic.tec reference/gas-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-2D-wband"
+)
+set_tests_properties(IG-interp-2D-wband PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 

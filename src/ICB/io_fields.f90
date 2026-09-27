@@ -129,6 +129,11 @@ contains
       else
         n_species = nvars - nvel - 1 - blk(1)%nrans
       endif
+      ! a pure-2D source may also carry the third velocity band (rho_i, u, v, w, p, the layout read
+      ! for every source before the 2D layout was added): taken when the band after v is named w
+      if (nvel == 2 .and. present(n)) then
+        if (band_is_named(IOfield, ncoord, nvars, n_species + 3, 'w')) nvel = 3
+      endif
       nmand = n_species + nvel + 1
       if (nvars < nmand) then
         write(*,*) "[ERROR] read_vtk_tec: '"//trim(filename)//"' provides ", nvars, &
@@ -258,6 +263,28 @@ contains
   !> band (p for IG, h for RF) must be named so: a different name means the
   !> declared species count (old-species) does not match the file and the
   !> velocity/pressure bands would be shifted silently.
+  !> .true. when the file carries one trustworthy name per band and band `band` is named `expected`
+  !> (case-insensitive)
+  logical function band_is_named(IOfield, ncoord, nvars, band, expected)
+    use Lib_ORION_data
+    implicit none
+    type(Orion_Data), intent(in)  :: IOfield
+    integer,          intent(in)  :: ncoord, nvars, band
+    character(len=*), intent(in)  :: expected
+    character(len=64) :: s
+    integer :: i, ic
+    band_is_named = .false.
+    if (.not.allocated(IOfield%varnames)) return
+    if (size(IOfield%varnames) /= ncoord + nvars .or. band < 1 .or. band > nvars) return
+    s = adjustl(IOfield%varnames(ncoord + band))
+    do i = 1, len_trim(s)
+      ic = iachar(s(i:i))
+      if (ic >= iachar('A') .and. ic <= iachar('Z')) s(i:i) = achar(ic + 32)
+    enddo
+    band_is_named = trim(s) == expected
+  end function band_is_named
+
+
   subroutine check_mandatory_name(IOfield, ncoord, nvars, nmand, expected, filename)
     use Lib_ORION_data
     implicit none
