@@ -132,6 +132,11 @@ Supported `*-file` keys: `ks-file`, `q-file`, `T-file`, `Tref-file`, `hconv-file
 `eps-file`, `alpha-file`, `beta-file`, `g-file`, `krho-file`, `a-file`, `n-file`, `pRef-file`,
 `rhoGrain-file`, `Taf-file`, `SFgeo-file`, `SF-file`.
 
+A one-direction file holds one `coordinate value` pair per row, coordinates in order (increasing or
+decreasing; a decreasing file is read as the same rows in increasing order): a row that is not two numbers
+is skipped with `[WARNING] table file ...`, and a coordinate that turns back is refused (`[ERROR] table file ...:
+the coordinate column is not monotone at row n`).
+
 Mass-flux varying along `y` from a file:
 
 ```ini

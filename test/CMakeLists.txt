@@ -191,11 +191,11 @@ set_tests_properties(IG-table-header-skipped PROPERTIES
 )
 
 # ---- BCB : IG-table-not-monotone -------------
-# A T-file whose coordinate column turns back (0, 1, 0.5) is refused: the table reader names the row where the column
-# turns back and BCB stops; no bc.txt.
+# A T-file whose coordinate column turns back (0, 1, 0.5) is refused: the table reader names the row and BCB says the
+# file is refused for its content (it exists); no bc.txt.
 add_test(
     NAME    IG-table-not-monotone
-    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] table file Twall.dat: the coordinate column is not monotone at row 3' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] table file Twall.dat: the coordinate column is not monotone at row 3' bcb.log && grep -q -F '[ERROR] BC file Twall.dat refused: its coordinate column is not monotone' bcb.log && ! grep -q -F 'BC file Twall.dat not found' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-not-monotone"
 )
 set_tests_properties(IG-table-not-monotone PROPERTIES

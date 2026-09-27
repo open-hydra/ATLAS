@@ -59,7 +59,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `area-any-order` | STB | `STB/area-any-order` | An area profile in any row order gives the area law of the sorted profile. |
 | `mesh-p3d-fallback` | BCB | `BCB/mesh-p3d-fallback` | An unreadable `mesh.p3d` is followed by `mesh.szplt` with a WARNING naming both files. |
 | `IG-table-header-skipped` | BCB | `BCB/IG-table-header-skipped` | A table row that is not two numbers is skipped with a WARNING; the product is that of the file without the row. |
-| `IG-table-not-monotone` | BCB | `BCB/IG-table-not-monotone` | A table whose coordinate column turns back is refused: the table reader names the row where it turns back; no `bc.txt`. |
+| `IG-table-not-monotone` | BCB | `BCB/IG-table-not-monotone` | A table whose coordinate column turns back is refused: the reader names the row and BCB says the file is refused for its content. |
 | `IG-table-decreasing` | BCB | `BCB/IG-table-decreasing` | A table with decreasing coordinates gives the `bc.txt` of the same rows in increasing order. |
 | `IG-duplicate-section-lenient` | BCB | `BCB/IG-duplicate-section-lenient` | With `strict-keys = false` a section written twice in the `BCB-file` gets one WARNING; `bc.txt` is that of the deck without the copy. |
 | `IG-duplicate-section-identical` | BCB | `BCB/IG-duplicate-section-identical` | With the default settings a section written twice with the same keys and values (other key order, a comment line, a blank line) gets one WARNING that says so; `bc.txt` is that of the deck with one copy. |
@@ -97,6 +97,7 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `IG-nozzle-arearatio`: validate the BC 420 injector nozzle (thresholds from `Ae_At`).
 - `IG-borda-2D`: validate the BC 421 Borda injector (a Q2D-only record on a 2D mesh).
 - `mesh-p3d-fallback`: validate the mesh search (`mesh.tec` -> `mesh.p3d` -> `mesh.szplt`) when `mesh.p3d` cannot be read.
+- `IG-table-not-monotone`: validate the refusal of a table whose coordinate column turns back (the message says the file is refused, not missing).
 - `IG-duplicate-section-lenient`: validate the lenient key check of a section written twice (the options of the next sections are all read).
 - `IG-duplicate-section-identical`, `IG-duplicate-section-conflict`: validate the rule for a section written twice: two copies with the same keys and values only warn, copies that differ stop the tool unless `strict-keys = false`.
 - `mesh-p3d-single-plane`: validate a PLOT3D mesh written with one node plane (read as the pure-2D mesh of its x-y plane).
@@ -104,7 +105,6 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `mesh-tec-single-plane`: validate the same rule for a Tecplot mesh with x y z on one node plane (`K = 1`).
 - `IG-force-connect-plate`, `IG-plate-keys`, `IG-keys-documented`, `IG-renamed-keys-lenient`, `IG-time-file-long-name`, `IG-table-header-skipped`: validate `BC-force-connect` on a declared inlet, the documented keys and defaults that must not stop BCB, the keys of older decks, the series file names and the tables with a non-numeric row.
 - `IG-table-decreasing`: validate a table with decreasing coordinates (read in increasing order).
-- `IG-table-not-monotone`: validate the refusal of a table whose coordinate column turns back.
 
 ### GPB Cases (`test/GPB/`)
 

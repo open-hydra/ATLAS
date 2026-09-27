@@ -67,7 +67,11 @@ contains
     integer :: ios
 
     call read_ascii_table(bf%name, tmp_dir, tmp_val, ios)
-    if (ios /= 0) then
+    if (ios == -4) then
+       ! the file exists: read_ascii_table has named the row where the coordinate turns back
+       write(*,*) '[ERROR] BC file '//trim(bf%name)//' refused: its coordinate column is not monotone'
+       stop 1
+    elseif (ios /= 0) then
        write(*,*) '[ERROR] BC file '//trim(bf%name)//' not found'
        stop 1
     endif
