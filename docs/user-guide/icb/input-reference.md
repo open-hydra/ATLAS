@@ -69,6 +69,8 @@
 | nz | 4 | >=1 |  no | Number of cells of the sector built by the extrude law. |
 | nozzle-direction | dx | dx,sx |  no | Nozzle marching direction. |
 | nozzle-threshold | 0.0 |  |  no | Coordinate threshold separating plenum and nozzle. |
+| yspecies-file |  |  |  no | Mass-fraction profile of the species named by the suffix (y<species>-file, in place of the constant y<species>): a Tecplot field on the block grid, or a two-column table (coordinate, y) along y<species>-direction; read like T-file, it makes the zone variable. |
+| yspecies-direction |  | x,y,z,r,t |  no | Direction of the 1D y<species>-file table. |
 
 ## ICB-RF
 

@@ -37,6 +37,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-turbulence-zero-refused` | ICB | `ICB/IG-turbulence-zero-refused` | A k-omega zone (nrans = 2) with `kappa` and no `omega` stops ICB (omega = 0 would divide in the solver kernels); nothing is written. |
 | `IG-state-not-physical` | ICB | `ICB/IG-state-not-physical` | A zone with a negative pressure stops ICB naming the first cell and the state; nothing is written. |
 | `IG-interp-band-refused` | ICB | `ICB/IG-interp-band-refused` | An interpolation source whose band after the velocities is `T`, not `p`, stops ICB naming the band; nothing is written. |
+| `IG-species-profile-linear` | ICB | `ICB/IG-species-profile-linear` | `y<species>-file` tables along x (`yH2` linear, `yN2` its complement) next to a constant `yO2`: every cell holds the analytic mass fractions, summing to 1, and a density that follows its own composition. |
 | `IG-inflow-nozzle` | BCB | `BCB/IG-inflow-nozzle` | Nozzle inflow boundary-condition construction. |
 | `IG-inflow-ceafile-inertmix` | BCB | `BCB/IG-inflow-ceafile-inertmix` | Inflow BC creation using CEA-based inert-mixture inputs. |
 | `IG-multipatch-file` | BCB | `BCB/IG-multipatch-file` | Multipatch BC assignment when patches are provided by file. |

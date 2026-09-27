@@ -57,6 +57,54 @@ column is read as the same rows in increasing order): a row that is not two numb
 a typo) is skipped with `[WARNING] table file ...`, and a coordinate column that turns back is refused with
 `[ERROR] table file ...`.
 
+### Species profiles
+
+The mass fraction of a species can be a profile too: `y<species>-file`, with an optional
+`y<species>-direction`, follows the rules of the scalar profiles above (a Tecplot field on the
+block grid, or a two-column table `coordinate value` interpolated along the direction at the
+cell centres) and makes the zone `variable`. In every cell of the zone the profile values take
+the place of the constants `y<species>` of the same species; the composition of the cell must
+then sum to 1: a deviation `|1 - sum y|` up to 1e-3 is renormalised with one WARNING per zone,
+a larger one stops ICB with an ERROR; both messages name the block and the deck section
+(`(section [mix])`), the ERROR also the first offending cell. ICB also stops on a profile of a species the phase does
+not declare, on a profile given next to the constant of the same species, on a direction without
+a file and on a profile inside an interpolation zone (its composition comes from the old
+solution). The species without a key keep 1e-20.
+
+```ini
+[ICB-Block1]
+direction = x
+zone1 = mix
+range1 = 0.0 1.0
+
+[mix]
+type = variable
+p = 101325.0
+T = 300.0
+yH2-file = yH2.dat
+yH2-direction = x
+yO2 = 0.25
+yN2-file = yN2.dat
+yN2-direction = x
+```
+
+Details of the composition rule and of the profile files:
+
+- the tolerance carries a margin of 1e-12, so a decimal sum of exactly `1 - 1e-3` (for example
+  `yO2 = 0.249`, `yN2 = 0.75`) is renormalised, not refused; a deviation up to 1e-12 (binary
+  rounding of decimal constants such as `0.233 + 0.767`) is renormalised without a message;
+- a negative profile value down to `-1e-3` is set to 0 with its own WARNING (number of cells and
+  smallest value) and counts in the deviation; below `-1e-3` ICB stops;
+- a table is interpolated at every cell centre of the block, also outside the zone range: it must
+  cover the whole block along its direction, and its first coordinate must lie below the first
+  cell centre (a centre equal to the first coordinate is reported as outside the file data range);
+  its rows follow the rules of the profile files above (monotone coordinates, a row that is not two
+  numbers skipped with a WARNING);
+- a Tecplot field gives every cell the value of the nearest cell of the file, taken from the first
+  cell-centred variable of the file (one file per species);
+- a profile in a `nozzle` zone makes the zone `variable` with a WARNING: the nozzle law is not
+  applied (the same holds for the scalar profiles `T-file`, `p-file`, ...).
+
 ## Nozzle Initialization
 
 | Strategy | `type` | Phase | When to use |

@@ -56,6 +56,10 @@ contains
     type(species_t)               :: old_sp
     real(R8), allocatable         :: tmp_rho(:,:,:)
     integer                       :: sold, cnt, bb
+    ! Species mass-fraction profiles of this zone (y<species>-file [+ y<species>-direction]), read
+    ! with the scalar-profile machinery (load_zone_field) and applied per cell (assemble_composition)
+    real(R8), allocatable         :: yprof(:,:,:,:)   ! (i,j,k,s): profile of species s
+    logical, allocatable          :: has_yprof(:)
     real(R8), parameter           :: YSUM_TOL = 1.0e-3_R8   ! |1 - sum y| accepted: renormalised with a WARNING
     real(R8), parameter           :: YSUM_EPS = 1.0e-12_R8  ! rounding: renormalised in silence
     integer                       :: nrenorm, nclip
@@ -75,6 +79,7 @@ contains
     call load_zone_field(p, ig_cfg%p, 1.d0)
     call load_zone_field(T, ig_cfg%T, 1.d0)
     call load_zone_field(rho, ig_cfg%rho, 1.d0)
+    call load_species_profiles()
 
     if (is_variable .and. IC_type == 'nozzle') write(*,'(A,I0,A)') '[WARNING] build_IG_field: block ', blk%id, &
       ': a *-file profile of this nozzle zone makes it variable (the nozzle law is not applied)'
@@ -116,6 +121,11 @@ contains
     oldid = ig_cfg%interpolation%old_block_id
     call sync_interpolation_config(ig_cfg%interpolation)
     if (ig_cfg%interpolation%enabled) IC_type = 'interpolation'
+    if (allocated(yprof) .and. IC_type == 'interpolation') then
+      write(*,'(A)') '[ERROR] build_IG_field: y<species>-file profiles in an interpolation zone: the composition'// &
+        ' of an interpolation zone comes from the old solution (use a variable or homogeneous zone)'
+      stop 1
+    endif
     nrenorm = 0
     ydev_max = 0.0_R8
     nclip = 0
@@ -590,8 +600,11 @@ contains
                  pc => p(1,1,1), rhoc => rho(1,1,1), Mc => M(1,1,1) )
       sp%massf = 1d-20
       call define_composition(zoneini, sp, T0c, p0c)
-      ! composition-sum check of the zone constants
-      call check_composition(zoneini, 'zone', sp, 'block '//trim(blk_id_txt())//' zone', required = .true.)
+      ! composition-sum check of the zone constants when no y<species>-file profile is given; with profiles
+      ! assemble_composition checks the sum cell by cell
+      if (.not.allocated(yprof)) then
+        call check_composition(zoneini, 'zone', sp, 'block '//trim(blk_id_txt())//' zone', required = .true.)
+      endif
       call assemble_composition(1, 1, 1)
       call report_renormalisation()
 
@@ -659,9 +672,12 @@ contains
           if (.not.cell_in_range(i,j,k)) cycle
           sp%massf = 1d-20
           call define_composition(zoneini, sp, T0(i,j,k), p0(i,j,k))
-          ! composition-sum check on this path too: the keys are those of the zone, the WARNING is printed once
-          call check_composition(zoneini, 'zone', sp, 'block '//trim(blk_id_txt())//' zone', &
-                                 report = (i == 1 .and. j == 1 .and. k == 1), required = .true.)
+          ! composition-sum check on this path too: the keys are those of the zone, the WARNING is printed once;
+          ! with y<species>-file profiles assemble_composition checks the sum cell by cell
+          if (.not.allocated(yprof)) then
+            call check_composition(zoneini, 'zone', sp, 'block '//trim(blk_id_txt())//' zone', &
+                                   report = (i == 1 .and. j == 1 .and. k == 1), required = .true.)
+          endif
           call assemble_composition(i, j, k)
 
           ! R
@@ -720,8 +736,11 @@ contains
       ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
       sp%massf = 1d-20
       call define_composition(zoneini, sp, T0c, p0c)
-      ! composition-sum check of the zone constants
-      call check_composition(zoneini, 'zone', sp, 'block '//trim(blk_id_txt())//' zone', required = .true.)
+      ! composition-sum check of the zone constants when no y<species>-file profile is given; with profiles
+      ! assemble_composition checks the sum cell by cell
+      if (.not.allocated(yprof)) then
+        call check_composition(zoneini, 'zone', sp, 'block '//trim(blk_id_txt())//' zone', required = .true.)
+      endif
       call assemble_composition(1, 1, 1)
       call report_renormalisation()
 
@@ -889,15 +908,89 @@ contains
 
     end subroutine assign_velocity_components
 
-    ! composition-sum check per cell: the composition of one cell = the constants of the zone (define_composition).
-    ! |1 - sum y| up to
+    ! y<species>-file [+ y<species>-direction] of this zone: the loader, file formats and direction
+    ! interpolation of the scalar profiles (load_zone_field). A profile key of a species the
+    ! phase does not declare is an ERROR; so are a profile next to the constant y<species> of the
+    ! same species and a direction without a file (nothing is ignored in silence).
+    subroutine load_species_profiles()
+      implicit none
+      type(config_field_source_t)   :: y_cfg
+      character(len=:), allocatable :: items(:,:), key
+      character(len=64)             :: base_name, file_option, dir_option
+      integer                       :: q, n, err_value, err_file, err_dir
+
+      allocate(has_yprof(sp%n))
+      has_yprof = .false.
+      call zoneini%get_items(items)
+      if (allocated(items)) then
+        do q = 1, size(items, dim=1)
+          key = trim(adjustl(items(q,1)))
+          n = len(key)
+          if (n < 7 .or. key(1:1) /= 'y') cycle
+          if (key(n-4:n) == '-file') then
+            n = n - 5
+          elseif (n >= 12 .and. key(n-9:n) == '-direction') then
+            n = n - 10
+          else
+            cycle
+          endif
+          if (.not. any(sp%name == key(2:n))) then
+            write(*,'(A,I0,A)') '[ERROR] key '//key//' in the zone of block ', blk%id, &
+              ': no species '//key(2:n)//' in the ideal-gas phase of the run'
+            stop 1
+          endif
+        enddo
+      endif
+      do q = 1, sp%n
+        base_name   = 'y'//trim(sp%name(q))
+        file_option = trim(base_name)//'-file'
+        dir_option  = trim(base_name)//'-direction'
+        y_cfg%value = 0.0_R8
+        y_cfg%file = ''
+        y_cfg%direction = ''
+        call zoneini%get(section_name='zone', option_name=trim(base_name),   val=y_cfg%value,     error=err_value)
+        call zoneini%get(section_name='zone', option_name=trim(file_option), val=y_cfg%file,      error=err_file)
+        call zoneini%get(section_name='zone', option_name=trim(dir_option),  val=y_cfg%direction, error=err_dir)
+        if (err_file /= 0) then
+          if (err_dir == 0) then
+            write(*,'(A,I0,A)') '[ERROR] key '//trim(dir_option)//' in the zone of block ', blk%id, &
+              ': a direction without the profile file '//trim(file_option)
+            stop 1
+          endif
+          cycle
+        endif
+        if (err_value == 0) then
+          write(*,'(A,I0,A)') '[ERROR] key '//trim(file_option)//' in the zone of block ', blk%id, &
+            ': the constant '//trim(base_name)//' is given too; give one of the two'
+          stop 1
+        endif
+        y_cfg%has_value = .false.
+        y_cfg%has_file = .true.
+        y_cfg%has_direction = err_dir == 0
+        if (.not.allocated(yprof)) then
+          allocate(yprof(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3),1:sp%n))
+          yprof = 0.0_R8
+        endif
+        has_yprof(q) = .true.
+        call load_zone_field(yprof(:,:,:,q), y_cfg, 1.d0)
+      enddo
+    end subroutine load_species_profiles
+
+    ! composition-sum check per cell: the composition of one cell = the constants of the zone (define_composition) with the
+    ! y<species>-file values in place of the constants of the profiled species. |1 - sum y| up to
     ! YSUM_TOL is renormalised (one WARNING per zone), more is an ERROR; a negative value is an
     ! ERROR below -YSUM_TOL and clipped to 0 above it (its mass is part of the deviation).
     subroutine assemble_composition(i, j, k)
       implicit none
       integer, intent(in) :: i, j, k
+      integer  :: q
       real(R8) :: ysum, ymin
 
+      if (allocated(yprof)) then
+        do q = 1, sp%n
+          if (has_yprof(q)) sp%massf(q) = yprof(i,j,k,q)
+        enddo
+      endif
       ymin = minval(sp%massf)
       ! both limits carry YSUM_EPS of slack: 0.249 + 0.75 (|1 - sum y| = 1e-3 in decimal) is
       ! 1 - 1.0000000000000009e-3 in binary and lies inside the tolerance

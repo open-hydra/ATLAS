@@ -345,6 +345,7 @@ contains
     call add_interpolation_entries('ICB-IG', ig_cfg%interpolation, .true.)
     call icb_registry%add('ICB-IG', 'nozzle-direction', ig_cfg%nozzle_direction, 'dx', 'Nozzle marching direction.', 'dx,sx', .false.)
     call icb_registry%add('ICB-IG', 'nozzle-threshold', ig_cfg%nozzle_threshold, '0.0', 'Coordinate threshold separating plenum and nozzle.', '', .false.)
+    call add_species_profile_entries()
 
     call add_field_source_entries('ICB-RF', 'p', rf_cfg%p, 'Real-fluid pressure.')
     call add_field_source_entries('ICB-RF', 'T', rf_cfg%T, 'Real-fluid temperature.')
@@ -365,6 +366,9 @@ contains
     call icb_registry%add('ICB-DP', 'rp', dp_rp, '0.0', 'Per-population particle radii. Use as an alternative to dp.', '', .false.)
     call icb_registry%add('ICB-DP', 'neuler', dp_neuler, '0', 'Eulerian model selector for dispersed phase support fields.', '', .false.)
     call add_interpolation_entries('ICB-DP', dp_interp_cfg, .false.)
+
+    ! Species mass-fraction profiles of an IG zone: y<species>-file and y<species>-direction are
+    ! run-time names like the constant y<species> (row 'yspecies' of ICB-Composition)
 
     if (present(filename)) then
       fileout = filename
@@ -420,6 +424,14 @@ contains
         call icb_registry%add(section, 'old-species', interp_cfg%old_species, '', 'Species list of the old solution for IG interpolation: a directory (old/, reads old/<phase>phase.txt) or a file prefix (old-, reads old-<phase>phase.txt in the case directory; the launcher then also finds old-phase.txt and writes a header-only old-ic.tec).', '', .false.)
       endif
     end subroutine add_interpolation_entries
+
+    subroutine add_species_profile_entries()
+      character(len=llen), target, save :: y_file = ''
+      character(len=16),   target, save :: y_direction = ''
+
+      call icb_registry%add('ICB-IG', 'yspecies-file', y_file, '', 'Mass-fraction profile of the species named by the suffix (y<species>-file, in place of the constant y<species>): a Tecplot field on the block grid, or a two-column table (coordinate, y) along y<species>-direction; read like T-file, it makes the zone variable.', '', .false.)
+      call icb_registry%add('ICB-IG', 'yspecies-direction', y_direction, '', 'Direction of the 1D y<species>-file table.', 'x,y,z,r,t', .false.)
+    end subroutine add_species_profile_entries
 
   end subroutine write_icb_registry_markdown
 

@@ -339,6 +339,20 @@ set_tests_properties(IG-interp-band-refused PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-species-profile-linear (yH2-file and yN2-file: two-row tables along x, in a zone ranged along y,
+# ----       next to the constant yO2: every cell holds the mass fractions of the linear law at its centre, summing
+# ----       to 1, and a density that follows its own composition; check-fractions.py computes them) -------------
+add_test(
+    NAME    IG-species-profile-linear
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && python3 check-fractions.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-species-profile-linear"
+)
+set_tests_properties(IG-species-profile-linear PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 
