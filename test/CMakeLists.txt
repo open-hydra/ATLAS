@@ -528,6 +528,47 @@ set_tests_properties(DP-axis-refused PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-plate-keys -------------
+# IG-multipatch-file's injector plate with its two plate keys written out (full-plate = F, z-hydra = 1.0, the
+# defaults): the plate mapping reads them, so the deck passes the key check and writes the same bc.txt.
+add_test(
+    NAME    IG-plate-keys
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt ../IG-multipatch-file/reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-plate-keys"
+)
+set_tests_properties(IG-plate-keys PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-renamed-keys-lenient -------------
+# Keys of older decks (rt, renamed g; force-connect, now BC-force-connect in [ATLAS-Parameters]) are unknown
+# keys like any other: with strict-keys = false one WARNING each, whose hint names the current key, and the
+# deck is written as without them.
+add_test(
+    NAME    IG-renamed-keys-lenient
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F \"[WARNING] key rt of section [noz]: unknown key (key 'rt' was renamed 'g'\" <<< \"$out\" && grep -q -F '[WARNING] key force-connect of section [ATLAS-Parameters]: unknown key (the option is BC-force-connect' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-renamed-keys-lenient"
+)
+set_tests_properties(IG-renamed-keys-lenient PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-value-not-a-number (a value with a trailing comment (T0 = 3400.0 ! K) stops BCB naming the key: it is not a number; nothing is written) -------------
+add_test(
+    NAME    IG-value-not-a-number
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] key T0 of section [noz]: value 3400.0 ! K is not a number' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-value-not-a-number"
+)
+set_tests_properties(IG-value-not-a-number PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

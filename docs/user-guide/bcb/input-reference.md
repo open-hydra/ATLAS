@@ -37,6 +37,8 @@
 | block | 0 |  |  no | Connected block index for manifold. |
 | face | 0 |  |  no | Connected face index for manifold. |
 | file-direction |  |  |  no | Coordinate or index directions used by varying BC files. |
+| full-plate | F |  |  no | With range-file: T maps the face as a full injector plate of square sectors, F maps the injectors of the range-file one by one. |
+| z-hydra | 1.0 |  |  no | With range-file and full-plate = F: depth of the pure 2-D (x,y) mesh in the equivalent radius A/(2 z-hydra) of each injector (injector_data_block<b>_face<f>.dat). |
 | eq-OG | F |  |  no | Keep only the gaseous products of the CEA equilibrium of `eq-CEA-file`: the condensed products are dropped and the mass fractions of the gaseous ones are renormalised to 1. |
 | eq-CEA-file |  |  |  no | CEA input file used to derive equilibrium composition. |
 | eq-CEA-section | 1 | >=1 |  no | CEA section index used when eq-CEA-file is provided. |
@@ -79,10 +81,9 @@
 | time-file | none |  |  no | Time-series file of full boundary state. |
 | periodic | F |  |  no | Treat a time-file series as periodic. |
 | rf | 1.0 |  |  no | Boundary relaxation factor. |
-| Ae_At | 0.0 | >=1 |  no | Nozzle exit-to-throat area ratio. |
-| rt | 0.0 |  |  no | Nozzle throat loading parameter. |
-| psub | 0.0 |  |  no | Subsonic exit pressure used with rt. |
-| psup | 0.0 |  |  no | Supersonic exit pressure used with rt. |
+| Ae_At | 0.0 | 0 or >=1 |  no | Nozzle exit-to-throat area ratio (0 = not given). |
+| psub | 0.0 |  |  no | Nozzle (BC 420) exit pressure of the just-choked subsonic solution; given with g and psup, or computed from Ae_At. |
+| psup | 0.0 |  |  no | Nozzle (BC 420) design exit pressure of the supersonic expansion; given with g and psub, or computed from Ae_At. |
 | q | 0.0 |  |  no | Prescribed wall heat flux. |
 | T | 0.0 |  |  no | Prescribed wall temperature. |
 | ks | 0.0 |  |  no | Wall roughness height. |

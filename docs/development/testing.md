@@ -28,6 +28,9 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `mesh-p3d-3D` | BCB | `BCB/mesh-p3d-3D` | A PLOT3D mesh alone, with three coordinates and several node planes, is read as 3D: `bc.txt` equals the one of the same grid in Tecplot. |
 | `DP-basic` | BCB | `BCB/DP-basic` | Dispersed-phase BC assignment and export. |
 | `IG+CD` | BCB | `BCB/IG+CD` | A gas phase and a dispersed phase on one inlet: `gas-bc.txt` and `particles-bc.txt` are written together. |
+| `IG-plate-keys` | BCB | `BCB/IG-plate-keys` | The plate keys `full-plate` and `z-hydra` pass the key check and give the product of `IG-multipatch-file`. |
+| `IG-renamed-keys-lenient` | BCB | `BCB/IG-renamed-keys-lenient` | `rt` and `force-connect` are unknown keys: with `strict-keys = false` a WARNING naming the current key. |
+| `IG-value-not-a-number` | BCB | `BCB/IG-value-not-a-number` | A value with a trailing comment (`T0 = 3400.0 ! K`) stops BCB naming the key: it is not a number; nothing is written. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
@@ -84,7 +87,7 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `mesh-p3d-single-plane`: validate a PLOT3D mesh written with one node plane (read as the pure-2D mesh of its x-y plane).
 - `mesh-p3d-plane-perpendicular`: validate the refusal of a single node plane perpendicular to x-y.
 - `mesh-tec-single-plane`: validate the same rule for a Tecplot mesh with x y z on one node plane (`K = 1`).
-- `IG-table-header-skipped`: validate the tables with a non-numeric row.
+- `IG-plate-keys`, `IG-renamed-keys-lenient`, `IG-table-header-skipped`: validate the plate keys that must not stop BCB, the keys of older decks and the tables with a non-numeric row.
 - `IG-table-decreasing`: validate a table with decreasing coordinates (read in increasing order).
 - `IG-table-not-monotone`: validate the refusal of a table whose coordinate column turns back.
 

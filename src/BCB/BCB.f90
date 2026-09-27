@@ -4,6 +4,7 @@
 
 program BCB
   use bcb_config_mod, only: write_bcb_registry_markdown
+  use input_keys_mod, only: input_keys_set_phases, input_keys_warn_unused
   use global_mod
   use bc_block_mod
   use phase_mod
@@ -39,6 +40,9 @@ program BCB
     stop
   endif
 
+  ! Keys and types the deck may use (input_keys_mod)
+  call write_bcb_registry_markdown(keys_only=.true.)
+
   ! Geometry import
   write(*,*)' Reading mesh file ...'
   call read_mesh(fine_orion)
@@ -51,6 +55,7 @@ program BCB
 
   ! Phase properties import
   call read_phase(phase)
+  call input_keys_set_phases(phase)
 
   do m = 1, MG_levels
 
@@ -102,6 +107,7 @@ program BCB
     enddo
 
   enddo
+  call input_keys_warn_unused(sourceini)
 
   write(*,*)' Done!'
 
