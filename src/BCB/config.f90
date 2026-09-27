@@ -255,6 +255,41 @@ contains
     enddo
   end subroutine check_plate_keys
 
+  !> `<phase>-type` is read in one place only (types_bc.f90, dispersed_axis_override):
+  !> a dispersed phase on a face of type axisymmetric. Anywhere else the key would be
+  !> ignored: ERROR under strict-keys, WARNING otherwise, once per section. `label` is
+  !> the section name of the deck (`section` may be the copy the builders read).
+  subroutine check_phase_type_keys(sini, section, label, definition)
+    use input_keys_mod, only: input_keys_phase_key, input_keys_refuse_or_warn
+    implicit none
+    type(file_ini), intent(in)   :: sini
+    character(*), intent(in)     :: section, label, definition
+    character(len=:), allocatable :: option_pairs(:), key, why
+    character(len=llen) :: pname, ptype
+    character(len=llen), allocatable, save :: done(:)
+    integer :: i
+
+    if (.not. allocated(done)) allocate(done(0))
+    do i = 1, size(done)
+      if (trim(done(i)) == label) return
+    enddo
+    done = [character(len=llen) :: done, label]
+    do while (sini%loop(section_name=section, option_pairs=option_pairs))
+      key = trim(option_pairs(1))
+      if (.not. input_keys_phase_key(key, 'type', pname, ptype)) cycle
+      if (trim(ptype) == 'DP' .and. trim(adjustl(definition)) == trim(MARKER_AXIS)) cycle
+      if (trim(ptype) /= 'DP') then
+        why = trim(pname)//' is not a dispersed phase'
+      elseif (len_trim(definition) == 0) then
+        why = 'the section has no type'
+      else
+        why = 'type = '//trim(adjustl(definition))
+      endif
+      call input_keys_refuse_or_warn('key '//key//' of section ['//label//']: not honoured ('//why// &
+                                     '): only a dispersed phase on a face of type axisymmetric reads it')
+    enddo
+  end subroutine check_phase_type_keys
+
   subroutine load_bcb_face_setup(sini, bc_name, cfg)
     use input_keys_mod, only: input_keys_check_section
     implicit none
@@ -293,6 +328,7 @@ contains
       has_inner_patch .and. has_outer_patch)) then
       call check_assignment_no_input(trim(cfg%name), cfg%definition)
     endif
+    call check_phase_type_keys(sini, trim(bc_name), trim(bc_name), cfg%definition)
     call check_plate_keys(sini, trim(bc_name), has_range_file)
 
     call sini%get(section_name=trim(bc_name), option_name='direction', val=cfg%direction, error=error)
@@ -395,6 +431,8 @@ contains
     elseif (.not. file_named_multipatch) then
       call check_assignment_no_input(trim(cfg%name), cfg%definition)
     endif
+    ! the sections of a multipatch face (the face-level section is checked by load_bcb_face_setup)
+    if (len_trim(cfg%name) > 0) call check_phase_type_keys(sourceini, section, trim(cfg%name), cfg%definition)
 
   end subroutine load_bcb_face_runtime_config
 
@@ -796,6 +834,7 @@ contains
     character(len=llen), target :: phase_name
     character(len=50), target :: face_name
     character(len=20), target :: bc_type
+    character(len=20), target :: dp_axis_type
     character(len=7), target :: direction
     character(len=50), target :: patch_name
     real(R8), target :: patch_range(4)
@@ -829,6 +868,7 @@ contains
     phase_name = ''
     face_name = ''
     bc_type = MARKER_NULL
+    dp_axis_type = ''
     direction = ''
     patch_name = ''
     patch_range = 0.0_R8
@@ -860,6 +900,12 @@ contains
     enddo
 
     call bcb_registry%add('bc-section', 'type', bc_type, MARKER_NULL,'Boundary-condition type for the named section.', boundary_type_list(),.false.)
+    ! no allowed set here: the word is checked where it is read (dispersed_axis_override), whose
+    ! message names both accepted words
+    call bcb_registry%add('bc-section', '<phase>-type', dp_axis_type, '', 'Dispersed phase on a face of type '// &
+                          'axisymmetric: outlet lets that phase leave through the axis (BC 400 in its file), '// &
+                          'symmetry mirrors it at the axis (BC 300); the other phases keep 200. Read nowhere else.', &
+                          '', .false.)
     call bcb_registry%add('bc-section', 'direction', direction, '', 'Patch directions using x,y,z,r,t,i,j,k.', '', .false.)
     call bcb_registry%add('bc-section', 'patch<n>', patch_name, '', 'Named sub-patch section used by multipatch boundaries.', '', .false.)
     call bcb_registry%add('bc-section', 'range<n>', patch_range, '0.0', 'Sub-patch limits associated with patch<n>.', '', .false.)

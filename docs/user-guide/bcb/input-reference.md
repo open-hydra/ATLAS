@@ -29,6 +29,7 @@
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | type | null | null<br>axisymmetric<br>extrapolation<br>connection<br>chimera<br>symmetry<br>periodic<br>wall<br>inlet<br>outlet<br>manifold<br>gsi |  no | Boundary-condition type for the named section. |
+| <phase>-type |  |  |  no | Dispersed phase on a face of type axisymmetric: outlet lets that phase leave through the axis (BC 400 in its file), symmetry mirrors it at the axis (BC 300); the other phases keep 200. Read nowhere else. |
 | direction |  |  |  no | Patch directions using x,y,z,r,t,i,j,k. |
 | patch<n> |  |  |  no | Named sub-patch section used by multipatch boundaries. |
 | range<n> | 0.0 |  |  no | Sub-patch limits associated with patch<n>. |

@@ -569,6 +569,21 @@ set_tests_properties(IG-value-not-a-number PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-phase-type-refused (<phase>-type outside an axisymmetric face) -------------
+# DP-axis-override's deck with partL-type = outlet also on the wall [noz]. Only a dispersed
+# phase on a face of type axisymmetric reads the key, so BCB stops (strict-keys) instead of
+# ignoring it. `!` inverts BCB's status and the grep pins the reason, as in DP-bad-name.
+add_test(
+    NAME    DP-phase-type-refused
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q -F '[ERROR] key partL-type of section [noz]: not honoured (type = wall)' bcb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-phase-type-refused"
+)
+set_tests_properties(DP-phase-type-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

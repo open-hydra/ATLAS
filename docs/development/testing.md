@@ -31,6 +31,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-plate-keys` | BCB | `BCB/IG-plate-keys` | The plate keys `full-plate` and `z-hydra` pass the key check and give the product of `IG-multipatch-file`. |
 | `IG-renamed-keys-lenient` | BCB | `BCB/IG-renamed-keys-lenient` | `rt` and `force-connect` are unknown keys: with `strict-keys = false` a WARNING naming the current key. |
 | `IG-value-not-a-number` | BCB | `BCB/IG-value-not-a-number` | A value with a trailing comment (`T0 = 3400.0 ! K`) stops BCB naming the key: it is not a number; nothing is written. |
+| `DP-phase-type-refused` | BCB | `BCB/DP-phase-type-refused` | `<phase>-type` on a face where no reader uses it stops BCB naming the key and the face type. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
