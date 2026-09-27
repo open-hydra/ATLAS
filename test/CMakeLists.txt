@@ -207,6 +207,35 @@ set_tests_properties(IG-duplicate-section-conflict PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : mesh-p3d-single-plane -------------
+# A PLOT3D mesh written with three coordinates and one node plane (5 4 1, z = 0) is the pure-2D mesh of its x-y plane.
+# reference/bc.txt was written by BCB from this mesh; mesh-tec-single-plane reads the same grid as a Tecplot zone with
+# K = 1 (on the plane z = 0 and on a tilted plane) and compares its bc.txt with this same file.
+add_test(
+    NAME    mesh-p3d-single-plane
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-p3d-single-plane"
+)
+set_tests_properties(mesh-p3d-single-plane PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : mesh-p3d-plane-perpendicular -------------
+# A PLOT3D mesh with three coordinates on one node plane that lies in x-z (y = 0) has no area on x-y, where the 2D
+# mesh is read: refused with the block named; no bc.txt.
+add_test(
+    NAME    mesh-p3d-plane-perpendicular
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] mesh block 1: three coordinates on a single node plane that is perpendicular to x-y' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-p3d-plane-perpendicular"
+)
+set_tests_properties(mesh-p3d-plane-perpendicular PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-chimera (overset overlap connections) -------------
 # Volume fractions come from an ill-conditioned hull volume of sliver contacts;
 # they are correct to ~1e-9 but not bit-identical across CPU architectures
@@ -674,6 +703,20 @@ add_test(
 )
 set_tests_properties(CP-fixmat-tokens PROPERTIES
     LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : mesh-tec-single-plane (a Tecplot mesh with x y z on one node plane, K = 1, follows the rule of a PLOT3D
+# ----       mesh written Ni Nj 1: on the plane z = 0 and on a tilted plane it gives the bc.txt of mesh-p3d-single-plane,
+# ----       with a WARNING for the tilted plane; on the plane x-z it is refused) -------------
+add_test(
+    NAME    mesh-tec-single-plane
+    COMMAND bash -c "for d in xy tilted; do (cd $d && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt ../reference/bc.txt) || { cat $d/bcb.log; exit 1; }; done && ! grep -q -F '[WARNING] mesh block' xy/bcb.log && grep -q -F '[WARNING] mesh block 1: three coordinates on a single node plane are read as a 2D (x, y) mesh, but z is not constant' tilted/bcb.log && cd perpendicular && rm -rf fromATLAStoSolver && if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] mesh block 1: three coordinates on a single node plane that is perpendicular to x-y' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-tec-single-plane"
+)
+set_tests_properties(mesh-tec-single-plane PROPERTIES
+    LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )

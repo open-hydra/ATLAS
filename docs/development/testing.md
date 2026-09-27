@@ -40,6 +40,9 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-duplicate-section-lenient` | BCB | `BCB/IG-duplicate-section-lenient` | With `strict-keys = false` a section written twice in the `BCB-file` gets one WARNING; `bc.txt` is that of the deck without the copy. |
 | `IG-duplicate-section-identical` | BCB | `BCB/IG-duplicate-section-identical` | With the default settings a section written twice with the same keys and values (other key order, a comment line, a blank line) gets one WARNING that says so; `bc.txt` is that of the deck with one copy. |
 | `IG-duplicate-section-conflict` | BCB | `BCB/IG-duplicate-section-conflict` | Two copies of a section that differ: the ERROR and no `bc.txt` with the default settings; one WARNING and the `bc.txt` of the first copy with `strict-keys = false`. |
+| `mesh-p3d-single-plane` | BCB | `BCB/mesh-p3d-single-plane` | A PLOT3D mesh with one node plane (`Ni Nj 1`) is the pure-2D mesh of its x-y plane: `bc.txt` of the same grid in Tecplot. |
+| `mesh-p3d-plane-perpendicular` | BCB | `BCB/mesh-p3d-plane-perpendicular` | A PLOT3D mesh with one node plane in x-z (no area on x-y) is refused. |
+| `mesh-tec-single-plane` | BCB | `BCB/mesh-tec-single-plane` | A Tecplot mesh with x y z on one node plane (`K = 1`) follows the PLOT3D rule: on z = 0 and on a tilted plane the `bc.txt` of `mesh-p3d-single-plane` (a WARNING for the tilted plane); on x-z it is refused. |
 
 ## Test Families And Their Intent
 
@@ -57,6 +60,9 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `mesh-p3d-fallback`: validate the mesh search (`mesh.tec` -> `mesh.p3d` -> `mesh.szplt`) when `mesh.p3d` cannot be read.
 - `IG-duplicate-section-lenient`: validate the lenient key check of a section written twice (the options of the next sections are all read).
 - `IG-duplicate-section-identical`, `IG-duplicate-section-conflict`: validate the rule for a section written twice: two copies with the same keys and values only warn, copies that differ stop the tool unless `strict-keys = false`.
+- `mesh-p3d-single-plane`: validate a PLOT3D mesh written with one node plane (read as the pure-2D mesh of its x-y plane).
+- `mesh-p3d-plane-perpendicular`: validate the refusal of a single node plane perpendicular to x-y.
+- `mesh-tec-single-plane`: validate the same rule for a Tecplot mesh with x y z on one node plane (`K = 1`).
 
 ### GPB Cases (`test/GPB/`)
 
