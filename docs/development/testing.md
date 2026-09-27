@@ -19,6 +19,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-reactions-without-thermo` | GPB | `GPB/IG-reactions-without-thermo` | `reactions =` without `thermo`: the thermo records of the file are used, said with an INFO line; `thermo.dat`, `chemistry-info.txt` and `chemistry-Arrhenius.dat` equal those of `phase =` on the same file. |
 | `IG-strict-thermo` | GPB | `GPB/IG-strict-thermo` | `strict-thermo = true` refuses a database thermo record that differs from the file record by more than 1 kJ/mol. |
 | `IG-fixgas-gas-constant` | GPB | `GPB/IG-fixgas-gas-constant` | A species given by `gamma` and `mw`: `cp = gamma/(gamma-1) R_u/mw` with the exact `R_u`. |
+| `IG-transport-CEA-species-without-data` | GPB | `GPB/IG-transport-CEA-species-without-data` | `transport = CEA` with a mechanism species that has no transport data but is in the thermo database: accepted, `transport.dat` equal to the one with transport records. |
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |

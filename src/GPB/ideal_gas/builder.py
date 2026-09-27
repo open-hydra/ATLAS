@@ -151,6 +151,16 @@ def build(inifile,section):
         print(' -- Found reaction model:',reaction_model)
         # Load the full mechanism
         raw_mechanism = ct.Solution(reaction_model + '.yaml')
+        # Species of the file without transport data: transport = cantera needs the file records (refused before any
+        # product); transport = CEA takes the CEApolynomials records (simplified law without a record); without a
+        # transport key no transport table is written. The database record of such a species keeps its (empty)
+        # transport: the copy below is skipped (copying a missing record crashed Cantera 3.0.1).
+        notr = [s.name for s in raw_mechanism.species() if s.transport is None]
+        if notr and transport_model not in (None, 'CEA'):
+            print(f"[ERROR] key reactions of section [{section}]: {reaction_model}.yaml has {len(notr)} of {raw_mechanism.n_species} species without transport data ({', '.join(notr[:10])}{' ...' if len(notr) > 10 else ''}): add the Lennard-Jones records to the file (the thermo databases carry no transport data; needed with transport = cantera; transport = CEA takes the CEApolynomials records instead)")
+            sys.exit(1)
+        if notr and transport_model == 'CEA':
+            print(f"[INFO] GPB: transport = CEA: {len(notr)} species of {reaction_model}.yaml carry no transport data and take the CEApolynomials record: {', '.join(notr[:10])}{' ...' if len(notr) > 10 else ''}")
         # Create a dictionary for quick lookup of species
         # (none with reactions = without thermo: every species keeps the thermo and transport records of the file)
         all_species_dict = {} if file_thermo else {s.name: s for s in all_species}
@@ -167,7 +177,8 @@ def build(inifile,section):
                 print(f"{'[WARNING]' if abs(dh) > 1.0 else '[INFO]'} GPB: species {species_name}: thermo from the database replaces the file record ({lab} database - file = {dh:+.3f} kJ/mol)")
                 if abs(dh) > 1.0: thermo_replaced.append(species_name)
                 # Use the thermo definition from all_species if available, take transport from mechanism
-                all_species_dict[species_name].transport = raw_mechanism.species(species_name).transport
+                if file_sp.transport is not None:
+                    all_species_dict[species_name].transport = file_sp.transport
                 combined_species.append(all_species_dict[species_name])
             else:
                 # Otherwise, use the definition from the mechanism (said when a database was looked up)

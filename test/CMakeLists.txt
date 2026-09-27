@@ -645,3 +645,15 @@ set_tests_properties(IG-fixgas-gas-constant PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : IG-transport-CEA-species-without-data (transport = CEA with a mechanism species that has no transport data and exists in the thermo database: accepted, transport.dat equal to the one of the same mechanism with transport records) -------------
+add_test(
+    NAME    IG-transport-CEA-species-without-data
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/transport.dat reference/transport.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-transport-CEA-species-without-data"
+)
+set_tests_properties(IG-transport-CEA-species-without-data PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
