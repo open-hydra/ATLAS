@@ -30,8 +30,8 @@ module config_mod
     character(len=llen) :: error_message = ''
     character(len=llen) :: description = ''
     logical             :: enabled = .false.
-    real(R8)            :: theta = 90.0_R8
-    integer             :: nz = 4
+    real(R8)            :: theta = 90.0_R8   ! extrude law: angle (degrees) of the sector the 2D source is revolved into
+    integer             :: nz = 4            ! extrude law: number of cells of that sector
     integer             :: old_block_id = 0
     character(len=llen) :: file = ''
     character(len=llen) :: law = 'outlaw'
@@ -245,7 +245,8 @@ contains
     implicit none
     type(file_ini), intent(in)               :: zoneini
     type(config_interpolation_t), intent(out):: cfg
-    integer :: error
+    integer :: error, err_theta, err_nz, unused_nz
+    real(R8) :: unused_theta
 
     cfg%warning_message = ''
     cfg%error_message = ''
@@ -271,12 +272,17 @@ contains
 
     call zoneini%get(section_name='zone', option_name='interpolation-law', val=cfg%law, error=error)
     if (error /= 0) cfg%law = 'outlaw'
-
+    ! theta (degrees) and nz shape the sector into which the extrude law revolves a 2D source
     if (cfg%law == 'extrude') then
       call zoneini%get(section_name='zone', option_name='theta', val=cfg%theta, error=error)
       if (error /= 0) cfg%theta = 90.0_R8
       call zoneini%get(section_name='zone', option_name='nz', val=cfg%nz, error=error)
       if (error /= 0) cfg%nz = 4
+    else
+      call zoneini%get(section_name='zone', option_name='theta', val=unused_theta, error=err_theta)
+      call zoneini%get(section_name='zone', option_name='nz', val=unused_nz, error=err_nz)
+      if (err_theta == 0 .or. err_nz == 0) write(*,'(A)') "[WARNING] theta and nz shape the sector of interpolation-law = extrude only: with interpolation-law = '"// &
+        trim(cfg%law)//"' they are not used"
     endif
   end subroutine load_interpolation_config
 
@@ -406,9 +412,9 @@ contains
 
       call icb_registry%add(section, 'old-solution', interp_cfg%old_solution, '', 'Previous solution file used for interpolation.', '', .false.)
       call icb_registry%add(section, 'old-block-id', interp_cfg%old_block_id, '0', 'Source block index for interpolation. Zero means auto.', '>=0', .false.)
-      call icb_registry%add(section, 'interpolation-law', interp_cfg%law, 'outlaw', 'Interpolation mapping law.', '', .false.)
-      call icb_registry%add(section, 'theta', interp_cfg%theta, '90.0', 'Extrusion angle used by the extrude law.', '', .false.)
-      call icb_registry%add(section, 'nz', interp_cfg%nz, '4', 'Number of extrusion layers used by the extrude law.', '>=1', .false.)
+      call icb_registry%add(section, 'interpolation-law', interp_cfg%law, 'outlaw', 'Interpolation mapping law (outlaw = not given: minimum_distance; index revolves a 2D source onto a target revolved with the same cells; extrude revolves a 2D source about x through theta degrees in nz cells, then each target cell takes the nearest revolved cell).', 'outlaw<br>index<br>multiple<br>minimum_distance<br>spherical_minimum_distance<br>extrude', .false.)
+      call icb_registry%add(section, 'theta', interp_cfg%theta, '90.0', 'Angle in degrees of the sector into which the extrude law revolves the 2D source (from the source plane towards +z).', '', .false.)
+      call icb_registry%add(section, 'nz', interp_cfg%nz, '4', 'Number of cells of the sector built by the extrude law.', '>=1', .false.)
 
       if (include_old_species) then
         call icb_registry%add(section, 'old-species', interp_cfg%old_species, '', 'Species list of the old solution for IG interpolation: a directory (old/, reads old/<phase>phase.txt) or a file prefix (old-, reads old-<phase>phase.txt in the case directory; the launcher then also finds old-phase.txt and writes a header-only old-ic.tec).', '', .false.)

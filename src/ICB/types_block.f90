@@ -52,6 +52,10 @@ module ic_block_mod
     integer                                    :: id = 0
     integer                                    :: nrans = 0
     integer                                    :: neuler = 0
+    ! cells whose state each phase writer has assigned (per phase; per band for the turbulence), set by
+    ! the writers themselves and checked after the last zone of the block (build_IC)
+    logical, dimension(:,:,:), allocatable     :: set_ig, set_rf, set_sp, set_dp
+    logical, dimension(:,:,:,:), allocatable   :: set_turb_ig, set_turb_rf
   contains
     private
     procedure, pass(self), public :: allocate

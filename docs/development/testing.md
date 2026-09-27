@@ -19,6 +19,24 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |
 | `ICB-type-refused` | ICB | `ICB/ICB-type-refused` | A zone `type` that no writer knows stops ICB naming the value. |
+| `IG-interp-2D` | ICB | `ICB/IG-interp-2D` | Pure-2D source onto a pure-2D target (index law). |
+| `IG-interp-2Dto3D` | ICB | `ICB/IG-interp-2Dto3D` | Pure-2D source onto a revolved 3D target: the source mesh is classified in its own configuration and the product keeps the 3D layout (tolerance 1e-12). |
+| `IG-interp-rans-src` | ICB | `ICB/IG-interp-rans-src` | Source with a trailing turbulence band: the SA model of the source is adopted and `mi_t` interpolated. |
+| `IG-interp-3D` | ICB | `ICB/IG-interp-3D` | 3D source onto a 3D target (index law). |
+| `IG-interp-extrude` | ICB | `ICB/IG-interp-extrude` | `interpolation-law = extrude` (`theta`, `nz`) on a target revolved with the same cells gives the field of the index law. |
+| `IG-zones-index-direction` | ICB | `ICB/IG-zones-index-direction` | Zones ranged by cell index (`direction = i`) give the field of the same zones ranged by coordinate. |
+| `IG-zone-interp-range` | ICB | `ICB/IG-zone-interp-range` | An interpolation zone writes the cells of its range only (both zone orders give the same field). |
+| `SP-interp` | ICB | `ICB/SP-interp` | A solid field interpolated onto its own mesh is the source field. |
+| `IG-pfile-oneplane-2block` | ICB | `ICB/IG-pfile-oneplane-2block` | One-plane (K=1) `p-file` sources on two blocks: the source array keeps its plane. |
+| `IG-zone-unwritten-refused` | ICB | `ICB/IG-zone-unwritten-refused` | Cells that no zone writes stop ICB naming block, phase and count. |
+| `IG+DP-phase-order` | ICB | `ICB/IG+DP` | `phase = particles gas` builds as `gas particles`: the dispersed state derives from the gas state. |
+| `ICB-phase-key-refused` | ICB | `ICB/IG+DP` | A phase name that no phase file declares, and a dispersed phase without the gas it derives from, stop ICB naming the cause. |
+| `IG-pfile-oneplane-noK` | ICB | `ICB/IG-pfile-oneplane-2block` | A two-block pure 2-D p-file written without K in its ZONE lines reads like K = 1: the product equals the K = 1 reference. |
+| `IG-zone-interp-range-turb` | ICB | `ICB/IG-zone-interp-range-turb` | A partial interpolation zone that adopts the source turbulence model writes `mi_t` in its range only; the cells of the other zone keep 0. |
+| `IG-range-separator-refused` | ICB | `ICB/IG-multizone` | A TAB between the two values of `range<n>` stops ICB naming the separator (the values are read on blanks). |
+| `IG-turbulence-zero-refused` | ICB | `ICB/IG-turbulence-zero-refused` | A k-omega zone (nrans = 2) with `kappa` and no `omega` stops ICB (omega = 0 would divide in the solver kernels); nothing is written. |
+| `IG-state-not-physical` | ICB | `ICB/IG-state-not-physical` | A zone with a negative pressure stops ICB naming the first cell and the state; nothing is written. |
+| `IG-interp-band-refused` | ICB | `ICB/IG-interp-band-refused` | An interpolation source whose band after the velocities is `T`, not `p`, stops ICB naming the band; nothing is written. |
 | `IG-inflow-nozzle` | BCB | `BCB/IG-inflow-nozzle` | Nozzle inflow boundary-condition construction. |
 | `IG-inflow-ceafile-inertmix` | BCB | `BCB/IG-inflow-ceafile-inertmix` | Inflow BC creation using CEA-based inert-mixture inputs. |
 | `IG-multipatch-file` | BCB | `BCB/IG-multipatch-file` | Multipatch BC assignment when patches are provided by file. |
@@ -106,7 +124,10 @@ ICB tests check that initial-condition fields are built correctly on different g
 
 - `IG-1D`, `IG-2D`: validate baseline dimensional initialization.
 - `IG-nozzle2D`, `IG-nozzle3D`: validate nozzle-specific initialization workflows.
-- `IG-interp-*`: validate interpolation-based field initialization (distance/species/decomposition).
+- `IG-interp-*`: validate interpolation-based field initialization: `IG-interp-mindist` (distance law on a real MOSE dump),
+  the `index` law from a pure-2D source onto pure-2D and revolved 3D targets, from a 3D source and from a source with a
+  turbulence band (`IG-interp-2D`, `IG-interp-2Dto3D`, `IG-interp-3D`, `IG-interp-rans-src`), and the revolved source of
+  `interpolation-law = extrude` (`IG-interp-extrude`); the species/decomposition folders are not registered.
 - `IG-multizone`: validate multi-zone initialization logic.
 - `IG+CD`, `IG+SP`, `SP-basic`, `RF-basic`: validate coupled gas/condensed/solid/real-fluid IC outputs.
 

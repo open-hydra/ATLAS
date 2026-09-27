@@ -1,0 +1,21 @@
+TITLE = "mesh"
+VARIABLES = "x" "y"
+ZONE T = "block", I=3, J=3, K=1, DATAPACKING=BLOCK
+0.0
+1.0
+2.0
+0.0
+1.0
+2.0
+0.0
+1.0
+2.0
+0.0
+0.0
+0.0
+1.0
+1.0
+1.0
+2.0
+2.0
+2.0

@@ -41,6 +41,11 @@ Variable payload depends on phase type:
 
 The writer exports exactly what ICB built at initialization time, after any multizone logic and interpolation.
 
+Under the Reynolds-stress model a pure-2D target (two coordinates, or a single node plane) carries five turbulence
+bands, `ruu rvv rww ruv omega`: the Reynolds-stress state of Q2D, which reads the initial condition by position.
+Every other target (a single layer of cells included) carries seven, `ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega`.
+Main wrote the seven bands on a pure-2D target too, so Q2D read `ru'w'` as omega.
+
 ## Notes
 
 - ICB does not write `IC_block_<n>.bin` files.

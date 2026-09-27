@@ -97,6 +97,248 @@ set_tests_properties(ICB-type-refused PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG+DP-phase-order (phase = particles gas builds as gas particles: the dispersed state derives from the gas state) -------------
+add_test(
+    NAME    IG+DP-phase-order
+    COMMAND bash -c "rm -rf _run-order && mkdir _run-order && cp *.ini *.tec *.txt *.dat _run-order/ 2>/dev/null; cd _run-order && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input particles-gas.ini && diff fromATLAStoSolver/particles-ic.tec ../reference/particles-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG+DP"
+)
+set_tests_properties(IG+DP-phase-order PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : ICB-phase-key-refused (a phase name that no phase file declares, and a dispersed phase without the gas it derives from, stop ICB naming the cause) -------------
+add_test(
+    NAME    ICB-phase-key-refused
+    COMMAND bash -c "rm -rf _run-keys && mkdir _run-keys && cp *.ini *.tec *.txt *.dat _run-keys/ 2>/dev/null; cd _run-keys && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input phase-undeclared.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F 'phase part is declared by no <name>-phase.txt (declared: gas, particles)' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-ic.tec && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input particles-only.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F 'the block builds no ideal-gas phase' <<< \"$out\""
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG+DP"
+)
+set_tests_properties(ICB-phase-key-refused PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ===========================================================================
+#  Fixtures for behaviours that no registered test reached (every reference
+#  comes from an independent oracle: analytic values, the deck's own numbers
+#  or a 30-digit replica, never from a snapshot of ATLAS output)
+# ===========================================================================
+
+# The p-file fixture IG-pfile-oneplane-2block (registered with the ICB cases above): a source
+# array allocated too short (zero k extent for a one-plane file) is written AND read back through the same
+# addresses, so the field stays right and the overrun is undefined behaviour that no
+# output oracle can see. glibc's MALLOC_CHECK_=3 (inert on glibc >= 2.34) and ifx
+# -check bounds turn it into a crash only for some heap layouts; the deterministic
+# guard is the shape assertion of load_source (field array extents vs data extents:
+# [ERROR] and a non-zero status). What such a source
+# STORES (one plane, Nj planes) is compared against the reference and is output-killed.
+
+# ===========================================================================
+#  ICB: interpolation laws, zone writers and the initialised-cell rule
+# ===========================================================================
+
+# ---- ICB : IG-interp-2D (pure-2D source onto a pure-2D target, index law) -------------
+add_test(
+    NAME    IG-interp-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/gas-ic.tec reference/gas-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-2D"
+)
+set_tests_properties(IG-interp-2D PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-interp-2Dto3D (pure-2D source onto a revolved 3D target: the source mesh is classified
+# ----       in its own configuration, the product keeps the 3D layout of the target) -------------
+add_test(
+    NAME    IG-interp-2Dto3D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-ic.tec fromATLAStoSolver/gas-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-2Dto3D"
+)
+set_tests_properties(IG-interp-2Dto3D PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-interp-rans-src (source with a trailing turbulence band: the SA model of the source
+# ----       is adopted and mi_t interpolated, the species count skips the surplus band) -------------
+add_test(
+    NAME    IG-interp-rans-src
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/gas-ic.tec reference/gas-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-rans-src"
+)
+set_tests_properties(IG-interp-rans-src PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-interp-3D (3D source onto a 3D target, index law) -------------
+add_test(
+    NAME    IG-interp-3D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/gas-ic.tec reference/gas-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-3D"
+)
+set_tests_properties(IG-interp-3D PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-interp-extrude (interpolation-law = extrude, theta = 60, nz = 4: the 2D source revolved
+# ----       onto a target revolved with the same cells gives the field of the index law) -------------
+add_test(
+    NAME    IG-interp-extrude
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input index.ini && mkdir fromATLAStoSolver/index && mv fromATLAStoSolver/gas-ic.tec fromATLAStoSolver/index/ && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input extrude.ini && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk fromATLAStoSolver/index/gas-ic.tec fromATLAStoSolver/gas-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-extrude"
+)
+set_tests_properties(IG-interp-extrude PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-zones-index-direction (zones ranged by cell index, direction = i, give the field of the
+# ----       same zones ranged by coordinate) -------------
+add_test(
+    NAME    IG-zones-index-direction
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input coordinate.ini && mkdir fromATLAStoSolver/coordinate && mv fromATLAStoSolver/ic.tec fromATLAStoSolver/coordinate/ && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input index.ini && diff fromATLAStoSolver/coordinate/ic.tec fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-zones-index-direction"
+)
+set_tests_properties(IG-zones-index-direction PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-zone-interp-range (an interpolation zone writes the cells of its range only: after a
+# ----       homogeneous zone it gives the field of the same zones in the other order) -------------
+add_test(
+    NAME    IG-zone-interp-range
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input interp-first.ini && mkdir fromATLAStoSolver/first && mv fromATLAStoSolver/ic.tec fromATLAStoSolver/first/ && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input interp-last.ini && diff fromATLAStoSolver/first/ic.tec fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-zone-interp-range"
+)
+set_tests_properties(IG-zone-interp-range PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : SP-interp (a solid field interpolated onto its own mesh is the source field) -------------
+add_test(
+    NAME    SP-interp
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/solid-ic.tec source.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/SP-interp"
+)
+set_tests_properties(SP-interp PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-pfile-oneplane-2block (one-plane K=1 p-file sources: ORION returns Nk = 0, the source
+# ----       array still needs one plane) -------------
+add_test(
+    NAME    IG-pfile-oneplane-2block
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/ic.tec fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-pfile-oneplane-2block"
+)
+set_tests_properties(IG-pfile-oneplane-2block PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV};MALLOC_PERTURB_=165;MALLOC_CHECK_=3"
+)
+
+# ---- ICB : IG-pfile-oneplane-noK (the same two-block pure 2-D p-file written without K in its ZONE lines reads like K=1: the product equals the K=1 reference) -------------
+add_test(
+    NAME    IG-pfile-oneplane-noK
+    COMMAND bash -c "rm -rf _run-noK && mkdir _run-noK && cp *.ini *.tec *.txt *.dat _run-noK/ 2>/dev/null; cd _run-noK && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input noK.ini && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/ic.tec fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-pfile-oneplane-2block"
+)
+set_tests_properties(IG-pfile-oneplane-noK PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV};MALLOC_PERTURB_=165;MALLOC_CHECK_=3"
+)
+
+# ---- ICB : IG-zone-unwritten-refused (cells that no zone writes stop ICB naming the block, the phase and
+# ----       the count; nothing is written) -------------
+add_test(
+    NAME    IG-zone-unwritten-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '8 of 32 cells are initialised by no zone' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-zone-unwritten-refused"
+)
+set_tests_properties(IG-zone-unwritten-refused PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-zone-interp-range-turb (a partial interpolation zone that adopts the source turbulence model writes mi_t in its range only; the cells of the other zone keep 0) -------------
+add_test(
+    NAME    IG-zone-interp-range-turb
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/ic.tec fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-zone-interp-range-turb"
+)
+set_tests_properties(IG-zone-interp-range-turb PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV};MALLOC_PERTURB_=165"
+)
+
+# ---- ICB : IG-range-separator-refused (a TAB between the two values of range<n> stops ICB naming the separator (the values are read on blanks)) -------------
+add_test(
+    NAME    IG-range-separator-refused
+    COMMAND bash -c "rm -rf _run-tab && mkdir _run-tab && cp *.ini *.tec *.txt *.dat _run-tab/ 2>/dev/null; cd _run-tab && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input range-tab.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F 'separate the values with blanks (a TAB is not read as a separator)' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-multizone"
+)
+set_tests_properties(IG-range-separator-refused PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-turbulence-zero-refused (a k-omega zone (nrans = 2) with kappa and no omega stops ICB: omega = 0 would divide in the solver kernels; nothing is written) -------------
+add_test(
+    NAME    IG-turbulence-zero-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] build_IG_field: turbulence band omega (key omega) would be written as 0 under the k-omega (nrans = 2) model' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-turbulence-zero-refused"
+)
+set_tests_properties(IG-turbulence-zero-refused PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-state-not-physical (a zone with a negative pressure stops ICB naming the first cell and the state; nothing is written) -------------
+add_test(
+    NAME    IG-state-not-physical
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] build_IG_field block 1: the initial field is not physical at cell (1,1,1)' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-state-not-physical"
+)
+set_tests_properties(IG-state-not-physical PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-interp-band-refused (an interpolation source whose band after the velocities is T, not p, stops ICB naming the band: the bands would be shifted; nothing is written) -------------
+add_test(
+    NAME    IG-interp-band-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F \"[ERROR] read_vtk_tec: band 5 of 'field.tec' is named 'T' but the declared layout expects 'p' there\" <<< \"$out\" && test ! -e fromATLAStoSolver/gas-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-band-refused"
+)
+set_tests_properties(IG-interp-band-refused PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 

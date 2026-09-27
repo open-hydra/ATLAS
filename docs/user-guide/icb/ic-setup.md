@@ -42,8 +42,8 @@ w = 0.0
 
 | Key | Description |
 |-----|-------------|
-| `phase` | Space-separated phase names active in the block. If omitted, all phases are used. |
-| `type` | Initialization mode. Common values are `homogeneous`, `variable`, `interpolation`, `nozzle`. |
+| `phase` | Space-separated phase names active in the block. If omitted, all phases are used. A phase listed by a `<name>-phase.txt` file and named in the `phase` key of no block is not written: ICB prints `[WARNING] key phase of section [ICB-Block*]: the phase of <name>-phase.txt is built by no block: no initial field is written for it (...)` and writes no `<name>-ic` file. |
+| `type` | Initialization mode: `homogeneous` (default), `variable`, `interpolation`, `nozzle`; `multizone` for a block (the key `direction` alone also makes it multizone). Any other value stops ICB naming it. |
 | `direction` | Direction string for multizone ranges (`x,y,z,r,t,i,j,k`, including combinations). |
 | `range` | Limits for the block/zone direction(s). |
 | `zoneN` | Name of an auxiliary section used by multizone setup. |

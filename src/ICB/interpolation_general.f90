@@ -13,6 +13,7 @@ module ic_interpolation_general_mod
   private
   public :: interpolate_from_file
   public :: interp_map_t, compute_interp_map, apply_interp_map
+  public :: rotate_2d_to_3d
 
   ! ---------------------------------------------------------------
   !  Interpolation index-map type
@@ -87,8 +88,16 @@ contains
       call build_distance_map(map, oldblocks, tgt, oldid)
     case ('spherical_minimum_distance')
       call build_spherical_distance_map(map, oldblocks, tgt, oldid)
-    case default
+    case ('outlaw')
+      ! not given: the historical default of the interpolation
       call build_distance_map(map, oldblocks, tgt, oldid)
+    case ('extrude')
+      ! the source was revolved into a 3D sector when it was read (build_old_solution): nearest revolved cell
+      call build_distance_map(map, oldblocks, tgt, oldid)
+    case default
+      write(*,'(A)') "[ERROR] interpolation-law = '"//trim(law)//"' is not a law (allowed: outlaw, index, multiple,"// &
+                     " minimum_distance, spherical_minimum_distance, extrude)"
+      stop 1
     end select
 
     if (verbose) then
@@ -143,6 +152,100 @@ contains
     self%dim = 0
     self%n_stencil = 0
   end subroutine interp_map_destroy
+
+  ! ---------------------------------------------------------------
+  !  2D -> 3D rotation of interpolated fields (index law)
+  ! ---------------------------------------------------------------
+  !> A one-k-cell source (pure-2D x-r plane, or 3-coordinate one-cell wedge)
+  !> describes an axisymmetric field about the x axis. At its donor cell of
+  !> azimuth th_d (0 for a pure-2D file: y is the radius and its imported z is
+  !> a dummy) the stored components are (u, v_r, v_theta) [pure-2D: v_theta = 0
+  !> after the read]. apply_interp_map copied them component-wise; at a target
+  !> cell of azimuth th_t = atan2(z, y) they are rotated about x by
+  !> dth = th_t - th_d:
+  !>   vy = v cos(dth) - w sin(dth) ;  vz = v sin(dth) + w cos(dth)
+  !> and the Reynolds-stress tensor (slots R11 R22 R33 R12 R13 R23, omega) by
+  !> R' = Q R Q^T with the same Q (R11, omega invariant).
+  !> Nothing is rotated for a one-cell target or when the target is a
+  !> z-extrusion (y conserved along k: a planar case, plain copy is right); the
+  !> two residuals max|dy| and max|dr| along k decide (the smaller wins, no
+  !> tolerance). With a law other than 'index' a revolved target stops ICB with
+  !> an ERROR (the donors are not on the target's meridian). A target whose r
+  !> is conserved worse than the solver's own axisymmetry test (MOSE
+  !> Lib_Metrics: 1e-5 r) stops ICB with an ERROR too: it needs a 3D source.
+  subroutine rotate_2d_to_3d(map, oldblocks, tgt, src_pure2d, index_law, vel, rst)
+    use global_mod, only: verbose
+    implicit none
+    type(interp_map_t), intent(in)    :: map
+    type(IC_block),     intent(in)    :: oldblocks(:)
+    type(IC_block),     intent(in)    :: tgt
+    logical,            intent(in)    :: src_pure2d
+    logical,            intent(in)    :: index_law     !< interpolation-law == 'index'
+    real(R8),           intent(inout) :: vel(:,:,:,:)   !< (3,Ni,Nj,Nk) interpolated velocity
+    real(R8), optional, intent(inout) :: rst(:,:,:,:)   !< (7,Ni,Nj,Nk) interpolated Reynolds stresses + omega
+    ! Local
+    integer  :: i, j, k, sb, si, sj
+    real(R8) :: dth, c, s, v, w, dy, dr, rmax, r0, rk
+    real(R8) :: Ryy, Rzz, Ryz, Rxy, Rxz
+
+    if (tgt%dim(3) == 1) return                            ! one-cell target: nothing to revolve
+    if (oldblocks(map%src_blk(1,1,1))%dim(3) /= 1) return   ! 3D source: the index map already did it all
+
+    ! Target k-line geometry: a z-extrusion conserves y along k, a body of revolution conserves
+    ! r = sqrt(y^2 + z^2). The smaller residual decides: both are exactly zero for their own
+    ! geometry, so thin sectors and thin slabs are told apart without a tolerance.
+    dy = 0.0_R8; dr = 0.0_R8; rmax = 0.0_R8
+    do k = 0, tgt%dim(3); do j = 0, tgt%dim(2); do i = 0, tgt%dim(1)
+      r0 = sqrt(tgt%node(i,j,0)%c(2)**2 + tgt%node(i,j,0)%c(3)**2)
+      rk = sqrt(tgt%node(i,j,k)%c(2)**2 + tgt%node(i,j,k)%c(3)**2)
+      dy = max(dy, abs(tgt%node(i,j,k)%c(2) - tgt%node(i,j,0)%c(2)))
+      dr = max(dr, abs(rk - r0))
+      rmax = max(rmax, rk)
+    enddo; enddo; enddo
+    if (dy <= dr) then
+      if (verbose) write(*,*) "[LOG] Target block is a z-extrusion (planar case): no 2D -> 3D rotation applied"
+      return
+    endif
+    ! the field written in these two cases is known to be wrong (up to 86 % away from the
+    ! source azimuth): refused instead of written with a WARNING (only velocity / stress
+    ! interpolations reach this point; scalar sources are never refused here)
+    if (.not. index_law) then
+      write(*,'(A)') "[ERROR] rotate_2d_to_3d: one-cell source on a revolved target with interpolation-law /= 'index':"
+      write(*,'(A)') "        the velocity cannot be revolved (the donors are picked by Cartesian distance to the source"
+      write(*,'(A)') "        plane) and the field is wrong away from the source azimuth. Use interpolation-law = index."
+      stop 1
+    endif
+    if (dr > 1.0e-5_R8 * rmax) then
+      write(*,'(A,ES12.5,A,ES12.5,A)') "[ERROR] rotate_2d_to_3d: the target k-lines are neither circles about x (max |dr| = ", &
+        dr, ") nor z-lines (max |dy| = ", dy, "): a one-cell source can be revolved only onto a body of revolution about x"
+      write(*,'(A)') "        or copied onto a z-extrusion; give a 3D source for this target"
+      stop 1
+    endif
+
+    !$omp parallel do collapse(3) private(i,j,k,sb,si,sj,dth,c,s,v,w,Ryy,Rzz,Ryz,Rxy,Rxz)
+    do k = 1, tgt%dim(3); do j = 1, tgt%dim(2); do i = 1, tgt%dim(1)
+      dth = atan2(tgt%center(i,j,k)%c(3), tgt%center(i,j,k)%c(2))
+      if (.not. src_pure2d) then
+        ! one-cell wedge source: subtract the donor cell azimuth (0 for a wedge symmetric about z = 0)
+        sb = map%src_blk(i,j,k); si = map%src_idx(1,1,i,j,k); sj = map%src_idx(2,1,i,j,k)
+        dth = dth - atan2(oldblocks(sb)%center(si,sj,1)%c(3), oldblocks(sb)%center(si,sj,1)%c(2))
+      endif
+      c = cos(dth); s = sin(dth)
+      v = vel(2,i,j,k); w = vel(3,i,j,k)
+      vel(2,i,j,k) = v*c - w*s
+      vel(3,i,j,k) = v*s + w*c
+      if (present(rst)) then
+        Ryy = rst(2,i,j,k)*c*c + rst(3,i,j,k)*s*s - 2.0_R8*rst(6,i,j,k)*s*c
+        Rzz = rst(2,i,j,k)*s*s + rst(3,i,j,k)*c*c + 2.0_R8*rst(6,i,j,k)*s*c
+        Ryz = (rst(2,i,j,k) - rst(3,i,j,k))*s*c + rst(6,i,j,k)*(c*c - s*s)
+        Rxy = rst(4,i,j,k)*c - rst(5,i,j,k)*s
+        Rxz = rst(4,i,j,k)*s + rst(5,i,j,k)*c
+        rst(2,i,j,k) = Ryy; rst(3,i,j,k) = Rzz; rst(4,i,j,k) = Rxy; rst(5,i,j,k) = Rxz; rst(6,i,j,k) = Ryz
+      endif
+    enddo; enddo; enddo
+    !$omp end parallel do
+  end subroutine rotate_2d_to_3d
+
 
 
   ! =================================================================
@@ -916,30 +1019,41 @@ contains
   ! =================================================================
 
   subroutine load_source(filename)
-    use grid_mod,       only: import_nodes
+    use grid_mod,       only: import_nodes, mesh_config_type
+    use read_mesh_mod,  only: has_ext_series
     use Lib_ORION_data, only: orion_data
     use Lib_Tecplot,    only: tec_read_structured_multiblock
     use Lib_PLOT3D,     only: p3d_read_multiblock
     implicit none
     character(len=*), intent(in) :: filename
     type(orion_data) :: IOfield
+    type(mesh_config_type) :: scfg
     integer          :: error, b, i, j, k
 
     if (allocated(source_blocks)) deallocate(source_blocks)
     source_ready = .false.
 
-    if (index(filename, '.szplt') > 0) then
+    ! The extension (suffix, as in read_mesh) picks the reader; a .szplt needs a TecIO build:
+    ! without the guard ORION's own stop returned 0 and no IC was written.
+    if (has_ext_series(trim(filename), '.szplt')) then
+#if defined(TECIO)
       IOfield%tec%node   = .false.
       IOfield%tec%bc     = .false.
       IOfield%tec%format = 'binary'
       error = tec_read_structured_multiblock(orion=IOfield, filename=trim(filename))
-    elseif (index(filename, '.tec') > 0) then
+#else
+      write(*,*) '[ERROR] interpolation_general: '//trim(filename)//' is a binary Tecplot file, but this ATLAS build'// &
+        ' was configured without TecIO (USE_TECIO=false)'
+      stop 1
+#endif
+    elseif (has_ext_series(trim(filename), '.tec')) then
       IOfield%tec%node   = .false.
       IOfield%tec%bc     = .false.
       IOfield%tec%format = 'ascii'
       error = tec_read_structured_multiblock(orion=IOfield, filename=trim(filename))
     else
-      write(*,*) '[ERROR] interpolation_general: unsupported file format: ', trim(filename)
+      write(*,*) '[ERROR] interpolation_general: unsupported file format: ', trim(filename), &
+        ' (expected .tec or .szplt, optionally numbered: .tec.NNN / .szplt.NNN)'
       stop 1
     endif
 
@@ -949,11 +1063,26 @@ contains
     endif
 
     allocate(source_blocks(size(IOfield%block)))
-    call import_nodes(input=IOfield, output=source_blocks)
+    ! Secondary mesh: classify locally, do not overwrite the global mesh_cfg
+    call import_nodes(input=IOfield, output=source_blocks, cfg=scfg)
 
     do b = 1, size(source_blocks)
       call source_blocks(b)%compute_centers(gc=[0, 0, 0])
-      allocate(source_blocks(b)%var(1:IOfield%block(b)%Ni,1:IOfield%block(b)%Nj,1:IOfield%block(b)%Nk))
+      ! k extent = max(Nk,1): ORION returns Nk = 0 for a one-plane (K=1) file while the loop below
+      ! and nearest_neighbor_file address k = 1 (dim(3) = max(Nk,1) in import_nodes)
+      allocate(source_blocks(b)%var(1:IOfield%block(b)%Ni,1:IOfield%block(b)%Nj,1:max(IOfield%block(b)%Nk,1)))
+      ! Shape assertion: the field array must have exactly the extents of the imported
+      ! mesh cells and the file must hold data for every cell. A shorter extent is otherwise read and
+      ! written through the same strides beyond the allocation: silent garbage or a crash, never a message.
+      if (any(shape(source_blocks(b)%var) /= source_blocks(b)%dim) .or. &
+          size(IOfield%block(b)%vars,2) < source_blocks(b)%dim(1) .or. &
+          size(IOfield%block(b)%vars,3) < source_blocks(b)%dim(2) .or. &
+          size(IOfield%block(b)%vars,4) < source_blocks(b)%dim(3)) then
+        write(*,*) '[ERROR] interpolation_general: field source file '//trim(filename)//', block', b, ':'
+        write(*,*) '        field array extents', shape(source_blocks(b)%var), ' / data extents', &
+          shape(IOfield%block(b)%vars(1,:,:,:)), ' do not match the mesh cells', source_blocks(b)%dim
+        stop 1
+      endif
       do k = 1, source_blocks(b)%dim(3)
         do j = 1, source_blocks(b)%dim(2)
           do i = 1, source_blocks(b)%dim(1)

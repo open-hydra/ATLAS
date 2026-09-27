@@ -14,7 +14,7 @@
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | phase |  |  |  no | Space-separated phase names. Blank means all phases. |
-| type | homogeneous |  |  no | Block initialization type. |
+| type | homogeneous | homogeneous<br>variable<br>interpolation<br>nozzle<br>multizone |  no | Initialisation type of the block or zone (multizone: the block takes its state from its zone<n> sections; the key direction alone makes a block multizone). |
 | direction |  |  |  no | Range directions using x,y,z,r,t,i,j,k. |
 | range | 0.0 |  |  no | Range limits for the selected directions. |
 | zone<n> |  |  |  no | Referenced auxiliary zone section for multizone setup. |
@@ -64,10 +64,9 @@
 | nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
 | old-solution |  |  |  no | Previous solution file used for interpolation. |
 | old-block-id | 0 | >=0 |  no | Source block index for interpolation. Zero means auto. |
-| interpolation-law | outlaw |  |  no | Interpolation mapping law. |
-| theta | 90.0 |  |  no | Extrusion angle used by the extrude law. |
-| nz | 4 | >=1 |  no | Number of extrusion layers used by the extrude law. |
-| old-species |  |  |  no | Legacy species file prefix used during IG interpolation. |
+| interpolation-law | outlaw | outlaw<br>index<br>multiple<br>minimum_distance<br>spherical_minimum_distance<br>extrude |  no | Interpolation mapping law (outlaw = not given: minimum_distance; index revolves a 2D source onto a target revolved with the same cells; extrude revolves a 2D source about x through theta degrees in nz cells, then each target cell takes the nearest revolved cell). |
+| theta | 90.0 |  |  no | Angle in degrees of the sector into which the extrude law revolves the 2D source (from the source plane towards +z). |
+| nz | 4 | >=1 |  no | Number of cells of the sector built by the extrude law. |
 | nozzle-direction | dx | dx,sx |  no | Nozzle marching direction. |
 | nozzle-threshold | 0.0 |  |  no | Coordinate threshold separating plenum and nozzle. |
 
@@ -100,9 +99,9 @@
 | nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
 | old-solution |  |  |  no | Previous solution file used for interpolation. |
 | old-block-id | 0 | >=0 |  no | Source block index for interpolation. Zero means auto. |
-| interpolation-law | outlaw |  |  no | Interpolation mapping law. |
-| theta | 90.0 |  |  no | Extrusion angle used by the extrude law. |
-| nz | 4 | >=1 |  no | Number of extrusion layers used by the extrude law. |
+| interpolation-law | outlaw | outlaw<br>index<br>multiple<br>minimum_distance<br>spherical_minimum_distance<br>extrude |  no | Interpolation mapping law (outlaw = not given: minimum_distance; index revolves a 2D source onto a target revolved with the same cells; extrude revolves a 2D source about x through theta degrees in nz cells, then each target cell takes the nearest revolved cell). |
+| theta | 90.0 |  |  no | Angle in degrees of the sector into which the extrude law revolves the 2D source (from the source plane towards +z). |
+| nz | 4 | >=1 |  no | Number of cells of the sector built by the extrude law. |
 
 ## ICB-SP
 
@@ -114,9 +113,9 @@
 | material |  |  |  no | Solid material name from the phase database. |
 | old-solution |  |  |  no | Previous solution file used for interpolation. |
 | old-block-id | 0 | >=0 |  no | Source block index for interpolation. Zero means auto. |
-| interpolation-law | outlaw |  |  no | Interpolation mapping law. |
-| theta | 90.0 |  |  no | Extrusion angle used by the extrude law. |
-| nz | 4 | >=1 |  no | Number of extrusion layers used by the extrude law. |
+| interpolation-law | outlaw | outlaw<br>index<br>multiple<br>minimum_distance<br>spherical_minimum_distance<br>extrude |  no | Interpolation mapping law (outlaw = not given: minimum_distance; index revolves a 2D source onto a target revolved with the same cells; extrude revolves a 2D source about x through theta degrees in nz cells, then each target cell takes the nearest revolved cell). |
+| theta | 90.0 |  |  no | Angle in degrees of the sector into which the extrude law revolves the 2D source (from the source plane towards +z). |
+| nz | 4 | >=1 |  no | Number of cells of the sector built by the extrude law. |
 
 ## ICB-DP
 
@@ -130,6 +129,6 @@
 | neuler | 0 |  |  no | Eulerian model selector for dispersed phase support fields. |
 | old-solution |  |  |  no | Previous solution file used for interpolation. |
 | old-block-id | 0 | >=0 |  no | Source block index for interpolation. Zero means auto. |
-| interpolation-law | outlaw |  |  no | Interpolation mapping law. |
-| theta | 90.0 |  |  no | Extrusion angle used by the extrude law. |
-| nz | 4 | >=1 |  no | Number of extrusion layers used by the extrude law. |
+| interpolation-law | outlaw | outlaw<br>index<br>multiple<br>minimum_distance<br>spherical_minimum_distance<br>extrude |  no | Interpolation mapping law (outlaw = not given: minimum_distance; index revolves a 2D source onto a target revolved with the same cells; extrude revolves a 2D source about x through theta degrees in nz cells, then each target cell takes the nearest revolved cell). |
+| theta | 90.0 |  |  no | Angle in degrees of the sector into which the extrude law revolves the 2D source (from the source plane towards +z). |
+| nz | 4 | >=1 |  no | Number of cells of the sector built by the extrude law. |

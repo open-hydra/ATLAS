@@ -106,12 +106,14 @@ contains
 
       call map%destroy()
       deallocate(src_field)
+      blk%set_dp = .true.   ! every cell of the block
       return
     endif
 
     blk%neuler = dp_cfg%neuler
     if (.not. dp_cfg%has_rp) then
-      stop "[ERROR] you must provide either dp or rp for CD"
+      write(*,'(A)') "[ERROR] you must provide either dp or rp for CD"
+      stop 1
     endif
 
     if (sum(dp_cfg%krho)==0.0) then
@@ -134,9 +136,16 @@ contains
       if (blk%neuler==1 .or. blk%neuler==6) then
         blk%dp%pseudopressure(:,:,:,:) = 1D-20
       endif
+      blk%set_dp = .true.
 
     case('equilibrium', 'thermo-mechanical equilibrium', 'mechanical equilibrium')
 
+    if (.not. any(blk%associated_phase%type == 'IG')) then
+      write(*,'(A,I0,A,I0,A)') '[ERROR] build_DP_field block ', blk%id, ': the dispersed phase is initialised from the'// &
+        ' gas state of the block (krho, kT), and the block builds no ideal-gas phase: add the gas phase to the key'// &
+        ' phase of [ICB-Block', blk%id, '] (or give krho = 0)'
+      stop 1
+    endif
     do g = 1, nnn
       if (dp_cfg%krho(g)==0.0_R8) then
         blk%dp%density(g,:,:,:) = 0.0
@@ -159,6 +168,11 @@ contains
         blk%dp%pseudopressure(g,:,:,:) = dp_cfg%Pp(g)
       endif
     enddo
+    if (any(dp_cfg%krho(1:nnn) /= 0.0_R8)) then
+      blk%set_dp = blk%set_dp .or. blk%set_ig
+    else
+      blk%set_dp = .true.
+    endif
 
     end select
 
