@@ -36,6 +36,7 @@ module registry_mod
     logical :: is_set   = .false.
 
     integer :: type_id = 0
+    logical :: is_array = .false.   ! add_int_array / add_real_array: a blank-separated list of numbers
     type(param_value_t) :: value
   end type
 
@@ -294,6 +295,7 @@ contains
     this%params(n)%required = required
 
     this%params(n)%type_id = TYPE_INT
+    this%params(n)%is_array = .true.
     this%params(n)%value%iarr => var
 
     read(default,*) defval
@@ -331,6 +333,7 @@ contains
     this%params(n)%required = required
 
     this%params(n)%type_id = TYPE_REAL
+    this%params(n)%is_array = .true.
     this%params(n)%value%rarr => var
 
     read(default,*) defval
@@ -486,13 +489,14 @@ contains
   ! Markdown generator
   !========================================================
 
-  subroutine generate_markdown(this,filename,title)
+  subroutine generate_markdown(this,filename,title,preamble)
 
     implicit none
 
     class(registry_t), intent(in) :: this
     character(*), intent(in), optional :: filename
     character(*), intent(in), optional :: title
+    character(*), intent(in), optional :: preamble   ! one paragraph under the title
 
     integer :: i,unit
     character(len=:), allocatable :: fileout
@@ -516,6 +520,10 @@ contains
 
     write(unit,'(A)') "# "//trim(title_out)
     write(unit,'(A)') ""
+    if (present(preamble)) then
+      write(unit,'(A)') trim(preamble)
+      write(unit,'(A)') ""
+    end if
 
     do i=1,this%size
 

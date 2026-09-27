@@ -35,6 +35,9 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `split-solution` | MDB | `MDB/split-solution` | Splitting a case that carries a solution field. |
 | `coupled-phases` | BCB + MDB | `MDB/coupled-phases` | Two-phase interface: type-`103` donors remapped against the other phase's decomposition. |
 | `x-variable` | STB | `STB/x-variable` | Spatially varying source-term generation along x. |
+| `IG-duplicate-section-lenient` | BCB | `BCB/IG-duplicate-section-lenient` | With `strict-keys = false` a section written twice in the `BCB-file` gets one WARNING; `bc.txt` is that of the deck without the copy. |
+| `IG-duplicate-section-identical` | BCB | `BCB/IG-duplicate-section-identical` | With the default settings a section written twice with the same keys and values (other key order, a comment line, a blank line) gets one WARNING that says so; `bc.txt` is that of the deck with one copy. |
+| `IG-duplicate-section-conflict` | BCB | `BCB/IG-duplicate-section-conflict` | Two copies of a section that differ: the ERROR and no `bc.txt` with the default settings; one WARNING and the `bc.txt` of the first copy with `strict-keys = false`. |
 
 ## Test Families And Their Intent
 
@@ -48,6 +51,8 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `IG-inflow-*`: validate inflow models, including nozzle and CEA-coupled inflow definitions.
 - `IG-chimera`: validate overset/chimera boundary metadata preparation.
 - `IG+CD`, `IG+SP`, `DP-*`, `SP-basic`: validate mixed boundary models (ideal gas, condensed, dispersed, solid).
+- `IG-duplicate-section-lenient`: validate the lenient key check of a section written twice (the options of the next sections are all read).
+- `IG-duplicate-section-identical`, `IG-duplicate-section-conflict`: validate the rule for a section written twice: two copies with the same keys and values only warn, copies that differ stop the tool unless `strict-keys = false`.
 
 ### GPB Cases (`test/GPB/`)
 

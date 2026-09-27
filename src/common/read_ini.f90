@@ -1,5 +1,6 @@
 module io_ini_mod
   use config_shared_mod, only: atlas_parameters_t, load_atlas_parameters
+  use input_keys_mod, only: input_keys_check_duplicate_sections
   use finer, only: file_ini
   implicit none
   private
@@ -45,6 +46,7 @@ contains
       stop 1
     endif
     call fini%load(filename=atlas_cfg%input_file)
+    call input_keys_check_duplicate_sections(trim(atlas_cfg%input_file), fini)   ! the <PROG>-file deck when it is another file
     inisource = generate_sections_input(prog,fini,nb)
 
   end subroutine build_INI

@@ -14,6 +14,7 @@ module config_shared_mod
     logical             :: bc_force_connect = .true.
     logical             :: bc_chimera = .false.
     logical             :: bc_force_chimera = .false.
+    logical             :: strict_keys = .true.     ! unknown key: error (T) or WARNING (F)
   end type atlas_parameters_t
 
   type, public :: config_velocity_t
@@ -48,11 +49,17 @@ module config_shared_mod
   public :: add_velocity_registry_entries
   public :: add_turbulence_registry_entries
   public :: add_composition_registry_entries
+  ! keys of [ATLAS-Parameters] read below for every tool (input_keys_mod)
+  character(len=16), parameter, public :: atlas_shared_keys(10) = [character(len=16) :: &
+    'BCB-file', 'ICB-file', 'STB-file', 'MDB-file', 'MG-levels', 'IC-format', &
+    'BC-force-connect', 'BC-chimera', 'BC-force-chimera', 'strict-keys']
 
 contains
 
   subroutine load_atlas_parameters(prog, cfg, input_file)
+    use input_keys_mod, only: input_keys_check_section, input_keys_set_strict, input_keys_check_duplicate_sections
     implicit none
+    character(len=64) :: strict_value
     character(*), intent(in)              :: prog
     type(atlas_parameters_t), intent(out) :: cfg
     character(*), intent(in), optional    :: input_file
@@ -87,6 +94,30 @@ contains
     cfg%bc_force_chimera = .false.
 
     call fini%load(filename=trim(ini_filename))
+    ! strict-keys and the key check of the section come before the gets below: FiNeR reads an
+    ! integer (MG-levels = 1e0) or a logical (strict-keys = maybe) without iostat and would stop
+    ! with a runtime error instead of the diagnostic
+    strict_value = ''
+    call fini%get(section_name='ATLAS-Parameters', option_name='strict-keys', &
+                  val=strict_value, error=error)
+    cfg%strict_keys = .true.
+    if (error == 0) then
+      strict_value = adjustl(strict_value)
+      if (strict_value(1:1) == '.') strict_value = strict_value(2:)
+      select case (strict_value(1:1))
+      case ('T', 't')
+        cfg%strict_keys = .true.
+      case ('F', 'f')
+        cfg%strict_keys = .false.
+      case default
+        write(*,'(A)') '[ERROR] key strict-keys of section [ATLAS-Parameters]: value '// &
+                       trim(strict_value)//' is not a logical (T or F)'
+        stop 1
+      end select
+    endif
+    call input_keys_set_strict(cfg%strict_keys)
+    call input_keys_check_duplicate_sections(trim(ini_filename), fini)   ! L0: a section header written twice (FiNeR keeps the first in silence)
+    call input_keys_check_section(fini, 'ATLAS-Parameters', 'atlas', extra=atlas_shared_keys)
 
     file_option = atlas_input_option_name(prog)
     if (len_trim(file_option) > 0) then
@@ -98,6 +129,10 @@ contains
     call fini%get(section_name='ATLAS-Parameters', option_name='MG-levels', &
                   val=cfg%mg_levels, error=error)
     if (error /= 0) cfg%mg_levels = 1
+    if (cfg%mg_levels < 1) then
+      write(*,'(A,I0,A)') '[ERROR] key MG-levels of section [ATLAS-Parameters]: value ', cfg%mg_levels, ' is not >= 1'
+      stop 1
+    endif
 
     call fini%get(section_name='ATLAS-Parameters', option_name='IC-format', &
                   val=cfg%ic_format, error=error)
@@ -114,6 +149,7 @@ contains
     call fini%get(section_name='ATLAS-Parameters', option_name='BC-force-chimera', &
                   val=cfg%bc_force_chimera, error=error)
     if (error /= 0) cfg%bc_force_chimera = .false.
+
   end subroutine load_atlas_parameters
 
   subroutine load_shared_velocity_config(zoneini, cfg, section_name)
@@ -201,12 +237,16 @@ contains
       call registry%add('ATLAS-Parameters', 'ICB-file', cfg%input_file, 'input.ini', &
                         'INI file containing ICB block definitions.', '', .false.)
       call registry%add('ATLAS-Parameters', 'IC-format', cfg%ic_format, 'tec', &
-                        'Output format used when writing initial conditions.', &
-                        '', .false.)
+                        'Output format used when writing initial conditions: a family (tec, tecplot, vtk) '// &
+                        'with an optional mode (binary, ascii, raw) joined by -, blank or _ (tecplot binary, '// &
+                        'vtk binary, tecplot-ascii are accepted); a binary Tecplot file (.szplt) needs a TecIO build.', &
+                        'tec<br>tec-binary<br>vtk<br>vtk-binary<br>vtk-ascii<br>vtk-raw', .false.)
     case ('BCB')
       call registry%add('ATLAS-Parameters', 'BCB-file', cfg%input_file, 'input.ini', &
                         'INI file containing BCB block and boundary definitions.', &
                         '', .false.)
+      call registry%add('ATLAS-Parameters', 'MG-levels', cfg%mg_levels, '1', &
+                        'Number of multigrid levels for which BC files are written.', '>=1', .false.)
       call registry%add('ATLAS-Parameters', 'BC-force-connect', cfg%bc_force_connect, &
                         'T', 'Force standard connection matching when chimera is off.', &
                         '', .false.)
@@ -219,6 +259,10 @@ contains
                         'its declared type. Facelets without donors keep their own BC.', &
                         '', .false.)
     end select
+    call registry%add('ATLAS-Parameters', 'strict-keys', cfg%strict_keys, 'T', &
+                      'F turns the error on a key the tool does not read (or not honoured by the '// &
+                      'resolved BC type, or y of an undeclared species) into a WARNING; wrong values '// &
+                      'are always errors (keys with the prefix ignore- are never read).', '', .false.)
   end subroutine add_atlas_registry_entries
 
   subroutine add_velocity_registry_entries(registry, section, velocity_cfg)
@@ -274,8 +318,8 @@ contains
                       'CEA section index used when eq-CEA-file is provided.', &
                       '>=1', .false.)
     call registry%add(section, 'yspecies', composition_cfg%y_species, '0.0', &
-                      'Mass fraction assigned to a species name suffix.', &
-                      '>=0', .false.)
+                      'Mass fraction assigned to a species name suffix: one number in [0, 1].', &
+                      '', .false.)
   end subroutine add_composition_registry_entries
 
   function atlas_input_option_name(prog) result(option_name)

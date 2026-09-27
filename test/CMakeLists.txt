@@ -149,6 +149,49 @@ set_tests_properties(IG-inflow-ceafile-inertmix PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-duplicate-section-lenient -------------
+# strict-keys = false and the deck in a BCB-file that writes the section [noz] twice: one WARNING, the second copy is
+# ignored and bc.txt is that of the deck without it (the key check reads every option of every section).
+add_test(
+    NAME    IG-duplicate-section-lenient
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] section [noz] of deck.ini: declared twice (lines 11 and 16), the second is ignored: merge them' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-duplicate-section-lenient"
+)
+set_tests_properties(IG-duplicate-section-lenient PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-duplicate-section-identical -------------
+# Default settings (strict-keys = true) and a BCB-file that writes the section [noz] twice with the same keys and
+# values (another key order, a comment line and a blank line in the second copy): one WARNING that says so, and
+# bc.txt is that of the deck with one [noz] (the reference of IG-duplicate-section-lenient).
+add_test(
+    NAME    IG-duplicate-section-identical
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] section [noz] of deck.ini: declared twice (lines 11 and 16), the second is ignored: merge them (the two copies hold the same keys and values)' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-duplicate-section-identical"
+)
+set_tests_properties(IG-duplicate-section-identical PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-duplicate-section-conflict -------------
+# The two copies of [noz] differ (p0): with the default settings BCB stops with the ERROR and writes no bc.txt; with
+# strict-keys = false (lenient.ini) one WARNING, the second copy is ignored and bc.txt is that of the first copy.
+add_test(
+    NAME    IG-duplicate-section-conflict
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F '[ERROR] section [noz] of deck.ini: declared twice (lines 11 and 16), the second is ignored: merge them' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input lenient.ini 2>&1) && grep -q -F '[WARNING] section [noz] of deck.ini: declared twice (lines 11 and 16), the second is ignored: merge them' <<< \"$out\" && ! grep -q -F 'same keys and values' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-duplicate-section-conflict"
+)
+set_tests_properties(IG-duplicate-section-conflict PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-chimera (overset overlap connections) -------------
 # Volume fractions come from an ill-conditioned hull volume of sliver contacts;
 # they are correct to ~1e-9 but not bit-identical across CPU architectures
