@@ -63,7 +63,7 @@ contains
     real(R8),        intent(inout), optional :: h0
     character(len=500)               :: CEAfile
     character(len=20)                :: name, str(2)
-    character(len=:), allocatable    :: items(:,:), section_name(:)
+    character(len=:), allocatable    :: items(:,:), section_name(:), key
     integer :: i, j, error
     integer :: section_idx
     real(R8) :: ytot
@@ -98,23 +98,52 @@ contains
         endif
       enddo
     endif
-    ! Direct address of mass fractions.
+    ! Direct address of mass fractions: the key y<species> of a declared species, matched exactly
+    ! (input_keys_mod, the single key validator, reports the y-keys of undeclared species; no
+    ! substring stripping: 'yN2-file' is a profile key of the ICB builder, not the species 'N2-file').
+    ! The value is read as one list-directed number: the former fixed-format read (D12.5) turned
+    ! 'yN2 = 1' into 1e-5 and truncated values longer than 12 characters.
     call sini%get_items(items)
     if (allocated(items)) then
       do i = 1, size(items, dim=1)
-        if (index(items(i,1),'y')/=0 .and. trim(items(i,1))/='type') then
-          name = items(i,1); name = name(2:20)
-          do j = 1, species%n
-            if (trim(name)==trim(species%name(j))) then
-              read(items(i,2),'(D12.5)') species%massf(j)
-              exit
-            end if
-          end do
-        endif
+        key = trim(adjustl(items(i,1)))
+        if (len(key) < 2) cycle
+        if (key(1:1) /= 'y') cycle
+        do j = 1, species%n
+          if (key(2:) == trim(adjustl(species%name(j)))) then
+            species%massf(j) = read_massf(key, items(i,2))
+            exit
+          end if
+        end do
       enddo
     endif
 
     if (species%n==1) species%massf(1) = 1.0
+
+  contains
+
+    function read_massf(key, value) result(y)
+      implicit none
+      character(len=*), intent(in)  :: key, value
+      real(R8)                      :: y
+      character(len=:), allocatable :: token
+      integer                       :: ios
+
+      token = trim(adjustl(value))
+      ios = 1
+      y = 0.0_R8
+      if (len(token) > 0) then
+        if (scan(token, ' ,;/*') == 0) read(token, *, iostat=ios) y
+      endif
+      if (ios /= 0 .or. y /= y) then
+        write(*,'(A)') '[ERROR] key '//key//' = '//token//': the mass fraction must be one number'
+        stop 1
+      endif
+      if (y < 0.0_R8 .or. y > 1.0_R8) then
+        write(*,'(A)') '[ERROR] key '//key//' = '//token//': the mass fraction must lie in [0, 1]'
+        stop 1
+      endif
+    end function read_massf
 
   end subroutine define_composition
 
@@ -631,7 +660,7 @@ contains
     type(species_t), intent(in) :: sp
     ! Local
     real(R8)             :: T
-    real(R8)             :: TT,Tnew,H0,h_tot,cp_tot,dcp_tot,FT,DFT,Rgas
+    real(R8)             :: TT,Tnew,H0,h_tot,cp_tot,dcp_tot,FT,DFT,Rgas,T0t,TTt
     real(R8), parameter  :: toll=1.d-8
     integer              :: s
 
@@ -639,8 +668,11 @@ contains
 
     Tnew = T0*0.95
     H0 = 0.0
+    ! Table lookups at T clamped to the loaded range: outside it cp and h are
+    ! frozen at the end row as in the solvers; the callers decide (ICB reports, BCB refuses before)
+    T0t = tab_T(T0, sp)
     do s = 1, size(sp%massf)
-      H0 = H0+sp%massf(s)*(sp%h(s,idint(T0))+(sp%h(s,idint(T0)+1)-sp%h(s,idint(T0)))*(T0-idint(T0)))
+      H0 = H0+sp%massf(s)*(sp%h(s,idint(T0t))+(sp%h(s,idint(T0t)+1)-sp%h(s,idint(T0t)))*(T0t-idint(T0t)))
     enddo
 
     FT  = 1.0
@@ -648,13 +680,14 @@ contains
     TT  = 1.0
     do while (abs(FT/(DFT*TT))>toll)
       TT = Tnew
+      TTt = tab_T(TT, sp)
       cp_tot = 0.0
       dcp_tot = 0.0
       h_tot = 0.0
       do s = 1, size(sp%massf)
-        cp_tot  = cp_tot  + sp%massf(s) * (sp%cp(s,idint(TT))  + (sp%cp(s,idint(TT)+1)  - sp%cp(s,idint(TT)))*(TT-idint(TT)))
-        dcp_tot = dcp_tot + sp%massf(s) * (sp%dcp(s,idint(TT)) + (sp%dcp(s,idint(TT)+1) - sp%dcp(s,idint(TT)))*(TT-idint(TT)))
-        h_tot   = h_tot   + sp%massf(s) * (sp%h(s,idint(TT))   + (sp%h(s,idint(TT)+1)   - sp%h(s,idint(TT)))*(TT-idint(TT)))
+        cp_tot  = cp_tot  + sp%massf(s) * (sp%cp(s,idint(TTt))  + (sp%cp(s,idint(TTt)+1)  - sp%cp(s,idint(TTt)))*(TTt-idint(TTt)))
+        dcp_tot = dcp_tot + sp%massf(s) * (sp%dcp(s,idint(TTt)) + (sp%dcp(s,idint(TTt)+1) - sp%dcp(s,idint(TTt)))*(TTt-idint(TTt)))
+        h_tot   = h_tot   + sp%massf(s) * (sp%h(s,idint(TTt))   + (sp%h(s,idint(TTt)+1)   - sp%h(s,idint(TTt)))*(TTt-idint(TTt)))
       enddo
       FT = H0-h_tot-0.5d0*M*M*cp_tot/(cp_tot-Rgas)*Rgas*TT
       DFT = -cp_tot-0.5d0*M*M*Rgas*(cp_tot*(cp_tot-Rgas)-TT*dcp_tot*Rgas)/(cp_tot-Rgas)**2d0
@@ -681,5 +714,221 @@ contains
     p = p0/((1d0+del*M*M)**(gamma/(gamma-1d0)))
 
   end function p02p
+
+
+  !> T clamped to the interpolation range [lbound, ubound - 1] of the loaded
+  !> tables: every lookup outside it reads the end row (cp and h frozen), as the
+  !> solvers' table lookup (FLINT) does. State-range check: ICB reports
+  !> the cells outside the table (check_written_state) and does not refuse them;
+  !> every path that expands from a stagnation T0 (BCB 420, 405 by p0 and T0; ICB
+  !> nozzle, homogeneous and variable zones given by T0) refuses a T0 outside the
+  !> table before calling here.
+  pure function tab_T(T, sp) result(Tt)
+    implicit none
+    real(R8), intent(in)        :: T
+    type(species_t), intent(in) :: sp
+    real(R8) :: Tt
+    Tt = min(max(T, real(lbound(sp%cp, dim=2), R8)), real(ubound(sp%cp, dim=2) - 1, R8))
+  end function tab_T
+
+
+  !> Mixture specific heat [J/(kg K)] at T from the species tables by linear
+  !> interpolation on the 1 K grid, species by species: the arithmetic of the
+  !> solvers' table lookup (FLINT, in MOSE and Q2D), so that the same thermo.dat
+  !> gives the same value here and inside their nozzle kernels. T is clamped to
+  !> the table range by tab_T (cp frozen outside it, as that lookup does).
+  pure function mix_cp(T, sp) result(cp)
+    implicit none
+    real(R8), intent(in)        :: T
+    type(species_t), intent(in) :: sp
+    real(R8) :: cp, Tt
+    integer  :: s, i
+
+    Tt = tab_T(T, sp)
+    i  = idint(Tt)
+    cp = 0.0_R8
+    do s = 1, size(sp%massf)
+      cp = cp + sp%massf(s) * (sp%cp(s,i) + (sp%cp(s,i+1) - sp%cp(s,i)) * (Tt - i))
+    enddo
+
+  end function mix_cp
+
+
+  !> Mixture enthalpy [J/kg] at T, same interpolation as mix_cp.
+  pure function mix_h(T, sp) result(h)
+    implicit none
+    real(R8), intent(in)        :: T
+    type(species_t), intent(in) :: sp
+    real(R8) :: h, Tt
+    integer  :: s, i
+
+    Tt = tab_T(T, sp)
+    i  = idint(Tt)
+    h  = 0.0_R8
+    do s = 1, size(sp%massf)
+      h = h + sp%massf(s) * (sp%h(s,i) + (sp%h(s,i+1) - sp%h(s,i)) * (Tt - i))
+    enddo
+
+  end function mix_h
+
+
+  !> Isentrope integral int_T^T0 cp(T')/(Rgas T') dT', T <= T0: composite
+  !> trapezoidal rule on the integer-K nodes plus the two fractional end points,
+  !> accumulated from T up to T0 node by node exactly as the solvers'
+  !> Trapezoidal (MOSE/Q2D Lib_BC_Fluxes*), so that p0/exp(integral) is the
+  !> static pressure their nozzle kernels associate with T.
+  pure function isentrope_integral(T, T0, Rgas, sp) result(integral)
+    implicit none
+    real(R8), intent(in)        :: T, T0, Rgas
+    type(species_t), intent(in) :: sp
+    real(R8) :: integral
+    real(R8) :: Tprev, Tnext, f_prev, f_next
+    integer  :: k, n
+
+    n        = floor(T0) - ceiling(T) + 3    ! nodes: T, ceiling(T), ..., floor(T0), T0
+    integral = 0.0_R8
+    Tprev    = T
+    f_prev   = mix_cp(T, sp) / Rgas / T
+    do k = 2, n
+      if (k < n) then
+        Tnext = real(ceiling(T) + (k - 2), R8)
+      else
+        Tnext = T0
+      endif
+      f_next   = mix_cp(Tnext, sp) / Rgas / Tnext
+      integral = integral + 0.5_R8 * (Tnext - Tprev) * (f_prev + f_next)
+      Tprev    = Tnext
+      f_prev   = f_next
+    enddo
+
+  end function isentrope_integral
+
+
+  !> Mass flux per unit area G = rho*u [kg/(m2 s)] of the isentropic expansion
+  !> from (T0, p0), h0 = mix_h(T0, sp), down to the static temperature T:
+  !> p = p0/exp(integral), rho = p/(Rgas T), u = sqrt(2 (h0 - h(T))).
+  pure function isentrope_massflux(T, T0, p0, h0, Rgas, sp) result(G)
+    implicit none
+    real(R8), intent(in)        :: T, T0, p0, h0, Rgas
+    type(species_t), intent(in) :: sp
+    real(R8) :: G
+    real(R8) :: p, rho, u2
+
+    p   = p0 / exp(isentrope_integral(T, T0, Rgas, sp))
+    rho = p / (Rgas * T)
+    u2  = 2.0_R8 * (h0 - mix_h(T, sp))
+    G   = rho * sqrt(max(u2, 0.0_R8))
+
+  end function isentrope_massflux
+
+
+  !> Regime thresholds of the choked injector (BC 420) from the exit/throat
+  !> area ratio Ae_At >= 1, on the tabulated-cp isentrope from (T0, p0) with
+  !> the discrete arithmetic of the solver kernels (mix_cp, mix_h,
+  !> isentrope_integral). Along the expansion G(T) = rho*u vanishes at T0 and
+  !> at T -> 0 and has one maximum, the sonic throat: G* = max G, located by a
+  !> coarse scan and a golden-section refinement. g = G*/Ae_At is the choked
+  !> mass flux per unit exit area. The exit states are the roots of G(T) = g
+  !> on the subsonic branch (T* < T < T0, G decreasing) and on the supersonic
+  !> branch (T < T*, G increasing): both bracketed, both found by bisection.
+  !> psub, psup = the static pressures of the two exit states.
+  !> ierr = 0 ok; 1 = the maximum is not interior to the table range;
+  !> 2 = the supersonic exit state lies below the table range.
+  pure subroutine nozzle_thresholds(T0, p0, Ae_At, sp, psub, psup, g, ierr)
+    implicit none
+    real(R8), intent(in)        :: T0, p0, Ae_At
+    type(species_t), intent(in) :: sp
+    real(R8), intent(out)       :: psub, psup, g
+    integer,  intent(out)       :: ierr
+    ! Local
+    real(R8), parameter :: gr = 0.6180339887498949_R8     ! golden ratio conjugate
+    integer,  parameter :: nscan = 64
+    real(R8) :: Rgas, h0, Tlo, Ta, Tb, Tc, Td, Gc, Gd, Gmax, Tstar, Tsub, Tsup
+    integer  :: k, kmax
+
+    ierr = 0
+    psub = 0.0_R8; psup = 0.0_R8; g = 0.0_R8
+    Rgas = sum(Runi * sp%massf / sp%w)
+    h0   = mix_h(T0, sp)
+    Tlo  = real(max(lbound(sp%cp, dim=2), 1), R8)   ! coldest static state of the tables
+
+    ! Throat: coarse scan of [Tlo, T0] for the bracket of the maximum ...
+    kmax = 0
+    Gmax = -1.0_R8
+    do k = 0, nscan
+      Tc = Tlo + (T0 - Tlo) * real(k, R8) / real(nscan, R8)
+      Gc = isentrope_massflux(Tc, T0, p0, h0, Rgas, sp)
+      if (Gc > Gmax) then
+        Gmax = Gc
+        kmax = k
+      endif
+    enddo
+    if (kmax == 0 .or. kmax == nscan) then
+      ierr = 1
+      return
+    endif
+    ! ... then golden-section search of the maximum inside the bracket
+    Ta = Tlo + (T0 - Tlo) * real(kmax - 1, R8) / real(nscan, R8)
+    Tb = Tlo + (T0 - Tlo) * real(kmax + 1, R8) / real(nscan, R8)
+    Tc = Tb - gr * (Tb - Ta)
+    Td = Ta + gr * (Tb - Ta)
+    Gc = isentrope_massflux(Tc, T0, p0, h0, Rgas, sp)
+    Gd = isentrope_massflux(Td, T0, p0, h0, Rgas, sp)
+    do while (Tb - Ta > 1.0e-10_R8 * T0)
+      if (Gc > Gd) then
+        Tb = Td; Td = Tc; Gd = Gc
+        Tc = Tb - gr * (Tb - Ta)
+        Gc = isentrope_massflux(Tc, T0, p0, h0, Rgas, sp)
+      else
+        Ta = Tc; Tc = Td; Gc = Gd
+        Td = Ta + gr * (Tb - Ta)
+        Gd = isentrope_massflux(Td, T0, p0, h0, Rgas, sp)
+      endif
+    enddo
+    Tstar = 0.5_R8 * (Ta + Tb)
+    g     = isentrope_massflux(Tstar, T0, p0, h0, Rgas, sp) / Ae_At
+
+    if (Ae_At == 1.0_R8) then
+      Tsub = Tstar
+      Tsup = Tstar
+    else
+      ! subsonic exit: G(Tstar) = G* > g > 0 = G(T0)
+      Tsub = bisect(Tstar, T0)
+      ! supersonic exit: G(Tlo) < g < G* = G(Tstar)
+      if (isentrope_massflux(Tlo, T0, p0, h0, Rgas, sp) >= g) then
+        ierr = 2
+        return
+      endif
+      Tsup = bisect(Tstar, Tlo)
+    endif
+    psub = p0 / exp(isentrope_integral(Tsub, T0, Rgas, sp))
+    psup = p0 / exp(isentrope_integral(Tsup, T0, Rgas, sp))
+
+  contains
+
+    !> Root of G(T) - g between Tpos (G > g) and Tneg (G < g) by bisection.
+    pure function bisect(Tpos, Tneg) result(T)
+      implicit none
+      real(R8), intent(in) :: Tpos, Tneg
+      real(R8) :: T
+      real(R8) :: a, b, m
+      integer  :: it
+
+      a = Tpos
+      b = Tneg
+      do it = 1, 200
+        if (abs(b - a) <= 2.0_R8 * epsilon(T0) * T0) exit   ! bracket at the rounding limit
+        m = 0.5_R8 * (a + b)
+        if (isentrope_massflux(m, T0, p0, h0, Rgas, sp) > g) then
+          a = m
+        else
+          b = m
+        endif
+      enddo
+      T = 0.5_R8 * (a + b)
+
+    end function bisect
+
+  end subroutine nozzle_thresholds
 
 end module phase_mod
