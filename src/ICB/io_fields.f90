@@ -114,6 +114,7 @@ contains
     ! Layout of the source file: coordinates as stored in it, velocity
     ! components from the source mesh type (a pure-2D file carries no w).
     ncoord = size(IOfield%block(1)%mesh, 1)
+    if (ncoord == 2) call refuse_z_band(IOfield, filename)
     if (scfg%meshType == -2) then
       nvel = 2
     else
@@ -257,6 +258,32 @@ contains
     endif
 
   end subroutine read_vtk_tec
+
+
+  !> A Tecplot source with x y z on one node plane (K = 1, e.g. a slice written by a 3-D solver) is read by ORION
+  !> with three coordinates when z is nodal, like x and y. When z is written cell-centred, ORION returns the
+  !> two coordinates x y and z arrives among the data bands, so the bands after it would be shifted. The file
+  !> is refused naming the cause (the band-name check below would report a species-count mismatch).
+  subroutine refuse_z_band(IOfield, filename)
+    use Lib_ORION_data
+    implicit none
+    type(Orion_Data), intent(in) :: IOfield
+    character(len=*), intent(in) :: filename
+    character(len=32) :: s
+    integer :: i, ic
+    if (.not. allocated(IOfield%varnames)) return
+    if (size(IOfield%varnames) < 3) return
+    s = adjustl(IOfield%varnames(3))
+    do i = 1, len_trim(s)
+      ic = iachar(s(i:i))
+      if (ic >= iachar('A') .and. ic <= iachar('Z')) s(i:i) = achar(ic + 32)
+    enddo
+    if (trim(s) /= 'z') return
+    write(*,'(A)') "[ERROR] read_vtk_tec: '"//trim(filename)//"' holds one node plane (K = 1) with x y and a cell-centred"// &
+      " z: z is read as a data band, where it cannot be told from the other bands"
+    write(*,'(A)') "        write z as a nodal coordinate (VARLOCATION) like x and y, or the coordinates x y only"
+    stop 1
+  end subroutine refuse_z_band
 
 
   !> When the file carries one trustworthy name per band, the last mandatory

@@ -404,6 +404,20 @@ set_tests_properties(IG-interp-spherical-3D PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-interp-src-3coord-plane (an interpolation source written as a slice, x y z on one node plane
+# ----       K = 1 with z nodal and the bands cell-centred, gives the product of the same source written
+# ----       with x y only) -------------
+add_test(
+    NAME    IG-interp-src-3coord-plane
+    COMMAND bash -c "rm -rf fromATLAStoSolver xy && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input xy.ini < /dev/null && mv fromATLAStoSolver xy && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB < /dev/null && diff xy/ic.tec fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-src-3coord-plane"
+)
+set_tests_properties(IG-interp-src-3coord-plane PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 
