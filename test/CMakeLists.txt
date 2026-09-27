@@ -379,6 +379,19 @@ set_tests_properties(IG-block-no-section PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-phase-unbuilt (a phase that no block names is not written: one WARNING, the gas field
+# ----       is written, no part-ic.tec) -------------
+add_test(
+    NAME    IG-phase-unbuilt
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input unbuilt.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 0 && test $(grep -c -F -- '[WARNING] key phase of section [ICB-Block*]: the phase of part-phase.txt is built by no block' <<< \"$out\") -eq 1 && test -s fromATLAStoSolver/gas-ic.tec && test ! -e fromATLAStoSolver/part-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-phase-unbuilt"
+)
+set_tests_properties(IG-phase-unbuilt PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV};MALLOC_PERTURB_=165"
+)
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 

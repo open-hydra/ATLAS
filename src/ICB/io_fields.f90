@@ -533,6 +533,17 @@ contains
           endif
         enddo
       enddo
+      ! A phase listed by its phase file (ATLAS.sh lists every *phase.txt) and named in the phase key of no
+      ! [ICB-Block] has nothing to write: nsc / mat below would be read undefined (CD/DP: SIGSEGV on gnu
+      ! RELEASE) and the file would be written from orion%block(1) of an empty block array.
+      if (nb == 0) then
+        name_ = 'phase.txt'
+        if (len_trim(phase(p)%name) > 0) name_ = trim(phase(p)%name)//'-phase.txt'
+        write(*,'(A)') '[WARNING] key phase of section [ICB-Block*]: the phase of '//trim(name_)// &
+          ' is built by no block: no initial field is written for it (name it in the phase key of a block to build it)'
+        write(*,*)
+        cycle
+      endif
       if (nrans_ref /= 0 .and. nrans_ref /= 1 .and. nrans_ref /= 2 .and. nrans_ref /= 7) then
         write(*,*) '[ERROR] write_vtk_tec: unsupported turbulence band count nrans =', nrans_ref, &
           ' (1 = SA, 2 = k-omega, 7 = Reynolds stresses)'

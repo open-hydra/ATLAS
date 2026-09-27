@@ -153,11 +153,15 @@ contains
         blk%dp%temperature(g,:,:,:) = 0.0
         blk%dp%nP(g,:,:,:) = 0.0
       else
-        blk%dp%density(g,:,:,:) = sum(blk%ig%density(:,:,:,:), dim=1) * dp_cfg%krho(g)
-        blk%dp%velocity(g,1:3,:,:,:) = blk%ig%velocity(:,:,:,:)
-        blk%dp%temperature(g,:,:,:) = blk%ig%temperature(:,:,:) * dp_cfg%kT(g)
+        ! the dispersed state is derived from the gas state of the cell: a cell whose gas state no zone
+        ! has written yet is left to a later zone (it read unset memory; the last zone rewrites every
+        ! cell from the complete gas field, so the written field is unchanged)
         !$omp parallel do collapse(3) private(i,j,k,rho)
         do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+              if (.not. blk%set_ig(i,j,k)) cycle
+              blk%dp%density(g,i,j,k) = sum(blk%ig%density(:,i,j,k)) * dp_cfg%krho(g)
+              blk%dp%velocity(g,1:3,i,j,k) = blk%ig%velocity(:,i,j,k)
+              blk%dp%temperature(g,i,j,k) = blk%ig%temperature(i,j,k) * dp_cfg%kT(g)
               rho = mat%rho(g,nint(blk%ig%temperature(i,j,k)))
               blk%dp%np(g,i,j,k) = blk%dp%density(g,i,j,k) / &
                                    (4.0/3.0*3.14*rho*dp_cfg%rp(g)**3)
