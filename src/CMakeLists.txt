@@ -99,6 +99,12 @@ if(USE_TECIO)
   target_link_libraries(BCB PRIVATE -pthread)
   target_link_libraries(STB PRIVATE -pthread)
   target_link_libraries(MDB PRIVATE -pthread)
+  # src/common/read_mesh.f90 refuses a .szplt mesh with a clear message and a
+  # non-zero status when the build has no TecIO (ORION's own stop returns 0).
+  target_compile_definitions(ICB PRIVATE TECIO)
+  target_compile_definitions(BCB PRIVATE TECIO)
+  target_compile_definitions(STB PRIVATE TECIO)
+  target_compile_definitions(MDB PRIVATE TECIO)
 endif()
 
 # Link the Fortran programs with the Fortran driver. TecIO (C++, pulled in by

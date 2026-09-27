@@ -25,6 +25,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-chimera` | BCB | `BCB/IG-chimera` | Chimera/overset boundary metadata generation. |
 | `IG-chimera+connection` | BCB | `BCB/IG-chimera+connection` | Chimera and standard connection coexisting on one layout. |
 | `IG-force-chimera` | BCB | `BCB/IG-force-chimera` | `BC-force-chimera` on a partial interface. |
+| `mesh-p3d-3D` | BCB | `BCB/mesh-p3d-3D` | A PLOT3D mesh alone, with three coordinates and several node planes, is read as 3D: `bc.txt` equals the one of the same grid in Tecplot. |
 | `DP-basic` | BCB | `BCB/DP-basic` | Dispersed-phase BC assignment and export. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
@@ -35,6 +36,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `split-solution` | MDB | `MDB/split-solution` | Splitting a case that carries a solution field. |
 | `coupled-phases` | BCB + MDB | `MDB/coupled-phases` | Two-phase interface: type-`103` donors remapped against the other phase's decomposition. |
 | `x-variable` | STB | `STB/x-variable` | Spatially varying source-term generation along x. |
+| `mesh-p3d-fallback` | BCB | `BCB/mesh-p3d-fallback` | An unreadable `mesh.p3d` is followed by `mesh.szplt` with a WARNING naming both files. |
 | `IG-duplicate-section-lenient` | BCB | `BCB/IG-duplicate-section-lenient` | With `strict-keys = false` a section written twice in the `BCB-file` gets one WARNING; `bc.txt` is that of the deck without the copy. |
 | `IG-duplicate-section-identical` | BCB | `BCB/IG-duplicate-section-identical` | With the default settings a section written twice with the same keys and values (other key order, a comment line, a blank line) gets one WARNING that says so; `bc.txt` is that of the deck with one copy. |
 | `IG-duplicate-section-conflict` | BCB | `BCB/IG-duplicate-section-conflict` | Two copies of a section that differ: the ERROR and no `bc.txt` with the default settings; one WARNING and the `bc.txt` of the first copy with `strict-keys = false`. |
@@ -50,7 +52,9 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `IG-multipatch-*`: validate patch indexing, file-driven patches, and multi-face mapping behavior.
 - `IG-inflow-*`: validate inflow models, including nozzle and CEA-coupled inflow definitions.
 - `IG-chimera`: validate overset/chimera boundary metadata preparation.
+- `mesh-p3d-3D`: validate the search of a PLOT3D mesh alone and its 3D reading (the product of the same grid in Tecplot).
 - `IG+CD`, `IG+SP`, `DP-*`, `SP-basic`: validate mixed boundary models (ideal gas, condensed, dispersed, solid).
+- `mesh-p3d-fallback`: validate the mesh search (`mesh.tec` -> `mesh.p3d` -> `mesh.szplt`) when `mesh.p3d` cannot be read.
 - `IG-duplicate-section-lenient`: validate the lenient key check of a section written twice (the options of the next sections are all read).
 - `IG-duplicate-section-identical`, `IG-duplicate-section-conflict`: validate the rule for a section written twice: two copies with the same keys and values only warn, copies that differ stop the tool unless `strict-keys = false`.
 

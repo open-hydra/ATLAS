@@ -149,6 +149,21 @@ set_tests_properties(IG-inflow-ceafile-inertmix PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : mesh-p3d-fallback -------------
+# Without a path the mesh is searched as mesh.tec, mesh.p3d, mesh.szplt. A mesh.p3d that cannot be read (40
+# bytes here) is followed by mesh.szplt, as upstream, with a WARNING naming both files; mesh.szplt is a
+# placeholder, so every build then stops on it (TecIO message or unreadable file): the WARNING and the stop are pinned.
+add_test(
+    NAME    mesh-p3d-fallback
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q -F '[WARNING] mesh.p3d found, but failed to read it (read error): mesh.szplt is read instead' bcb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-p3d-fallback"
+)
+set_tests_properties(mesh-p3d-fallback PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-duplicate-section-lenient -------------
 # strict-keys = false and the deck in a BCB-file that writes the section [noz] twice: one WARNING, the second copy is
 # ignored and bc.txt is that of the deck without it (the key check reads every option of every section).
@@ -253,6 +268,21 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-force-chimera"
 )
 set_tests_properties(IG-force-chimera PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : mesh-p3d-3D -------------
+# Without a path the mesh is searched as mesh.tec, mesh.p3d, mesh.szplt: a PLOT3D mesh alone, with three coordinates and
+# three node planes (4 3 3), is read as a 3D mesh: bc.txt equals the one BCB writes for the same grid given as a Tecplot
+# zone (same-grid.tec, run again in fromATLAStoSolver/tecplot).
+add_test(
+    NAME    mesh-p3d-3D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && mkdir fromATLAStoSolver/tecplot && cp input.ini phase.txt fromATLAStoSolver/tecplot/ && cp same-grid.tec fromATLAStoSolver/tecplot/mesh.tec && cd fromATLAStoSolver/tecplot && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff ../bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-p3d-3D"
+)
+set_tests_properties(mesh-p3d-3D PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
