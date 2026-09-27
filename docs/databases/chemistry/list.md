@@ -196,7 +196,7 @@ Extended variants of the Jones-Lindstedt mechanism, augmented with radical speci
 
 ## Westbrook-Dryer (WD) Global Mechanism
 
-A simplified global kinetic model for hydrocarbon combustion with 5 species and 3 reactions. The **WD-Andersen** variant uses modified rate parameters.
+A simplified global kinetic model for hydrocarbon combustion with 5 species and 3 reactions. The **WD-Andersen** variant (Andersen, Rasmussen, Giselsson, Glarborg, *Energy & Fuels* 23 (2009) 1379) uses modified rate parameters and writes the CO2 dissociation step as the explicit inverse of the CO oxidation step, rate = k3 [CO2] [H2O]^0.5 [O2]^-0.25 (yaml `orders` with `negative-orders` and `nonreactant-orders`), so that the two steps reach the CO + 0.5 O2 <=> CO2 equilibrium; at zero O2 concentration the rate of that step is zero (Cantera's convention).
 
 - **Developer**: C.K. Westbrook, F.L. Dryer — Lawrence Livermore National Lab / Princeton University
 - **Files**: `WD.yaml`, `WD-andersen.yaml`
