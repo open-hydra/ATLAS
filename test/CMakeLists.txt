@@ -7,6 +7,9 @@ set(_TEST_ENV
     "OMP_NUM_THREADS=1"
     "KMP_STACKSIZE=100M"
     "ATLASDIR=${CMAKE_SOURCE_DIR}"
+    # test/numdiff.awk reads numbers with the awk's own conversion: a POSIX-mode awk (POSIXLY_CORRECT,
+    # gawk --posix) takes the decimal point from the locale, and under it_IT "0.611E+000" reads as 0.
+    "LC_ALL=C"
 )
 
 # ---- GPB : ceafile-reactive-OG -------------
