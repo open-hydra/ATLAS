@@ -1,5 +1,7 @@
 # ATLAS ICB Input Parameters
 
+Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile files are read in the same units. The key un (normal velocity) of the ICB-IG and ICB-RF tables is used by BCB only: ICB accepts it and ignores it.
+
 
 ## ATLAS-Parameters
 
@@ -67,6 +69,7 @@
 | interpolation-law | outlaw | outlaw<br>index<br>multiple<br>minimum_distance<br>spherical_minimum_distance<br>extrude |  no | Interpolation mapping law (outlaw = not given: minimum_distance; index revolves a 2D source onto a target revolved with the same cells; extrude revolves a 2D source about x through theta degrees in nz cells, then each target cell takes the nearest revolved cell). |
 | theta | 90.0 |  |  no | Angle in degrees of the sector into which the extrude law revolves the 2D source (from the source plane towards +z). |
 | nz | 4 | >=1 |  no | Number of cells of the sector built by the extrude law. |
+| old-species |  |  |  no | Species list of the old solution for IG interpolation: a directory (old/, reads old/<phase>phase.txt) or a file prefix (old-, reads old-<phase>phase.txt in the case directory; the launcher then also finds old-phase.txt and writes a header-only old-ic.tec). |
 | nozzle-direction | dx | dx,sx |  no | Nozzle marching direction. |
 | nozzle-threshold | 0.0 |  |  no | Coordinate threshold separating plenum and nozzle. |
 | yspecies-file |  |  |  no | Mass-fraction profile of the species named by the suffix (y<species>-file, in place of the constant y<species>): a Tecplot field on the block grid, or a two-column table (coordinate, y) along y<species>-direction; read like T-file, it makes the zone variable. |

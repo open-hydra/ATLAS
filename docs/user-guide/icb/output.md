@@ -17,7 +17,7 @@ ICB writes one output file set per phase.
 | unnamed phase | `ic.tec` or `ic.szplt` |
 | named phase (example `gas`) | `gas-ic.tec` or `gas-ic.szplt` |
 
-### VTK output (`IC-format` containing `vtk`)
+### VTK output (`IC-format = vtk`, `vtk-binary`, `vtk-ascii` or `vtk-raw`)
 
 ICB writes a VTK multiblock container and per-block VTS files:
 

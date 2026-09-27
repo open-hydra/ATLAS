@@ -67,6 +67,7 @@ The split is **exact**: node planes on a cut are duplicated in both neighbours a
 
 0. Confirm that BCB and ICB have produced their output files.
 1. Set `ranks` to the number of MPI ranks you will launch MOSE with.
+   (`grid` may be left unset: see *Which mesh file is read* below.)
 2. For a coupled case, add one `MDB-Phase*` section per phase (see [Input Reference](input-reference.md)). MDB refuses to split a mesh containing type-`103` records without them, because the interface cannot be remapped from one phase alone.
 3. Optionally add `MDB-BlockN` sections to restrict cut directions on specific blocks.
 4. Run MDB.
@@ -85,6 +86,20 @@ bc-out-path = INPUT-split
 ```bash
 ATLAS MDB
 ```
+
+### Which mesh file is read
+
+Without `grid` (or per-phase `grid`), MDB takes the first file that exists among
+
+`INPUT/ic.tec`, `INPUT/ic.szplt`, `mesh.tec`, `mesh.szplt`, `mesh.p3d`, `MESH/mesh.tec`
+
+in that order. The list differs from the one of BCB, ICB and STB (`mesh.tec`,
+`mesh.p3d`, `mesh.szplt` in the working directory) because MDB is run in the
+**solver** directory, where the mesh to split is the grid inside the initial
+condition written by ICB (`INPUT/ic.tec`, grid plus solution field), while the
+builders run in the case directory next to the bare mesh. The first existing
+file is the only one read: a stale file earlier in the list shadows the intended
+one, so set `grid` explicitly when in doubt.
 
 MDB prints a decomposition summary on completion:
 

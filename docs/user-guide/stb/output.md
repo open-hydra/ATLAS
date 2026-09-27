@@ -43,5 +43,7 @@ where `<N>` is the 1-based block index.
 
 - STB always creates `fromATLAStoSolver/` if it does not exist.
 - Area-variation files are optional and independent from `qvol` source-field output.
+- If no block defines `qvol` or `qvol-file`, no `st.*`/`qvol.vtm` is written (`- No volumetric source terms configured`): the solver treats a missing source file as zero source. Any `st.tec`, `st.szplt` or `qvol.vtm` left in `fromATLAStoSolver/` by a previous run is reported with a `[WARNING]` and must be removed by hand if it is no longer wanted.
+- In a multi-block mesh, blocks without `qvol`/`qvol-file` are written with `qvol = 0` (the solver requires every block of the mesh in the source file).
 - `qvol-file` requires `direction`; STB stops with an error otherwise. `direction` is a letter of x, y, z, r, t; a combination of letters (e.g. `xy`) is accepted and read along its first letter by priority x > y > z > r > t, with a `[WARNING]` naming it. A `direction` without `qvol-file` is not used and is reported with a `[WARNING]`. The profile must cover every cell centre of the block along `direction` (values are never extrapolated): STB stops with `[ERROR] ... qvol-file profile does not cover the block` if it does not.
 - For `theta-areavariation`, input theta is interpreted in degrees and converted internally.

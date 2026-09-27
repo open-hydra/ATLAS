@@ -36,7 +36,7 @@ w = 0.0
 | Key | Default | Description |
 |-----|---------|-------------|
 | `ICB-file` | `input.ini` | INI file used by ICB (when ICB is launched through ATLAS). |
-| `IC-format` | `tec` | Output format for the initial field. Supports Tecplot and VTK variants (for example `tec`, `tec-binary`, `vtk`, `vtk-binary`). |
+| `IC-format` | `tec` | Output format for the initial field: a family (`tec`, `tecplot`, `vtk`) with an optional mode (`binary`, `ascii`, `raw`) joined by `-`, a blank or `_` (`tec`, `tec-binary`, `vtk-binary`, `tecplot binary`, `vtk binary`, `tecplot-ascii`). Anything else is refused at start; `tec-binary` (a `.szplt` file) is refused at start by a build without TecIO. |
 
 ### `[ICB-BlockN]` keys (common)
 
@@ -48,6 +48,20 @@ w = 0.0
 | `range` | Limits for the block/zone direction(s). |
 | `zoneN` | Name of an auxiliary section used by multizone setup. |
 | `rangeN` | Range associated with `zoneN`. |
+
+A block with zones takes its whole state from the zone sections: a state key left in the block
+section (`y<species>`, `y<species>-file`, `p`, `T0`, `old-solution`, ...) is not inherited by the
+zones and is refused (`[ERROR] key <k> of section [ICB-Block<n>]: a block with zones ([<zone>]) takes
+its state from the zone sections, the key is not inherited: move it there (or remove it)`; a
+`[WARNING]` under `strict-keys = F`). Values of enumerated keys (`type`, `nozzle-direction`,
+`interpolation-law`, `IC-format`) are case-sensitive. A section header written twice (the INI reader
+keeps the first and drops the second in silence) is refused when the two copies differ: `[ERROR]
+section [<name>] of <deck>: declared twice (lines <n1> and <n2>), the second is ignored: merge them` (a
+`[WARNING]` under `strict-keys = F`, and a `[WARNING]` only when no key names that section and it carries
+no `ATLAS-`/`ICB-` prefix: a disabled block). Two copies with the same keys and the same values (blank
+lines, comments and the order of the keys do not count; values are compared as written) give the
+products of the deck with one copy: the same message is then a `[WARNING]` that ends with `(the two
+copies hold the same keys and values)`, whatever `strict-keys`.
 
 ---
 
@@ -108,8 +122,7 @@ interpolation-law = outlaw
 
 Optional interpolation extras:
 
-- `old-species` (IG only, for species remapping);
-- `theta` and `nz` when `interpolation-law = extrude`.
+- `old-species` (IG only, for species remapping).
 
 ---
 
@@ -147,3 +160,9 @@ For angular ranges, `t` is read in degrees and converted internally.
 ## Next
 
 - [IC Strategies](./ic-strategies.md)
+
+!!! note "A zone whose keys cover part of the block"
+    The turbulence constants (`mit`, `kappa`, `omega`, `rhoRij`) of a zone are applied to the cells of
+    its range only, exactly like `p`, `T` and the velocity: the cells outside it keep the field
+    written by the other zones (ICB prints ` - build_IG_field: turbulence constants of this zone
+    applied to n of N cells`). A zone that is meant to cover the whole block must have no `range`.
