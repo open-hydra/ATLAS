@@ -58,7 +58,7 @@ def build(inifile,section):
     inputModels         = IG_read_models(inifile,section)
     inert_species_names = IG_read_inert_species(inifile,section)
     inputFixGas         = IG_read_fixgas(inifile,section)
-    inerts_mixing, HG   = IG_read_options(inifile,section)
+    inerts_mixing, HG, strict_thermo = IG_read_options(inifile,section)
     inputCEA            = read_eq_CEA(inifile,section,cea)
     inputCTE            = read_eq_cantera(inifile,section)
     inputMix            = IG_read_mixture(inifile,section)
@@ -156,8 +156,16 @@ def build(inifile,section):
         all_species_dict = {} if file_thermo else {s.name: s for s in all_species}
         # Ensure all species from the mechanism are included
         combined_species = []
+        thermo_replaced = []
         for species_name in raw_mechanism.species_names:
             if species_name in all_species_dict:
+                # The database record replaces the file record: print the h(298.15 K) difference, WARNING above 1 kJ/mol
+                db_sp, file_sp = all_species_dict[species_name], raw_mechanism.species(species_name)
+                Tref = max(298.15, db_sp.thermo.min_temp, file_sp.thermo.min_temp)
+                dh = (db_sp.thermo.h(Tref) - file_sp.thermo.h(Tref)) / 1.0e6   # kJ/mol, database - file
+                lab = 'dh298' if Tref == 298.15 else f'dh{Tref:g}'   # a record that starts above 298.15 K is compared at its lower bound
+                print(f"{'[WARNING]' if abs(dh) > 1.0 else '[INFO]'} GPB: species {species_name}: thermo from the database replaces the file record ({lab} database - file = {dh:+.3f} kJ/mol)")
+                if abs(dh) > 1.0: thermo_replaced.append(species_name)
                 # Use the thermo definition from all_species if available, take transport from mechanism
                 all_species_dict[species_name].transport = raw_mechanism.species(species_name).transport
                 combined_species.append(all_species_dict[species_name])
@@ -166,6 +174,14 @@ def build(inifile,section):
                 if not file_thermo:
                     print('This species is not present in the employed database: ',species_name)
                 combined_species.append(raw_mechanism.species(species_name))
+        if strict_thermo and thermo_replaced:
+            hint = f'leave out thermo or use phase = {reaction_model} for the file records, or strict-thermo = false'
+            if CEA_equilibrium:   # CEA-file forces NASA9 on the species of the file
+                hint = 'with CEA-file the species of the file take NASA9: strict-thermo = false accepts them'
+            print(f"[ERROR] GPB: strict-thermo = true: the database thermo differs by more than 1 kJ/mol at 298.15 K "
+                  f"(or at the lower bound of a record that starts above it) for: {', '.join(thermo_replaced)} "
+                  f"({hint})")
+            sys.exit(1)
         # Create the custom mechanism
         mechanism = ct.Solution(thermo='ideal-gas',kinetics='gas',species=combined_species,reactions=raw_mechanism.reactions())
         mechanism.name = raw_mechanism.name

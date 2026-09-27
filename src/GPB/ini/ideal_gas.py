@@ -1,5 +1,7 @@
 import numpy as np
+import sys
 from PiNeR import get
+from ini.common import get_bool
 
 # -----------------------------------------------------------------------
 # Ideal-gas phase routines
@@ -31,9 +33,7 @@ def IG_read_models(ini_file,section):
 #
 def IG_read_options(ini_file,section):
 
-  mix = get(ini_file, section, 'inerts-mixing', bool)
-  if mix is None:
-    mix = False
+  mix = get_bool(ini_file, section, 'inerts-mixing', False)   # a misspelt value is refused, not read as false
 
   HG = False
   type = get(ini_file, section, 'type', str)
@@ -41,7 +41,10 @@ def IG_read_options(ini_file,section):
     if 'heavy' in type:
       HG = True
 
-  return mix, HG
+  # strict-thermo: refuse (instead of warning) a database thermo record that differs from the mechanism record by more than 1 kJ/mol
+  strict = get_bool(ini_file, section, 'strict-thermo', False)
+
+  return mix, HG, strict
 
 #
 def IG_read_inert_species(ini_file,section):

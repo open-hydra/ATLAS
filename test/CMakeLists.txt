@@ -621,3 +621,15 @@ set_tests_properties(IG-reactions-without-thermo PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : IG-strict-thermo (strict-thermo = true refuses a database thermo record that differs from the file record by more than 1 kJ/mol at 298.15 K) -------------
+add_test(
+    NAME    IG-strict-thermo
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1; then cat gpb.log; false; else grep -q -F '[ERROR] GPB: strict-thermo = true: the database thermo differs by more than 1 kJ/mol at 298.15 K (or at the lower bound of a record that starts above it) for: H2O' gpb.log; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-strict-thermo"
+)
+set_tests_properties(IG-strict-thermo PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

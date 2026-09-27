@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from PiNeR import get, check_section
 from pint import UnitRegistry
 from dataclasses import dataclass
@@ -17,6 +18,19 @@ def convert2si(value, unit):
     Q_ = ureg.Quantity
     quantity = Q_(value, unit)
     return to_si(quantity)
+
+# PiNeR's bool conversion maps every unknown spelling (e.g. 'tru') to False silently
+def get_bool(ini_file, section, option, default):
+    """Boolean key: true/yes/on/1/t or false/no/off/0/f (case-insensitive); absent -> default; anything else is refused."""
+    raw = get(ini_file, section, option, str)
+    if raw is None:
+        return default
+    if raw.strip().lower() in ('true', 'yes', 'on', '1', 't'):
+        return True
+    if raw.strip().lower() in ('false', 'no', 'off', '0', 'f'):
+        return False
+    print(f"[ERROR] key {option} of section [{section}]: {option} = {raw} is not a boolean (write true or false)")
+    sys.exit(1)
 
 # -----------------------------------------------------------------------
 # General tasks routines

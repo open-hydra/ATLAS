@@ -70,6 +70,10 @@ REGISTRY_ENTRIES: List[RegistryEntry] = [
         'Reaction mechanism file stem (without .yaml).'
     ),
     RegistryEntry(
+        'GPB-IdealGas', 'strict-thermo', 'False', 'True,False', False,
+        'Refuse (instead of warning) when a database thermo record replaces a mechanism species record by more than 1 kJ/mol at 298.15 K.'
+    ),
+    RegistryEntry(
         'GPB-IdealGas', 'inerts-mixing', 'False', 'True,False', False,
         'Mix equilibrium species into a single mixture phase.'
     ),
@@ -324,6 +328,7 @@ GPB_IDEALGAS = [
     RegistryEntry('GPB-IdealGas', 'thermo', '', 'NASA7,NASA9,Burcat', False, 'Thermodynamic species database selector.'),
     RegistryEntry('GPB-IdealGas', 'transport', '', 'CEA,cantera', False, 'Transport model source.'),
     RegistryEntry('GPB-IdealGas', 'reactions', '', '', False, 'Reaction mechanism file stem (without .yaml).'),
+    RegistryEntry('GPB-IdealGas', 'strict-thermo', 'False', 'True,False', False, 'Refuse (instead of warning) when a database thermo record replaces a mechanism species record by more than 1 kJ/mol at 298.15 K.'),
     RegistryEntry('GPB-IdealGas', 'inerts-mixing', 'False', 'True,False', False, 'Mix equilibrium species into a single mixture phase.'),
     RegistryEntry('GPB-IdealGas', 'species', '', '', False, 'Manual inert species list.'),
     RegistryEntry('GPB-IdealGas', 'add-species', '', '', False, 'Alternative key for manual inert species list.'),
