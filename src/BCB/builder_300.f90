@@ -118,7 +118,7 @@ contains
       self % sp_properties(1:3) = [cfg%hconv, cfg%qrad, cfg%Tref]
 
     ! Radiative heat flux
-    elseif (cfg%has_eps .and. cfg%has_Tref) then
+    elseif (cfg%has_eps .and. cfg%has_Tref .and. .not. cfg%has_hconv) then
       self % sp_n = 2
       if (.not.allocated(self % sp_properties)) allocate(self % sp_properties(1:self % sp_n))
 

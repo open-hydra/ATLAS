@@ -47,6 +47,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-table-no-data` | BCB | `BCB/IG-table-no-data` | A table file without any row of two numbers is refused as a file without data rows, not as a missing file. |
 | `IG-multigrid-2D` | BCB | `BCB/IG-multigrid-2D` | `MG-levels = 3` on a pure-2D mesh: `bc2.txt` and `bc3.txt` are pure 2D, equal to `bc.txt` of the level meshes given directly. |
 | `BCB-direction-refused` | BCB | `BCB/IG-xtheta-variable-T` | A direction letter outside x, y, z, r, t, i, j, k (here `X`) stops BCB naming the key. |
+| `SP-wall-305` | BCB | `BCB/SP-wall-305` | A solid wall with `hconv`, `eps` and `Tref` is written as BC 305 with the payload in the order FUSS reads it (`hconv, eps, Tref`); `eps` and `Tref` alone stay 304. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
@@ -109,6 +110,7 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `mesh-tec-single-plane`: validate the same rule for a Tecplot mesh with x y z on one node plane (`K = 1`).
 - `IG-multigrid-2D`: validate the coarse levels of a pure-2D mesh (pure 2D on every level).
 - `IG-force-connect-plate`, `IG-plate-keys`, `IG-keys-documented`, `IG-renamed-keys-lenient`, `IG-time-file-long-name`, `IG-table-header-skipped`: validate `BC-force-connect` on a declared inlet, the documented keys and defaults that must not stop BCB, the keys of older decks, the series file names and the tables with a non-numeric row.
+- `SP-wall-305`: validate the choice between the solid-wall records 304 and 305 and the order of the 305 payload.
 
 ### GPB Cases (`test/GPB/`)
 

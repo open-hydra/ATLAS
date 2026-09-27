@@ -790,6 +790,21 @@ set_tests_properties(BCB-direction-refused PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : SP-wall-305 (a solid wall with hconv, eps and Tref is written as BC 305) ----
+# One solid block (IG-ablation's mesh, solid-bulk phase): face 4 gives hconv, eps and Tref and must be written as
+# 305 with hconv, eps, Tref, the order in which FUSS reads that record; face 2 gives eps and Tref only and stays
+# 304. check-walls.awk takes the values from input.ini and the counts from the mesh, not from a saved bc.txt.
+add_test(
+    NAME    SP-wall-305
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -f check-walls.awk fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/SP-wall-305"
+)
+set_tests_properties(SP-wall-305 PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable
