@@ -633,3 +633,15 @@ set_tests_properties(IG-strict-thermo PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : IG-fixgas-gas-constant (a species given by gamma and mw: cp = gamma/(gamma-1) R_u/mw with the exact R_u = 8314.46261815324 J/(kmol K)) -------------
+add_test(
+    NAME    IG-fixgas-gas-constant
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && awk 'BEGIN{cp=3.5*8314.46261815324/28.97; n=0; bad=0} /^ *[0-9]/{ n++; d=$2-cp; if(d<0) d=-d; if(d>2e-6) bad++ } END{ exit (n==5000 && bad==0) ? 0 : 1 }' fromATLAStoSolver/air-thermo.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-fixgas-gas-constant"
+)
+set_tests_properties(IG-fixgas-gas-constant PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

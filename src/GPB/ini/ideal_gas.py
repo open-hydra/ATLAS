@@ -76,7 +76,7 @@ def IG_read_fixgas(ini_file,section):
 
   ecp = ecv = egamma = eR = ew = emil = ekl = ePr = 0
 
-  Runi = 8314.51
+  Runi = 8314.46261815324  # J/(kmol K): exact SI value (N_A k_B), the constant Cantera uses (ct.gas_constant)
 
   species = get(ini_file, section, 'species', list)
 

@@ -31,6 +31,8 @@ mil      = 1e-5 1.3e-5
 kl       = 0.25 0.30
 ```
 
+Each species needs two of `cp`, `cv`, `gamma`, `R`, `mw`; the others follow from the universal gas constant R<sub>u</sub> = 8314.46261815324 J/(kmol K), the exact SI value that Cantera also uses. The bundled NASA CEA library (CEA equilibrium, `CEA-file`) keeps its own constant, 8314.51 J/(kmol K).
+
 ### Thermally-perfect gas
 
 Specify species list along with thermodynamic and transport databases.
