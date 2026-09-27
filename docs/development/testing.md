@@ -27,6 +27,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-force-chimera` | BCB | `BCB/IG-force-chimera` | `BC-force-chimera` on a partial interface. |
 | `mesh-p3d-3D` | BCB | `BCB/mesh-p3d-3D` | A PLOT3D mesh alone, with three coordinates and several node planes, is read as 3D: `bc.txt` equals the one of the same grid in Tecplot. |
 | `DP-basic` | BCB | `BCB/DP-basic` | Dispersed-phase BC assignment and export. |
+| `IG+CD` | BCB | `BCB/IG+CD` | A gas phase and a dispersed phase on one inlet: `gas-bc.txt` and `particles-bc.txt` are written together. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
@@ -35,6 +36,9 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `grid-p3d-3D` | BCB + MDB | `MDB/grid-p3d-3D` | A 3D grid given to MDB as a PLOT3D file is split as the same grid in Tecplot. |
 | `split-solution` | MDB | `MDB/split-solution` | Splitting a case that carries a solution field. |
 | `coupled-phases` | BCB + MDB | `MDB/coupled-phases` | Two-phase interface: type-`103` donors remapped against the other phase's decomposition. |
+| `dispersed-populations` | BCB + MDB | `MDB/dispersed-populations` | A dispersed phase with two materials, one of them in two populations, on two multigrid levels: the per-(material, population) tables are split block by block. |
+| `coupled-phases-ks` | BCB + MDB | `MDB/coupled-phases-ks` | `coupled-phases` with a uniform roughness `ks` on the gas connection: MDB carries it through the split; the solid files are unchanged. |
+| `coupled-phases-ksfile` | BCB + MDB | `MDB/coupled-phases-ksfile` | The same interface with a real-fluid gas and `ks` read from a file along x: each 103 record gets the value at its own centre. |
 | `x-variable` | STB | `STB/x-variable` | Spatially varying source-term generation along x. |
 | `area-any-order` | STB | `STB/area-any-order` | An area profile in any row order gives the area law of the sorted profile. |
 | `mesh-p3d-fallback` | BCB | `BCB/mesh-p3d-fallback` | An unreadable `mesh.p3d` is followed by `mesh.szplt` with a WARNING naming both files. |
@@ -49,6 +53,17 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `mesh-tec-single-plane` | BCB | `BCB/mesh-tec-single-plane` | A Tecplot mesh with x y z on one node plane (`K = 1`) follows the PLOT3D rule: on z = 0 and on a tilted plane the `bc.txt` of `mesh-p3d-single-plane` (a WARNING for the tilted plane); on x-z it is refused. |
 | `IG-comment-lines` | BCB | `BCB/IG-basic` | Comment lines starting with `#`, `;` or `!` that hold an equals sign are ignored: `bc.txt` equals the one of the deck without them. |
 | `IG-massfraction-range` | BCB | `BCB/IG-massfraction-range` | A `y<species>` value outside [0, 1] stops BCB with one message naming the key and the value; a value outside by rounding only (1.0000000000000002, -1.0e-20) is read as 1 and 0. |
+| `IG+SP-force-chimera` | BCB | `BCB/IG+SP-force-chimera` | Inter-phase chimera: with `BC-force-chimera` the facelets between a gas block and a solid block are written as 104 in both `gas-bc.txt` and `solid-bc.txt`. |
+| `DP-multigrid` | BCB | `BCB/DP-multigrid` | One dispersed-phase BC file per multigrid level, each with its own table and every (material, population) copy. |
+| `DP-z-variable-krho` | BCB | `BCB/DP-z-variable-krho` | Dispersed-phase inlet with a `krho` profile read along z and phase-prefixed keys. |
+| `DP-tokens-tolerated` | BCB | `BCB/DP-tokens-tolerated` | `key=value` tokens on the material line of a dispersed-phase file are for the solvers: BCB ignores them and writes the `drop-bc.txt` of `DP-basic`. |
+| `DP-bad-name` | BCB | `BCB/DP-bad-name` | A phase file name with two dashes is refused. |
+| `DP-substring-names` | BCB | `BCB/DP-substring-names` | Phase names nested in each other (`part`, `partL`) are refused before any BC file is built. |
+| `DP-two-phases` | BCB | `BCB/DP-two-phases` | Two dispersed phases on the same faces: each `<name>-bc.txt` carries the ids and payloads of its own phase. |
+| `DP-axis-override` | BCB | `BCB/DP-axis-override` | `<phase>-type = outlet` on an axisymmetric face: the dispersed-phase file carries 400 on the axis, the gas file keeps 200. |
+| `DP-axis-symmetry` | BCB | `BCB/DP-axis-symmetry` | `<phase>-type = symmetry` on an axisymmetric face: the dispersed-phase file carries 300 on the axis, the gas file keeps 200. |
+| `DP-axis-refused` | BCB | `BCB/DP-axis-refused` | Any other `<phase>-type` word on an axisymmetric face stops BCB naming the two accepted ones. |
+| `IG+DP` | ICB | `ICB/IG+DP` | Gas and dispersed phase: the dispersed-phase IC file carries the population fields. |
 
 ## Test Families And Their Intent
 
@@ -140,3 +155,19 @@ ctest -R IG-nozzle3D --output-on-failure
 ---
 
 See also [Project Structure](./structure.md) and [Build Instructions](./build.md).
+
+## The standard of a registered test
+
+Each registered test is one case folder under `test/<TOOL>/` and one `add_test` in `test/CMakeLists.txt`, of one
+of two kinds:
+
+1. **Golden**: the tool runs on a fixture and the product is compared with `reference/` (`diff` for exact
+   products, `test/numdiff.awk` at `tol = 1e-12` for interpolated fields and computed records, `1e-6` for
+   the chimera cases). The reference is either an independent oracle (a closed form, a hand-written record,
+   the product of another tool or of another deck by symmetry) or, when no oracle exists, the tool's own
+   product pinned as a regression witness; the registration comment says which.
+2. **Negative**: the tool must stop with a non-zero status, print a named diagnostic and write no product.
+
+A test is added for a corrected defect (it fails before the correction), for an added or repaired function
+(one positive case) and for a kept refusal (one representative case per kind of refusal). Fixtures are
+small (a few cells, a few KB). The upstream tests are kept as they are.
