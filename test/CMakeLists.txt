@@ -84,6 +84,19 @@ set_tests_properties(IG-nozzle3D PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : ICB-type-refused (a zone type that no writer knows, here one of an older ATLAS generation,
+# ----       stops ICB naming the value; nothing is written) -------------
+add_test(
+    NAME    ICB-type-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F 'value 1D-centcomp not allowed' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/ICB-type-refused"
+)
+set_tests_properties(ICB-type-refused PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 

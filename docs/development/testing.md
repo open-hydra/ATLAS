@@ -18,6 +18,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |
+| `ICB-type-refused` | ICB | `ICB/ICB-type-refused` | A zone `type` that no writer knows stops ICB naming the value. |
 | `IG-inflow-nozzle` | BCB | `BCB/IG-inflow-nozzle` | Nozzle inflow boundary-condition construction. |
 | `IG-inflow-ceafile-inertmix` | BCB | `BCB/IG-inflow-ceafile-inertmix` | Inflow BC creation using CEA-based inert-mixture inputs. |
 | `IG-multipatch-file` | BCB | `BCB/IG-multipatch-file` | Multipatch BC assignment when patches are provided by file. |

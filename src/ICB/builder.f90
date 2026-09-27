@@ -14,6 +14,7 @@ module ic_builder_mod
     use io_phase_mod,              only: read_idealgas_properties, read_dp_properties, read_realfluid_properties
     use strings,                   only: parse
     use ir_precision,              only: str
+    use input_keys_mod,            only: input_keys_check_section
     implicit none
     type(phase_t), allocatable, intent(in)     :: phase(:)
     type(IC_block), intent(inout), target :: blocks(:)
@@ -73,6 +74,7 @@ module ic_builder_mod
         blk%associated_phase(p)%species%massf = 1d-20
       enddo
 
+      call input_keys_check_section(sini, section_name, 'block')
       call sini%get(section_name=section_name, option_name='type', val=blk%type, error=error)
       if (error/=0) blk%type = 'homogeneous'
       ! Multizone
@@ -88,6 +90,7 @@ module ic_builder_mod
           if (error_zone/=0) exit
           call sini%get(section_name=section_name, option_name='range'//str(.true.,p), &
                                             val=zonerange, error=error)
+          call input_keys_check_section(sini, trim(zonename), 'section')
           call zoneini%free
           call zoneini%add(section_name='zone')
           do while (sini%loop(section_name=zonename, option_pairs=option_pairs))

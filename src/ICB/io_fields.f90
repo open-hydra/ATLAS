@@ -258,6 +258,31 @@ contains
   end function is_turbulence_var
 
 
+  !> the IC-format asks for a binary Tecplot file (.szplt) but the build has no
+  !> TecIO: refused at configuration time (the writer below keeps the same guard).
+  !> An unknown format never reaches here (registry row of IC-format, input_keys L3).
+  subroutine check_ic_format_build(ICformat)
+    use input_keys_mod, only: input_keys_format_ok
+    implicit none
+    character(len=*), intent(in) :: ICformat
+    logical :: ok, binary_tec
+    ok = input_keys_format_ok(ICformat, binary_tec)
+    if (.not. ok) then
+      write(*,'(A)') '[ERROR] key IC-format of section [ATLAS-Parameters]: value '//trim(ICformat)// &
+                     ' is not a format (a family tec, tecplot or vtk with an optional mode binary, ascii or raw,'// &
+                     ' joined by -, a blank or _)'
+      stop 1
+    endif
+#if !defined(TECIO)
+    if (binary_tec) then
+      write(*,'(A)') '[ERROR] key IC-format of section [ATLAS-Parameters]: value '//trim(ICformat)// &
+                     ' asks for a binary Tecplot file (.szplt) but this build has no TecIO'// &
+                     ' (configure with -DUSE_TECIO=true, or use tec / vtk-binary)'
+      stop 1
+    endif
+#endif
+  end subroutine check_ic_format_build
+
   subroutine write_vtk_tec(phase,ICformat,blk)
     use IR_Precision
     use Lib_VTK

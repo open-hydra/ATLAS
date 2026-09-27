@@ -280,9 +280,11 @@ contains
     endif
   end subroutine load_interpolation_config
 
-  subroutine write_icb_registry_markdown(filename)
+  subroutine write_icb_registry_markdown(filename, keys_only)
+    use input_keys_mod, only: input_keys_snapshot
     implicit none
     character(*), intent(in), optional :: filename
+    logical, intent(in), optional      :: keys_only   ! .true.: snapshot the keys for input_keys_mod, no file
 
     type(registry_t) :: icb_registry
     type(atlas_parameters_t), target :: atlas_cfg
@@ -364,13 +366,20 @@ contains
       fileout = 'icb-input.md'
     endif
 
-    call icb_registry%generate_markdown(trim(fileout), 'ATLAS ICB Input Parameters')
+    call input_keys_snapshot(icb_registry, 'ICB')
+    if (present(keys_only)) then
+      if (keys_only) return
+    endif
+
+    call icb_registry%generate_markdown(trim(fileout), 'ATLAS ICB Input Parameters', preamble= &
+      'Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile files are read in the same units. '// &
+      'The key un (normal velocity) of the ICB-IG and ICB-RF tables is used by BCB only: ICB accepts it and ignores it.')
 
   contains
 
     subroutine add_block_entries()
       call icb_registry%add('ICB-Block*', 'phase', phase_name, '', 'Space-separated phase names. Blank means all phases.', '', .false.)
-      call icb_registry%add('ICB-Block*', 'type', block_type, 'homogeneous', 'Block initialization type.', '', .false.)
+      call icb_registry%add('ICB-Block*', 'type', block_type, 'homogeneous', 'Initialisation type of the block or zone (multizone: the block takes its state from its zone<n> sections; the key direction alone makes a block multizone).', 'homogeneous<br>variable<br>interpolation<br>nozzle<br>multizone', .false.)
       call icb_registry%add('ICB-Block*', 'direction', direction, '', 'Range directions using x,y,z,r,t,i,j,k.', '', .false.)
       call icb_registry%add('ICB-Block*', 'range', block_range, '0.0', 'Range limits for the selected directions.', '', .false.)
       call icb_registry%add('ICB-Block*', 'zone<n>', zone_name, '', 'Referenced auxiliary zone section for multizone setup.', '', .false.)
@@ -402,7 +411,7 @@ contains
       call icb_registry%add(section, 'nz', interp_cfg%nz, '4', 'Number of extrusion layers used by the extrude law.', '>=1', .false.)
 
       if (include_old_species) then
-        call icb_registry%add(section, 'old-species', interp_cfg%old_species, '', 'Legacy species file prefix used during IG interpolation.', '', .false.)
+        call icb_registry%add(section, 'old-species', interp_cfg%old_species, '', 'Species list of the old solution for IG interpolation: a directory (old/, reads old/<phase>phase.txt) or a file prefix (old-, reads old-<phase>phase.txt in the case directory; the launcher then also finds old-phase.txt and writes a header-only old-ic.tec).', '', .false.)
       endif
     end subroutine add_interpolation_entries
 
