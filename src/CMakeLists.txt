@@ -100,3 +100,10 @@ if(USE_TECIO)
   target_link_libraries(STB PRIVATE -pthread)
   target_link_libraries(MDB PRIVATE -pthread)
 endif()
+
+# Link the Fortran programs with the Fortran driver. TecIO (C++, pulled in by
+# ORION) would otherwise make CMake pick the CXX linker, which does not provide
+# the entry point of an Intel Fortran main program (undefined reference to
+# `main'). CMake adds the C++ runtime by itself. Same convention as ORION's own
+# apps and as the Q2D/MOSE executables.
+set_target_properties(ICB BCB MDB STB PROPERTIES LINKER_LANGUAGE Fortran)
