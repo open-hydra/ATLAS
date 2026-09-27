@@ -677,6 +677,22 @@ set_tests_properties(IG-2D-inlet-408-refused PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-force-connect-plate -------------
+# Injection plate with holes, the designed use of BC-force-connect (default true): block 1 face 1 is declared
+# inlet [plate]; the cells that coincide with the hole blocks 2 and 3 are written as connections (101, with the
+# hole's cell and orientation, the facelet ids and connection lines upstream writes), the other cells keep the
+# inlet. One LOG line for the face, no WARNING, no refusal.
+add_test(
+    NAME    IG-force-connect-plate
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -x -F -- ' [LOG] BC-force-connect: block 1 face 1: 5 cells connected to block(s) 2 3, 3 cells keep the declared BC [plate]' <<< \"$out\" && ! grep -q -F '[WARNING] BC-force-connect' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-force-connect-plate"
+)
+set_tests_properties(IG-force-connect-plate PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

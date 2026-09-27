@@ -258,6 +258,82 @@ contains
 
   !> Based on the find_connect.F file of AFFS
   !> `skip_chimera` leaves the faces declared 'chimera' to the overset search.
+  !> BC-force-connect summary (called by find_connect). The face-centre matching works cell by cell: on a face
+  !> declared with another BC (inlet, gsi, wall, symmetry, ...) the cells that coincide with a cell of another
+  !> block are written as a connection (101/103) and the other cells keep the declared BC. This is the designed
+  !> use of the switch (docs/user-guide/bcb/connectivity.md): an injection plate declared inlet whose holes are
+  !> blocks of their own needs no multipatch. One [LOG] line per such face; a [WARNING] only for a declared
+  !> section left with no cell on the face (the declaration has no effect there). The cells of one face are
+  !> contiguous in the find_connect ordering (block, face, n, m).
+  subroutine report_forced_connections(blk, b, f, m, n, def0, def, prop)
+    implicit none
+    type(BC_block), intent(in) :: blk(:)
+    integer, intent(in) :: b(:), f(:), m(:), n(:), def0(:), def(:), prop(:,:)
+    integer :: i, k, i0, i1, nconn, nkept, np, nw, ifirst
+    integer :: partner(8)
+    logical :: seen
+    character(len=20) :: nm
+    character(len=120) :: blist
+    character(len=12) :: tmp
+    i0 = 1
+    do while (i0 <= size(b))
+      i1 = i0
+      do while (i1 < size(b))
+        if (b(i1+1) /= b(i0) .or. f(i1+1) /= f(i0)) exit
+        i1 = i1 + 1
+      enddo
+      nconn = 0; nkept = 0; np = 0; partner = 0; ifirst = 0
+      do i = i0, i1
+        if (def0(i) == 100 .or. def0(i) == 101 .or. def0(i) == 103) cycle   ! declared connection/chimera
+        if (ifirst == 0) ifirst = i
+        if (def(i) == 101 .or. def(i) == 103) then
+          nconn = nconn + 1
+          if (np < size(partner)) then
+            if (.not. any(partner(1:np) == prop(i,1))) then
+              np = np + 1; partner(np) = prop(i,1)
+            endif
+          endif
+        else
+          nkept = nkept + 1
+        endif
+      enddo
+      if (nconn > 0) then
+        blist = ''
+        do k = 1, np
+          write(tmp,'(I0)') partner(k); blist = trim(blist)//' '//trim(tmp)
+        enddo
+        write(*,'(A,I0,A,I0,A,I0,A,A,A,I0,A)') ' [LOG] BC-force-connect: block ', blk(b(i0))%id, ' face ', f(i0), ': ', &
+          nconn, ' cells connected to block(s)', trim(blist), ', ', nkept, ' cells keep the declared BC ['// &
+          trim(blk(b(ifirst))%face(f(ifirst))%center(m(ifirst),n(ifirst))%bc%name)//']'
+        do i = i0, i1   ! one check per declared section of the face: is any of its cells left with the declared BC?
+          if (def0(i) == 100 .or. def0(i) == 101 .or. def0(i) == 103) cycle
+          if (def(i) /= 101 .and. def(i) /= 103) cycle
+          nm = blk(b(i))%face(f(i))%center(m(i),n(i))%bc%name
+          seen = .false.
+          do k = i0, i - 1
+            if (def0(k) == 100 .or. def0(k) == 101 .or. def0(k) == 103) cycle
+            if (def(k) /= 101 .and. def(k) /= 103) cycle
+            if (blk(b(k))%face(f(k))%center(m(k),n(k))%bc%name == nm) then
+              seen = .true.; exit
+            endif
+          enddo
+          if (seen) cycle
+          nw = 0
+          do k = i0, i1
+            if (def0(k) == 100 .or. def0(k) == 101 .or. def0(k) == 103) cycle
+            if (def(k) == 101 .or. def(k) == 103) cycle
+            if (blk(b(k))%face(f(k))%center(m(k),n(k))%bc%name == nm) nw = nw + 1
+          enddo
+          if (nw == 0) write(*,'(A,I0,A,I0,A)') '[WARNING] BC-force-connect: block ', blk(b(i0))%id, ' face ', f(i0), &
+            ': every cell declared ['//trim(nm)//'] is connected to another block, the declared BC has no effect '// &
+            '(declare the face connection, or set BC-force-connect = F to keep the declared BC)'
+        enddo
+      endif
+      i0 = i1 + 1
+    enddo
+  end subroutine report_forced_connections
+
+
   subroutine find_connect(blk,force_connect,skip_chimera)
     use bc_names_mod, only: MARKER_CONN, MARKER_Chim
     implicit none
@@ -266,6 +342,7 @@ contains
     logical, intent(in), optional :: skip_chimera
     real(8), allocatable  :: x(:), y(:), z(:)
     integer, allocatable :: b(:), f(:), n(:), m(:), def(:), prop(:,:), match(:)
+    integer, allocatable :: def0(:)
     logical, allocatable :: adj(:), usable(:), declared(:)
     logical :: no_chimera
     integer :: nmissing
@@ -378,6 +455,7 @@ contains
     enddo
     !$omp end parallel do
 
+    def0 = def   ! BC codes as declared, before the connection overwrites them (BC-force-connect diagnostic)
     ! Phase 2: serial apply — no race conditions
     do i = 1, nbound
       j = match(i)
@@ -409,6 +487,9 @@ contains
       endif
     enddo
     deallocate(match)
+
+    ! BC-force-connect: the declared BC of the cells connected above is replaced cell by cell (report_forced_connections)
+    if (force_connect) call report_forced_connections(blk, b, f, m, n, def0, def, prop)
 
     nmissing = count(declared .and. .not.adj)
     if (nmissing>0) then

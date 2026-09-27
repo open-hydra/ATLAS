@@ -231,6 +231,17 @@ selects `407`, not `401`.
 | Full state from file | `time-file` | `410` |
 | Injector nozzle | `Ae_At`, or `g` **and** `psub` **and** `psup` | `420` |
 
+With `BC-force-connect`
+(default `true`, see [connectivity](connectivity.md)) the connection step works cell by cell on every face, whatever
+its declared type: the cells of a face declared `inlet`, `gsi`, `wall` or `symmetry` that coincide with a cell of another
+block are written as connections (101/103) and the other cells keep the declared BC. This is how an injection plate
+with holes is set up: declare the whole plate face `inlet` (or `wall`) and mesh every hole as a block of its own; the hole
+cells are connected automatically and no multipatch is needed. BCB prints one line per such face
+(` [LOG] BC-force-connect: block <b> face <f>: <n> cells connected to block(s) <list>, <m> cells keep the declared BC [<section>]`)
+and a `[WARNING]` only when a declared section is left with no cell on the face (the declaration has no effect there);
+`BC-force-connect = false` keeps the declared BC on every cell.
+
+
 | Key | Meaning |
 |---|---|
 | `p0`, `T0` | Total (stagnation) pressure and temperature |
