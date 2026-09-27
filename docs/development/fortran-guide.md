@@ -57,7 +57,7 @@ grep -rn "^\s*module " src/BCB/
 - All `USE` statements include `ONLY` to make dependencies explicit.
 - Derived types are defined in dedicated `types_*.f90` files; builder modules operate on them.
 - Interface blocks use `INTENT` for all dummy arguments.
-- Error handling uses `error stop` with descriptive messages for fatal errors.
+- A fatal error writes an `[ERROR]` line with a descriptive message to standard output (continuation lines indented by 8 blanks) and then stops with `stop 1`, so that the program exits with status 1 (a bare `stop` exits with 0); a non-fatal condition prints a `[WARNING]` line.
 
 ### Example Module Structure
 
@@ -96,6 +96,6 @@ end module bc_mod
 - 2-space indentation
 - `IMPLICIT NONE` in every module / program unit
 - `INTENT(IN/OUT/INOUT)` on all dummy arguments
-- Error handling via `error stop` with a descriptive message
+- Fatal errors: an `[ERROR]` line on standard output, then `stop 1` (not `error stop`, not a bare `stop`)
 
 See [Code Style](./code-style.md) for the full conventions.
