@@ -7,10 +7,25 @@ from .cea_compat import CEA
 from ini import *
 from PiNeR import get
 import os, sys, re
-from config import setup_cantera_dirs, CEA_TRANS_FILE
+from config import setup_cantera_dirs, CEA_TRANS_FILE, CHEMISTRY_DIR
 
 setup_cantera_dirs()
 CEAtransdir = CEA_TRANS_FILE
+
+# ---------------------------------------------------------------------------
+# Checks of a tabulated mechanism against what the chemistry tables can hold.
+# Every message goes to stdout; nothing is ever written into the product files
+# (the reader of the tables reads them positionally).
+# ---------------------------------------------------------------------------
+def _flint_guards(phase):
+    eff = phase.name.strip()
+    rx = list(phase.reactions())
+    shown = phase.name
+    if eff == 'gas':
+        print("[WARNING] GPB: phase name 'gas' identifies no mechanism: FLINT falls back to the general procedure; name the mechanism in the yaml")
+    pdep = [f'{i+1} ({r.equation})' for i, r in enumerate(rx) if 'pressure-dependent-Arrhenius' in r.reaction_type or ('Chebyshev' in r.reaction_type and r.rate.n_pressure > 1)]
+    if pdep:
+        print(f"[WARNING] GPB: phase {shown}: {len(pdep)} pressure-dependent reactions (PLOG / multi-pressure Chebyshev) are tabulated at 1 atm only: {', '.join(pdep[:10])}{' ...' if len(pdep) > 10 else ''}")
 
 def build(inifile,section):
     """
@@ -200,6 +215,10 @@ def build(inifile,section):
         mechanism.transport_model = raw_mechanism.transport_model
         species_group.append(mechanism)
     # ---------------------------------------------------
+
+    # Checks of the mechanism against what the tables can hold: before any product file is written
+    if reaction_model is not None:
+        _flint_guards(mechanism)
 
     # ---------------------------------------------------
     # Cantera equilibrium calculation (if applicable)
@@ -408,3 +427,19 @@ def build(inifile,section):
             elif "mix" in p.name:
                 sp.append('inertMix')
         IG_chemistry.compute_properties (name, T1, T2, mechanism, sp)
+        # chemistry-info.txt always ends with the block 'Reaction orders' / <n> / '<ir> <species> <order>' (n = 0 when the
+        # yaml gives no explicit orders), for every phase: the reader of the tables tells a current file from one of an
+        # older writer by it. ir is the index of the reaction in the list above. The tables carry orders for the
+        # Arrhenius-type reactions only: orders given on a falloff reaction are not written (WARNING).
+        rows, skipped = [], []
+        for i, r in enumerate(mechanism.reactions()):
+            if not r.orders:
+                continue
+            if 'falloff' in r.reaction_type:
+                skipped.append(f'{i+1} ({r.equation})')
+                continue
+            rows += [(i + 1, s, o) for s, o in r.orders.items()]
+        if skipped:
+            print(f"[WARNING] GPB: phase {mechanism.name}: the explicit orders of {len(skipped)} falloff reactions are not written (the chemistry tables carry orders for Arrhenius-type reactions only): {', '.join(skipped)}")
+        with open(IG_IO.outpath + name + 'chemistry-info.txt', 'a') as f:
+            f.write(f"\nReaction orders\n{len(rows)}\n" + ''.join(f"{ir} {s} {o}\n" for ir, s, o in rows))

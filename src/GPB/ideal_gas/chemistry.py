@@ -50,7 +50,7 @@ def compute_properties (name, T_low, T_max, phase, further_sp):
                         Fcent[ii, t] += math.exp(-T2[0] / T)
                     k_inf_t[ii, t] = rxn.rate.high_rate(T)
                     k_0_t[ii, t] = rxn.rate.low_rate(T)
-                    kc_t[ii, t] = phase.equilibrium_constants[i]
+                    kc_t[ii, t] = phase.equilibrium_constants[i] if rxn.reversible else 0.0   # kc = 0 marks an irreversible falloff reaction (FLINT computes no backward rate)
                 ii += 1
         IG_IO.write_chemistry_Troe(name, temperatures, k_0_t, k_inf_t, kc_t, Fcent)
 
@@ -67,7 +67,7 @@ def compute_properties (name, T_low, T_max, phase, further_sp):
                     phase.TP = T, 300*ct.one_atm
                     k_inf_l[ii,t] = rxn.rate.high_rate(T)
                     k_0_l[ii,t] = rxn.rate.low_rate(T)
-                    kc_l[ii,t] = phase.equilibrium_constants[i]
+                    kc_l[ii,t] = phase.equilibrium_constants[i] if rxn.reversible else 0.0   # kc = 0 marks an irreversible falloff reaction (FLINT computes no backward rate)
                 ii += 1
         IG_IO.write_chemistry_Lindemann(name, temperatures, k_0_l, k_inf_l, kc_l)
 

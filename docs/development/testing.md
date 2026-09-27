@@ -22,6 +22,8 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-transport-CEA-species-without-data` | GPB | `GPB/IG-transport-CEA-species-without-data` | `transport = CEA` with a mechanism species that has no transport data but is in the thermo database: accepted, `transport.dat` equal to the one with transport records. |
 | `CP-tmin-noninteger` | GPB | `GPB/CP-tmin-noninteger` | A non-integer `Tmin` of a condensed phase is refused naming the key; an integer `Tmin = 300` is accepted; no product is left behind. |
 | `GPB-tmin-range` | GPB | `GPB/GPB-tmin-range` | `Tmin` at or below 0 K, or above `Tmax`, stops GPB naming the key (ideal gas and condensed phase). |
+| `IG-falloff-irreversible-orders` | GPB | `GPB/IG-falloff-irreversible-orders` | `k_c = 0` on the rows of an irreversible falloff reaction; the explicit orders written as the orders block of `chemistry-info.txt`. |
+| `IG-orders-block-always` | GPB | `GPB/IG-falloff-irreversible-orders` | The orders block ends `chemistry-info.txt` whatever the phase name: a phase named `WD` keeps its explicit orders. |
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |

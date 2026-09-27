@@ -87,6 +87,8 @@ Finite-rate chemistry files for reactive simulations, if reactions are processed
 - `<prefix>chemistry-Troe.dat`
 - `<prefix>chemistry-Lindemann.dat`
 
+In the Troe and Lindemann tables the column `k_c` is written as 0 on every row of an **irreversible** falloff reaction (`=>`): no backward rate exists (reversible reactions are unchanged). Use these tables with the FLINT released with this ATLAS version; how FLINT reads `k_c = 0`, and what older versions do with it, is described in [FLINT's documentation of the table formats](https://github.com/MarcoGrossi92/FLINT/blob/main/docs/user/input/native.md) (`docs/user/input/native.md` of the FLINT repository).
+`chemistry-info.txt` ends with the block `Reaction orders` / `<n>` / `<ir> <species> <order>` (`ir` = index in the `Reaction type` list): the explicit `orders:` of the yaml, `n = 0` when it gives none; orders given on a falloff reaction are not written (the tables carry orders for the Arrhenius-type reactions only) and GPB prints a WARNING.
 The `chemistry-info.txt` file contains a summary of the reactions and their parameters, while the `chemistry-*.dat` files are Tecplot point datasets with one zone per reaction and `Temperature` as the first variable and forward/backward rates.
 
 ## Condensed / Solid Outputs

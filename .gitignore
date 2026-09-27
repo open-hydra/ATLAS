@@ -1,6 +1,7 @@
 # test
 fromATLAStoSolver
 .gpb-tmp-*
+test/**/_run-*
 test/**/injector_data_*.dat
 
 # database

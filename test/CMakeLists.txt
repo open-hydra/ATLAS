@@ -681,3 +681,27 @@ set_tests_properties(GPB-tmin-range PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : IG-falloff-irreversible-orders (k_c = 0 on every row of an irreversible falloff reaction, > 0 on a reversible one, in the Lindemann and Troe tables; explicit orders of a phase FLINT runs with general end chemistry-info.txt as the orders block) -------------
+add_test(
+    NAME    IG-falloff-irreversible-orders
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 && for f in Lindemann Troe; do awk 'BEGIN{z=0;bad=0} /^ZONE/{z++} /^ *[0-9]/{ if(z==1 && $4+0<=0) bad++; if(z==2 && $4+0!=0) bad++ } END{ if(z!=2) bad++; exit bad?1:0 }' fromATLAStoSolver/chemistry-$f.dat || exit 1; done && tail -n 4 fromATLAStoSolver/chemistry-info.txt | diff - expected-orders.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-falloff-irreversible-orders"
+)
+set_tests_properties(IG-falloff-irreversible-orders PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-orders-block-always (the orders block ends chemistry-info.txt whatever the phase name: a phase named like a compiled FLINT routine (WD) keeps its explicit orders) -------------
+add_test(
+    NAME    IG-orders-block-always
+    COMMAND bash -c "rm -rf _run-hooked && mkdir _run-hooked && cp *.ini *.yaml *.txt _run-hooked/ 2>/dev/null; cd _run-hooked && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input hooked.ini > gpb.log 2>&1 && tail -n 4 fromATLAStoSolver/chemistry-info.txt | diff - expected-orders.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-falloff-irreversible-orders"
+)
+set_tests_properties(IG-orders-block-always PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
