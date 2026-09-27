@@ -63,6 +63,7 @@ A global single-step mechanism for H₂/air combustion with 4 species (H₂, O�
 - **Developer**: S.M. Frolov — Semenov Federal Research Center for Chemical Physics, Moscow
 - **File**: `Frolov_nopressure.yaml`
 - **FLINT**: the phase name `Frolov_nopressure` selects a compiled FLINT routine; species order O₂, H₂O, H₂, N₂
+- **FLINT**: the phase name `Frolov` selects a compiled FLINT routine; what it computes, and which GPB tables it reads, is described in FLINT's documentation; Cantera and KAnT use the kinetics of the yaml as written
 - **Species / Reactions**: 4 / 1
 - **Primary fuels**: H₂/air (detonation)
 
@@ -98,6 +99,11 @@ Detailed chemical kinetic reaction models developed through a collaboration betw
   - **Species / Reactions**: 96 / 1054
   - **Pressure range**: Atmospheric to 50 atm
   - **Primary fuels**: C₀–C₄ fuels
+
+- **FFCMy-12**
+  - **File**: `FFCMy_12.yaml` (phase `FFCMy-12`, from the previous ATLAS repository)
+  - **Species / Reactions**: 13 / 38 (no falloff-SRI)
+  - **FLINT**: the phase name `FFCMy-12` selects a compiled FLINT routine; its structure (species order, reactions, third-body efficiencies, falloff types) is checked against this file by the ctest `database-flint-contract`
 
 > https://web.stanford.edu/group/haiwanglab/FFCM1/
 >

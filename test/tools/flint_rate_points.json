@@ -1,0 +1,56 @@
+{
+ "_comment": "ATLAS test data (decided to stay in ATLAS): the Frolov routine ignores the tables and hard-codes its rate; the yaml rate constant must equal that law at these seven (T, p) points, and the yaml reaction must carry the stoichiometry, orders and irreversibility of the law. Update it only when the law documented by FLINT changes.",
+ "Frolov": {
+  "reaction": 1,
+  "rtol": 1e-06,
+  "law": "k = 0.5*8e11*(p/101325)^-1.15*exp(-10000/T) [m6/(kmol2 s)], p = sum(roi*Ri)*T (global-H2.f90:29-32)",
+  "points": [
+   [
+    1500.0,
+    101325.0,
+    509053520.54
+   ],
+   [
+    2000.0,
+    1013250.0,
+    190804046.94
+   ],
+   [
+    3000.0,
+    3039750.0,
+    285576374.25
+   ],
+   [
+    1200.0,
+    50662.5,
+    213365306.44
+   ],
+   [
+    1800.0,
+    4053000.0,
+    22230226.088
+   ],
+   [
+    2500.0,
+    2026500.0,
+    233720910.06
+   ],
+   [
+    1000.0,
+    1013.25,
+    3623390758.3
+   ]
+  ],
+  "reversible": false,
+  "orders_by_slot": {
+   "1": 1,
+   "3": 2
+  },
+  "stoich_by_slot": {
+   "1": -1,
+   "2": 2,
+   "3": -2
+  },
+  "structure_source": "global-H2.f90:34-40: prod1 = -0.5*8e11*(p/101325)**(-1.15)*coi(3)**2*coi(1)*exp(-10000/temp), omegadot(1) = W1*prod1, (2) = -2*W2*prod1, (3) = 2*W3*prod1: no backward term"
+ }
+}

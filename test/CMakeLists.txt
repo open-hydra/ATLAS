@@ -601,7 +601,7 @@ set_tests_properties(IG-mixture-cantera PROPERTIES
 # ---- GPB : database-flint-contract (every database/chemistry yaml whose phase name selects a compiled FLINT routine matches the routine in the copy of FLINT's contract file, test/tools/flint_mechanism_contract.json; the hooks below are pinned) -------------
 add_test(
     NAME    database-flint-contract
-    COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/tools/flint_contract_check.py ${CMAKE_SOURCE_DIR}/database --expect UCSD.yaml=sandiego20161214 Frolov_nopressure.yaml=Frolov_nopressure Nassini_Original.yaml=Nassini_4 Nassini_Montanari_Grossi.yaml=Nassini_4 ONERA-7.yaml=ONERA_7 ONERA-7_rev.yaml=general"
+    COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/tools/flint_contract_check.py ${CMAKE_SOURCE_DIR}/database --expect UCSD.yaml=sandiego20161214 Frolov.yaml=Frolov Frolov_nopressure.yaml=Frolov_nopressure Nassini_Original.yaml=Nassini_4 Nassini_Montanari_Grossi.yaml=Nassini_4 FFCMy_12.yaml=FFCMy_12 ONERA-7.yaml=ONERA_7 ONERA-7_rev.yaml=general"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tools"
 )
 set_tests_properties(database-flint-contract PROPERTIES

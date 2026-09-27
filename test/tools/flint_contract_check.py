@@ -7,7 +7,7 @@ FLINT selects its compiled chemistry routine by the exact phase name GPB writes 
 'general' procedure with a WARNING. FLINT's contract file records, for every hooked name, the routine's
 species slots, number of species, reaction counts per table type and, for generated routines, the per-reaction
 fingerprint that FLINT computes from its own sources; test/tools/flint_mechanism_contract.source names the
-FLINT commit of the copy.
+FLINT commit of the copy. The Frolov law points are ATLAS test data (test/tools/flint_rate_points.json).
 
 For every database/chemistry/*.yaml (Cantera parse = the parse GPB uses):
   1. effective name = the phase name as FLINT reads it (first blank-delimited token); a name with blanks is
@@ -144,6 +144,10 @@ def main():
     here = os.path.dirname(os.path.abspath(__file__))
     chem = os.path.join(a.database, 'chemistry'); contract = a.contract or os.path.join(here, 'flint_mechanism_contract.json')
     C = json.load(open(contract)); cases = C['cases']
+    # the Frolov law (the routine ignores the tables): ATLAS test data, merged into the case
+    rp = json.load(open(os.path.join(here, 'flint_rate_points.json')))
+    for n, v in rp.items():
+        if not n.startswith('_') and n in cases: cases[n]['rate_points'] = v
     src = os.path.join(os.path.dirname(os.path.abspath(contract)), 'flint_mechanism_contract.source')
     origin = open(src).read().strip() if os.path.exists(src) else 'origin not recorded'
     print('FLINT mechanism contract: %s (%s; %d cases; name read %s)' % (os.path.basename(contract), origin, len(cases), NAME_READ))
@@ -221,6 +225,17 @@ def main():
             cnt = Counter(table_class(g.reaction(i).reaction_type) for i in range(g.n_reactions))
             ycnt = OrderedDict([('arrhenius', cnt['arrhenius']), ('troe', cnt['troe']), ('lindemann', cnt['lindemann'])])
             if dict(ycnt) != dict(c['nrc']): errors.append('%s: reaction counts per table type yaml %s routine %s %s' % (fn, dict(ycnt), c['routine'], dict(c['nrc'])))
+        if c.get('rate_points'):
+            rp = c['rate_points']; ri = rp['reaction'] - 1; rx = g.reaction(ri); ysp = g.species_names
+            # the routine IS the model: the yaml reaction must also carry its structure (stoichiometry, orders, no backward term)
+            ords = OrderedDict((str(ysp.index(s) + 1), float(v)) for s, v in rx.reactants.items()); ords.update((str(ysp.index(s) + 1), float(v)) for s, v in rx.orders.items())
+            nu = {str(ysp.index(s) + 1): float(rx.products.get(s, 0.0) - rx.reactants.get(s, 0.0)) for s in set(rx.reactants) | set(rx.products) if rx.products.get(s, 0.0) != rx.reactants.get(s, 0.0)}
+            if 'reversible' in rp and bool(rx.reversible) != rp['reversible']: errors.append('%s: reaction %d reversible=%s, the hard-coded law of %s is %s' % (fn, ri + 1, rx.reversible, c['routine'], 'reversible' if rp['reversible'] else 'irreversible (no backward term)'))
+            if 'orders_by_slot' in rp and dict(ords) != {k: float(v) for k, v in rp['orders_by_slot'].items()}: errors.append('%s: reaction %d orders by slot %s, the hard-coded law of %s has %s' % (fn, ri + 1, dict(ords), c['routine'], rp['orders_by_slot']))
+            if 'stoich_by_slot' in rp and nu != {k: float(v) for k, v in rp['stoich_by_slot'].items()}: errors.append('%s: reaction %d net stoichiometry by slot %s, the routine %s assigns %s' % (fn, ri + 1, nu, c['routine'], rp['stoich_by_slot']))
+            for T, p, k in rp['points']:
+                g.TP = T, p; kk = g.forward_rate_constants[ri]
+                if abs(kk / k - 1.0) > rp['rtol']: errors.append('%s: reaction %d rate constant %.6e at T=%g K, p=%g Pa differs from the hard-coded law of %s (%.6e): %s' % (fn, ri + 1, kk, T, p, c['routine'], k, rp['law']))
         if c.get('fingerprint'):
             fe = check_fingerprint(g, c['fingerprint'])
             if fe: errors.extend('%s vs %s fingerprint: %s' % (fn, c['routine'], x) for x in fe[:12])
