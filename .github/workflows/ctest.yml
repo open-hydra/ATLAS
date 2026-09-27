@@ -99,3 +99,56 @@ jobs:
           else
             ctest --test-dir build --output-on-failure --timeout 300 -LE GPB
           fi
+
+  # OpenMP build under AddressSanitizer and UndefinedBehaviorSanitizer (gfortran -O1 -g), with
+  # floating-point traps and signalling-NaN initialisation of reals: a test fails on a heap or
+  # stack overrun, on undefined behaviour, and on a floating-point exception, including one
+  # raised by a real used before it is set. It runs the tests that need no conda environment
+  # (the GPB-labelled tests run in the first job). The tests run single-threaded: their own
+  # environment (test/CMakeLists.txt) sets OMP_NUM_THREADS=1, and CTest applies it over the
+  # environment of the job.
+  # - cmake is called directly because install.sh cannot pass compiler flags. FF repeats the
+  #   general flags of cmake/SetFortranFlags.cmake, which adds none of its own when the three
+  #   CMAKE_Fortran_FLAGS_<type> variables are given.
+  # - Bounds checking is off (-fcheck=all,no-bounds): with -fcheck=bounds, gfortran 12.3 stops
+  #   every test whose mesh has one or two blocks in import_nodes (src/common/grid.f90), a false
+  #   positive on the component subscripts of its class(block_type) array dummy.
+  # - The targets are built one at a time: programs that compile the common sources into one
+  #   module directory can fail a parallel build with "Cannot rename module file".
+  # - detect_leaks=0 in the build step: compile_databases runs a program built with these flags.
+  test-omp-sanitizers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git diffutils python3 gfortran
+
+      - name: Configure (OpenMP, ASan/UBSan)
+        run: |
+          FF="-fno-underscoring -march=native -cpp -ffree-line-length-none -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fcheck=all,no-bounds -ffpe-trap=invalid,zero,overflow -finit-real=snan"
+          cmake -S . -B build -DORION_PATH="$PWD/lib/ORION/" -DFINER_PATH="$PWD/lib/third_party/FiNeR/" -DCEA_PATH="$PWD/lib/cea/" \
+            -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_CXX_COMPILER=g++ -DUSE_TECIO=false -DUSE_OPENMP=true \
+            -DCMAKE_Fortran_FLAGS="$FF" -DCMAKE_Fortran_FLAGS_RELEASE=-O1 -DCMAKE_Fortran_FLAGS_DEBUG=-O1 -DCMAKE_Fortran_FLAGS_TESTING=-O1 \
+            -DCMAKE_CXX_FLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined"
+
+      - name: Build
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+        run: |
+          for t in ORION FiNeR cea_core ICB BCB MDB STB compile_databases; do cmake --build build --target $t -j 2; done
+
+      - name: Run tests (OpenMP build, sanitizers, single-threaded tests)
+        env:
+          ATLASDIR: ${{ github.workspace }}
+          ASAN_OPTIONS: detect_leaks=0:abort_on_error=0:halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: |
+          ulimit -s unlimited || true
+          ctest --test-dir build --output-on-failure -LE GPB
