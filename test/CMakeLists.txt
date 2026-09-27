@@ -69,6 +69,20 @@ set_tests_properties(IG+DP PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG+DP-populations (a scalar DP key reaches every population) --------------------------
+# IG+DP with AL2O3(L) on two populations: the scalar krho and dp of the zone must give population 2
+# the fields of population 1, and population 1 must equal IG+DP's reference.
+add_test(
+    NAME    IG+DP-populations
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && python3 check_populations.py fromATLAStoSolver/particles-ic.tec ../IG+DP/reference/particles-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG+DP-populations"
+)
+set_tests_properties(IG+DP-populations PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-nozzle3D -------------
 add_test(
     NAME    IG-nozzle3D
