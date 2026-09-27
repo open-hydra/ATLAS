@@ -580,16 +580,22 @@ contains
       coeff_cf_i = [a1,a2,a0,a0,a0,a0,a0,a0]
       coeff_cf_j = [a1,a0,a2,a0,a0,a0,a0,a0]
       coeff_cf_k = [a1,a0,a0,a2,a0,a0,a0,a0]
-      a1 = 9.0_R8/16.0_R8
-      a2 = 3.0_R8/16.0_R8
-      a3 = 1.0_R8/16.0_R8
-      coeff_cs_jk = [a1,a0,a2,a2,a0,a0,a2,a0]
-      coeff_cs_ik = [a1,a2,a0,a2,a0,a2,a0,a0]
-      coeff_cs_ij = [a1,a2,a2,a0,a2,a0,a0,a0]
-      a1 = 27.0_R8/64.0_R8
-      a2 =  9.0_R8/64.0_R8
-      a3 =  3.0_R8/64.0_R8
-      a4 =  1.0_R8/64.0_R8
+      ! The centre of a sub-cell lies 1/3 of a source cell from the source centre along each direction
+      ! where it is off-centre, so the weights are products of 2/3 (own cell) and 1/3 (neighbour),
+      ! which reproduce a linear field exactly (the refinement by 2 uses 3/4 and 1/4 instead).
+      ! edge sub-cells: own cell, the two face neighbours and the diagonal neighbour of the edge
+      ! (the weights of the 2-D corner sub-cells, which sum to 1)
+      a1 = 4.0_R8/9.0_R8
+      a2 = 2.0_R8/9.0_R8
+      a3 = 1.0_R8/9.0_R8
+      coeff_cs_jk = [a1,a0,a2,a2,a0,a0,a3,a0]
+      coeff_cs_ik = [a1,a2,a0,a2,a0,a3,a0,a0]
+      coeff_cs_ij = [a1,a2,a2,a0,a3,a0,a0,a0]
+      ! vertex sub-cells: own cell, three face neighbours, three edge neighbours, the corner neighbour
+      a1 = 8.0_R8/27.0_R8
+      a2 = 4.0_R8/27.0_R8
+      a3 = 2.0_R8/27.0_R8
+      a4 = 1.0_R8/27.0_R8
       coeff_v = [a1,a2,a2,a2,a3,a3,a3,a4]
     else ! 2D
       a1 = 1.0_R8
@@ -597,9 +603,10 @@ contains
       a1 = 2.0_R8/3.0_R8; a2 = 1.0_R8/3.0_R8
       coeff_cf_i = [a1,a2,a0,a0,a0,a0,a0,a0]
       coeff_cf_j = [a1,a0,a2,a0,a0,a0,a0,a0]
-      a1 = 9.0_R8/16.0_R8
-      a2 = 3.0_R8/16.0_R8
-      a3 = 1.0_R8/16.0_R8
+      ! corner sub-cells: products of 2/3 and 1/3, as in 3-D
+      a1 = 4.0_R8/9.0_R8
+      a2 = 2.0_R8/9.0_R8
+      a3 = 1.0_R8/9.0_R8
       coeff_v = [a1,a2,a2,a0,a3,a0,a0,a0]
     endif
 

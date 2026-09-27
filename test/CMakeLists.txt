@@ -434,6 +434,33 @@ set_tests_properties(IG-nozzle-plenum-order PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-interp-multiple-x3-3D (a uniform 2x2x2 source refined by 3 in 3-D with interpolation-law =
+# ----       multiple must stay uniform: the product equals the one of minimum_distance) -------------
+add_test(
+    NAME    IG-interp-multiple-x3-3D
+    COMMAND bash -c "rm -rf fromATLAStoSolver md && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input md.ini && mv fromATLAStoSolver md && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff md/gas-ic.tec fromATLAStoSolver/gas-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-multiple-x3-3D"
+)
+set_tests_properties(IG-interp-multiple-x3-3D PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-interp-multiple-x3-linear (a field linear in the cell indices, refined by 3 with interpolation-law =
+# ----       multiple, is reproduced exactly inside the block in 2-D and in 3-D: the edge, corner and vertex sub-cells
+# ----       use products of 2/3 and 1/3; the references hold the linear values there) -------------
+add_test(
+    NAME    IG-interp-multiple-x3-linear
+    COMMAND bash -c "for d in 2D 3D; do (cd $d && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB < /dev/null && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-ic.tec fromATLAStoSolver/gas-ic.tec) || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-multiple-x3-linear"
+)
+set_tests_properties(IG-interp-multiple-x3-linear PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 

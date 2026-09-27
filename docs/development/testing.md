@@ -44,6 +44,8 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-interp-spherical-3D` | ICB | `ICB/IG-interp-spherical-3D` | `interpolation-law = spherical_minimum_distance` on a 3-D target: from a one-cell source it equals `minimum_distance`. |
 | `IG-interp-src-3coord-plane` | ICB | `ICB/IG-interp-src-3coord-plane` | An interpolation source written as a slice (x y z on one node plane, `K = 1`, z nodal, bands cell-centred) gives the `ic.tec` of the same source written with x y only. |
 | `IG-nozzle-plenum-order` | ICB | `ICB/IG-nozzle-plenum-order` | The plenum rows of a nozzle zone and another zone overwrite each other in the zone order: a `[WARNING]` names each case and the products do not change. |
+| `IG-interp-multiple-x3-3D` | ICB | `ICB/IG-interp-multiple-x3-3D` | A uniform 2x2x2 source refined by 3 in 3-D with `interpolation-law = multiple` stays uniform: the product equals the one of `minimum_distance`. |
+| `IG-interp-multiple-x3-linear` | ICB | `ICB/IG-interp-multiple-x3-linear` | A field linear in the cell indices, refined by 3 with `interpolation-law = multiple`, is reproduced exactly inside the block in 2-D and in 3-D. |
 | `IG-inflow-nozzle` | BCB | `BCB/IG-inflow-nozzle` | Nozzle inflow boundary-condition construction. |
 | `IG-inflow-ceafile-inertmix` | BCB | `BCB/IG-inflow-ceafile-inertmix` | Inflow BC creation using CEA-based inert-mixture inputs. |
 | `IG-multipatch-file` | BCB | `BCB/IG-multipatch-file` | Multipatch BC assignment when patches are provided by file. |
