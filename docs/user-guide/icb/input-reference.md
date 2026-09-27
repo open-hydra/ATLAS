@@ -24,7 +24,7 @@
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| eq-OG | F |  |  no | Enable CEA oxidizer-fuel equilibrium mode. |
+| eq-OG | F |  |  no | Keep only the gaseous products of the CEA equilibrium of `eq-CEA-file`: the condensed products are dropped and the mass fractions of the gaseous ones are renormalised to 1. |
 | eq-CEA-file |  |  |  no | CEA input file used to derive equilibrium composition. |
 | eq-CEA-section | 1 | >=1 |  no | CEA section index used when eq-CEA-file is provided. |
 | yspecies | 0.0 |  |  no | Mass fraction assigned to a species name suffix: one number in [0, 1]. |

@@ -312,7 +312,9 @@ contains
     type(config_composition_doc_t), target, intent(inout) :: composition_cfg
 
     call registry%add(section, 'eq-OG', composition_cfg%eq_og, 'F', &
-                      'Enable CEA oxidizer-fuel equilibrium mode.', '', .false.)
+                      'Keep only the gaseous products of the CEA equilibrium of `eq-CEA-file`: the condensed '// &
+                      'products are dropped and the mass fractions of the gaseous ones are renormalised to 1.', &
+                      '', .false.)
     call registry%add(section, 'eq-CEA-file', composition_cfg%eq_cea_file, '', &
                       'CEA input file used to derive equilibrium composition.', &
                       '', .false.)
