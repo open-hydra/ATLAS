@@ -28,6 +28,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-phase-file-name-hint` | GPB | `GPB/IG-phase-file-name-hint` | `phase =` naming a file that does not exist stops GPB with an error that suggests the file holding that phase. |
 | `IG-ct-equilibrium` | GPB | `GPB/IG-ct-equilibrium` | The Cantera equilibrium of the tutorial builds the phase: species and composition files as in the reference. |
 | `IG-ct-equilibrium-inerts` | GPB | `GPB/IG-ct-equilibrium-inerts` | Cantera equilibrium with `inerts-mixing = true` and `add-species`: the `cte-mixture` molecular weight of the kept species, each with its own mass fraction; N2 a separate species. |
+| `GPB-launcher-atlasdir` | GPB | `GPB/IG-falloff-irreversible-orders` | `ATLAS.sh` derives `ATLASDIR` from its own location and passes it to GPB when the environment does not set it. |
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |

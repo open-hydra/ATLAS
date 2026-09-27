@@ -10,6 +10,7 @@
 if [[ -z "${ATLASDIR:-}" ]]; then
   ATLASDIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 fi
+export ATLASDIR   # GPB (src/GPB/config.py) reads it from the environment
 
 # Conda environment holding the Python dependencies. Override with
 # ATLAS_CONDA_ENV, or bypass conda entirely by pointing ATLAS_PYTHON at an

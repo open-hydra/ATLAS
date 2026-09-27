@@ -758,3 +758,15 @@ set_tests_properties(IG-ct-equilibrium-inerts PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : GPB-launcher-atlasdir (ATLAS.sh derives ATLASDIR from its own location and passes it to GPB when the environment does not set it) -------------
+add_test(
+    NAME    GPB-launcher-atlasdir
+    COMMAND bash -c "rm -rf _run-env && mkdir _run-env && cp *.ini *.yaml *.txt _run-env/ 2>/dev/null; cd _run-env && env -u ATLASDIR ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 && tail -n 4 fromATLAStoSolver/chemistry-info.txt | diff - expected-orders.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-falloff-irreversible-orders"
+)
+set_tests_properties(GPB-launcher-atlasdir PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
