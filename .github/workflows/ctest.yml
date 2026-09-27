@@ -46,3 +46,56 @@ jobs:
         env:
           ATLASDIR: ${{ github.workspace }}
         run: ctest --test-dir build --output-on-failure --timeout 300
+
+  # TecIO builds, with gnu and with Intel oneAPI (ifx, icpx), through install.sh like the job
+  # above: ORION's TecIO code is compiled and libtecio is linked into ICB, BCB, MDB and STB,
+  # which the job above (gnu, without TecIO) never builds. Each row runs, in RELEASE (the
+  # default of install.sh), the tests that need no conda environment. Both rows are required.
+  test-tecio:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compilers: [gnu, intel]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake git diffutils python3 gfortran
+
+      - name: Install Intel oneAPI compilers (ifx, icpx)
+        if: matrix.compilers == 'intel'
+        run: |
+          wget -qO- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+            | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+            | sudo tee /etc/apt/sources.list.d/oneAPI.list
+          sudo apt-get update
+          sudo apt-get install -y intel-oneapi-compiler-fortran intel-oneapi-compiler-dpcpp-cpp
+          source /opt/intel/oneapi/setvars.sh > /dev/null
+          printenv >> "$GITHUB_ENV"
+
+      - name: Build with install.sh (TecIO; TecIO itself is built during the configure step)
+        run: |
+          chmod +x ./install.sh
+          ./install.sh build --compilers=${{ matrix.compilers }} --use-tecio --no-conda
+
+      - name: Run tests
+        env:
+          ATLASDIR: ${{ github.workspace }}
+        run: |
+          ulimit -s unlimited || true
+          # Every GPB-labelled test needs the GPB conda environment (cantera): the job above runs them.
+          # x-variable is skipped with ifx: its RELEASE output differs from the gfortran reference
+          # in the last printed digit, and the test compares it exactly.
+          if [ "${{ matrix.compilers }}" = intel ]; then
+            ctest --test-dir build --output-on-failure --timeout 300 -LE GPB -E '^x-variable$'
+          else
+            ctest --test-dir build --output-on-failure --timeout 300 -LE GPB
+          fi
