@@ -79,4 +79,7 @@ ATLAS MDB
 !!! warning
 	The order shown above is typical for a cold-start Hydra simulation case and may change except for GPB that must be the first: ICB and BCB uses the outoput files provided by GPB.
 
+!!! note "Passive scalars"
+	ATLAS does not write passive-scalar (`Pass`) bands: MOSE and Q2D read them by position from the initial solution, so a run with passive scalars (`npass > 0`) cannot start from the ATLAS products as they are.
+
 For worked examples, see the [Tutorials](../tutorials/index.md).

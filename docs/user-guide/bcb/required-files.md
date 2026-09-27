@@ -11,7 +11,8 @@ BCB requires the following files to run:
 | `thermo.dat` | No | Tabulated thermodynamic properties (cp, h, s). Required when temperature-dependent properties are needed for an ideal-gas or real-fluid phase. Built by ATLAS GPB. |
 | `properties.dat` | No | Tabulated material properties (cp, ρ, h). Required only for condensed-dispersed (`condensed-dispersed`) phases. Built by ATLAS GPB. |
 | Spatially-varying BC files | No | ASCII data files referenced by `<key>-file` options inside BC sections (e.g. `q-file`, `T-file`, `g-file`). Can be 1-D (coordinate + value) or 2-D (header row of column coords + data rows). |
-| Time-series files | No | ASCII files referenced by `p0-time-file`, `p-time-file`, `q-time-file`, `T-time-file` inside BC sections for time-varying boundary conditions. |
+| Time-series files | No | ASCII files referenced by `time-file`, `p0-time-file`, `p-time-file`, `q-time-file`, `T-time-file` inside BC sections for time-varying boundary conditions. |
+| Line file | No | Tecplot ASCII structured file (unwrapped 2D time record) referenced by `line-file` inside an inlet section, together with `center`: BCB maps it onto the block face and *writes* the section's `time-file` from it (see [BC Types](bc-types.md#inlet)). |
 | CEA input file | No | Referenced by `eq-CEA-file` when oxidizer-fuel equilibrium inflow is used. |
 
 ## Directory Layout
@@ -20,7 +21,7 @@ A typical BCB working directory looks like:
 
 ```
 ./
-├── mesh.tec          # mesh file (or mesh.szplt / mesh.p3d)
+├── mesh.tec          # mesh file (or mesh.szplt / mesh.p3d); write the coordinates with full double precision (15-16 significant digits): the axisymmetric test compares node angles to 1e-5 rad and the block connections match face centres exactly
 ├── input.ini         # BCB INI file
 ├── filelist.txt      # phase file discovery list (optional)
 ├── phase.txt         # ideal-gas phase (or <name>-phase.txt)

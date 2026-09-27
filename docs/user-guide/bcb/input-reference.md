@@ -1,5 +1,7 @@
 # BCB Input Parameters
 
+Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file` series (BC 402) is in bar, as the solvers read it.
+
 
 ## ATLAS-Parameters
 
@@ -38,6 +40,9 @@
 | block | 0 |  |  no | Connected block index for manifold. |
 | face | 0 |  |  no | Connected face index for manifold. |
 | file-direction |  |  |  no | Coordinate or index directions used by varying BC files. |
+| range-file |  |  |  no | File of the injector plate patches (with inner-patch and outer-patch). |
+| inner-patch |  |  |  no | Section applied inside the range-file patches. |
+| outer-patch |  |  |  no | Section applied outside the range-file patches. |
 | full-plate | F |  |  no | With range-file: T maps the face as a full injector plate of square sectors, F maps the injectors of the range-file one by one. |
 | z-hydra | 1.0 |  |  no | With range-file and full-plate = F: depth of the pure 2-D (x,y) mesh in the equivalent radius A/(2 z-hydra) of each injector (injector_data_block<b>_face<f>.dat). |
 | eq-OG | F |  |  no | Keep only the gaseous products of the CEA equilibrium of `eq-CEA-file`: the condensed products are dropped and the mass fractions of the gaseous ones are renormalised to 1. |
@@ -86,6 +91,11 @@
 | psub | 0.0 |  |  no | Nozzle (BC 420) exit pressure of the just-choked subsonic solution; given with g and psup, or computed from Ae_At. |
 | psup | 0.0 |  |  no | Nozzle (BC 420) design exit pressure of the supersonic expansion; given with g and psub, or computed from Ae_At. |
 | a1-a3 | 0.0 | [0,1] |  no | Borda injector throat-to-face area ratio A1/A3: nonzero selects the Borda choked injector (BC 421, Q2D solver, 2D meshes only); 0 = not given. |
+| line-file | none |  |  no | Unwrapped (2D) time record mapped onto the 3D face; BCB then writes time-file (angular mapping, see bc-types). |
+| center | 0.0 |  |  no | Cylinder axis point x y z of the line-file mapping (required with line-file). |
+| strip-j-face | 1 | >=1 |  no | Node row of the line-file zone used as the strip. |
+| axis | auto | auto<br>x<br>y<br>z |  no | Cylinder axis of the line-file mapping; auto = dominant component of the mean inward normal of the face. |
+| n-repeat | 1 | >=1 |  no | Sector strips: the line-file covers 2 pi / n-repeat of the face and is repeated n-repeat times around it. |
 | q | 0.0 |  |  no | Prescribed wall heat flux. |
 | T | 0.0 |  |  no | Prescribed wall temperature. |
 | ks | 0.0 |  |  no | Wall roughness height. |
@@ -110,6 +120,7 @@
 | rp | 0.0 |  |  no | Particle radii per dispersed population. |
 | dp | 0.0 |  |  no | Particle diameters per dispersed population. |
 | sigmap | 0.0 |  |  no | Particle dispersion widths. |
+| distribution |  |  |  no | Size-distribution file of a dispersed population (prefixed by the phase name: <phase>-distribution). |
 | ds | 0.0 |  |  no | Injection-point spacing per dispersed population (cm; converted to m). |
 | alphap | 0.0 |  |  no | Primary injection angle per dispersed population. |
 | betap | 0.0 |  |  no | Secondary injection angle per dispersed population. |
