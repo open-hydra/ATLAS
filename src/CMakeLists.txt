@@ -79,6 +79,17 @@ target_include_directories(STB PRIVATE
     $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
 )
 
+# Each program compiles the common sources itself. With one module directory for all of them, two
+# programs built in parallel (make -j) write the same .mod files at the same time and a compilation
+# can fail on a module file another one is renaming ("Cannot rename module file"). Each program writes
+# its modules to a directory of its own, searched before the shared one (which keeps ORION's modules).
+foreach(_atlas_prog ICB BCB MDB STB)
+  set_target_properties(${_atlas_prog} PROPERTIES
+      Fortran_MODULE_DIRECTORY "${CMAKE_Fortran_MODULE_DIRECTORY}/${_atlas_prog}")
+  target_include_directories(${_atlas_prog} BEFORE PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}/${_atlas_prog}>)
+endforeach()
+
 if (TARGET cea_abort_support)
   target_link_libraries(ICB PRIVATE cea_abort_support)
   target_link_libraries(BCB PRIVATE cea_abort_support)

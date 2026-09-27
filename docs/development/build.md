@@ -93,6 +93,10 @@ Scripted equivalents:
 
 ## Parallel Build
 
+Every program (ICB, BCB, MDB, STB) compiles the common sources itself and writes its Fortran modules
+to a directory of its own, `build/modules/<program>` (ORION's modules stay in `build/modules`), so all
+the targets can be built at once with any number of jobs.
+
 ```bash
 # Build using 4 cores
 make -j 4
