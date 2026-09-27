@@ -1,4 +1,5 @@
 import cantera as ct
+import numpy as np
 from . import chemistry as IG_chemistry
 from . import transport as IG_transport
 from . import thermo as IG_thermo

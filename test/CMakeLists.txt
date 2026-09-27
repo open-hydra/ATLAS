@@ -729,3 +729,17 @@ set_tests_properties(IG-phase-file-name-hint PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : IG-ct-equilibrium -------------
+# The Cantera equilibrium of the tutorial (eq-of, eq-pressure, eq-fuel, eq-oxidizer): the phase holds the species of
+# the H2/O2 flame above the mole-fraction threshold; phase and composition files as in the reference, thermo table written.
+add_test(
+    NAME    IG-ct-equilibrium
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/gasmix-phase.txt reference/gasmix-phase.txt && diff fromATLAStoSolver/gasmix-composition.txt reference/gasmix-composition.txt && test -s fromATLAStoSolver/gasmix-thermo.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-ct-equilibrium"
+)
+set_tests_properties(IG-ct-equilibrium PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
