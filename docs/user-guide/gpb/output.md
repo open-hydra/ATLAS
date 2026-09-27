@@ -8,6 +8,8 @@ GPB writes generated files to:
 fromATLAStoSolver/
 ```
 
+They are staged in a temporary directory `.gpb-tmp-<pid>/` while the deck is built and moved into `fromATLAStoSolver/` only when every phase succeeded (a refusal leaves nothing; pre-existing files are never removed).
+
 ## Naming Convention
 
 For each GPB section, the output filename prefix is built from the section `name` key:
@@ -52,7 +54,7 @@ Variables:
 4. `Entropy`
 5. `dCp`
 
-Temperature grid is integer-spaced from `Tmin` to `Tmax` (inclusive).
+Temperature grid is integer-spaced from `Tmin` to `Tmax` (inclusive), step 1 K: `Tmin` and `Tmax` are integers.
 
 ### `<prefix>transport.dat`
 
@@ -89,6 +91,7 @@ Finite-rate chemistry files for reactive simulations, if reactions are processed
 
 In the Troe and Lindemann tables the column `k_c` is written as 0 on every row of an **irreversible** falloff reaction (`=>`): no backward rate exists (reversible reactions are unchanged). Use these tables with the FLINT released with this ATLAS version; how FLINT reads `k_c = 0`, and what older versions do with it, is described in [FLINT's documentation of the table formats](https://github.com/MarcoGrossi92/FLINT/blob/main/docs/user/input/native.md) (`docs/user/input/native.md` of the FLINT repository).
 `chemistry-info.txt` ends with the block `Reaction orders` / `<n>` / `<ir> <species> <order>` (`ir` = index in the `Reaction type` list): the explicit `orders:` of the yaml, `n = 0` when it gives none; orders given on a falloff reaction are not written (the tables carry orders for the Arrhenius-type reactions only) and GPB prints a WARNING.
+
 The `chemistry-info.txt` file contains a summary of the reactions and their parameters, while the `chemistry-*.dat` files are Tecplot point datasets with one zone per reaction and `Temperature` as the first variable and forward/backward rates.
 
 ## Condensed / Solid Outputs

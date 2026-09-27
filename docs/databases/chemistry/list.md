@@ -37,9 +37,9 @@ A reduced H₂/O₂ mechanism with 7 species (H₂, O₂, H₂O, H, O, OH, N₂)
 A reduced H₂/O₂ mechanism with 7 species developed for supersonic combustion applications. Two variants are provided: an irreversible formulation with 14 unidirectional reactions (`ONERA-7.yaml`) and a reversible formulation with 7 bidirectional reactions (`ONERA-7_rev.yaml`).
 
 - **Developer**: ONERA (Office National d'Études et de Recherches Aérospatiales), France
-- **Files**: `ONERA-7.yaml` (14 irreversible), `ONERA-7_rev.yaml` (7 reversible)
-- **Species / Reactions**: 7 / 7–14
+- **Files**: `ONERA-7.yaml` (14 irreversible, phase `ONERA-7`), `ONERA-7_rev.yaml` (7 reversible, phase `ONERA-7-rev`)
 - **FLINT**: the phase name `ONERA-7` selects a compiled FLINT routine, which serves the 14 irreversible reactions of `ONERA-7.yaml`; `ONERA-7-rev` deliberately selects none, and FLINT runs `ONERA-7_rev.yaml` with its `general` procedure
+- **Thermodynamics**: `ONERA-7.yaml` = the `burcat.yaml` records; with `thermo = NASA7` GPB replaces OH (dHf 39.35 instead of 37.30 kJ/mol): use `Burcat` or `NASA9`
 - **Species / Reactions**: 7 / 14 (`ONERA-7.yaml`), 7 / 7 (`ONERA-7_rev.yaml`)
 - **Primary fuels**: H₂/air (scramjet)
 
@@ -59,11 +59,12 @@ A reduced H₂/air mechanism (a modified Jachimowski 1988 model) with 9 species 
 
 ## Nassini
 
-A global single-step mechanism for H₂/air detonation with 4 species (H₂, O₂, H₂O, N₂). Calibrated to match the Chapman-Jouguet (CJ) speed, von Neumann state, and half-reaction thickness across a wide equivalence ratio range (φ = 0–5) at atmospheric preshock conditions. The H₂O formation enthalpy is modified to reproduce CJ detonation speed. The **Original** version is from Nassini's PhD thesis; the **Montanari-Grossi** version features adjusted parameters.
+A global single-step mechanism for H₂/air detonation with 4 species (O₂, H₂ONassini, H₂, N₂; the water is named `H₂ONassini` because its enthalpy of formation is the thesis value, −230.66 kJ/mol, and must not be replaced by the thermo database: deck composition keys are `yH2ONassini`). Calibrated to match the Chapman-Jouguet (CJ) speed, von Neumann state, and half-reaction thickness across a wide equivalence ratio range (φ = 0–5) at atmospheric preshock conditions. The H₂O formation enthalpy is modified to reproduce CJ detonation speed. The **Original** version is from Nassini's PhD thesis; the **Montanari-Grossi** version features adjusted parameters.
 
 - **Developer**: P.C. Nassini — University of Florence; A. Montanari, M. Grossi (modified variant)
 - **Files**: `Nassini_Original.yaml`, `Nassini_Montanari_Grossi.yaml`
 - **FLINT**: phase `Nassini` (both files) selects a compiled FLINT routine; species order O₂, H₂ONassini, H₂, N₂ (N₂ inert; reaction 2 = the backward step). Thermodynamics of both files = the NASA9 records of `database/thermo/nasa9.yaml` (Glenn base + Δa7 = 1343 K for the water), the same records GPB uses with `thermo = NASA9`
+- **Montanari-Grossi backward step**: the exact thesis closure k_b = k_f·sqrt(p0/RT)/K_c (p0 = 1 bar) with K_c in Cantera's convention (species reference pressure 1 atm, no `reference-pressure` key in the yaml; a K_c referred to 1 bar would lower k_b by 0.66 %), written as a single-pressure-column Chebyshev rate (the first Chebyshev reaction of the database; tabulated by GPB as an Arrhenius zone, error ≤ 1.1e-4 on 200–6000 K): valid with `thermo = NASA9` only
 - **Species / Reactions**: 4 / 2
 - **Primary fuels**: H₂/air (detonation)
 
@@ -73,11 +74,13 @@ A global single-step mechanism for H₂/air detonation with 4 species (H₂, O�
 
 ## Frolov
 
-A global single-step mechanism for H₂/air combustion with 4 species (H₂, O₂, H₂O, N₂) and 1 irreversible reaction. This variant omits pressure dependence in the rate expression. Designed for detonation simulations requiring a computationally efficient chemical model.
+A global single-step mechanism for H₂/air combustion with 4 species (H₂, O₂, H₂O, N₂) and 1 reversible reaction (backward rate from the equilibrium constant), in the variant of the CFD++ reaction panel: no pressure factor, A = 8·10¹¹ on the reaction progress rate. Designed for detonation simulations requiring a computationally efficient chemical model.
 
 - **Developer**: S.M. Frolov — Semenov Federal Research Center for Chemical Physics, Moscow
-- **File**: `Frolov_nopressure.yaml`
+- **File**: `Frolov_nopressure.yaml` (phase `Frolov_nopressure`)
 - **FLINT**: the phase name `Frolov_nopressure` selects a compiled FLINT routine; species order O₂, H₂O, H₂, N₂
+- **Note**: as a consequence of its source, `Frolov_nopressure` runs twice the rate of the published Frolov formula at 1 atm, with the standard H₂O (no calibrated heat effect)
+- **File**: `Frolov.yaml` (phase `Frolov`): the formula published by Frolov et al. (irreversible, p^−1.15 pressure factor), written as a two-point PLOG for Cantera/KAnT; the species `H2OFrolov` carries the heat release calibrated on the CJ speed (1970 m/s, frozen products)
 - **FLINT**: the phase name `Frolov` selects a compiled FLINT routine; what it computes, and which GPB tables it reads, is described in FLINT's documentation; Cantera and KAnT use the kinetics of the yaml as written
 - **Species / Reactions**: 4 / 1
 - **Primary fuels**: H₂/air (detonation)
@@ -114,6 +117,7 @@ Detailed chemical kinetic reaction models developed through a collaboration betw
   - **Species / Reactions**: 96 / 1054
   - **Pressure range**: Atmospheric to 50 atm
   - **Primary fuels**: C₀–C₄ fuels
+- **FLINT/GPB**: both files contain falloff-SRI reactions, which the GPB tables cannot carry: GPB refuses them for FLINT; usable in Cantera/KAnT only
 
 - **FFCMy-12**
   - **File**: `FFCMy_12.yaml` (phase `FFCMy-12`, from the previous ATLAS repository)
@@ -205,10 +209,11 @@ A classic global reaction mechanism for methane-air combustion. The four global 
 
 ## JLR (Jones-Lindstedt-Rodi) Mechanisms
 
-Extended variants of the Jones-Lindstedt mechanism, augmented with radical species (H, O, OH), yielding 9 species and 6–8 reactions. Two sub-variants are available: **Frassoldati** (rates from CRECK Modeling Group, Politecnico di Milano) and **Nasuti** (rates adapted for rocket propulsion at Sapienza). The `-ct` files add N₂ to the element list for native Cantera compatibility without altering the chemistry.
+Extended variants of the Jones-Lindstedt mechanism, augmented with radical species (H, O, OH), yielding 9 species and 6–8 reactions. Two sub-variants are available: **Frassoldati** (rates from CRECK Modeling Group, Politecnico di Milano) and **Nasuti** (rates adapted for rocket propulsion at Sapienza). The `-ct` files add N₂ to the element list for native Cantera compatibility and split the H₂ step into a forward and a backward reaction.
 
 - **Files**: `JLR-frassoldati.yaml`, `JLR-frassoldati-ct.yaml`, `JLR-nasuti.yaml`, `JLR-nasuti-ct.yaml`
 - **FLINT**: the phase `JLR-Nasuti` of `JLR-nasuti.yaml` selects a compiled FLINT routine; the phase `JLR-Frassoldati` of `JLR-frassoldati.yaml` selects none, and FLINT runs that file with its `general` procedure, from the GPB tables and the explicit orders that GPB writes at the end of `chemistry-info.txt`. The phase is not renamed `Frassoldati`, the phase name of a compiled FLINT routine: the source paper of that routine is needed first
+- **BROKEN**: `JLR-nasuti-ct.yaml` and `JLR-frassoldati-ct.yaml` carry the backward H₂ step with Ea ×1000 (97466368.414 cal/mol → k_b = 0 at every temperature in Cantera and FLINT; even with Ea/1000 the pre-exponential stays inconsistent with k_f/K_c of the non-ct step 4: ×918–996 in `JLR-nasuti-ct`, ×0.092–0.0996 in `JLR-frassoldati-ct`): do not use (kept untouched, marked in their description; skipped by the ctest `database-flint-contract`). Correct reference for a future repair: Andersen, Rasmussen, Giselsson, Glarborg, *Energy & Fuels* 23 (2009) 1379, Tab. 3 / eq. (5), give the explicit inverse of the H₂ step (JL3b in their numbering) as 7.06·10¹⁷ T^−0.877 exp(−97.9·10³/RT) with orders [H₂]^−0.75 [O₂] [H₂O] (cm-mol units)
 - **Species / Reactions**: 9 / 6–8
 - **Primary fuels**: CH₄/O₂ (rocket propulsion)
 

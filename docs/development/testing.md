@@ -29,6 +29,12 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-ct-equilibrium` | GPB | `GPB/IG-ct-equilibrium` | The Cantera equilibrium of the tutorial builds the phase: species and composition files as in the reference. |
 | `IG-ct-equilibrium-inerts` | GPB | `GPB/IG-ct-equilibrium-inerts` | Cantera equilibrium with `inerts-mixing = true` and `add-species`: the `cte-mixture` molecular weight of the kept species, each with its own mass fraction; N2 a separate species. |
 | `GPB-launcher-atlasdir` | GPB | `GPB/IG-falloff-irreversible-orders` | `ATLAS.sh` derives `ATLASDIR` from its own location and passes it to GPB when the environment does not set it. |
+| `CP-fixmat-dispersed` | GPB | `GPB/CP-fixmat-dispersed` | Fixed-property dispersed phase: phase-file header and modeling token. |
+| `SP-fixmat` | GPB | `GPB/SP-fixmat` | Fixed-property solid phase with the `solid-bulk` header. |
+| `CP-Tvar-dispersed` | GPB | `GPB/CP-Tvar-dispersed` | A Burcat or Cantera table gives the absolute enthalpy (header `Enthalpy_abs`). |
+| `CP-fixmat-h0` | GPB | `GPB/CP-fixmat-h0` | Fixed `cp` plus `h0` gives `Enthalpy_abs` with h(298.15 K) = h0. |
+| `CP-fixmat-tokens` | GPB | `GPB/CP-fixmat-tokens` | Per-material `key=value` tokens are written on the material line; the properties table does not change. |
+| `IG-mixture-cantera` | GPB | `GPB/IG-mixture-cantera` | Frozen air mixture with Cantera transport: the mixture zone of `gas-transport.dat` holds air, not the last pure species. |
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |
