@@ -559,6 +559,49 @@ set_tests_properties(CP-Tvar-dispersed PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : CP-Tvar-fallback (a material the database lacks takes its INI constants) --------------
+# thermo = Burcat with FOO(L) AL2O3(L): FOO(L) is not in burcat.yaml and falls back to cp/rho/h0 of
+# the INI (one value broadcast for cp and h0), AL2O3(L) keeps its Burcat table and its own rho.
+# groups = 2 1 must reach the phase file in the same order.
+add_test(
+    NAME    CP-Tvar-fallback
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'FOO(L) is not in burcat.yaml' gpb.log && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && bash check_fallback.sh fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-fallback"
+)
+set_tests_properties(CP-Tvar-fallback PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-Tvar-missing (a material the database lacks, with no constants, is refused) ---------
+# The reported defect: FOO(L) H2O(L) with rho = 1000 997 and no cp used to write one zone, H2O(L)
+# with FOO(L)'s density. Now GPB stops and names the material and the database.
+add_test(
+    NAME    CP-Tvar-missing
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'FOO(L): not in nasa9.yaml, and no cp is given' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-missing"
+)
+set_tests_properties(CP-Tvar-missing PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-Tvar-fallback-h0 (a fallback next to a database material needs h0) -----------------
+# CP-Tvar-fallback without h0: the phase would mix the absolute (Burcat) and the relative (cp*T)
+# enthalpy datum, so GPB stops and asks for h0.
+add_test(
+    NAME    CP-Tvar-fallback-h0
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'give h0' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-fallback-h0"
+)
+set_tests_properties(CP-Tvar-fallback-h0 PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- GPB : CP-fixmat-h0 (fixed cp + h0 -> Enthalpy_abs with h(298.15 K) = h0) --------------------
 add_test(
     NAME    CP-fixmat-h0

@@ -14,6 +14,10 @@ def CP_read_models(ini_file,section):
     name = name + '-'
   
   thermo = get(ini_file, section, 'thermo', str)
+  if thermo is not None:
+    thermo = thermo.split(';')[0].strip()   # an inline comment stays in the value, as for type and modeling
+  if thermo is not None and thermo not in ('NASA7', 'NASA9', 'Burcat', 'SP-database'):
+    raise SystemExit(f"[ERROR] [{section}] thermo = {thermo}: expected NASA7, NASA9, Burcat or SP-database")
 
   T1 = get(ini_file, section, 'Tmin', int)
   T2 = get(ini_file, section, 'Tmax', int)
@@ -127,3 +131,20 @@ def CP_read_enthalpy_datum(ini_file, section, nmat):
   if h0.size != nmat:
     raise SystemExit(f"[ERROR] [{section}] h0: {h0.size} value(s) for {nmat} material(s)")
   return h0
+
+
+def CP_read_per_material(ini_file, section, key, nmat):
+  """Optional real key with one value per `material` entry (a single value is broadcast). None when absent;
+  exits on a non-numeric value or on a count that is neither 1 nor nmat."""
+  vals = get(ini_file, section, key, list)
+  if vals is None:
+    return None
+  try:
+    vals = [float(v) for v in vals]
+  except ValueError:
+    raise SystemExit(f"[ERROR] [{section}] {key} = '{' '.join(vals)}': expected real number(s)")
+  if len(vals) == 1:
+    vals = vals * nmat
+  if len(vals) != nmat:
+    raise SystemExit(f"[ERROR] [{section}] {key}: {len(vals)} value(s) for {nmat} material(s)")
+  return vals
