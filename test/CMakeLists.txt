@@ -164,6 +164,48 @@ set_tests_properties(mesh-p3d-fallback PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-table-header-skipped -------------
+# A table row that is not two numbers (the header row "x T" without #) is skipped with a WARNING, as upstream
+# skips it (in silence): the wall temperature profile and bc.txt are those of the same file without the row.
+add_test(
+    NAME    IG-table-header-skipped
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] table file Twall.dat: line 1 is not two numbers (coordinate value), skipped: x T' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-header-skipped"
+)
+set_tests_properties(IG-table-header-skipped PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-table-not-monotone -------------
+# A T-file whose coordinate column turns back (0, 1, 0.5) is refused: the table reader names the row where the column
+# turns back and BCB stops; no bc.txt.
+add_test(
+    NAME    IG-table-not-monotone
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] table file Twall.dat: the coordinate column is not monotone at row 3' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-not-monotone"
+)
+set_tests_properties(IG-table-not-monotone PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-table-decreasing -------------
+# A T-file whose coordinates decrease (1, 0.5, 0) is read in increasing order: bc.txt equals the one of the same rows
+# written in increasing order (isothermal wall 302 with T = 310, 330, 350, 370 on face 3).
+add_test(
+    NAME    IG-table-decreasing
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-decreasing"
+)
+set_tests_properties(IG-table-decreasing PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-duplicate-section-lenient -------------
 # strict-keys = false and the deck in a BCB-file that writes the section [noz] twice: one WARNING, the second copy is
 # ignored and bc.txt is that of the deck without it (the key check reads every option of every section).
@@ -481,6 +523,20 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/x-variable"
 )
 set_tests_properties(x-variable PROPERTIES
+    LABELS      "STB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- STB : area-any-order -------------
+# An x-areavariation profile whose rows are not in coordinate order: STB sorts the rows, the area law is that of the
+# sorted profile.
+add_test(
+    NAME    area-any-order
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh STB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/block1_area.dat fromATLAStoSolver/block1_area.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/area-any-order"
+)
+set_tests_properties(area-any-order PROPERTIES
     LABELS      "STB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

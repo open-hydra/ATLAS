@@ -52,6 +52,11 @@ T-direction = x
 p = 101325.0
 ```
 
+A profile file holds one coordinate and one value per row. The coordinates must be monotone (a decreasing
+column is read as the same rows in increasing order): a row that is not two numbers (a header without `#`,
+a typo) is skipped with `[WARNING] table file ...`, and a coordinate column that turns back is refused with
+`[ERROR] table file ...`.
+
 ## Nozzle Initialization
 
 | Strategy | `type` | Phase | When to use |

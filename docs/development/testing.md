@@ -36,7 +36,11 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `split-solution` | MDB | `MDB/split-solution` | Splitting a case that carries a solution field. |
 | `coupled-phases` | BCB + MDB | `MDB/coupled-phases` | Two-phase interface: type-`103` donors remapped against the other phase's decomposition. |
 | `x-variable` | STB | `STB/x-variable` | Spatially varying source-term generation along x. |
+| `area-any-order` | STB | `STB/area-any-order` | An area profile in any row order gives the area law of the sorted profile. |
 | `mesh-p3d-fallback` | BCB | `BCB/mesh-p3d-fallback` | An unreadable `mesh.p3d` is followed by `mesh.szplt` with a WARNING naming both files. |
+| `IG-table-header-skipped` | BCB | `BCB/IG-table-header-skipped` | A table row that is not two numbers is skipped with a WARNING; the product is that of the file without the row. |
+| `IG-table-not-monotone` | BCB | `BCB/IG-table-not-monotone` | A table whose coordinate column turns back is refused: the table reader names the row where it turns back; no `bc.txt`. |
+| `IG-table-decreasing` | BCB | `BCB/IG-table-decreasing` | A table with decreasing coordinates gives the `bc.txt` of the same rows in increasing order. |
 | `IG-duplicate-section-lenient` | BCB | `BCB/IG-duplicate-section-lenient` | With `strict-keys = false` a section written twice in the `BCB-file` gets one WARNING; `bc.txt` is that of the deck without the copy. |
 | `IG-duplicate-section-identical` | BCB | `BCB/IG-duplicate-section-identical` | With the default settings a section written twice with the same keys and values (other key order, a comment line, a blank line) gets one WARNING that says so; `bc.txt` is that of the deck with one copy. |
 | `IG-duplicate-section-conflict` | BCB | `BCB/IG-duplicate-section-conflict` | Two copies of a section that differ: the ERROR and no `bc.txt` with the default settings; one WARNING and the `bc.txt` of the first copy with `strict-keys = false`. |
@@ -63,6 +67,9 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `mesh-p3d-single-plane`: validate a PLOT3D mesh written with one node plane (read as the pure-2D mesh of its x-y plane).
 - `mesh-p3d-plane-perpendicular`: validate the refusal of a single node plane perpendicular to x-y.
 - `mesh-tec-single-plane`: validate the same rule for a Tecplot mesh with x y z on one node plane (`K = 1`).
+- `IG-table-header-skipped`: validate the tables with a non-numeric row.
+- `IG-table-decreasing`: validate a table with decreasing coordinates (read in increasing order).
+- `IG-table-not-monotone`: validate the refusal of a table whose coordinate column turns back.
 
 ### GPB Cases (`test/GPB/`)
 
@@ -112,6 +119,7 @@ STB tests check source-term field generation.
 
 - `uniform`: validate constant source-term generation.
 - `x-variable`: validate spatially varying source terms.
+- `area-any-order`: validate an area profile given in any row order.
 
 ## Running The Registered Regression Set
 
