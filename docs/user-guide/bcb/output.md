@@ -288,7 +288,9 @@ Only `502` carries a turbulence suffix, using the same layout as the inlet IDs
 fractions.
 
 !!! note "Model codes"
-    `pyro` and `surf` are written as reals encoding the model chosen in the INI file:
+    `pyro` and `surf` are written as integers (`I8`, like the `501` payload: MOSE reads them
+    list-directed into `integer` variables, and gfortran rejects a real such as `0.100000E+01`
+    there) encoding the model chosen in the INI file:
 
     | Field | INI key | Value → code |
     |---|---|---|

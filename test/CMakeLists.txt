@@ -736,6 +736,20 @@ set_tests_properties(IG-multipatch-410-linefile PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-ablation -------------
+# BC 505 (ablation, surface reactions): the model id is written as an integer (MOSE reads it into an INTEGER);
+# the exact diff is the only registered check of the 505 record.
+add_test(
+    NAME    IG-ablation
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-ablation"
+)
+set_tests_properties(IG-ablation PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

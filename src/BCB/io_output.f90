@@ -107,8 +107,17 @@ module io_write_bc_mod
 
             select case (print_id)
             ! 300-series -> wall | 500-series -> Special boundary conditions (manifold, GSI)
-            case(301:309, 501:506)
+            ! BC 501 (manifold): the payload is the source block and face, two integers that the
+            ! solvers read as integers (they were written as E16.6 reals until 2026-09)
+            case(501)
+              write(unitfile,'(2(I8,A1))') nint(this % ig_properties(1)), ',', nint(this % ig_properties(2)), ','
+            case(301:309, 502:506)
+              ! BC 504/505/506: MOSE reads the leading pyrolysis-model / surface-reaction ids list-directed
+              ! into integers: they are written as integers like the 501 payload (gfortran refuses
+              ! "0.100000E+01" for an integer item: iostat 5010, ids left 0)
               nid = 0
+              if (print_id == 504 .or. print_id == 505) nid = 1
+              if (print_id == 506) nid = 2
               do i = 1, this % ig_n
                 if (i <= nid) then
                   write(unitfile,'(I8,A1)',advance='no') nint(this % ig_properties(i)),','

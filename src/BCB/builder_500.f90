@@ -4,7 +4,9 @@ submodule (bc_mod) special_bc_mod
   use bcb_config_mod, only: bcb_gsi_fluid_config_t, load_bcb_gsi_fluid_config, &
                             bcb_manifold_config_t, load_bcb_manifold_config
   use phase_mod, only: phase_t, species_t, define_composition
+  use composition_check_mod, only: check_composition
   implicit none
+  character(len=20), allocatable, save :: warned_502(:)   ! sections already given the Taf WARNING
 
 contains
 
@@ -14,12 +16,16 @@ contains
 
     self%gp_id = 501
     call load_bcb_manifold_config(sourceini, section, cfg)
+    ! Q2D (the only reader of the x,y deck format) refuses BC 501 at its pre-scan: refused here (same meshType gate as 408/410/421)
+    call refuse_on_2d_mesh(self, 501, 'manifold', 'use 101 or 401-407')
 
     self % ig_n = 2
     allocate(self % ig_properties(1:self % ig_n))
     allocate(self % ig_time(1:self % ig_n))
+    allocate(self % ig_time_file(1:self % ig_n))   ! copied by broadcast_uniform_bc whenever ig_time is
     self % ig_properties = 0.0_R8
     self % IG_time = .false.
+    self % IG_time_file = 'none'
     self%ig_properties = [cfg%block, cfg%face]
 
   end procedure build_manifold
@@ -42,6 +48,7 @@ contains
       allocate(self % ig_properties(1:self % ig_n))
       CEAT0 = 0.0_R8; CEAp0 = 0.0_R8
       call define_composition(sourceini, self%ig_species, CEAT0, CEAp0)
+      call check_composition(sourceini, section, self%ig_species, 'section ['//trim(self%name)//']')   ! composition-sum check on every gsi record
       self % ig_properties(1:6) = [cfg%cp, cfg%T, cfg%Ti, cfg%dh, cfg%qrad, cfg%eps]
       self % ig_properties(7:self % ig_n) = self % ig_species % massf
 
@@ -55,6 +62,7 @@ contains
       allocate(self % ig_properties(1:self % ig_n))
       CEAT0 = 0.0_R8; CEAp0 = 0.0_R8
       call define_composition(sourceini, self%ig_species, CEAT0, CEAp0)
+      call check_composition(sourceini, section, self%ig_species, 'section ['//trim(self%name)//']')   ! composition-sum check on every gsi record
       self % ig_properties(1:3) = [pyrolysis_model_name2value(cfg%pyrolysis_model), cfg%qrad, cfg%eps]
       self % ig_properties(4:self % ig_n) = self % ig_species % massf
 
@@ -75,6 +83,7 @@ contains
       allocate(self % ig_properties(1:self % ig_n))
       CEAT0 = 0.0_R8; CEAp0 = 0.0_R8
       call define_composition(sourceini, self%ig_species, CEAT0, CEAp0)
+      call check_composition(sourceini, section, self%ig_species, 'section ['//trim(self%name)//']')   ! composition-sum check on every gsi record
       self % ig_properties(1:4) = [pyrolysis_model_name2value(cfg%pyrolysis_model), surface_model_name2value(cfg%surface_reactions_model), cfg%qrad, cfg%eps]
       self % ig_properties(5:self % ig_n) = self % ig_species % massf
 
@@ -117,12 +126,20 @@ contains
       self % ig_n = dim + self % ig_species % n + nrans
       allocate(self % ig_properties(1:self % ig_n))
       allocate(self % ig_time(1:self % ig_n))
+      allocate(self % ig_time_file(1:self % ig_n))   ! copied by broadcast_uniform_bc whenever ig_time is
       self % ig_properties = 0.0_R8
       self % IG_time = .false.
+      self % IG_time_file = 'none'
 
-      ! Assign species mass fractions
+      ! Assign species mass fractions; pre-init so that a deck without eq-CEA-file writes a
+      ! defined Taf
+      CEAT0 = 0.0_R8; CEAp0 = 0.0_R8
       call define_composition(sourceini, self%ig_species, CEAT0, CEAp0)
+      call check_composition(sourceini, section, self%ig_species, 'section ['//trim(self%name)//']')
       T0 = CEAT0
+      if (T0 <= 0.0_R8 .and. first_warning(trim(self%name))) write(*,'(A)') '[WARNING] '//trim(self%name)// &
+        ' (gsi, BC 502): no eq-CEA-file, the adiabatic flame temperature Taf is written as 0 (the solver reads it'// &
+        ' as the grain gas temperature)'
 
       ! Property layout:
       !   [1]      Taf        - adiabatic flame temperature [K]
@@ -220,5 +237,19 @@ contains
       !   endif
       !   self_properties(m-6) = self_properties(m-6)*(1.d0-krho)
       ! endif
+
+  !> .true. the first time a section is named: the builder runs once per cell of a varying face.
+  logical function first_warning(name)
+    implicit none
+    character(len=*), intent(in) :: name
+    integer :: i
+    if (.not. allocated(warned_502)) allocate(warned_502(0))
+    first_warning = .false.
+    do i = 1, size(warned_502)
+      if (trim(warned_502(i)) == name) return
+    enddo
+    warned_502 = [character(len=20) :: warned_502, name]
+    first_warning = .true.
+  end function first_warning
 
 end submodule special_bc_mod
