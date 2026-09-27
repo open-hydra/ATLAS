@@ -26,6 +26,7 @@ module io_write_bc_mod
     integer                      :: print_id
     logical                      :: match
     character(len=12)            :: rec_fmt
+    integer :: ia   ! first alpha/beta slot of the record (0: none)
     integer :: nid  ! leading model-id fields of a 504-506 payload (read as INTEGER by MOSE)
 
     call execute_command_line('mkdir -p '//trim(outpath))
@@ -118,15 +119,24 @@ module io_write_bc_mod
               write(unitfile,'(A)') ''
             
             ! 400-series -> inlet/outlet with time variation
-            case(401:420)
+            case(401:421)
               ! Every numeric field is written ES24.16 (17 significant digits: the exact round trip of an
               ! IEEE double; MOSE and Q2D read the records list-directed). BC 420 needs it: psub, psup, g
               ! are compared by the solver kernels with states recomputed from T0, p0 and massf to 1e-9.
               rec_fmt = '(ES24.16,A1)'
+              ! The 'normal' token (angle not given: the solver injects along the face normal) is
+              ! written only in the alpha/beta slots of the records that carry them, i.e. after the
+              ! two leading scalars of 401-404 and 408 and the three of 405 and 407; every other
+              ! field (turbulence tails included) is written as a number whatever its value.
+              select case (print_id)
+              case (405, 407);     ia = 4
+              case (401:404, 408); ia = 3
+              case default;        ia = 0
+              end select
               do i = 1, this % ig_n
                 if (this % IG_time(i)) then
                   write(unitfile,'(X,A,A1)',advance='no') trim(this % IG_time_file(i)),','
-                elseif (this % ig_properties(i) > 1e10) then
+                elseif (ia > 0 .and. (i == ia .or. i == ia + 1) .and. this % ig_properties(i) > 1e10) then
                   write(unitfile,'(A16)',advance='no') 'normal,'
                 else
                   write(unitfile,rec_fmt,advance='no') this % ig_properties(i),','

@@ -140,6 +140,7 @@ module bcb_config_mod
     real(R8) :: Ae_At = 0.0_R8
     real(R8) :: psup = 0.0_R8
     real(R8) :: psub = 0.0_R8
+    real(R8) :: a1_a3 = 0.0_R8
     character(len=32) :: p0_time_file = 'none'
     character(len=32) :: p_time_file = 'none'
     character(len=32) :: time_file = 'none'
@@ -580,6 +581,8 @@ contains
     if (error /= 0) cfg%psub = 0.0_R8
     call sourceini%get(section_name=section, option_name='psup', val=cfg%psup, error=error)
     if (error /= 0) cfg%psup = 0.0_R8
+    call sourceini%get(section_name=section, option_name='a1-a3', val=cfg%a1_a3, error=error)
+    if (error /= 0) cfg%a1_a3 = 0.0_R8
 
     call load_shared_velocity_config(sourceini, cfg%velocity, section)
     call load_shared_turbulence_config(sourceini, cfg%turbulence, section)
@@ -966,6 +969,7 @@ contains
       call bcb_registry%add('bc-section', 'Ae_At', nozzle_scalar, '0.0', 'Nozzle exit-to-throat area ratio (0 = not given).', '0 or >=1', .false.)
       call bcb_registry%add('bc-section', 'psub', nozzle_scalar, '0.0', 'Nozzle (BC 420) exit pressure of the just-choked subsonic solution; given with g and psup, or computed from Ae_At.', '', .false.)
       call bcb_registry%add('bc-section', 'psup', nozzle_scalar, '0.0', 'Nozzle (BC 420) design exit pressure of the supersonic expansion; given with g and psub, or computed from Ae_At.', '', .false.)
+      call bcb_registry%add('bc-section', 'a1-a3', nozzle_scalar, '0.0', 'Borda injector throat-to-face area ratio A1/A3: nonzero selects the Borda choked injector (BC 421, Q2D solver, 2D meshes only); 0 = not given.', '[0,1]', .false.)
       call bcb_registry%add('bc-section', 'line-file', patch_name, 'none', 'Unwrapped (2D) time record mapped onto the 3D face; BCB then writes time-file (angular mapping, see bc-types).', '', .false.)
       call bcb_registry%add('bc-section', 'center', dp_scalar, '0.0', 'Cylinder axis point x y z of the line-file mapping (required with line-file).', '', .false.)
       call bcb_registry%add('bc-section', 'strip-j-face', unwrapped_int, '1', 'Node row of the line-file zone used as the strip.', '>=1', .false.)

@@ -116,7 +116,16 @@ module bc_mod
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
     end subroutine
-  
+
+    !> The x,y (pure-2D) deck format is read by Q2D only: a BC that Q2D does not implement (408, 410
+    !> inlets; 501 manifold) is refused at build time, naming the solver and the alternative (advice)
+    module subroutine refuse_on_2d_mesh(self, id, what, advice)
+      class(bc_t),          intent(in)    :: self
+      integer,              intent(in)    :: id
+      character(len=*),     intent(in)    :: what
+      character(len=*),     intent(in)    :: advice
+    end subroutine
+
   end interface
 
   type, public:: obj_bc_cell_properties

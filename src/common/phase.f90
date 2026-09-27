@@ -706,19 +706,27 @@ contains
   end function T02T
 
 
-  pure function p02p(p0,M,T,sp) result(p)
+  !> Static pressure of the isentropic expansion from (p0, T0) down to the
+  !> static temperature T of a thermally perfect gas: ln(p0/p) = int_T^T0
+  !> cp(T')/(Rgas T') dT' on the species tables (isentrope_integral, the
+  !> quadrature of the solvers' nozzle kernels). The constant-gamma form
+  !> p0/(1 + (gamma-1)/2 M^2)^(gamma/(gamma-1)) with gamma at T, used until
+  !> this form, was 1.0e-2 off on T0 = 2000 K, M = 2 with the GPB N2 table and
+  !> 1.4e-2 with the variable-cp fixture table;
+  !> the two coincide for a constant cp. T <= T0 (T02T solved the enthalpy
+  !> balance on the same tables) and T0 lies inside the tables (the caller
+  !> refuses it outside); a static T below them is integrated on the frozen end
+  !> row (tab_T), as the solvers' quadrature does, and reported by the caller.
+  pure function p02p(p0,T0,T,sp) result(p)
     implicit none
-    real(R8), intent(in)        :: p0, M, T
+    real(R8), intent(in)        :: p0, T0, T
     type(species_t), intent(in) :: sp
     ! Local
     real(R8) :: p
-    real(R8) :: cp_, Rgas, gamma, del
+    real(R8) :: Rgas
 
     Rgas = sum(Runi*sp%massf/sp%w)
-    cp_ = sum(sp%massf*sp%cp(:,nint(T)))
-    gamma = cp_/(cp_-Rgas)
-    del = 0.5d0*(gamma-1d0)
-    p = p0/((1d0+del*M*M)**(gamma/(gamma-1d0)))
+    p = p0 / exp(isentrope_integral(T, T0, Rgas, sp))
 
   end function p02p
 

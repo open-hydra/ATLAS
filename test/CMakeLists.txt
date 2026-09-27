@@ -99,11 +99,10 @@ set_tests_properties(IG-interp-mindist PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-
 # ---- BCB : IG-inflow-nozzle -------------
 add_test(
     NAME    IG-inflow-nozzle
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1); rc=$?; echo \"$out\" | grep -F '[WARNING]'; test $rc -eq 0 && grep -q -F -- \"$(cat expected.txt)\" <<< \"$out\" && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-nozzle"
 )
 set_tests_properties(IG-inflow-nozzle PROPERTIES
@@ -111,7 +110,6 @@ set_tests_properties(IG-inflow-nozzle PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
-
 
 # ---- BCB : IG-multipatch-file -------------
 add_test(
@@ -138,9 +136,11 @@ set_tests_properties(IG-multipatch-1D PROPERTIES
 )
 
 # ---- BCB : IG-inflow-ceafile-inertmix -------------
+# The records carry 17 digits (ES24.16): the CEA-equilibrium T0 of ifx and gfortran builds differs in the
+# 16th digit (3399.5978434892600 vs ...659, 1.7e-15), so the record is compared numerically (tolerance 1e-12).
 add_test(
     NAME    IG-inflow-ceafile-inertmix
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-ceafile-inertmix"
 )
 set_tests_properties(IG-inflow-ceafile-inertmix PROPERTIES
@@ -579,6 +579,99 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-phase-type-refused"
 )
 set_tests_properties(DP-phase-type-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-keys-documented -------------
+# Documented keys that do not stop BCB under strict-keys: Ae_At = 0.0 and a1-a3 = 0.0 (their defaults, "not
+# given") are silent; u on the inlet and p-time-file on the outlet are carried by no record: one WARNING each.
+# bc.txt is the one of the same deck without these keys.
+add_test(
+    NAME    IG-keys-documented
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && test $(grep -c -e '[[]WARNING[]] key' -e '[[]ERROR[]] key' <<< \"$out\") -eq 2 && grep -q -F '[WARNING] key u of section [noz]: no BC record carries' <<< \"$out\" && grep -q -F '[WARNING] key p-time-file of section [outflow]: no BC record carries' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-keys-documented"
+)
+set_tests_properties(IG-keys-documented PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-nozzle-arearatio -------------
+# BC 420 from Ae_At = 2.5 on a calorically perfect gas (thermo.dat with a constant cp): psub, psup and g of the
+# record (reference checked against the closed-form isentrope) in the solvers' order T0, p0, psub, psup, g, rf, massf.
+add_test(
+    NAME    IG-nozzle-arearatio
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-nozzle-arearatio"
+)
+set_tests_properties(IG-nozzle-arearatio PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-borda-2D -------------
+# BC 421, the Borda choked injector read by Q2D only (2-D mesh), selected by a1-a3 = A1/A3 in (0, 1]: record
+# T0, p0, A1/A3, rf, massf, no angle fields; the 2-D product passes the consistency check of scripts/check-bc.py.
+add_test(
+    NAME    IG-borda-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/bc.txt | grep -q -F 'all 32 connection records reciprocal'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-borda-2D"
+)
+set_tests_properties(IG-borda-2D PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-inflow-405a -------------
+# An inlet given mach, p0 and T0 is the supersonic 405 (it was written as 401): static T and p of the isentropic
+# expansion on thermo.dat (constant cp; M = 2, T0 = 300 K, p0 = 1.013e5 Pa give T = 166.667 K, p = 12946.6 Pa).
+add_test(
+    NAME    IG-inflow-405a
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-405a"
+)
+set_tests_properties(IG-inflow-405a PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-composition-sum-refused (mass fractions of an inlet that sum to 0.99 stop BCB naming the section and the sum; nothing is written) -------------
+add_test(
+    NAME    IG-composition-sum-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] composition of section [injOX] (keys yO2 yCH4): the mass fractions sum to  9.90000E-01, they must sum to 1 within 1e-3' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-composition-sum-refused"
+)
+set_tests_properties(IG-composition-sum-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-nozzle-inlet-envelope-refused (a nozzle inlet (BC 420) with psup above psub stops BCB: the solvers need 0 < psup <= psub < p0; nothing is written) -------------
+add_test(
+    NAME    IG-nozzle-inlet-envelope-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] nozzle inlet (BC 420) requires 0 < psup <= psub < p0' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-nozzle-inlet-envelope-refused"
+)
+set_tests_properties(IG-nozzle-inlet-envelope-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-2D-inlet-408-refused (a normal-velocity inlet (BC 408) on a pure 2-D mesh stops BCB: Q2D, which reads 2-D meshes, does not implement BC 408; nothing is written) -------------
+add_test(
+    NAME    IG-2D-inlet-408-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] inflow (normal-velocity inlet, BC 408): a 2D mesh (x,y file) is read by Q2D, which does not implement BC 408' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D-inlet-408-refused"
+)
+set_tests_properties(IG-2D-inlet-408-refused PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

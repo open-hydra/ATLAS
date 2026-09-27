@@ -85,6 +85,7 @@
 | Ae_At | 0.0 | 0 or >=1 |  no | Nozzle exit-to-throat area ratio (0 = not given). |
 | psub | 0.0 |  |  no | Nozzle (BC 420) exit pressure of the just-choked subsonic solution; given with g and psup, or computed from Ae_At. |
 | psup | 0.0 |  |  no | Nozzle (BC 420) design exit pressure of the supersonic expansion; given with g and psub, or computed from Ae_At. |
+| a1-a3 | 0.0 | [0,1] |  no | Borda injector throat-to-face area ratio A1/A3: nonzero selects the Borda choked injector (BC 421, Q2D solver, 2D meshes only); 0 = not given. |
 | q | 0.0 |  |  no | Prescribed wall heat flux. |
 | T | 0.0 |  |  no | Prescribed wall temperature. |
 | ks | 0.0 |  |  no | Wall roughness height. |

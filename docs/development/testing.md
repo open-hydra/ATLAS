@@ -32,6 +32,13 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-renamed-keys-lenient` | BCB | `BCB/IG-renamed-keys-lenient` | `rt` and `force-connect` are unknown keys: with `strict-keys = false` a WARNING naming the current key. |
 | `IG-value-not-a-number` | BCB | `BCB/IG-value-not-a-number` | A value with a trailing comment (`T0 = 3400.0 ! K`) stops BCB naming the key: it is not a number; nothing is written. |
 | `DP-phase-type-refused` | BCB | `BCB/DP-phase-type-refused` | `<phase>-type` on a face where no reader uses it stops BCB naming the key and the face type. |
+| `IG-keys-documented` | BCB | `BCB/IG-keys-documented` | `Ae_At = 0`, `a1-a3 = 0` (not given) are silent; `u` and `p-time-file` get one WARNING each and do not stop BCB. |
+| `IG-nozzle-arearatio` | BCB | `BCB/IG-nozzle-arearatio` | BC 420 from `Ae_At` on a constant-cp gas (closed-form thresholds). |
+| `IG-borda-2D` | BCB | `BCB/IG-borda-2D` | BC 421 Borda injector on a 2D mesh; the product passes `scripts/check-bc.py`. |
+| `IG-inflow-405a` | BCB | `BCB/IG-inflow-405a` | The supersonic 405 given by `mach`, `p0`, `T0` (static state of the isentropic expansion). |
+| `IG-composition-sum-refused` | BCB | `BCB/IG-composition-sum-refused` | Mass fractions of an inlet that sum to 0.99 stop BCB naming the section and the sum; nothing is written. |
+| `IG-nozzle-inlet-envelope-refused` | BCB | `BCB/IG-nozzle-inlet-envelope-refused` | A nozzle inlet (BC 420) with `psup` above `psub` stops BCB (0 < psup <= psub < p0 is required); nothing is written. |
+| `IG-2D-inlet-408-refused` | BCB | `BCB/IG-2D-inlet-408-refused` | A normal-velocity inlet (BC 408) on a pure 2-D mesh stops BCB: Q2D, which reads 2-D meshes, does not implement BC 408; nothing is written. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
@@ -82,13 +89,15 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `IG-chimera`: validate overset/chimera boundary metadata preparation.
 - `mesh-p3d-3D`: validate the search of a PLOT3D mesh alone and its 3D reading (the product of the same grid in Tecplot).
 - `IG+CD`, `IG+SP`, `DP-*`, `SP-basic`: validate mixed boundary models (ideal gas, condensed, dispersed, solid).
+- `IG-nozzle-arearatio`: validate the BC 420 injector nozzle (thresholds from `Ae_At`).
+- `IG-borda-2D`: validate the BC 421 Borda injector (a Q2D-only record on a 2D mesh).
 - `mesh-p3d-fallback`: validate the mesh search (`mesh.tec` -> `mesh.p3d` -> `mesh.szplt`) when `mesh.p3d` cannot be read.
 - `IG-duplicate-section-lenient`: validate the lenient key check of a section written twice (the options of the next sections are all read).
 - `IG-duplicate-section-identical`, `IG-duplicate-section-conflict`: validate the rule for a section written twice: two copies with the same keys and values only warn, copies that differ stop the tool unless `strict-keys = false`.
 - `mesh-p3d-single-plane`: validate a PLOT3D mesh written with one node plane (read as the pure-2D mesh of its x-y plane).
 - `mesh-p3d-plane-perpendicular`: validate the refusal of a single node plane perpendicular to x-y.
 - `mesh-tec-single-plane`: validate the same rule for a Tecplot mesh with x y z on one node plane (`K = 1`).
-- `IG-plate-keys`, `IG-renamed-keys-lenient`, `IG-table-header-skipped`: validate the plate keys that must not stop BCB, the keys of older decks and the tables with a non-numeric row.
+- `IG-plate-keys`, `IG-keys-documented`, `IG-renamed-keys-lenient`, `IG-table-header-skipped`: validate the documented keys and defaults that must not stop BCB, the keys of older decks and the tables with a non-numeric row.
 - `IG-table-decreasing`: validate a table with decreasing coordinates (read in increasing order).
 - `IG-table-not-monotone`: validate the refusal of a table whose coordinate column turns back.
 
