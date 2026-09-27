@@ -764,6 +764,20 @@ set_tests_properties(IG-table-no-data PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-multigrid-2D -------------
+# MG-levels = 3 on a pure-2D mesh (9 x 5 nodes, X and Y): every coarse level stays pure 2D; bc2.txt and bc3.txt equal
+# the bc.txt of the level meshes (every second and every fourth node) given directly.
+add_test(
+    NAME    IG-multigrid-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt && diff fromATLAStoSolver/bc2.txt reference/bc2.txt && diff fromATLAStoSolver/bc3.txt reference/bc3.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multigrid-2D"
+)
+set_tests_properties(IG-multigrid-2D PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

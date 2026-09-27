@@ -12,7 +12,7 @@ contains
     type(orion_data), intent(in)    :: fine
     type(orion_data), intent(inout) :: coarse
     ! Local
-    integer :: b, nb, Ni, Nj, Nk, i, j, k, i2, j2, k2
+    integer :: b, nb, Ni, Nj, Nk, i, j, k, i2, j2, k2, nd
 
     nb = size( fine % block )
     if ( allocated ( coarse % block )) deallocate (coarse % block)
@@ -22,13 +22,16 @@ contains
       Ni = fine % block(b)%Ni /2
       Nj = fine % block(b)%Nj /2
       Nk = fine % block(b)%Nk /2
-      Nj = Max ( 1, Nj ) ! 1D case
-      Nk = Max ( 1, Nk ) ! 2D case
+      ! One cell in j or k (1D, 2D of a 3D file) stays one cell; a single node row or plane (a pure 1D or
+      ! 2D mesh, N = 0) stays single, with the coordinates of the fine mesh (2 for pure 2D, 1 for pure 1D)
+      if ( fine % block(b)%Nj > 0 ) Nj = Max ( 1, Nj ) ! 1D case
+      if ( fine % block(b)%Nk > 0 ) Nk = Max ( 1, Nk ) ! 2D case
+      nd = size( fine % block(b) % mesh, 1 )
       coarse % block(b) % Ni = Ni
       coarse % block(b) % Nj = Nj
       coarse % block(b) % Nk = Nk
       if ( allocated ( coarse % block(b) % mesh )) deallocate (coarse % block(b) % mesh)
-      allocate( coarse%block(b)%mesh(1:3,0:Ni,0:Nj,0:Nk) )
+      allocate( coarse%block(b)%mesh(1:nd,0:Ni,0:Nj,0:Nk) )
 
       do k = 0, fine % block(b)%Nk, 2-Mod(fine % block(b)%Nk,2)
       do j = 0, fine % block(b)%Nj, 2-Mod(fine % block(b)%Nj,2)
@@ -43,7 +46,7 @@ contains
         ! 2D
         if ( fine % block(b)%Nk == 1 ) k2 = k
     
-        coarse%block(b)%mesh(1:3,i2,j2,k2) = fine%block(b)%mesh(1:3,i,j,k)
+        coarse%block(b)%mesh(1:nd,i2,j2,k2) = fine%block(b)%mesh(1:nd,i,j,k)
         
       enddo; enddo; enddo
 

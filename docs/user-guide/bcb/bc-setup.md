@@ -297,7 +297,9 @@ MG-levels = 3
 
     So a **1-D** mesh must run **along `i`** (`Nj = Nk = 1`) and a **2-D** mesh must lie in
     the **`i–j` plane** (`Nk = 1`). A mesh whose only non-trivial extent is on `j` or `k`
-    is not supported and produces inconsistent coarse-grid BC files.
+    is not supported and produces inconsistent coarse-grid BC files. A pure-2D mesh (`X`, `Y`
+    only, or three coordinates on one node plane) stays pure 2D on every level: `bc2.txt`,
+    `bc3.txt`, ... have the five-integer records of `bc.txt`, as the 2D solver reads them.
 
 !!! warning "Starting-mesh divisibility requirement"
     The supplied (finest) mesh must already satisfy the coarsening requirement: **every
