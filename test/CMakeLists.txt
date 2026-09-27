@@ -609,3 +609,15 @@ set_tests_properties(database-flint-contract PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : IG-reactions-without-thermo (reactions = without thermo: the thermo records of the file are used, said with an INFO line; thermo.dat, chemistry-info.txt and chemistry-Arrhenius.dat equal to those of phase = on the same file) -------------
+add_test(
+    NAME    IG-reactions-without-thermo
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-reactions && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 && grep -q -F '[INFO] GPB: reactions = tiny-h2 without thermo: the thermo records of the file are used' gpb.log && ! grep -q -F 'not present in the employed database' gpb.log && mv fromATLAStoSolver _run-reactions && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input phase.ini > gpb-phase.log 2>&1 && diff _run-reactions/thermo.dat fromATLAStoSolver/thermo.dat && diff _run-reactions/chemistry-info.txt fromATLAStoSolver/chemistry-info.txt && diff _run-reactions/chemistry-Arrhenius.dat fromATLAStoSolver/chemistry-Arrhenius.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-reactions-without-thermo"
+)
+set_tests_properties(IG-reactions-without-thermo PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

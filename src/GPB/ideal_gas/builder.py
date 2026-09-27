@@ -92,14 +92,29 @@ def build(inifile,section):
             all_species = ct.Species.list_from_file('nasa9.yaml')
         elif thermo_model == 'Burcat':
             all_species = ct.Species.list_from_file('burcat.yaml')
-
-        # Assign NASA9 by default reactions phase is not defined
-        if thermo_model is None and reaction_model is None:
+        elif thermo_model is None:
+            # No thermo selector: NASA9 database for the species that come from no reactions file (species list,
+            # mixture); the species of a reactions file keep the records of the file (file_thermo below)
             all_species = ct.Species.list_from_file('nasa9.yaml')
+        else:
+            print(f'[ERROR] GPB: thermo = {thermo_model} is not a database (allowed: NASA7, NASA9, Burcat)')
+            sys.exit(1)
 
-        # Force NASA9 if CEA is used
+        # Force NASA9 if CEA is used (a thermo key that is ignored is said)
         if CEA_equilibrium:
+            if thermo_model not in (None, 'NASA9'):
+                print(f"[WARNING] key thermo of section [{section}]: thermo = {thermo_model} is ignored with CEA-file: the CEA equilibrium species use the NASA9 database")
             all_species = ct.Species.list_from_file('nasa9.yaml')
+
+        # reactions = without thermo: the species of the file keep the thermo records of the file; with CEA-file the
+        # NASA9 database forced above replaces them, as for the CEA equilibrium species
+        file_thermo = reaction_model is not None and thermo_model is None and not CEA_equilibrium
+        if file_thermo:
+            print(f'[INFO] GPB: reactions = {reaction_model} without thermo: the thermo records of the file are used '
+                  f'(set thermo = NASA7, NASA9 or Burcat to replace them with a database)')
+        elif reaction_model is not None and thermo_model is None:
+            print(f'[INFO] GPB: reactions = {reaction_model} without thermo, with CEA-file: NASA9 database assumed '
+                  f'(thermo = NASA9), as for the CEA equilibrium species')
 
 
     # ---------------------------------------------------
@@ -129,15 +144,16 @@ def build(inifile,section):
 
     # ---------------------------------------------------
     # Reactive species are added if a reaction model is provided. 
-    # By default, the thermo properties are read from the chosen database.
-    # if one species is not found, it is taken from the reaction model.
+    # The thermo properties are read from the chosen database (thermo, or NASA9 with CEA-file);
+    # without thermo, and for a species that the database lacks, they are taken from the reaction model.
     # Transport properties are read from the reaction model.
     if reaction_model is not None and phase_model is None:
         print(' -- Found reaction model:',reaction_model)
         # Load the full mechanism
         raw_mechanism = ct.Solution(reaction_model + '.yaml')
         # Create a dictionary for quick lookup of species
-        all_species_dict = {s.name: s for s in all_species}
+        # (none with reactions = without thermo: every species keeps the thermo and transport records of the file)
+        all_species_dict = {} if file_thermo else {s.name: s for s in all_species}
         # Ensure all species from the mechanism are included
         combined_species = []
         for species_name in raw_mechanism.species_names:
@@ -146,8 +162,9 @@ def build(inifile,section):
                 all_species_dict[species_name].transport = raw_mechanism.species(species_name).transport
                 combined_species.append(all_species_dict[species_name])
             else:
-                # Otherwise, use the definition from the mechanism
-                print('This species is not present in the employed database: ',species_name)
+                # Otherwise, use the definition from the mechanism (said when a database was looked up)
+                if not file_thermo:
+                    print('This species is not present in the employed database: ',species_name)
                 combined_species.append(raw_mechanism.species(species_name))
         # Create the custom mechanism
         mechanism = ct.Solution(thermo='ideal-gas',kinetics='gas',species=combined_species,reactions=raw_mechanism.reactions())
