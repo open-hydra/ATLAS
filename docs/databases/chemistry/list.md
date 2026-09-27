@@ -4,6 +4,8 @@
   {% include "databases/chemistry/mechs.svg" %}
 </figure>
 
+The **FLINT** lines below state what ATLAS provides to FLINT: GPB writes the phase name of the file on line 1 of `chemistry-info.txt` and its species, in the order of the file, in the tables; FLINT selects a compiled routine by that phase name, or runs the file with its `general` procedure when the name selects none. What a compiled routine computes (its reaction orders and rate laws, the GPB tables it reads) is described in [FLINT's documentation](https://github.com/MarcoGrossi92/FLINT/blob/main/docs/user/chemistry_routines.md), `docs/user/chemistry_routines.md` of the FLINT version released with this ATLAS version.
+
 ---
 
 # H₂/O₂ Mechanisms
@@ -37,6 +39,7 @@ A reduced H₂/O₂ mechanism with 7 species developed for supersonic combustion
 - **Developer**: ONERA (Office National d'Études et de Recherches Aérospatiales), France
 - **Files**: `ONERA-7.yaml` (14 irreversible), `ONERA-7_rev.yaml` (7 reversible)
 - **Species / Reactions**: 7 / 7–14
+- **FLINT**: the phase name `ONERA-7` selects a compiled FLINT routine, which serves the 14 irreversible reactions of `ONERA-7.yaml`; `ONERA-7-rev` deliberately selects none, and FLINT runs `ONERA-7_rev.yaml` with its `general` procedure
 - **Primary fuels**: H₂/air (scramjet)
 
 > D. Scherrer, O. Dessornes, M. Ferrier, et al., "Research on supersonic combustion and scramjet combustors at ONERA," *Aerospace Lab*, Issue 11, 2016.
@@ -47,6 +50,7 @@ A global single-step mechanism for H₂/air detonation with 4 species (H₂, O�
 
 - **Developer**: P.C. Nassini — University of Florence; A. Montanari, M. Grossi (modified variant)
 - **Files**: `Nassini_Original.yaml`, `Nassini_Montanari_Grossi.yaml`
+- **FLINT**: phase `Nassini` (both files) selects a compiled FLINT routine; species order O₂, H₂ONassini, H₂, N₂ (N₂ inert; reaction 2 = the backward step)
 - **Species / Reactions**: 4 / 2
 - **Primary fuels**: H₂/air (detonation)
 
@@ -58,6 +62,7 @@ A global single-step mechanism for H₂/air combustion with 4 species (H₂, O�
 
 - **Developer**: S.M. Frolov — Semenov Federal Research Center for Chemical Physics, Moscow
 - **File**: `Frolov_nopressure.yaml`
+- **FLINT**: the phase name `Frolov_nopressure` selects a compiled FLINT routine; species order O₂, H₂O, H₂, N₂
 - **Species / Reactions**: 4 / 1
 - **Primary fuels**: H₂/air (detonation)
 
@@ -181,6 +186,7 @@ A classic global reaction mechanism for methane-air combustion. The four global 
 Extended variants of the Jones-Lindstedt mechanism, augmented with radical species (H, O, OH), yielding 9 species and 6–8 reactions. Two sub-variants are available: **Frassoldati** (rates from CRECK Modeling Group, Politecnico di Milano) and **Nasuti** (rates adapted for rocket propulsion at Sapienza). The `-ct` files add N₂ to the element list for native Cantera compatibility without altering the chemistry.
 
 - **Files**: `JLR-frassoldati.yaml`, `JLR-frassoldati-ct.yaml`, `JLR-nasuti.yaml`, `JLR-nasuti-ct.yaml`
+- **FLINT**: the phase `JLR-Nasuti` of `JLR-nasuti.yaml` selects a compiled FLINT routine; the phase `JLR-Frassoldati` of `JLR-frassoldati.yaml` selects none, and FLINT runs that file with its `general` procedure, from the GPB tables and the explicit orders that GPB writes at the end of `chemistry-info.txt`. The phase is not renamed `Frassoldati`, the phase name of a compiled FLINT routine: the source paper of that routine is needed first
 - **Species / Reactions**: 9 / 6–8
 - **Primary fuels**: CH₄/O₂ (rocket propulsion)
 
@@ -239,6 +245,7 @@ A detailed reaction model for the combustion of hydrocarbon fuels, developed at 
 
 - **Developer**: University of California San Diego
 - **File**: `UCSD.yaml`
+- **FLINT**: the phase name `SanDiego` selects a compiled FLINT routine; the structural match (species order, reaction order and stoichiometry, third-body efficiencies, falloff type) is verified by the ctest `database-flint-contract`
 - **Species / Reactions**: 57 / 268
 - **Primary fuels**: H₂, CO, CH₄, C₂H₆, C₃H₈, C₄H₁₀
 
@@ -291,6 +298,7 @@ A global mechanism for 1,3-butadiene (C₄H₆) combustion with 9 species and 6 
 
 - **Developer**: A. Coronetti, W.A. Sirignano — University of California, Irvine
 - **File**: `CoronettiC4H6.yaml`
+- **FLINT**: the phase name `CoronettiC4H6` selects a compiled FLINT routine; the reaction orders it uses, and how they compare with those of the yaml, are described in FLINT's documentation
 - **Species / Reactions**: 9 / 6
 - **Primary fuels**: C₄H₆ (HTPB pyrolysis product)
 

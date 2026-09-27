@@ -1,4 +1,5 @@
 description: |-
+  BROKEN: backward step Ea x1000 (97466368.414 cal/mol) -> k_b = 0 at every T in Cantera and FLINT; even with Ea/1000 the pre-exponential stays inconsistent with k_f/K_c of step 4 of JLR-nasuti.yaml (x918-996, flat in T); do not use
   Generated from chempp react.data
 
 generator: Marco Grossi

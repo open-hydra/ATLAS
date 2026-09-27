@@ -1,4 +1,7 @@
 description: |-
+  FLINT: GPB writes the phase name 'SanDiego' on line 1 of chemistry-info.txt, and FLINT selects a compiled
+  routine by that name (see docs/user/chemistry_routines.md in the FLINT repository); the structure of this
+  file is verified against that routine by the ctest database-flint-contract.
   The San Diego Mechanism - Labeled Version 2016-12-14 Downloaded 12-18-2017
   from http://web.eng.ucsd.edu/mae/groups/combustion/mechanism.html
   "Chemical-Kinetic Mechanisms for Combustion Applications", San Diego
@@ -23,7 +26,7 @@ input-files: [sandiego20161214.cti]
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: UCSD
+- name: SanDiego
   thermo: ideal-gas
   elements: [N, Ar, He, H, O, C]
   species: [N2, AR, HE, H, O2, OH, O, H2, H2O, HO2, H2O2, CO, CO2, HCO,

@@ -1,4 +1,8 @@
 description: |-
+  NOTE (FLINT): GPB writes the phase name 'JLR-Frassoldati' on line 1 of chemistry-info.txt and the explicit
+  orders of this file (r1 CH4^0.5 O2^1.3) at its end. How FLINT runs a phase name is described in
+  docs/user/chemistry_routines.md in the FLINT repository. The phase keeps this name until the source paper of
+  its rate constants is available.
   Generated from file CM2.dat
   by ck2cti on Mon Apr  4 13:46:26 2011
 

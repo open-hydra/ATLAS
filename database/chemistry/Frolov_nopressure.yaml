@@ -1,4 +1,7 @@
-description: |- 
+description: |-
+  FLINT: GPB writes the phase name 'Frolov_nopressure' on line 1 of chemistry-info.txt and the species in the
+  order [O2, H2O, H2, N2]; FLINT selects a compiled routine by that name (see
+  docs/user/chemistry_routines.md in the FLINT repository): keep the phase name and the species order.
 
 generator: Alessandro Montanari
 date: Tue, 18 Feb 2025
@@ -6,7 +9,7 @@ date: Tue, 18 Feb 2025
 units: {length: m, time: s, quantity: kmol, activation-energy: J/kmol}
 
 phases:
-- name: Frolov-nopressure
+- name: Frolov_nopressure
   thermo: ideal-gas
   elements: [O, H, N]
   species: [O2, H2O, H2, N2]

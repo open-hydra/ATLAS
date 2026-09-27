@@ -1,4 +1,10 @@
-description: |- 
+description: |-
+  ONERA 7-species H2/O2 mechanism, REVERSIBLE formulation: 7 bidirectional reactions (backward rates from the
+  equilibrium constant), same species order as ONERA-7.yaml [O2, H2O, H2, H, O, OH, N2].
+  FLINT: the phase name 'ONERA-7-rev' deliberately differs from 'ONERA-7': the compiled FLINT routine that
+  'ONERA-7' selects serves the 14 irreversible reactions of ONERA-7.yaml, not the 7 reversible reactions of
+  this file. 'ONERA-7-rev' selects no compiled routine: FLINT runs this file with its 'general' procedure
+  (see docs/user/chemistry_routines.md in the FLINT repository).
 
 generator: Alessandro Montanari
 date: Wed, 19 Feb 2025
@@ -6,7 +12,7 @@ date: Wed, 19 Feb 2025
 units: {length: cm, time: s, quantity: mol, activation-energy: K}
 
 phases:
-- name: ONERA-7
+- name: ONERA-7-rev
   thermo: ideal-gas
   elements: [O, H, N]
   species: [O2, H2O, H2, H, O, OH, N2]

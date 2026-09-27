@@ -15,6 +15,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | Test name | Tool | Case folder | Main goal |
 |---|---|---|---|
 | `ceafile-reactive-OG` | GPB | `GPB/IG-ceafile-reactive-OG` | Reactive gas setup from CEA data produces the expected composition/chemistry output. |
+| `database-flint-contract` | GPB | `tools` | Every `database/chemistry` yaml whose phase name selects a compiled FLINT routine matches that routine in the copy of FLINT's contract file (`test/tools/flint_mechanism_contract.json`); the hooked names are pinned. |
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |
