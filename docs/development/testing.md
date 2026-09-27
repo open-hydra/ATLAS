@@ -42,6 +42,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-force-connect-plate` | BCB | `BCB/IG-force-connect-plate` | `BC-force-connect` on an injection plate declared inlet with hole blocks: hole cells connected (101), the rest keeps the inlet, one LOG line. |
 | `IG-time-file-long-name` | BCB | `BCB/IG-time-file-long-name` | A time-file name over 32 characters: accepted with `line-file` (32-character file and record), refused for a user file. |
 | `IG-linefile-sector-axis` | BCB | `BCB/IG-linefile-sector-axis` | A line-file strip over a quarter of the lap, `n-repeat = 4` and `axis = x`, on a face whose inward normal is -x: every face cell holds the closed-form law of the strip at 4 theta, the axial velocity enters the domain, one `[INFO]` line; `axis = y`, parallel to the face, stops BCB. |
+| `IG-multipatch-410-linefile` | BCB | `BCB/IG-multipatch-410-linefile` | A 410 inlet written from a line-file as the one patch of a multipatch face gives the `bc.txt` of the same face declared directly; two patches run. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |

@@ -724,6 +724,18 @@ set_tests_properties(IG-linefile-sector-axis PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-multipatch-410-linefile (a 410 inlet written from a line-file as the one patch of a multipatch face equals the same face declared directly; two patches run) -------------
+add_test(
+    NAME    IG-multipatch-410-linefile
+    COMMAND bash -c "rm -rf fromATLAStoSolver single mapped.tec && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input single.ini && mkdir single && mv fromATLAStoSolver/bc.txt mapped.tec single/ && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff single/bc.txt fromATLAStoSolver/bc.txt && diff single/mapped.tec mapped.tec && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input two-patches.ini"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-410-linefile"
+)
+set_tests_properties(IG-multipatch-410-linefile PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

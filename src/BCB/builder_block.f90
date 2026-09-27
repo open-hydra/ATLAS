@@ -159,6 +159,7 @@ contains
               call patchini%free
               call patchini%add(section_name='face')
               call patchini%add(section_name='face', option_name='name', val=patchname)
+              call patchini%add(section_name='face', option_name='face', val=ff)   ! the face of the patch (line-file mapping)
               do while (sini%loop(section_name=patchname, option_pairs=option_pairs))
                 call patchini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
               enddo
