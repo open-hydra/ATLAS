@@ -46,7 +46,7 @@ thermo = NASA9
 transport = CEA
 
 [ATLAS-Parameters]
-IC-format = vtk-binary
+IC-format = tec
 
 [ICB-Block1]
 type = nozzle
