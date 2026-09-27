@@ -252,7 +252,7 @@ contains
                       write(*,'(A,4(X,I0))') ' [ERROR] chimera donor outside the mesh:', don(1:4)
                       call finish(); return
                     endif
-                    write(line,'(4I8,E20.10)') q, qi, qj, qk, vf
+                    write(line,'(4I8,ES24.16)') q, qi, qj, qk, vf
                     call put(trim(line)//NL)
                   enddo
 
@@ -648,7 +648,7 @@ contains
         end select
       else
         select case(t)
-        case(301:309, 401:408, 410, 420, 501:502); np = 1
+        case(301:309, 401:408, 410, 420, 501:506); np = 1   ! gsi 503-506 carry one property line
         case default;                              np = 0
         end select
       endif

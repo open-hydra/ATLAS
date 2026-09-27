@@ -4,7 +4,7 @@ BCB writes plain-text BC files into `fromATLAStoSolver/` (created automatically 
 
 The files are consumed directly by all Hydra solvers.
 
-The format is designed to be simple and flexible, with a fixed coordinate line followed by a variable payload depending on the BC type. See [File Format](#file-format) for details.
+The format is designed to be simple and flexible, with a fixed coordinate line followed by a variable payload depending on the BC type. See [File Format](#file-format) for details. Every numeric field of a record is written with the edit descriptor `ES24.16` (17 significant digits: the exact round trip of an IEEE double); the solvers read the records list-directed, so the field width carries no meaning.
 
 ---
 
@@ -100,7 +100,7 @@ Written after the chimera interpolation pass. Covers two ghost-cell layers inwar
 **Record structure** (multiple lines):
 
 1. Counts line: `nchi_g1  nchi_g2` — number of donor cells for ghost layers 1 and 2 (`I8` format).
-2. For ghost layer 1: `nchi_g1` donor lines, each `b  i  j  k  weight` (`4I8 + E20.10`).
+2. For ghost layer 1: `nchi_g1` donor lines, each `b  i  j  k  weight` (`4I8 + ES24.16`).
 3. For ghost layer 2: `nchi_g2` donor lines, same format.
 
 `weight` is the donor's share of the receiver ghost cell, so the weights of one

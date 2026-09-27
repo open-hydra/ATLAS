@@ -25,6 +25,8 @@ module io_write_bc_mod
     integer                      :: Ai, Aj, Ak, ii, jj, kk
     integer                      :: print_id
     logical                      :: match
+    character(len=12)            :: rec_fmt
+    integer :: nid  ! leading model-id fields of a 504-506 payload (read as INTEGER by MOSE)
 
     call execute_command_line('mkdir -p '//trim(outpath))
 
@@ -91,9 +93,10 @@ module io_write_bc_mod
               do i = 1, size(this % connection)
                 write(unitfile,'(I8)',advance='no') this % connection(i)
               enddo
-              ! Multi-solver interface: trailing wall roughness (3-D records only)
+              ! Multi-solver interface: trailing wall roughness (3-D records only), ES24.16 like
+              ! every other numeric field of a record
               if (this % gp_id==103 .and. mesh_cfg%meshType>0) &
-                write(unitfile,'(E16.6)',advance='no') this % ci_ks
+                write(unitfile,'(ES24.16)',advance='no') this % ci_ks
               write(unitfile,'(A)') ''
 
             case(102, 104)
@@ -104,20 +107,29 @@ module io_write_bc_mod
             select case (print_id)
             ! 300-series -> wall | 500-series -> Special boundary conditions (manifold, GSI)
             case(301:309, 501:506)
+              nid = 0
               do i = 1, this % ig_n
-                write(unitfile,'(E16.6,A1)',advance='no') this % ig_properties(i),','
+                if (i <= nid) then
+                  write(unitfile,'(I8,A1)',advance='no') nint(this % ig_properties(i)),','
+                else
+                  write(unitfile,'(ES24.16,A1)',advance='no') this % ig_properties(i),','
+                endif
               enddo
               write(unitfile,'(A)') ''
             
             ! 400-series -> inlet/outlet with time variation
             case(401:420)
+              ! Every numeric field is written ES24.16 (17 significant digits: the exact round trip of an
+              ! IEEE double; MOSE and Q2D read the records list-directed). BC 420 needs it: psub, psup, g
+              ! are compared by the solver kernels with states recomputed from T0, p0 and massf to 1e-9.
+              rec_fmt = '(ES24.16,A1)'
               do i = 1, this % ig_n
                 if (this % IG_time(i)) then
                   write(unitfile,'(X,A,A1)',advance='no') trim(this % IG_time_file(i)),','
                 elseif (this % ig_properties(i) > 1e10) then
                   write(unitfile,'(A16)',advance='no') 'normal,'
                 else
-                  write(unitfile,'(E16.6,A1)',advance='no') this % ig_properties(i),','
+                  write(unitfile,rec_fmt,advance='no') this % ig_properties(i),','
                 endif
               enddo
               write(unitfile,'(A)') ''
@@ -232,7 +244,7 @@ module io_write_bc_mod
                     write(unitfile,'(X,A,A1)',advance='no') trim(this % sp_time_file(i)),','
                   endif
                 else
-                  write(unitfile,'(E16.6,A1)',advance='no') this % sp_properties(i),','
+                  write(unitfile,'(ES24.16,A1)',advance='no') this % sp_properties(i),','
                 endif
               enddo
               write(unitfile,'(A)') ''
@@ -378,11 +390,11 @@ module io_write_bc_mod
                     if ((i == 3 .or. i == 4) .and. this % dp(k) % properties(mm,p,i) > 1e10_R8) then
                       write(unitfile,'(A16)',advance='no') 'normal,'
                     else
-                      write(unitfile,'(E14.5)',advance='no') this % dp(k) % properties(mm,p,i)
+                      write(unitfile,'(ES24.16)',advance='no') this % dp(k) % properties(mm,p,i)
                     endif
                   enddo
                   write(unitfile,'(X,A)',advance='no') trim(this % dp(k) % distribution(mm,p))
-                  write(unitfile,'(E14.5)',advance='no') this % dp(k) % ds(mm,p)
+                  write(unitfile,'(ES24.16)',advance='no') this % dp(k) % ds(mm,p)
                   write(unitfile,'(A)') ''
 
                 end select
@@ -452,7 +464,7 @@ module io_write_bc_mod
       if (.not.allocated(face%cell(ii,jj,kk)%chimerainfo)) cycle
       do i = 1, size(face%cell(ii,jj,kk)%chimerainfo,1)
         write(unitfile,'(4I8)',advance='no') (nint(face%cell(ii,jj,kk)%chimerainfo(i,j)),j=1,4)
-        write(unitfile,'(E20.10)') face%cell(ii,jj,kk)%chimerainfo(i,5)
+        write(unitfile,'(ES24.16)') face%cell(ii,jj,kk)%chimerainfo(i,5)
       enddo
     
     enddo
