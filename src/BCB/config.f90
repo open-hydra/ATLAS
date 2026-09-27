@@ -377,6 +377,48 @@ contains
     cfg%has_connection = (error == 0)
   end subroutine load_bcb_periodic_config
 
+  !> A file name written into the BC record (time-file, p0-time-file, p-time-file, q-time-file,
+  !> T-time-file): ATLAS keeps 32 characters of it (the record field; MOSE reads the 402 series name
+  !> and FUSS the wall series name with 32 characters too). A longer name of a file the user provides
+  !> would be truncated in the record and the solver would look for a file that does not exist:
+  !> refused. The time-file of a section with line-file is written by ATLAS itself under the same
+  !> 32 characters (file and record agree, as upstream): accepted, with one LOG line per name.
+  subroutine get_file_name32(sourceini, section, key, val, error)
+    implicit none
+    type(file_ini), intent(in)     :: sourceini
+    character(len=*), intent(in)   :: section, key
+    character(len=32), intent(out) :: val
+    integer, intent(out)           :: error
+    character(len=llen)            :: buffer, linefile
+    character(len=llen), allocatable, save :: announced(:)
+    integer                        :: lerr, i
+
+    buffer = ''
+    call sourceini%get(section_name=section, option_name=key, val=buffer, error=error)
+    if (error /= 0) then
+      val = 'none'
+      return
+    endif
+    val = buffer(1:32)
+    if (len_trim(buffer) <= 32) return
+    linefile = ''
+    lerr = 1
+    if (key == 'time-file') call sourceini%get(section_name=section, option_name='line-file', val=linefile, error=lerr)
+    if (lerr /= 0) then
+      write(*,'(A)') '[ERROR] key '//key//': file name longer than 32 characters: the BC record keeps 32'// &
+                     ' characters of it, so the solver would look for a file that does not exist'// &
+                     ' (shorten the name): '//trim(buffer)
+      stop 1
+    endif
+    if (.not. allocated(announced)) allocate(announced(0))
+    do i = 1, size(announced)
+      if (trim(announced(i)) == trim(buffer)) return
+    enddo
+    announced = [character(len=llen) :: announced, buffer]
+    write(*,'(A)') ' [LOG] time-file '//trim(buffer)//' (written from line-file '//trim(linefile)// &
+                   ') is named '//trim(val)//': the BC record keeps 32 characters'
+  end subroutine get_file_name32
+
   subroutine load_bcb_face_runtime_config(sourceini, section, cfg)
     implicit none
     type(file_ini), intent(in)               :: sourceini
@@ -505,11 +547,11 @@ contains
 
     integer :: error
 
-    call sourceini%get(section_name=section, option_name='q-time-file', val=cfg%q_timefile, error=error)
+    call get_file_name32(sourceini, section, 'q-time-file', cfg%q_timefile, error)
     cfg%has_q_timefile = error == 0
     if (.not. cfg%has_q_timefile) cfg%q_timefile = 'none'
 
-    call sourceini%get(section_name=section, option_name='T-time-file', val=cfg%T_timefile, error=error)
+    call get_file_name32(sourceini, section, 'T-time-file', cfg%T_timefile, error)
     cfg%has_T_timefile = error == 0
     if (.not. cfg%has_T_timefile) cfg%T_timefile = 'none'
 
@@ -563,11 +605,11 @@ contains
     call sourceini%get(section_name=section, option_name='p', val=cfg%p, error=error)
     if (error /= 0) cfg%p = 0.0_R8
 
-    call sourceini%get(section_name=section, option_name='p0-time-file', val=cfg%p0_time_file, error=error)
+    call get_file_name32(sourceini, section, 'p0-time-file', cfg%p0_time_file, error)
     if (error /= 0) cfg%p0_time_file = 'none'
-    call sourceini%get(section_name=section, option_name='p-time-file', val=cfg%p_time_file, error=error)
+    call get_file_name32(sourceini, section, 'p-time-file', cfg%p_time_file, error)
     if (error /= 0) cfg%p_time_file = 'none'
-    call sourceini%get(section_name=section, option_name='time-file', val=cfg%time_file, error=error)
+    call get_file_name32(sourceini, section, 'time-file', cfg%time_file, error)
     if (error /= 0) cfg%time_file = 'none'
     call sourceini%get(section_name=section, option_name='periodic', val=cfg%periodic, error=error)
     if (error /= 0) cfg%periodic = .false.

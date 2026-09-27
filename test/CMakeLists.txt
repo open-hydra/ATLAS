@@ -693,6 +693,21 @@ set_tests_properties(IG-force-connect-plate PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-time-file-long-name -------------
+# A time-file name longer than 32 characters. With line-file BCB writes the series itself: file and record take
+# the first 32 characters of the name (one LOG line), the mapping is unchanged. Without line-file (user-file.ini)
+# the file is the user's and the solver would look for the truncated name: BCB stops, no bc.txt.
+add_test(
+    NAME    IG-time-file-long-name
+    COMMAND bash -c "rm -rf fromATLAStoSolver mapped_with_a_very_long_name_ove; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F ' [LOG] time-file mapped_with_a_very_long_name_over_32_chars.tec (written from line-file strip.tec) is named mapped_with_a_very_long_name_ove' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt && diff mapped_with_a_very_long_name_ove reference/mapped_with_a_very_long_name_ove && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input user-file.ini > user-file.log 2>&1 && grep -q -F '[ERROR] key time-file: file name longer than 32 characters' user-file.log && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-time-file-long-name"
+)
+set_tests_properties(IG-time-file-long-name PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- STB : x-variable -------------
 add_test(
     NAME    x-variable

@@ -40,6 +40,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-nozzle-inlet-envelope-refused` | BCB | `BCB/IG-nozzle-inlet-envelope-refused` | A nozzle inlet (BC 420) with `psup` above `psub` stops BCB (0 < psup <= psub < p0 is required); nothing is written. |
 | `IG-2D-inlet-408-refused` | BCB | `BCB/IG-2D-inlet-408-refused` | A normal-velocity inlet (BC 408) on a pure 2-D mesh stops BCB: Q2D, which reads 2-D meshes, does not implement BC 408; nothing is written. |
 | `IG-force-connect-plate` | BCB | `BCB/IG-force-connect-plate` | `BC-force-connect` on an injection plate declared inlet with hole blocks: hole cells connected (101), the rest keeps the inlet, one LOG line. |
+| `IG-time-file-long-name` | BCB | `BCB/IG-time-file-long-name` | A time-file name over 32 characters: accepted with `line-file` (32-character file and record), refused for a user file. |
 | `balance-only` | MDB | `MDB/balance-only` | Load-balancing pass without splitting. |
 | `block-directions` | MDB | `MDB/block-directions` | Per-direction block splitting behaviour. |
 | `halo-trade` | MDB | `MDB/halo-trade` | Halo exchange bookkeeping between partitions. |
@@ -98,7 +99,7 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `mesh-p3d-single-plane`: validate a PLOT3D mesh written with one node plane (read as the pure-2D mesh of its x-y plane).
 - `mesh-p3d-plane-perpendicular`: validate the refusal of a single node plane perpendicular to x-y.
 - `mesh-tec-single-plane`: validate the same rule for a Tecplot mesh with x y z on one node plane (`K = 1`).
-- `IG-force-connect-plate`, `IG-plate-keys`, `IG-keys-documented`, `IG-renamed-keys-lenient`, `IG-table-header-skipped`: validate `BC-force-connect` on a declared inlet, the documented keys and defaults that must not stop BCB, the keys of older decks and the tables with a non-numeric row.
+- `IG-force-connect-plate`, `IG-plate-keys`, `IG-keys-documented`, `IG-renamed-keys-lenient`, `IG-time-file-long-name`, `IG-table-header-skipped`: validate `BC-force-connect` on a declared inlet, the documented keys and defaults that must not stop BCB, the keys of older decks, the series file names and the tables with a non-numeric row.
 - `IG-table-decreasing`: validate a table with decreasing coordinates (read in increasing order).
 - `IG-table-not-monotone`: validate the refusal of a table whose coordinate column turns back.
 
