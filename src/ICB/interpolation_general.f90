@@ -929,7 +929,7 @@ contains
 
     if (verbose) write(*,*) "[LOG] Cell Centers Spherical Minimum Distance interpolation algorithm"
 
-    call tgt%compute_bounding([0,0,0])
+    if (.not. allocated(tgt%bbmin)) call tgt%compute_bounding([0,0,0])   ! ICB computes them for every block
 
     map%dim = tgt%dim(1:3)
     map%n_stencil = 1

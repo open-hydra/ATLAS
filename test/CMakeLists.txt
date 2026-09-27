@@ -392,6 +392,18 @@ set_tests_properties(IG-phase-unbuilt PROPERTIES
     ENVIRONMENT "${_TEST_ENV};MALLOC_PERTURB_=165"
 )
 
+# ---- ICB : IG-interp-spherical-3D (interpolation-law = spherical_minimum_distance on a 3-D target: from a one-cell source it equals minimum_distance) -------------
+add_test(
+    NAME    IG-interp-spherical-3D
+    COMMAND bash -c "rm -rf fromATLAStoSolver md && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input md.ini && mv fromATLAStoSolver md && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff md/ic.tec fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-spherical-3D"
+)
+set_tests_properties(IG-interp-spherical-3D PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-interp-mindist -------------
 # Minimum-distance interpolation of an ideal-gas solution onto an identical
 # grid (identity map). The source field.tec carries solver-style extra 
