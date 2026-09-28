@@ -213,7 +213,7 @@ REGISTRY_ENTRIES: List[RegistryEntry] = [
     ),
     RegistryEntry(
         'GPB-Condensed', 'solidification', '', 'on,off', False,
-        'Solidification with supercooling/recalescence; not implemented yet (phase M3).'
+        'Solidification of a molten particle with supercooling and recalescence (IGLOO; ICE refuses solidification=on).'
     ),
     RegistryEntry(
         'GPB-Condensed', 'alpha-e', '', '', False,
@@ -373,7 +373,7 @@ GPB_CONDENSED = [
     RegistryEntry('GPB-Condensed', 'interface', '', 'VLE,LK', False, 'Per-material override of the interface model.'),
     RegistryEntry('GPB-Condensed', 'boiling', '', 'clamp,ZGR', False, 'Per-material override of the boiling branch.'),
     RegistryEntry('GPB-Condensed', 'combustion', '', 'Beckstead', False, 'Metal combustion model; presence switches this material to the metal track (mutually exclusive with evaporation and breakup).'),
-    RegistryEntry('GPB-Condensed', 'solidification', '', 'on,off', False, 'Solidification with supercooling/recalescence; not implemented yet (phase M3).'),
+    RegistryEntry('GPB-Condensed', 'solidification', '', 'on,off', False, 'Solidification of a molten particle with supercooling and recalescence (IGLOO; ICE refuses solidification=on).'),
     RegistryEntry('GPB-Condensed', 'alpha-e', '', '', False, 'Langmuir-Knudsen evaporation accommodation coefficient (interface=LK).'),
     RegistryEntry('GPB-Condensed', 'k-liq', '', '', False, 'Liquid thermal conductivity [W/m/K] (required if liquid-conduction=P2T).'),
     RegistryEntry('GPB-Condensed', 'mu-liq', '', '', False, 'Liquid viscosity [Pa s] (liquid-conduction=P2T).'),
