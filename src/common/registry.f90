@@ -37,6 +37,7 @@ module registry_mod
 
     integer :: type_id = 0
     logical :: is_array = .false.   ! add_int_array / add_real_array: a blank-separated list of numbers
+    logical :: per_population = .false.   ! read by get_population_reals (set_per_population)
     type(param_value_t) :: value
   end type
 
@@ -61,6 +62,7 @@ module registry_mod
 
     procedure :: add_int_array
     procedure :: add_real_array
+    procedure :: set_per_population
 
     procedure :: generate_markdown
 
@@ -340,6 +342,34 @@ contains
     var(:) = defval
 
   end subroutine add_real_array
+
+
+  !========================================================
+  ! Rows read by the per-population reader
+  !========================================================
+
+  !> Mark the rows `names` of `section` as keys read by get_population_reals
+  !> (ini_values.f90): one blank-separated token per (material, population)
+  !> pair, each token read with list-directed input. The key check applies the
+  !> grammar of that reader to them instead of the one of FiNeR's get.
+  subroutine set_per_population(this, section, names)
+
+    implicit none
+
+    class(registry_t), intent(inout) :: this
+    character(*), intent(in) :: section
+    character(*), intent(in) :: names(:)
+
+    integer :: i, j
+
+    do i = 1, this%size
+      if (this%params(i)%section /= section) cycle
+      do j = 1, size(names)
+        if (this%params(i)%name == trim(names(j))) this%params(i)%per_population = .true.
+      enddo
+    enddo
+
+  end subroutine set_per_population
 
 
   !========================================================

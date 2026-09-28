@@ -358,6 +358,8 @@ contains
     call icb_registry%add('ICB-DP', 'dp', dp_rp, '0.0', 'Per-population particle diameters.', '', .false.)
     call icb_registry%add('ICB-DP', 'rp', dp_rp, '0.0', 'Per-population particle radii. Use as an alternative to dp.', '', .false.)
     call icb_registry%add('ICB-DP', 'neuler', dp_neuler, '0', 'Eulerian model selector for dispersed phase support fields.', '', .false.)
+    ! read by get_population_reals (common/ini_values.f90), one token per (material, population) pair
+    call icb_registry%set_per_population('ICB-DP', [character(len=4) :: 'krho', 'kT', 'Pp', 'dp', 'rp'])
     call add_interpolation_entries('ICB-DP', dp_interp_cfg, .false.)
 
     if (present(filename)) then

@@ -441,6 +441,51 @@ set_tests_properties(DP-population-count PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-population-forms (the per-population reader's value forms) --------------------------
+# DP-population-list with drop-Tp = 450, 460, 470, drop-dp = 0.01/ 0.02, 0.03, and drop-gp = 3*345.0
+# (one value for every pair): the per-population reader reads each token with list-directed input,
+# so the BC file must be DP-population-list's.
+add_test(
+    NAME    DP-population-forms
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/drop-bc.txt ../DP-population-list/reference/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-population-forms"
+)
+set_tests_properties(DP-population-forms PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG+DP-population-forms (the same forms in an ICB block section) ------------------------
+# krho = 0.20, 0.30, and dp = 2*20e-6: the particle fields must be those of krho = 0.20 0.30 and
+# dp = 20e-6.
+add_test(
+    NAME    IG+DP-population-forms
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && mkdir fromATLAStoSolver/plain && mv fromATLAStoSolver/particles-ic.tec fromATLAStoSolver/plain/block.tec && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input forms.ini && cmp fromATLAStoSolver/particles-ic.tec fromATLAStoSolver/plain/block.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG+DP-population-forms"
+)
+set_tests_properties(IG+DP-population-forms PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-logical-forms (logical values as FiNeR's get reads them) ----------------------------
+# DP-population-list with the logical keys of [ATLAS-Parameters] written .true # ..., T ! ..., F and
+# a TAB, false, (their defaults): FiNeR reads the first item of the value, so the BC file must be
+# DP-population-list's. chimera/ is IG-chimera's deck with BC-chimera = T#note, a comment attached to
+# a value that is not the default: its BC file must be IG-chimera's (same tolerance as IG-chimera).
+add_test(
+    NAME    DP-logical-forms
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/drop-bc.txt ../DP-population-list/reference/drop-bc.txt && cd chimera && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../IG-chimera/reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-logical-forms"
+)
+set_tests_properties(DP-logical-forms PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-z-variable-krho (z-profile krho file, phase-prefixed keys) -------------
 add_test(
     NAME    DP-z-variable-krho
