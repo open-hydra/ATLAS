@@ -157,7 +157,7 @@ REGISTRY_ENTRIES: List[RegistryEntry] = [
     RegistryEntry(
         'GPB-Condensed', 'thermo', 'NASA9',
         'NASA7,NASA9,Burcat,SP-database', False,
-        'Condensed-phase thermodynamic model selector.'
+        'Condensed-phase thermodynamic model selector. A database (NASA7, NASA9, Burcat; NASA9 when both thermo and cp are absent) supplies every material it holds; a material it lacks takes the constant cp and rho of the section, and h0 when other materials come from the database. With cp and no thermo every material is constant.'
     ),
     RegistryEntry(
         'GPB-Condensed', 'material', 'ATLAS', '', False,
@@ -170,6 +170,14 @@ REGISTRY_ENTRIES: List[RegistryEntry] = [
     RegistryEntry(
         'GPB-Condensed', 'h0', '', '', False,
         'Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs).'
+    ),
+    RegistryEntry(
+        'GPB-Condensed', 'psat-vapour', '', '', False,
+        'Vapour species of the thermo database (thermo = NASA9 or Burcat), one per material, none to skip one: adds a Psat column [Pa] to <name>properties.dat, `p_sat = 1e5*exp(-(g_vap - g_liq)/(R*T))` from the liquid/vapour pair (dispersed phases only).'
+    ),
+    RegistryEntry(
+        'GPB-Condensed', 'psat-liquid', '', '', False,
+        'Liquid species paired with psat-vapour, one per material; default = the material name.'
     ),
     RegistryEntry(
         'GPB-Condensed', 'cp', '', '', False,
@@ -205,7 +213,7 @@ REGISTRY_ENTRIES: List[RegistryEntry] = [
     ),
     RegistryEntry(
         'GPB-Condensed', 'solidification', '', 'on,off', False,
-        'Solidification with supercooling/recalescence; not implemented yet (phase M3).'
+        'Solidification of a molten particle with supercooling and recalescence (IGLOO; ICE refuses solidification=on).'
     ),
     RegistryEntry(
         'GPB-Condensed', 'alpha-e', '', '', False,
@@ -351,10 +359,12 @@ GPB_EQUILIBRIUM = [
 ]
 
 GPB_CONDENSED = [
-    RegistryEntry('GPB-Condensed', 'thermo', 'NASA9', 'NASA7,NASA9,Burcat,SP-database', False, 'Condensed-phase thermodynamic model selector.'),
+    RegistryEntry('GPB-Condensed', 'thermo', 'NASA9', 'NASA7,NASA9,Burcat,SP-database', False, 'Condensed-phase thermodynamic model selector. A database (NASA7, NASA9, Burcat; NASA9 when both thermo and cp are absent) supplies every material it holds; a material it lacks takes the constant cp and rho of the section, and h0 when other materials come from the database. With cp and no thermo every material is constant.'),
     RegistryEntry('GPB-Condensed', 'material', 'ATLAS', '', False, 'Condensed-phase material names.'),
     RegistryEntry('GPB-Condensed', 'groups', '1', '', False, 'Group index per condensed material.'),
     RegistryEntry('GPB-Condensed', 'h0', '', '', False, 'Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs).'),
+    RegistryEntry('GPB-Condensed', 'psat-vapour', '', '', False, 'Vapour species of the thermo database (thermo = NASA9 or Burcat), one per material, none to skip one: adds a Psat column [Pa] to <name>properties.dat, `p_sat = 1e5*exp(-(g_vap - g_liq)/(R*T))` from the liquid/vapour pair (dispersed phases only).'),
+    RegistryEntry('GPB-Condensed', 'psat-liquid', '', '', False, 'Liquid species paired with psat-vapour, one per material; default = the material name.'),
     RegistryEntry('GPB-Condensed', 'cp', '', '', False, 'Fixed specific heat values for condensed materials.'),
     RegistryEntry('GPB-Condensed', 'k', '', '', False, 'Fixed thermal conductivity values for condensed materials.'),
     RegistryEntry('GPB-Condensed', 'rho', '', '', False, 'Density values for condensed materials.'),
@@ -363,7 +373,7 @@ GPB_CONDENSED = [
     RegistryEntry('GPB-Condensed', 'interface', '', 'VLE,LK', False, 'Per-material override of the interface model.'),
     RegistryEntry('GPB-Condensed', 'boiling', '', 'clamp,ZGR', False, 'Per-material override of the boiling branch.'),
     RegistryEntry('GPB-Condensed', 'combustion', '', 'Beckstead', False, 'Metal combustion model; presence switches this material to the metal track (mutually exclusive with evaporation and breakup).'),
-    RegistryEntry('GPB-Condensed', 'solidification', '', 'on,off', False, 'Solidification with supercooling/recalescence; not implemented yet (phase M3).'),
+    RegistryEntry('GPB-Condensed', 'solidification', '', 'on,off', False, 'Solidification of a molten particle with supercooling and recalescence (IGLOO; ICE refuses solidification=on).'),
     RegistryEntry('GPB-Condensed', 'alpha-e', '', '', False, 'Langmuir-Knudsen evaporation accommodation coefficient (interface=LK).'),
     RegistryEntry('GPB-Condensed', 'k-liq', '', '', False, 'Liquid thermal conductivity [W/m/K] (required if liquid-conduction=P2T).'),
     RegistryEntry('GPB-Condensed', 'mu-liq', '', '', False, 'Liquid viscosity [Pa s] (liquid-conduction=P2T).'),

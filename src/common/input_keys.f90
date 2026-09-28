@@ -49,6 +49,7 @@ module input_keys_mod
     integer             :: type_id = 0    ! registry_mod: 1 integer, 2 real, 3 logical, 4 string
     character(len=ALEN) :: allowed = ''   ! registry 'allowed' column: enumeration (a<br>b or a,b) or numeric range
     logical             :: is_array = .false. ! registered as a list (center = 0 0 0): more than one number allowed
+    logical             :: per_population = .false. ! read by get_population_reals: its token grammar applies
   end type key_t
   type(key_t), allocatable :: keys(:)
   character(len=3) :: prog = ''
@@ -304,6 +305,7 @@ contains
       keys(i)%name    = registry%params(i)%name
       keys(i)%type_id = registry%params(i)%type_id
       keys(i)%is_array = registry%params(i)%is_array
+      keys(i)%per_population = registry%params(i)%per_population
       keys(i)%allowed = ''
       if (allocated(registry%params(i)%allowed)) keys(i)%allowed = registry%params(i)%allowed
     enddo
@@ -390,7 +392,7 @@ contains
     character(len=:), allocatable :: option_pairs(:)
     character(len=ALEN) :: allowed
     integer :: type_id
-    logical :: is_list
+    logical :: is_list, per_pop
 
     if (.not. allocated(keys)) return
     if (.not. ini%has_section(trim(section_name))) return
@@ -398,7 +400,7 @@ contains
     ! FiNeR's loop keeps its position in a saved counter: it runs to completion
     do while (ini%loop(section_name=trim(section_name), option_pairs=option_pairs))
       if (is_escaped(trim(option_pairs(1)))) cycle
-      type_id = key_type(trim(option_pairs(1)), kind, extra, allowed, is_list)
+      type_id = key_type(trim(option_pairs(1)), kind, extra, allowed, is_list, per_pop)
       if (type_id < 0) then
         ! y<name>, y<name>-file, y<name>-direction of a species that no phase of
         ! the run declares (registry row 'yspecies' of this kind): the value
@@ -410,7 +412,7 @@ contains
         endif
         call unknown_key(trim(option_pairs(1)), trim(section_name), kind, extra)
       elseif (type_id == 1 .or. type_id == 2) then
-        call check_numeric(trim(option_pairs(1)), trim(option_pairs(2)), type_id, trim(section_name), kind, is_list)
+        call check_numeric(trim(option_pairs(1)), trim(option_pairs(2)), type_id, trim(section_name), kind, is_list, per_pop)
         if (len_trim(allowed) > 0) call check_range(trim(option_pairs(1)), trim(option_pairs(2)), &
                                                     trim(allowed), trim(section_name), kind)
       elseif (type_id == 3) then
@@ -664,19 +666,20 @@ contains
   !> Registry type of `name` for a section of kind `kind` (and the allowed
   !> column of its row); 0 for a run-time or caller-listed name (untyped),
   !> -1 when the name is not read by the tool.
-  integer function key_type(name, kind, extra, allowed, is_array) result(t)
+  integer function key_type(name, kind, extra, allowed, is_array, per_population) result(t)
     implicit none
     character(len=*), intent(in)              :: name, kind
     character(len=*), intent(in), optional    :: extra(:)
     character(len=ALEN), intent(out), optional :: allowed
-    logical, intent(out), optional :: is_array
+    logical, intent(out), optional :: is_array, per_population
     character(len=ALEN) :: allowed_
     integer :: i, lp
-    logical :: arr_
+    logical :: arr_, pop_
 
     allowed_ = ''
     arr_ = .false.
-    t = registry_type(name, kind, allowed_, arr_)
+    pop_ = .false.
+    t = registry_type(name, kind, allowed_, arr_, pop_)
     if (t < 0) then
       t = species_key_type(name, kind, allowed_)
       ! y<species> values are parsed by the y-key reader (phase.f90: one number in [0, 1], its own message);
@@ -698,14 +701,15 @@ contains
         if (name(1:lp) == phase_prefixes(i)(1:lp)) then
           ! a key registered with its prefix (<phase>-type) has its own row; the
           ! others (<phase>-krho, <phase>-gp, ...) take the row of the bare key
-          t = registry_type('<phase>-'//name(lp+1:), kind, allowed_, arr_)
-          if (t < 0) t = registry_type(name(lp+1:), kind, allowed_, arr_)
+          t = registry_type('<phase>-'//name(lp+1:), kind, allowed_, arr_, pop_)
+          if (t < 0) t = registry_type(name(lp+1:), kind, allowed_, arr_, pop_)
           if (t >= 0) exit
         endif
       enddo
     endif
     if (present(allowed)) allowed = allowed_
     if (present(is_array)) is_array = arr_
+    if (present(per_population)) per_population = pop_
   end function key_type
 
   !> True when `key` is `<phase>-<suffix>` for a phase of the deck (names set by
@@ -732,22 +736,24 @@ contains
     enddo
   end function input_keys_phase_key
 
-  integer function registry_type(name, kind, allowed, is_array) result(t)
+  integer function registry_type(name, kind, allowed, is_array, per_population) result(t)
     implicit none
     character(len=*), intent(in)               :: name, kind
     character(len=ALEN), intent(out), optional :: allowed
-    logical, intent(out), optional             :: is_array
+    logical, intent(out), optional             :: is_array, per_population
     integer :: i
 
     t = -1
     if (present(allowed)) allowed = ''
     if (present(is_array)) is_array = .false.
+    if (present(per_population)) per_population = .false.
     do i = 1, size(keys)
       if (.not. label_allowed(trim(keys(i)%section), kind)) cycle
       if (name_matches(name, trim(keys(i)%name))) then
         t = keys(i)%type_id
         if (present(allowed)) allowed = keys(i)%allowed
         if (present(is_array)) is_array = keys(i)%is_array
+        if (present(per_population)) per_population = keys(i)%per_population
         return
       endif
     enddo
@@ -800,16 +806,30 @@ contains
 
   !> Every blank-separated token of the value must read as a number of the
   !> registered kind (several keys carry lists: center = 0 0 0, krho = 0.5 0.1).
-  subroutine check_numeric(key, value, type_id, section_name, kind, list)
+  !> A per-population key is read by get_population_reals (ini_values.f90),
+  !> which reads each token with list-directed input: its tokens follow that
+  !> grammar instead of FiNeR's. A token may end with the separators ',' and
+  !> '/' ("450, 460, 470" reads 450 460 470) and carry a repeat count ("1*450";
+  !> "3*450" as the whole value: 450 for every population). Refused as there
+  !> they are read wrong: a comma between two numbers ("450,460": 450 only), a
+  !> token of separators alone (no value), a repeat count above 1 among other
+  !> values (read as one value), and inf or NaN.
+  subroutine check_numeric(key, value, type_id, section_name, kind, list, per_population)
     use stringifor, only: string
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     implicit none
     character(len=*), intent(in) :: key, value, section_name, kind
     integer, intent(in)          :: type_id
     logical, intent(in)          :: list
-    integer  :: i, j, n, ios, ival, ntok
+    logical, intent(in), optional :: per_population
+    integer  :: i, j, n, ios, ival, ntok, first, last, star
     real(R8) :: rval
     type(string) :: token
+    logical  :: pop, repeat_many
 
+    pop = .false.
+    if (present(per_population)) pop = per_population .and. type_id == 2
+    repeat_many = .false.
     n = len_trim(value)
     ! an empty value is not a number either (FiNeR returns error 0 and an undefined value)
     if (n == 0) then
@@ -829,26 +849,59 @@ contains
         if (value(j+1:j+1) == ' ' .or. value(j+1:j+1) == achar(9)) exit
         j = j + 1
       enddo
-      ! a number starts with a sign, a digit or the decimal point (no inf/nan)
-      ! and holds no list-directed separator: "8,5" would silently read as 8
-      ios = 0
-      ! FiNeR's get converts a value only when StringiFor's is_integer / is_real accepts it
-      ! (otherwise it returns error 0 and an undefined number, e.g. g = 2*500, 1+3, 1.0e):
-      ! the same lexical test here, token by token, independent of the compiler's read(*)
-      token = value(i:j)
       ntok = ntok + 1
-      if (type_id == 1) then
-        ! integers: digits and sign only as well (is_integer also takes 1e0, which gfortran's read
-        ! refuses and ifx's accepts: the refusal must not depend on the compiler)
-        if (.not. token%is_integer(allow_spaces=.false.) .or. verify(value(i:j), '+-0123456789') /= 0) ios = 1
+      ios = 0
+      if (pop) then
+        ! the reader's list-directed syntax: separators after the value, a repeat count r*
+        first = i
+        last = j
+        do while (last >= first)
+          if (index(',/', value(last:last)) == 0) exit
+          last = last - 1
+        enddo
+        star = 0
+        if (last >= first) star = index(value(first:last), '*')
+        if (star > 1) then
+          if (verify(value(first:first+star-2), '0123456789') /= 0) then
+            ios = 1
+          else
+            read(value(first:first+star-2), *, iostat=ios) ival
+            if (ios == 0 .and. ival < 1) ios = 1
+            if (ios == 0 .and. ival > 1) repeat_many = .true.
+          endif
+          first = first + star
+        elseif (star == 1) then
+          ios = 1
+        endif
+        if (last < first) then
+          ios = 1
+        elseif (scan(value(first:last), ',/*') > 0) then
+          ios = 1
+        endif
+        if (ios == 0) read(value(first:last), *, iostat=ios) rval
+        if (ios == 0) then
+          if (.not. ieee_is_finite(rval)) ios = 1
+        endif
       else
-        if (.not. token%is_real(allow_spaces=.false.)) ios = 1
-      endif
-      if (ios == 0) then
+        ! a number starts with a sign, a digit or the decimal point (no inf/nan)
+        ! and holds no list-directed separator: "8,5" would silently read as 8
+        ! FiNeR's get converts a value only when StringiFor's is_integer / is_real accepts it
+        ! (otherwise it returns error 0 and an undefined number, e.g. g = 2*500, 1+3, 1.0e):
+        ! the same lexical test here, token by token, independent of the compiler's read(*)
+        token = value(i:j)
         if (type_id == 1) then
-          read(value(i:j), *, iostat=ios) ival
+          ! integers: digits and sign only as well (is_integer also takes 1e0, which gfortran's read
+          ! refuses and ifx's accepts: the refusal must not depend on the compiler)
+          if (.not. token%is_integer(allow_spaces=.false.) .or. verify(value(i:j), '+-0123456789') /= 0) ios = 1
         else
-          read(value(i:j), *, iostat=ios) rval
+          if (.not. token%is_real(allow_spaces=.false.)) ios = 1
+        endif
+        if (ios == 0) then
+          if (type_id == 1) then
+            read(value(i:j), *, iostat=ios) ival
+          else
+            read(value(i:j), *, iostat=ios) rval
+          endif
         endif
       endif
       if (ios /= 0) then
@@ -858,6 +911,12 @@ contains
       endif
       i = j + 1
     enddo
+    ! the reader takes r*c as one value, not r of them
+    if (repeat_many .and. ntok > 1) then
+      write(*,'(A)') '[ERROR] key '//key//' of section ['//section_name//']'//block_hint(kind)// &
+                     ': value '//value//' has a repeat count r*c among other values (read as one value): write the values out'
+      stop 1
+    endif
     ! a scalar key with two numbers: FiNeR's scalar get leaves an undefined value (T0 = 300 400 wrote 1e6)
     if (.not. list .and. ntok > 1) then
       write(*,'(A)') '[ERROR] key '//key//' of section ['//section_name//']'//block_hint(kind)// &
@@ -866,26 +925,50 @@ contains
     endif
   end subroutine check_numeric
 
-  !> A logical key takes T, F, true, false, .true., .false. (case-insensitive):
-  !> FiNeR's typed get of anything else ends in a Fortran runtime error.
+  !> A logical key takes T, F, true, false, .true., .false. (case-insensitive,
+  !> a dot on one side only as well: .t, true.). FiNeR's typed get reads it with
+  !> list-directed input, which takes the first item of the value and ignores
+  !> what follows a separator: a TAB or a blank, ',' or '/' after the value and
+  !> a comment that starts with '#' or '!', after a blank or attached to the
+  !> value ("T # note", "T#note"), are read as the value.
+  !> A value that starts otherwise ends in a Fortran runtime error there (yes,
+  !> 1); a word that is not true or false (Tomato) and a second value (T F) are
+  !> refused as well.
   subroutine check_logical(key, value, section_name, kind)
     implicit none
     character(len=*), intent(in) :: key, value, section_name, kind
     character(len=:), allocatable :: v
+    integer :: i, j, k
+    logical :: ok
 
-    v = lowercase(trim(adjustl(value)))
-    ! Fortran logical literals (.true., .F.) are read by FiNeR as logicals: strip both dots
-    if (len(v) > 2) then
-      if (v(1:1) == '.' .and. v(len(v):len(v)) == '.') v = v(2:len(v)-1)
+    ok = .false.
+    i = verify(value, ' '//achar(9))
+    j = len(value)
+    if (i > 0) then
+      k = scan(value(i:), ' '//achar(9)//',/#!')
+      if (k > 0) j = i + k - 2
+      v = lowercase(value(i:j))
+      ! Fortran logical literals (.true., .F.) are read by FiNeR as logicals: strip the dots
+      if (len(v) > 1) then
+        if (v(1:1) == '.') v = v(2:)
+      endif
+      if (len(v) > 1) then
+        if (v(len(v):len(v)) == '.') v = v(1:len(v)-1)
+      endif
+      select case (v)
+      case ('t', 'true', 'f', 'false')
+        ok = .true.
+      end select
     endif
-    select case (v)
-    case ('t', 'true', 'f', 'false')
-      return
-    case default
-      write(*,'(A)') '[ERROR] key '//key//' of section ['//section_name//']'//block_hint(kind)// &
-                     ': value '//trim(adjustl(value))//' is not a logical (T or F)'
-      stop 1
-    end select
+    ! after the value: separators only, then nothing or a comment
+    if (ok .and. j < len(value)) then
+      k = verify(value(j+1:), ' '//achar(9)//',/')
+      if (k > 0) ok = index('#!', value(j+k:j+k)) > 0
+    endif
+    if (ok) return
+    write(*,'(A)') '[ERROR] key '//key//' of section ['//section_name//']'//block_hint(kind)// &
+                   ': value '//trim(adjustl(value))//' is not a logical (T or F)'
+    stop 1
   end subroutine check_logical
 
   !> L3 for a numeric row: every token of the value inside the registry range
