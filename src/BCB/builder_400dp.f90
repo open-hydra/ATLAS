@@ -7,8 +7,8 @@ contains
 
   !> Inlet/outlet of ONE dispersed phase into its own slot self % dp(k) (k from bc_t % dp_slot).
   !> The payload arrays are sized from THIS phase (materials x populations), so two phases with
-  !> different population counts no longer share one allocation. The id is still assigned per
-  !> material in turn (last material wins) - pre-existing, documented limitation.
+  !> different population counts no longer share one allocation. The id is decided once for the
+  !> phase, so the header of every copy matches its payload.
   module procedure build_inflow_outflow_dp
     implicit none
     integer :: m, npCP
@@ -28,17 +28,19 @@ contains
 
     call load_bcb_dp_boundary_config(sourceini, section, phase, cfg)
 
+    ! One id for the phase: every (material, population) copy of the table is written under it.
+    ! gp is one key for all materials; 402 needs a nonzero velocity magnitude in every population.
+    if (.not. cfg%materials(1)%has_gp) then
+      self % dp(k) % id = 401
+    elseif (all([(all(cfg%materials(m)%velocity_magnitude /= 0.0_R8), m = 1, phase % material % n)])) then
+      self % dp(k) % id = 402
+    else
+      self % dp(k) % id = 403
+    endif
+    if (self % definition == 'outlet')      self % dp(k) % id = 400
+
     do m = 1, phase % material % n
       npCP = phase % material % npCP(m)
-
-      if (.not. cfg%materials(m)%has_gp) then
-        self % dp(k) % id = 401
-      elseif (all(cfg%materials(m)%velocity_magnitude /= 0.0_R8)) then
-        self % dp(k) % id = 402
-      else
-        self % dp(k) % id = 403
-      endif
-      if (self % definition == 'outlet')      self % dp(k) % id = 400
 
       if (self % dp(k) % id == 401) then
         self % dp(k) % properties(m,1:npCP,1) = cfg%materials(m)%krho

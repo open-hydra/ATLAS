@@ -53,15 +53,46 @@ thermo   = Burcat
 rho      = 2500
 ```
 
+#### Materials the database does not hold
+
+With `thermo = NASA7`, `NASA9` or `Burcat` (and with neither `thermo` nor `cp`, which means `NASA9`), GPB takes every
+material of `material` from that database, in the order of `material`. A material the database does not hold takes
+constant properties from the section instead, exactly as a constant-property material: its `cp` and `rho`, its `k` if
+given, and its `h0`. GPB prints a line naming the material and the database file. `rho`, `cp`, `k` and `h0` hold one value
+per material in the order of `material` (a single value applies to every material); the `cp` of a material the database
+holds is not used, and GPB says so.
+
+```ini
+[GPB-Phase1]
+type     = condensed-dispersed
+material = FOO(L) AL2O3(L)
+thermo   = Burcat
+rho      = 1000 2500
+cp       = 1800
+h0       = -10000000
+groups   = 2 1
+```
+
+```text
+ -- FOO(L) is not in burcat.yaml: constant properties from the INI (cp = 1800, rho = 1000, h0 = -1e+07)
+ -- AL2O3(L) from burcat.yaml: its cp in the INI is not used
+```
+
+The database tables carry the formation enthalpy (`Enthalpy_abs`), so a material that falls back next to database
+materials needs its `h0` on the same scale: without it GPB stops (`give h0`). When no material of the phase is in the
+database, `h0` is optional as for any constant-property phase. A material the database lacks with no `cp` stops GPB with
+the material and the database named: correct the name or give `cp`. `cp` without `thermo` keeps its meaning: every
+material takes the constants, whatever the database holds.
+
 ### Mult-material mixtures
 
 ```ini
 [GPB-Phase1]
 type     = condensed-dispersed
 modeling = lagrangian
-material = AL2O3(L), H2O(L)
+material = AL2O3(L) H2O(L)
 thermo   = Burcat
-rho      = 2500, 1000
+rho      = 2500 1000
 ```
 
 ### Groups specification

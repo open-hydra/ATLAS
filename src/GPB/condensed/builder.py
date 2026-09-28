@@ -2,12 +2,14 @@ import cantera as ct
 from . import properties as CP_properties
 from . import io as CP_IO
 from ini import *
-from ini.condensed import phase_header_word
+from ini.condensed import phase_header_word, CP_read_per_material
 import os, sys
 from config import setup_cantera_dirs, CEA_TRANS_FILE
 
 setup_cantera_dirs()
 CEAtransdir = CEA_TRANS_FILE
+
+THERMO_FILES = {'NASA7': 'nasa_condensed.yaml', 'NASA9': 'nasa9.yaml', 'Burcat': 'burcat.yaml'}
 
 class Material:
     def __init__(self, name, type):
@@ -41,6 +43,7 @@ def build(type,inifile,section,modeling=None):
 
     name, T1, T2, thermo_model = inputModels
     material_names, groups, fix_cp, fix_k, fix_rho = inputMat
+    thermo_given = thermo_model is not None   # before the NASA9 default below
 
     if name.endswith('-'):
         string = name[:-1]  # Remove the last character
@@ -69,27 +72,53 @@ def build(type,inifile,section,modeling=None):
     # ---------------------------------------------------
 
     # ---------------------------------------------------
-    # T-varying material
-    if fix_cp is None and thermo_model != 'SP-database':
+    # T-varying material: a database phase (no cp, or thermo given with cp). Every INI
+    # material in INI order, so groups[i], rho[i], k[i], h0[i] and material_tokens[i] are
+    # the material's own; one the database lacks takes its constant cp, rho, k, h0 from the INI.
+    database = thermo_model in THERMO_FILES and (fix_cp is None or thermo_given)
+    if database:
         print(' -- Found T-varying properties materials')
-        # INI order, not database order: groups[i], fix_rho[i] and material_tokens[i]
-        # are indexed by the position in the INI `material` list
-        materials = sorted([s for s in all_mat if s.name in material_names],
-                           key=lambda s: material_names.index(s.name))
-        for i, m in enumerate(materials):
-            ct_solution = ct.Solution(thermo='fixed-stoichiometry', species=[m])
-            material = Material(name=ct_solution.species_names[0], type='cantera')
-            material.load_from_cantera(ct_solution)
-            if material.density is None:
-                material.density = fix_rho[i]
+        names = [material_names] if isinstance(material_names, str) else list(material_names)
+        nmat = len(names)
+        rho = CP_read_per_material(inifile, section, 'rho', nmat)
+        k = CP_read_per_material(inifile, section, 'k', nmat)
+        cp = CP_read_per_material(inifile, section, 'cp', nmat)
+        h0 = CP_read_enthalpy_datum(inifile, section, nmat)
+        if rho is None:
+            raise SystemExit(f"[ERROR] [{section}] rho: give the density of each material (one value per material)")
+        species = {s.name: s for s in all_mat}
+        missing = [n for n in names if n not in species]
+        if missing and cp is None:
+            raise SystemExit(f"[ERROR] [{section}] {' '.join(missing)}: not in {THERMO_FILES[thermo_model]}, and no cp "
+                             "is given: correct the name, or give cp (one value per material, used only by the "
+                             "materials the database lacks)")
+        if missing and h0 is None and len(missing) < nmat:
+            raise SystemExit(f"[ERROR] [{section}] {' '.join(missing)}: constant properties in a phase whose other "
+                             f"materials come from {THERMO_FILES[thermo_model]} (absolute enthalpy): give h0 "
+                             "(enthalpy at 298.15 K on the database's formation scale)")
+        for i, n in enumerate(names):
+            if n in species:
+                ct_solution = ct.Solution(thermo='fixed-stoichiometry', species=[species[n]])
+                material = Material(name=ct_solution.species_names[0], type='cantera')
+                material.load_from_cantera(ct_solution)
+                if cp is not None:
+                    print(f' -- {n} from {THERMO_FILES[thermo_model]}: its cp in the INI is not used')
+            else:
+                material = Material(name=n, type='fixed')
+                material.specific_heat = cp[i]
+                if h0 is not None:
+                    material.h0 = h0[i]
+                print(f' -- {n} is not in {THERMO_FILES[thermo_model]}: constant properties from the INI '
+                      f'(cp = {cp[i]:g}, rho = {rho[i]:g}' + (f', h0 = {h0[i]:g})' if h0 is not None else ')'))
+            material.density = rho[i]
             # the solid layout writes a conductivity column: optional k per material, else 0 (as the fixed branch)
-            material.thermal_conductivity = fix_k[i] if fix_k is not None else 0.0
+            material.thermal_conductivity = k[i] if k is not None else 0.0
             material_group.append(material)
     # ---------------------------------------------------
 
     # ---------------------------------------------------
     # T-constant material
-    if fix_cp is not None:
+    if fix_cp is not None and not database:
         print(' -- Found fixed properties materials')
         fix_h0 = CP_read_enthalpy_datum(inifile, section, len(fix_cp))
         for i in range(len(fix_cp)):

@@ -56,7 +56,7 @@
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| thermo | NASA9 | NASA7,NASA9,Burcat,SP-database | no | Condensed-phase thermodynamic model selector. |
+| thermo | NASA9 | NASA7,NASA9,Burcat,SP-database | no | Condensed-phase thermodynamic model selector. A database (NASA7, NASA9, Burcat; NASA9 when both thermo and cp are absent) supplies every material it holds; a material it lacks takes the constant cp and rho of the section, and h0 when other materials come from the database. With cp and no thermo every material is constant. |
 | material | ATLAS |  | no | Condensed-phase material names. |
 | groups | 1 |  | no | Group index per condensed material. |
 | h0 |  |  | no | Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs). |

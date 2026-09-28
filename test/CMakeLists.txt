@@ -69,6 +69,20 @@ set_tests_properties(IG+DP PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG+DP-populations (a scalar DP key reaches every population) --------------------------
+# IG+DP with AL2O3(L) on two populations: the scalar krho and dp of the zone must give population 2
+# the fields of population 1, and population 1 must equal IG+DP's reference.
+add_test(
+    NAME    IG+DP-populations
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && python3 check_populations.py fromATLAStoSolver/particles-ic.tec ../IG+DP/reference/particles-ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG+DP-populations"
+)
+set_tests_properties(IG+DP-populations PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-nozzle3D -------------
 add_test(
     NAME    IG-nozzle3D
@@ -236,6 +250,33 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-multigrid"
 )
 set_tests_properties(DP-multigrid PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-population-list (a per-population key: one value per (material, population)) --------
+# DP-multigrid's phase (alumina 2 populations, water 1) on one level: drop-Tp and drop-dp list the three
+# pairs in phase-file order, the other keys are scalars and reach every copy of the table.
+add_test(
+    NAME    DP-population-list
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py --dispersed fromATLAStoSolver/drop-bc.txt && diff fromATLAStoSolver/drop-bc.txt reference/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-population-list"
+)
+set_tests_properties(DP-population-list PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-population-count (any count other than 1 or one per pair is refused) ----------------
+# drop-Tp gives two values for three (material, population) pairs: BCB must stop with exit 1.
+add_test(
+    NAME    DP-population-count
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q 'drop-Tp: 2 value(s) for 3 (material, population) pairs' bcb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-population-count"
+)
+set_tests_properties(DP-population-count PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -554,6 +595,49 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-dispersed"
 )
 set_tests_properties(CP-Tvar-dispersed PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-Tvar-fallback (a material the database lacks takes its INI constants) --------------
+# thermo = Burcat with FOO(L) AL2O3(L): FOO(L) is not in burcat.yaml and falls back to cp/rho/h0 of
+# the INI (one value broadcast for cp and h0), AL2O3(L) keeps its Burcat table and its own rho.
+# groups = 2 1 must reach the phase file in the same order.
+add_test(
+    NAME    CP-Tvar-fallback
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'FOO(L) is not in burcat.yaml' gpb.log && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && bash check_fallback.sh fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-fallback"
+)
+set_tests_properties(CP-Tvar-fallback PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-Tvar-missing (a material the database lacks, with no constants, is refused) ---------
+# The reported defect: FOO(L) H2O(L) with rho = 1000 997 and no cp used to write one zone, H2O(L)
+# with FOO(L)'s density. Now GPB stops and names the material and the database.
+add_test(
+    NAME    CP-Tvar-missing
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'FOO(L): not in nasa9.yaml, and no cp is given' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-missing"
+)
+set_tests_properties(CP-Tvar-missing PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-Tvar-fallback-h0 (a fallback next to a database material needs h0) -----------------
+# CP-Tvar-fallback without h0: the phase would mix the absolute (Burcat) and the relative (cp*T)
+# enthalpy datum, so GPB stops and asks for h0.
+add_test(
+    NAME    CP-Tvar-fallback-h0
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'give h0' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-fallback-h0"
+)
+set_tests_properties(CP-Tvar-fallback-h0 PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
