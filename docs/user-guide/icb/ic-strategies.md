@@ -15,6 +15,10 @@ Full reference for initialization strategies recognised by ICB.
 
 If `type` is omitted, ICB defaults to `homogeneous`.
 
+The dispersed-phase keys `krho`, `kT`, `Pp`, `dp` and `rp` take one value, which every (material, population) pair of the
+phase receives, or one value per pair in the order of `<name>phase.txt` (material by material, populations in order); any
+other count stops ICB.
+
 ## Direct Assignment
 
 | Strategy | `type` | Phase | When to use |
