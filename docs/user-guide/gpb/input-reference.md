@@ -57,10 +57,12 @@
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| thermo | NASA9 | NASA7,NASA9,Burcat,SP-database | no | Condensed-phase thermodynamic model selector. |
+| thermo | NASA9 | NASA7,NASA9,Burcat,SP-database | no | Condensed-phase thermodynamic model selector. A database (NASA7, NASA9, Burcat; NASA9 when both thermo and cp are absent) supplies every material it holds; a material it lacks takes the constant cp and rho of the section, and h0 when other materials come from the database. With cp and no thermo every material is constant. |
 | material | ATLAS |  | no | Condensed-phase material names. |
 | groups | 1 |  | no | Group index per condensed material. |
 | h0 |  |  | no | Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs). |
+| psat-vapour |  |  | no | Vapour species of the thermo database (thermo = NASA9 or Burcat), one per material, none to skip one: adds a Psat column [Pa] to <name>properties.dat, `p_sat = 1e5*exp(-(g_vap - g_liq)/(R*T))` from the liquid/vapour pair (dispersed phases only). |
+| psat-liquid |  |  | no | Liquid species paired with psat-vapour, one per material; default = the material name. |
 | cp |  |  | no | Fixed specific heat values for condensed materials. |
 | k |  |  | no | Fixed thermal conductivity values for condensed materials. |
 | rho |  |  | no | Density values for condensed materials. |
@@ -69,7 +71,7 @@
 | interface |  | VLE,LK | no | Per-material override of the interface model. |
 | boiling |  | clamp,ZGR | no | Per-material override of the boiling branch. |
 | combustion |  | Beckstead | no | Metal combustion model; presence switches this material to the metal track (mutually exclusive with evaporation and breakup). |
-| solidification |  | on,off | no | Solidification with supercooling/recalescence; not implemented yet (phase M3). |
+| solidification |  | on,off | no | Solidification of a molten particle with supercooling and recalescence (IGLOO; ICE refuses solidification=on). |
 | alpha-e |  |  | no | Langmuir-Knudsen evaporation accommodation coefficient (interface=LK). |
 | k-liq |  |  | no | Liquid thermal conductivity [W/m/K] (required if liquid-conduction=P2T). |
 | mu-liq |  |  | no | Liquid viscosity [Pa s] (liquid-conduction=P2T). |
