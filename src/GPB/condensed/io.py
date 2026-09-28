@@ -29,7 +29,7 @@ def write_basics(type, name, mat_phases, groups, modeling=None, material_tokens=
 
 
 def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, enthalpy, conductivity, energy,
-                     enthalpy_absolute=False):
+                     enthalpy_absolute=False, psat=None):
 
     # Write the data to a file in Tecplot-readable format
     filename = outpath + name + "properties.dat"
@@ -41,12 +41,15 @@ def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, 
         f.write("TITLE = \"Mass Thermodynamic Properties\"\n")
 
         if 'dispersed' in type:
-            # Column 4 is consumed by POSITION (IGLOO/ICE/ATLAS read 3 variables after Temperature);
-            # its NAME tags the datum so a consumer can assert instead of assume:
+            # Columns 2-4 keep this order: ATLAS's BCB/ICB read 3 variables after Temperature by POSITION.
+            # The NAME of column 4 tags the datum so a consumer can assert instead of assume:
             #   Enthalpy      relative: cp*T (fixed cp without h0) or the SP-database integral from Tmin
             #   Enthalpy_abs  absolute: formation enthalpy included (thermo tables, or fixed cp with h0)
+            # psat (material -> array, from psat-vapour) adds a 5th column "Psat" [Pa], zeros for an
+            # unpaired material, that the solvers find by name; a reader of 3 variables never reaches it.
             h_label = "Enthalpy_abs" if enthalpy_absolute else "Enthalpy"
-            f.write(f"VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"{h_label}\"\n")
+            psat_label = ", \"Psat\"" if psat is not None else ""
+            f.write(f"VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"{h_label}\"{psat_label}\n")
             
             for species_name in species_names:
                 f.write(f"ZONE T=\"{species_name}\"\n")
@@ -55,7 +58,10 @@ def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, 
                     cp_mass = mass_cp[species_name][i]
                     h_mass = enthalpy[species_name][i]
                     rho = density[species_name][i]
-                    f.write(f"{T} {cp_mass:.6f} {rho:.6f} {h_mass:.6f}\n")
+                    row = f"{T} {cp_mass:.6f} {rho:.6f} {h_mass:.6f}"
+                    if psat is not None:
+                        row += f" {psat[species_name][i]:.6e}"
+                    f.write(row + "\n")
 
         else:
             f.write("VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"Conductivity\", \"Energy\"\n")

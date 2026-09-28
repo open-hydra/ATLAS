@@ -172,6 +172,14 @@ REGISTRY_ENTRIES: List[RegistryEntry] = [
         'Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs).'
     ),
     RegistryEntry(
+        'GPB-Condensed', 'psat-vapour', '', '', False,
+        'Vapour species of the thermo database (thermo = NASA9 or Burcat), one per material, none to skip one: adds a Psat column [Pa] to <name>properties.dat, `p_sat = 1e5*exp(-(g_vap - g_liq)/(R*T))` from the liquid/vapour pair (dispersed phases only).'
+    ),
+    RegistryEntry(
+        'GPB-Condensed', 'psat-liquid', '', '', False,
+        'Liquid species paired with psat-vapour, one per material; default = the material name.'
+    ),
+    RegistryEntry(
         'GPB-Condensed', 'cp', '', '', False,
         'Fixed specific heat values for condensed materials.'
     ),
@@ -355,6 +363,8 @@ GPB_CONDENSED = [
     RegistryEntry('GPB-Condensed', 'material', 'ATLAS', '', False, 'Condensed-phase material names.'),
     RegistryEntry('GPB-Condensed', 'groups', '1', '', False, 'Group index per condensed material.'),
     RegistryEntry('GPB-Condensed', 'h0', '', '', False, 'Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs).'),
+    RegistryEntry('GPB-Condensed', 'psat-vapour', '', '', False, 'Vapour species of the thermo database (thermo = NASA9 or Burcat), one per material, none to skip one: adds a Psat column [Pa] to <name>properties.dat, `p_sat = 1e5*exp(-(g_vap - g_liq)/(R*T))` from the liquid/vapour pair (dispersed phases only).'),
+    RegistryEntry('GPB-Condensed', 'psat-liquid', '', '', False, 'Liquid species paired with psat-vapour, one per material; default = the material name.'),
     RegistryEntry('GPB-Condensed', 'cp', '', '', False, 'Fixed specific heat values for condensed materials.'),
     RegistryEntry('GPB-Condensed', 'k', '', '', False, 'Fixed thermal conductivity values for condensed materials.'),
     RegistryEntry('GPB-Condensed', 'rho', '', '', False, 'Density values for condensed materials.'),
