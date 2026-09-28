@@ -4,6 +4,7 @@ module bcb_config_mod
   use finer,           only: file_ini
   use global_mod,      only: llen
   use phase_mod,       only: phase_t
+  use ini_values_mod,  only: get_population_reals, get_population_words
   use bc_names_mod
   use config_shared_mod
 
@@ -572,11 +573,15 @@ contains
     type(bcb_dp_boundary_config_t), intent(out)  :: cfg
 
     character(len=129) :: pn
-    integer :: error, m, npcp, p, i
+    integer :: error, m, npcp, p, i, off, nall
 
     pn = trim(adjustl(phase%name))
     if (phase%name /= '') pn = trim(pn)//'-'
 
+    ! A key holds one value for every (material, population) pair or one per pair in phase-file
+    ! order; material m's populations sit after the first `off` pairs.
+    nall = sum(phase%material%npCP(1:phase%material%n))
+    off = 0
     allocate(cfg%materials(1:phase%material%n))
     do m = 1, phase%material%n
       npcp = phase%material%npCP(m)
@@ -619,33 +624,33 @@ contains
       cfg%materials(m)%distribution = ''
       cfg%materials(m)%has_gp = .false.
 
-      call sourceini%get(section_name=section, option_name=trim(pn)//'krho', val=cfg%materials(m)%krho, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'kV',   val=cfg%materials(m)%kV, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'kT',   val=cfg%materials(m)%kT, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'gp',   val=cfg%materials(m)%gp, error=error)
+      call get_population_reals(sourceini, section, trim(pn)//'krho', off, nall, cfg%materials(m)%krho, error)
+      call get_population_reals(sourceini, section, trim(pn)//'kV',   off, nall, cfg%materials(m)%kV, error)
+      call get_population_reals(sourceini, section, trim(pn)//'kT',   off, nall, cfg%materials(m)%kT, error)
+      call get_population_reals(sourceini, section, trim(pn)//'gp',   off, nall, cfg%materials(m)%gp, error)
       cfg%materials(m)%has_gp = error == 0
-      call sourceini%get(section_name=section, option_name=trim(pn)//'up',   val=cfg%materials(m)%up, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'vp',   val=cfg%materials(m)%vp, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'wp',   val=cfg%materials(m)%wp, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'Vp',   val=cfg%materials(m)%velocity_magnitude, error=error)
+      call get_population_reals(sourceini, section, trim(pn)//'up',   off, nall, cfg%materials(m)%up, error)
+      call get_population_reals(sourceini, section, trim(pn)//'vp',   off, nall, cfg%materials(m)%vp, error)
+      call get_population_reals(sourceini, section, trim(pn)//'wp',   off, nall, cfg%materials(m)%wp, error)
+      call get_population_reals(sourceini, section, trim(pn)//'Vp',   off, nall, cfg%materials(m)%velocity_magnitude, error)
       if (error /= 0) then
         cfg%materials(m)%velocity_magnitude = sqrt(cfg%materials(m)%up**2 + &
                                                    cfg%materials(m)%vp**2 + &
                                                    cfg%materials(m)%wp**2)
       endif
-      call sourceini%get(section_name=section, option_name=trim(pn)//'Tp',   val=cfg%materials(m)%Tp, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'rp',   val=cfg%materials(m)%rp, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'dp',   val=cfg%materials(m)%rp, error=error)
+      call get_population_reals(sourceini, section, trim(pn)//'Tp',   off, nall, cfg%materials(m)%Tp, error)
+      call get_population_reals(sourceini, section, trim(pn)//'rp',   off, nall, cfg%materials(m)%rp, error)
+      call get_population_reals(sourceini, section, trim(pn)//'dp',   off, nall, cfg%materials(m)%rp, error)
       if (error == 0) cfg%materials(m)%rp = 0.5_R8 * cfg%materials(m)%rp
-      call sourceini%get(section_name=section, option_name=trim(pn)//'sigmap', val=cfg%materials(m)%sigmap, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'ds',     val=cfg%materials(m)%ds, error=error)
+      call get_population_reals(sourceini, section, trim(pn)//'sigmap', off, nall, cfg%materials(m)%sigmap, error)
+      call get_population_reals(sourceini, section, trim(pn)//'ds',     off, nall, cfg%materials(m)%ds, error)
       if (error /= 0) cfg%materials(m)%ds = 0.0_R8
       cfg%materials(m)%ds = cfg%materials(m)%ds * 1.0e-2_R8   ! cm -> m (matches global [IGLOO-BC] ds; NB: dp/rp are NOT converted)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'alphap', val=cfg%materials(m)%alphap, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'betap',  val=cfg%materials(m)%betap, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'rRes',   val=cfg%materials(m)%rRes, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'Tsat',   val=cfg%materials(m)%Tsat, error=error)
-      call sourceini%get(section_name=section, option_name=trim(pn)//'distribution', val=cfg%materials(m)%distribution, error=error)
+      call get_population_reals(sourceini, section, trim(pn)//'alphap', off, nall, cfg%materials(m)%alphap, error)
+      call get_population_reals(sourceini, section, trim(pn)//'betap',  off, nall, cfg%materials(m)%betap, error)
+      call get_population_reals(sourceini, section, trim(pn)//'rRes',   off, nall, cfg%materials(m)%rRes, error)
+      call get_population_reals(sourceini, section, trim(pn)//'Tsat',   off, nall, cfg%materials(m)%Tsat, error)
+      call get_population_words(sourceini, section, trim(pn)//'distribution', off, nall, cfg%materials(m)%distribution, error)
 
       ! Resolve the size-distribution law for each population (string written to
       ! the BC file, interpreted by the solver). sigmap==0 is a Dirac delta and
@@ -676,6 +681,7 @@ contains
       enddo
 
       if (all(cfg%materials(m)%rRes == 0.0_R8)) cfg%materials(m)%rRes = cfg%materials(m)%rp
+      off = off + npcp
     enddo
   end subroutine load_bcb_dp_boundary_config
 
@@ -890,6 +896,9 @@ contains
       call bcb_registry%add('bc-section', 'betap', dp_scalar, '0.0', 'Secondary injection angle per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'rRes', dp_scalar, '0.0', 'Residual radius per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'Tsat', dp_scalar, '0.0', 'Saturation temperature per dispersed population.', '', .false.)
+      ! read by get_population_reals (common/ini_values.f90), one token per (material, population) pair
+      call bcb_registry%set_per_population('bc-section', [character(len=6) :: 'krho', 'kV', 'kT', 'gp', 'up', 'vp', 'wp', &
+                                           'Vp', 'Tp', 'rp', 'dp', 'sigmap', 'ds', 'alphap', 'betap', 'rRes', 'Tsat'])
     end subroutine add_dp_entries
 
     subroutine add_gsi_entries()

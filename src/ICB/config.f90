@@ -3,6 +3,7 @@ module config_mod
   use finer,           only: file_ini
   use global_mod,      only: llen
   use registry_mod,    only: registry_t
+  use ini_values_mod,  only: get_population_reals
   use config_shared_mod
 
   implicit none
@@ -185,21 +186,22 @@ contains
 
     call load_interpolation_config(zoneini, cfg%interpolation)
 
-    call zoneini%get(section_name='zone', option_name='krho', val=cfg%krho, error=error)
-    call zoneini%get(section_name='zone', option_name='kT', val=cfg%kT, error=error)
-    call zoneini%get(section_name='zone', option_name='Pp', val=cfg%Pp, error=error)
+    ! One value for every (material, population) pair, or one per pair in phase-file order.
+    call get_population_reals(zoneini, 'zone', 'krho', 0, nnn, cfg%krho, error)
+    call get_population_reals(zoneini, 'zone', 'kT', 0, nnn, cfg%kT, error)
+    call get_population_reals(zoneini, 'zone', 'Pp', 0, nnn, cfg%Pp, error)
     if (error == 0) cfg%neuler = 1
 
     call zoneini%get(section_name='zone', option_name='neuler', val=cfg%neuler, error=error)
 
-    call zoneini%get(section_name='zone', option_name='dp', val=cfg%rp, error=error)
+    call get_population_reals(zoneini, 'zone', 'dp', 0, nnn, cfg%rp, error)
     if (error == 0) then
       cfg%rp = 0.5_R8 * cfg%rp
       cfg%has_rp = .true.
       return
     endif
 
-    call zoneini%get(section_name='zone', option_name='rp', val=cfg%rp, error=error)
+    call get_population_reals(zoneini, 'zone', 'rp', 0, nnn, cfg%rp, error)
     cfg%has_rp = error == 0
   end subroutine load_dp_config
 
@@ -365,6 +367,8 @@ contains
     call icb_registry%add('ICB-DP', 'dp', dp_rp, '0.0', 'Per-population particle diameters.', '', .false.)
     call icb_registry%add('ICB-DP', 'rp', dp_rp, '0.0', 'Per-population particle radii. Use as an alternative to dp.', '', .false.)
     call icb_registry%add('ICB-DP', 'neuler', dp_neuler, '0', 'Eulerian model selector for dispersed phase support fields.', '', .false.)
+    ! read by get_population_reals (common/ini_values.f90), one token per (material, population) pair
+    call icb_registry%set_per_population('ICB-DP', [character(len=4) :: 'krho', 'kT', 'Pp', 'dp', 'rp'])
     call add_interpolation_entries('ICB-DP', dp_interp_cfg, .false.)
 
     ! Species mass-fraction profiles of an IG zone: y<species>-file and y<species>-direction are
