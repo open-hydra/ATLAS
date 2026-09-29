@@ -115,7 +115,8 @@ jobs:
   #   positive on the component subscripts of its class(block_type) array dummy.
   # - The targets are built one at a time: programs that compile the common sources into one
   #   module directory can fail a parallel build with "Cannot rename module file".
-  # - detect_leaks=0 in the build step: compile_databases runs a program built with these flags.
+  # - The build step runs compile_databases, a program built with these flags: detect_leaks=0 as in
+  #   the test step, and UBSan stops at its first report (halt_on_error=1), so a report fails the job.
   test-omp-sanitizers:
     runs-on: ubuntu-latest
 
@@ -141,6 +142,7 @@ jobs:
       - name: Build
         env:
           ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: |
           for t in ORION FiNeR cea_core ICB BCB MDB STB compile_databases; do cmake --build build --target $t -j 2; done
 
