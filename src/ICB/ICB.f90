@@ -13,6 +13,7 @@ program ICB
   use io_ini_mod
   use ic_builder_mod
   use config_mod, only: write_icb_registry_markdown
+  use input_keys_mod, only: input_keys_set_phases, input_keys_warn_unused
   use finer, only: file_ini
   use grid_mod, only: mesh_cfg
 
@@ -38,6 +39,9 @@ program ICB
     stop
   endif
 
+  ! Keys and types the deck may use (input_keys_mod)
+  call write_icb_registry_markdown(keys_only=.true.)
+
   ! Geometry import
   write(*,*)' Reading mesh file ...'
   call read_mesh(orion)
@@ -59,15 +63,19 @@ program ICB
   ! INI handling
   call build_INI(prog='ICB',nb=size(block),inisource=sourceini,ICformat=ICformat,&
                input_file=trim(input_file))
+  ! a format this build cannot write is refused here, before any field is built
+  call check_ic_format_build(ICformat)
 
   ! Phase properties import
   write(*,*) ' Phase properties import'
   call read_phase(phase)
+  call input_keys_set_phases(phase)
   write(*,*)
 
   ! IC computation
   write(*,*) ' IC computation'
   call build_IC(phase=phase,sini=sourceini,blocks=block)
+  call input_keys_warn_unused(sourceini)
 
   ! IC writing
   write(*,*)' IC writing'

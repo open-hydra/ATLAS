@@ -76,9 +76,16 @@ contains
     coord = get_direction_coord(block%node(0:ni,0:nj,0)%c(1), &
                                 block%node(0:ni,0:nj,0)%c(2), cfg%direction)
 
-    ! Interpolate with clamped extrapolation at ends
+    ! Interpolate with clamped extrapolation at ends (kept, reported with a WARNING)
     allocate(aout(0:ni,0:nj))
     call interpolate_area(xin, ain, coord, aout)
+    if (count(coord < xin(1) .or. coord > xin(size(xin))) > 0) then
+      write(*,'(A,I0,A,I0,A,ES12.5,A,ES12.5,A)') '[WARNING] area law block ', block_id, ': ', &
+        count(coord < xin(1) .or. coord > xin(size(xin))), ' nodes lie outside the profile interval [', &
+        xin(1), ', ', xin(size(xin)), '] and take the end values (clamped)'
+      write(*,'(A,ES12.5,A,ES12.5,A)') '          node coordinate range along '//trim(cfg%direction)//' = [', &
+        minval(coord), ', ', maxval(coord), ']'
+    endif
 
     ! Write output
     write(outfile, '(A,"/block",I0,"_area.dat")') trim(outpath), block_id
@@ -172,7 +179,10 @@ contains
     real(R8), intent(in) :: a(:,:)
     integer :: u, ios, i, j
     open(newunit=u, file=trim(outfile), status='replace', action='write', iostat=ios)
-    if (ios /= 0) stop "[ERROR] Cannot write: "//trim(outfile)
+    if (ios /= 0) then
+      write(*,'(A)') "[ERROR] Cannot write: "//trim(outfile)
+      stop 1
+    endif
     do j = 1, size(a, dim=2)
       do i = 1, size(a, dim=1)
         write(u,'(*(1X,E23.15E3))') a(i,j)

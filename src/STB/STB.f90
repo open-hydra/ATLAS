@@ -13,6 +13,7 @@ program STB
   use st_builder_mod
   use st_io_mod
   use config_stb_mod
+  use input_keys_mod, only: input_keys_warn_unused
   use finer, only: file_ini
   implicit none
   type(block_type), allocatable  :: blk(:)
@@ -29,12 +30,16 @@ program STB
   write(*,*)
 
   call command_line_argument(output_fmt, write_config_doc, input_file)
+  call check_st_format_build(trim(output_fmt))   ! .szplt without TecIO refused here, not after the build
 
   if (write_config_doc) then
     call write_stb_registry_markdown('stb-input.md')
     write(*,*) ' STB input documentation written to stb-input.md'
     stop
   endif
+
+  ! Keys and types the deck may use (input_keys_mod)
+  call write_stb_registry_markdown(keys_only=.true.)
 
   ! Geometry import
   write(*,*)' Reading mesh file ...'
@@ -54,6 +59,7 @@ program STB
 
   ! Build source terms fields
   call build_st(sourceini, blk, var_blk)
+  call input_keys_warn_unused(sourceini)
 
   ! Write source terms output files
   call write_st_vtk_tec(var_blk, blk, trim(output_fmt))

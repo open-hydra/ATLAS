@@ -97,6 +97,28 @@ a `[WARNING]`. `strict-keys = false` in `[ATLAS-Parameters]` turns the error on
 differing copies into a `[WARNING]` (the first copy is then used); `strict-keys`
 takes `T` or `F`, and `MG-levels` must be at least 1.
 
+BCB, ICB and STB accept only the keys they read (the tables of the input
+references are generated from the same registry): a key a tool does not read
+stops it with `[ERROR] key <key> of section [<name>]: unknown key`, followed by
+the closest known key (`did you mean p0?`); for a renamed key of an older deck
+(`rt` became `g`) the hint names the new key. Keys with the prefix
+`ignore-` are never read (`ignore-note = draft` is a comment); `strict-keys =
+false` in `[ATLAS-Parameters]` turns the unknown-key error (and the errors on a
+key the resolved BC type does not honour, or on `y<species>` of a species no
+phase of the run declares) into a `[WARNING]`. Wrong values are always errors: a
+numeric key whose value is not a number (`g = abc`, `g = 8,5` with a decimal
+comma), two numbers for a key that takes one (`T0 = 300 400`: `value 300 400 is not one number`;
+list keys such as `center = 0 0 0` take several), a logical key that is not `T`/`F`, a value outside the set or range of
+the input-reference table (`axis = w`, `n-repeat = 0`, `interpolation-law =
+nearest`, `IC-format = hdf5`) stop the tool: `[ERROR] key g of section [inflow]:
+value abc is not a number`. Section names are free (a boundary section, a zone, another
+tool's section of a combined file), but a key the tool knows inside a section it
+never reads of the `ATLAS-` or of its own namespace is reported:
+`[WARNING] key IC-format is ignored in section [ATLAS-General]` (the key belongs
+to `[ATLAS-Parameters]`).
+MDB does not check the keys of `[ATLAS-Parameters]`: an unknown key there is
+ignored, as before.
+
 You can also run the whole sequence in one command when using a combined `input.ini`:
 
 ```bash

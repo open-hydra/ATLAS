@@ -112,6 +112,7 @@ contains
               here(3)>=range(5) .and. here(3)<=range(6)) then
             blk%sp%temperature(i,j,k) = T(i,j,k)
             blk%sp%mID(i,j,k) = mID_field(i,j,k)
+            blk%set_sp(i,j,k) = .true.
           endif
       enddo; enddo; enddo
       !$omp end parallel
@@ -134,6 +135,7 @@ contains
             k>=kmin .and. k<=kmax) then
           blk%sp%temperature(i,j,k) = T(i,j,k)
           blk%sp%mID(i,j,k) = mID_field(i,j,k)
+          blk%set_sp(i,j,k) = .true.
         endif
       enddo; enddo; enddo
       !$omp end parallel
@@ -143,10 +145,12 @@ contains
 
     subroutine wrap_src(blocks, sf, field_name)
       type(IC_block),   intent(in)    :: blocks(:)
-      type(var_block),  intent(inout) :: sf(:)
+      type(var_block), allocatable, intent(inout) :: sf(:)
       character(len=*), intent(in)    :: field_name
       integer :: b
-      allocate(src_field(size(blocks)))
+      ! the host array was allocated through a non-allocatable dummy of itself (SIGSEGV)
+      if (allocated(sf)) deallocate(sf)
+      allocate(sf(size(blocks)))
       do b = 1, size(blocks)
         allocate(sf(b)%var(blocks(b)%dim(1), blocks(b)%dim(2), blocks(b)%dim(3)))
         select case (field_name)

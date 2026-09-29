@@ -17,7 +17,7 @@
 | max-blocks | 8 × ranks | >=1 | no | Hard cap on the total number of blocks produced. Cutting stops when this limit is reached even if `target-balance` has not been met. |
 | min-cells | 4 × 2^(MG-levels-1) | >=1 | no | Minimum admissible block extent (in cells) along a cut direction. Prevents producing blocks too small for the multigrid coarsening chain. |
 | split-directions | ijk | any subset of `i`, `j`, `k` | no | Global set of directions along which blocks may be cut. Can be overridden per block via `MDB-Block*` sections. |
-| grid | autodetect | | no | Path to the grid file (Tecplot ASCII or binary). If the file also carries a solution field, it is split alongside the grid. Autodetected from the working directory when not set. |
+| grid | autodetect | | no | Path to the grid file (Tecplot ASCII or binary). If the file also carries a solution field, it is split alongside the grid. Autodetected from the working directory when not set: the first existing file among `INPUT/ic.tec`, `INPUT/ic.szplt`, `mesh.tec`, `mesh.szplt`, `mesh.p3d`, `MESH/mesh.tec` (MDB runs in the solver directory, where the grid is inside the initial condition; BCB, ICB and STB look for `mesh.tec`, `mesh.p3d`, `mesh.szplt` in the case directory). |
 | grid-out | `<grid>-split.<ext>` | | no | Output path for the decomposed grid file. Defaults to the input name with `-split` appended before the extension. |
 | bc-path | INPUT | | no | Directory containing the BC files to split (`bc.txt`, `bc2.txt`, …). |
 | bc-out-path | INPUT-split | | no | Directory where the decomposed BC files are written. Created if it does not exist. |

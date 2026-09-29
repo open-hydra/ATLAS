@@ -10,6 +10,20 @@ contains
   !>
   !> Write var field to Tecplot and/or VTK format
   !>
+  !> the output format (-o) asks for a binary Tecplot file (st.szplt) but the
+  !> build has no TecIO: refused at start (the writer below keeps the same guard).
+  subroutine check_st_format_build(output_format)
+    implicit none
+    character(len=*), intent(in) :: output_format
+#if !defined(TECIO)
+    if ((index(output_format, 'tec') > 0 .or. index(output_format, 'all') > 0) .and. index(output_format, 'binary') > 0) then
+      write(*,'(A)') '[ERROR] output format '//trim(output_format)//' asks for a binary Tecplot file (st.szplt)'// &
+                     ' but this build has no TecIO (configure with -DUSE_TECIO=true, or use tec-ascii / vtk-binary)'
+      stop 1
+    endif
+#endif
+  end subroutine check_st_format_build
+
   subroutine write_st_vtk_tec(st_blocks, mesh_blocks, output_format)
     use Lib_VTK
     use Lib_Tecplot
@@ -26,7 +40,25 @@ contains
     character(len=llen) :: localpath_vtk, localpath
     integer(I4P) :: E_IO, b, i, j, k
     character(len=256) :: varnames, filename
-    logical :: write_tec, write_vtk
+    logical :: write_tec, write_vtk, any_st
+
+    ! Skip output when no block has a configured source term
+    ! (e.g. STB run only to build area variation files)
+    any_st = .false.
+    do b = 1, size(st_blocks)
+      if (allocated(st_blocks(b)%var)) any_st = .true.
+    enddo
+    if (.not. any_st) then
+      write(*,*)
+      write(*,*) ' - No volumetric source terms configured: skipping qvol output files'
+      ! Nothing is written, so a qvol file left by a previous run would be
+      ! picked up by the solver as if it were current: say so.
+      call warn_if_stale(trim(outpath)//'st.tec')
+      call warn_if_stale(trim(outpath)//'st.szplt')
+      call warn_if_stale(trim(outpath)//'qvol.vtm')
+      write(*,*)
+      return
+    endif
 
     localpath = outpath
     orion%solutiontime = -10.0
@@ -76,7 +108,13 @@ contains
       allocate(orion%block(b)%vars(1:1, 1:mesh_blocks(b)%dim(1), &
                                         1:mesh_blocks(b)%dim(2), &
                                         1:mesh_blocks(b)%dim(3)))
-      orion%block(b)%vars(1, :, :, :) = st_blocks(b)%var
+      if (allocated(st_blocks(b)%var)) then
+        orion%block(b)%vars(1, :, :, :) = st_blocks(b)%var
+      else
+        ! Block without a qvol configuration: no heat source (the solver reads
+        ! every block of the file, so the block cannot be omitted).
+        orion%block(b)%vars(1, :, :, :) = 0.0_R8P
+      endif
       orion%block(b)%name = 'B'//trim(str(.true., b))//'-ST'
     enddo
 
@@ -110,6 +148,10 @@ contains
       write(*,*) '   - Writing Tecplot format'
       
       if (index(output_format, 'binary') > 0) then
+#if !defined(TECIO)
+        write(*,'(A)') '[ERROR] output format '//trim(output_format)//': a binary Tecplot file (st.szplt) needs a TecIO build'
+        stop 1
+#endif
         orion%tec%format = 'binary'
         filename = trim(localpath)//'/st.szplt'
       else
@@ -126,5 +168,17 @@ contains
 
     write(*,*)
   end subroutine write_st_vtk_tec
+
+  !>
+  !> Warn when an output file of a previous run is left in place
+  !>
+  subroutine warn_if_stale(filename)
+    implicit none
+    character(len=*), intent(in) :: filename
+    logical :: found
+
+    inquire(file=filename, exist=found)
+    if (found) write(*,*) '   [WARNING] '//filename//' exists from a previous run and has NOT been updated'
+  end subroutine warn_if_stale
 
 end module st_io_mod

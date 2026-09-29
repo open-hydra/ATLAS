@@ -31,8 +31,8 @@ module config_mod
     character(len=llen) :: error_message = ''
     character(len=llen) :: description = ''
     logical             :: enabled = .false.
-    real(R8)            :: theta = 90.0_R8
-    integer             :: nz = 4
+    real(R8)            :: theta = 90.0_R8   ! extrude law: angle (degrees) of the sector the 2D source is revolved into
+    integer             :: nz = 4            ! extrude law: number of cells of that sector
     integer             :: old_block_id = 0
     character(len=llen) :: file = ''
     character(len=llen) :: law = 'outlaw'
@@ -247,7 +247,8 @@ contains
     implicit none
     type(file_ini), intent(in)               :: zoneini
     type(config_interpolation_t), intent(out):: cfg
-    integer :: error
+    integer :: error, err_theta, err_nz, unused_nz
+    real(R8) :: unused_theta
 
     cfg%warning_message = ''
     cfg%error_message = ''
@@ -273,18 +274,25 @@ contains
 
     call zoneini%get(section_name='zone', option_name='interpolation-law', val=cfg%law, error=error)
     if (error /= 0) cfg%law = 'outlaw'
-
+    ! theta (degrees) and nz shape the sector into which the extrude law revolves a 2D source
     if (cfg%law == 'extrude') then
       call zoneini%get(section_name='zone', option_name='theta', val=cfg%theta, error=error)
       if (error /= 0) cfg%theta = 90.0_R8
       call zoneini%get(section_name='zone', option_name='nz', val=cfg%nz, error=error)
       if (error /= 0) cfg%nz = 4
+    else
+      call zoneini%get(section_name='zone', option_name='theta', val=unused_theta, error=err_theta)
+      call zoneini%get(section_name='zone', option_name='nz', val=unused_nz, error=err_nz)
+      if (err_theta == 0 .or. err_nz == 0) write(*,'(A)') "[WARNING] theta and nz shape the sector of interpolation-law = extrude only: with interpolation-law = '"// &
+        trim(cfg%law)//"' they are not used"
     endif
   end subroutine load_interpolation_config
 
-  subroutine write_icb_registry_markdown(filename)
+  subroutine write_icb_registry_markdown(filename, keys_only)
+    use input_keys_mod, only: input_keys_snapshot
     implicit none
     character(*), intent(in), optional :: filename
+    logical, intent(in), optional      :: keys_only   ! .true.: snapshot the keys for input_keys_mod, no file
 
     type(registry_t) :: icb_registry
     type(atlas_parameters_t), target :: atlas_cfg
@@ -339,6 +347,7 @@ contains
     call add_interpolation_entries('ICB-IG', ig_cfg%interpolation, .true.)
     call icb_registry%add('ICB-IG', 'nozzle-direction', ig_cfg%nozzle_direction, 'dx', 'Nozzle marching direction.', 'dx,sx', .false.)
     call icb_registry%add('ICB-IG', 'nozzle-threshold', ig_cfg%nozzle_threshold, '0.0', 'Coordinate threshold separating plenum and nozzle.', '', .false.)
+    call add_species_profile_entries()
 
     call add_field_source_entries('ICB-RF', 'p', rf_cfg%p, 'Real-fluid pressure.')
     call add_field_source_entries('ICB-RF', 'T', rf_cfg%T, 'Real-fluid temperature.')
@@ -362,19 +371,29 @@ contains
     call icb_registry%set_per_population('ICB-DP', [character(len=4) :: 'krho', 'kT', 'Pp', 'dp', 'rp'])
     call add_interpolation_entries('ICB-DP', dp_interp_cfg, .false.)
 
+    ! Species mass-fraction profiles of an IG zone: y<species>-file and y<species>-direction are
+    ! run-time names like the constant y<species> (row 'yspecies' of ICB-Composition)
+
     if (present(filename)) then
       fileout = filename
     else
       fileout = 'icb-input.md'
     endif
 
-    call icb_registry%generate_markdown(trim(fileout), 'ATLAS ICB Input Parameters')
+    call input_keys_snapshot(icb_registry, 'ICB')
+    if (present(keys_only)) then
+      if (keys_only) return
+    endif
+
+    call icb_registry%generate_markdown(trim(fileout), 'ATLAS ICB Input Parameters', preamble= &
+      'Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile files are read in the same units. '// &
+      'The key un (normal velocity) of the ICB-IG and ICB-RF tables is used by BCB only: ICB accepts it and ignores it.')
 
   contains
 
     subroutine add_block_entries()
       call icb_registry%add('ICB-Block*', 'phase', phase_name, '', 'Space-separated phase names. Blank means all phases.', '', .false.)
-      call icb_registry%add('ICB-Block*', 'type', block_type, 'homogeneous', 'Block initialization type.', '', .false.)
+      call icb_registry%add('ICB-Block*', 'type', block_type, 'homogeneous', 'Initialisation type of the block or zone (multizone: the block takes its state from its zone<n> sections; the key direction alone makes a block multizone).', 'homogeneous<br>variable<br>interpolation<br>nozzle<br>multizone', .false.)
       call icb_registry%add('ICB-Block*', 'direction', direction, '', 'Range directions using x,y,z,r,t,i,j,k.', '', .false.)
       call icb_registry%add('ICB-Block*', 'range', block_range, '0.0', 'Range limits for the selected directions.', '', .false.)
       call icb_registry%add('ICB-Block*', 'zone<n>', zone_name, '', 'Referenced auxiliary zone section for multizone setup.', '', .false.)
@@ -401,14 +420,22 @@ contains
 
       call icb_registry%add(section, 'old-solution', interp_cfg%old_solution, '', 'Previous solution file used for interpolation.', '', .false.)
       call icb_registry%add(section, 'old-block-id', interp_cfg%old_block_id, '0', 'Source block index for interpolation. Zero means auto.', '>=0', .false.)
-      call icb_registry%add(section, 'interpolation-law', interp_cfg%law, 'outlaw', 'Interpolation mapping law.', '', .false.)
-      call icb_registry%add(section, 'theta', interp_cfg%theta, '90.0', 'Extrusion angle used by the extrude law.', '', .false.)
-      call icb_registry%add(section, 'nz', interp_cfg%nz, '4', 'Number of extrusion layers used by the extrude law.', '>=1', .false.)
+      call icb_registry%add(section, 'interpolation-law', interp_cfg%law, 'outlaw', 'Interpolation mapping law (outlaw = not given: minimum_distance; index revolves a 2D source onto a target revolved with the same cells; extrude revolves a 2D source about x through theta degrees in nz cells, then each target cell takes the nearest revolved cell).', 'outlaw<br>index<br>multiple<br>minimum_distance<br>spherical_minimum_distance<br>extrude', .false.)
+      call icb_registry%add(section, 'theta', interp_cfg%theta, '90.0', 'Angle in degrees of the sector into which the extrude law revolves the 2D source (from the source plane towards +z).', '', .false.)
+      call icb_registry%add(section, 'nz', interp_cfg%nz, '4', 'Number of cells of the sector built by the extrude law.', '>=1', .false.)
 
       if (include_old_species) then
-        call icb_registry%add(section, 'old-species', interp_cfg%old_species, '', 'Legacy species file prefix used during IG interpolation.', '', .false.)
+        call icb_registry%add(section, 'old-species', interp_cfg%old_species, '', 'Species list of the old solution for IG interpolation: a directory (old/, reads old/<phase>phase.txt) or a file prefix (old-, reads old-<phase>phase.txt in the case directory; the launcher then also finds old-phase.txt and writes a header-only old-ic.tec).', '', .false.)
       endif
     end subroutine add_interpolation_entries
+
+    subroutine add_species_profile_entries()
+      character(len=llen), target, save :: y_file = ''
+      character(len=16),   target, save :: y_direction = ''
+
+      call icb_registry%add('ICB-IG', 'yspecies-file', y_file, '', 'Mass-fraction profile of the species named by the suffix (y<species>-file, in place of the constant y<species>): a Tecplot field on the block grid, or a two-column table (coordinate, y) along y<species>-direction; read like T-file, it makes the zone variable.', '', .false.)
+      call icb_registry%add('ICB-IG', 'yspecies-direction', y_direction, '', 'Direction of the 1D y<species>-file table.', 'x,y,z,r,t', .false.)
+    end subroutine add_species_profile_entries
 
   end subroutine write_icb_registry_markdown
 

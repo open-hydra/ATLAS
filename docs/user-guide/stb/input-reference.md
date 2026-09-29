@@ -11,7 +11,7 @@
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| direction |  | x,y,z,r,t |  no | Direction for 1D profiles: x,y,z,r,t or combinations. |
+| direction |  |  |  no | Direction for 1D profiles: x,y,z,r,t or combinations (a combination is read along its first letter by priority x > y > z > r > t, with a WARNING). |
 | x-areavariation |  |  |  no | Area profile file for x-directed variation. |
 | y-areavariation |  |  |  no | Area profile file for y-directed variation. |
 | r-areavariation |  |  |  no | Area profile file for radial variation. |

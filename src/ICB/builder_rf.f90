@@ -8,9 +8,10 @@ contains
     use global_mod,                    only: llen
     use phase_mod,                    only: real_fluid_t
     use ic_block_mod
-    use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock
+    use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock, old_mesh_type
+    use grid_mod,                     only: MESH_PURE_2D
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, &
-                                            interpolate_from_file
+                                            interpolate_from_file, rotate_2d_to_3d
     use config_mod,                   only: config_rf_t, config_field_source_t, &
                                             config_interpolation, sync_interpolation_config
     implicit none
@@ -22,7 +23,7 @@ contains
     type(real_fluid_t),intent(inout) :: fl
     integer,           intent(in)    :: dir(:)
     !! Local
-    integer                       :: i, j, k
+    integer                       :: i, j, k, nset
     ! Support fields
     real(R8), allocatable  :: p  (:,:,:)
     real(R8), allocatable  :: T  (:,:,:)
@@ -41,6 +42,7 @@ contains
     type(interp_map_t)            :: map
     type(var_block), allocatable  :: src_field(:)
     integer                       :: cnt, bb
+    logical                       :: interp_turb, fresh_turb
 
     allocate(p(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
     allocate(h(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
@@ -57,6 +59,10 @@ contains
 
     alpha = rf_cfg%velocity%alpha
     beta = rf_cfg%velocity%beta
+    ! angles absent from the zone section arrive as huge(): 0, set here in serial code (assign_velocity_components runs
+    ! inside the parallel region of assign_homogeneous and must not write these shared host variables)
+    if (alpha>2026d0) alpha = 0d0
+    if (beta>2026d0)  beta = 0d0
     ux = rf_cfg%velocity%u
     uy = rf_cfg%velocity%v
     uz = rf_cfg%velocity%w
@@ -65,7 +71,20 @@ contains
     kappa = rf_cfg%turbulence%kappa
     omega = rf_cfg%turbulence%omega
     rhoRij = rf_cfg%turbulence%rhoRij
-    blk%nrans = rf_cfg%turbulence%nrans
+    interp_turb = .false.
+    ! Turbulence model of the block: a model already set on this block by an
+    ! earlier zone (configured, or adopted from an interpolation source)
+    ! persists; a later zone may only confirm it.
+    fresh_turb = .not.allocated(blk%rf%turbprop)   ! no earlier zone set a turbulence model on this block
+    if (allocated(blk%rf%turbprop)) then
+      if (rf_cfg%turbulence%nrans > 0 .and. rf_cfg%turbulence%nrans /= blk%nrans) then
+        write(*,*) '[ERROR] build_RF_field: zone turbulence model (nrans =', rf_cfg%turbulence%nrans, &
+          ') differs from the model already set on this block (nrans =', blk%nrans, ')'
+        stop 1
+      endif
+    else
+      blk%nrans = rf_cfg%turbulence%nrans
+    endif
 
     OFF = rf_cfg%interpolation%old_solution
     oldid = rf_cfg%interpolation%old_block_id
@@ -79,8 +98,19 @@ contains
       allocate(blk%rf%pressure   (         1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
       allocate(blk%rf%enthalpy   (         1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
       allocate(blk%rf%temperature(         1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
-      if (blk%nrans>0) &
-        allocate(blk%rf%turbprop(blk%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+    endif
+    if (blk%nrans > 0 .and. .not.allocated(blk%rf%turbprop)) then
+      allocate(blk%rf%turbprop(blk%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+      blk%rf%turbprop = 0.0_R8   ! never write uninitialised memory
+      call new_turbulence_mask()
+    endif
+
+    ! The (p,h) -> T table of the phase is needed by every IC type (ph2T): without it the run used to
+    ! end in a SIGSEGV on the unallocated table (read_realfluid_properties only warns and returns).
+    if (.not.allocated(fl%p) .or. .not.allocated(fl%h) .or. .not.allocated(fl%T)) then
+      write(*,*) '[ERROR] build_RF_field: the real-fluid thermo table (thermo.dat of phase '//trim(fl%name)// &
+        ') was not loaded (see the [WARNING] above): T(p,h) cannot be computed for IC type '//trim(IC_type)
+      stop 1
     endif
 
     select case (IC_type)
@@ -94,36 +124,122 @@ contains
       case ('variable')
         call assign_variable()
 
+      case default
+        write(*,'(A,I0,A)') "[ERROR] build_RF_field block ", blk%id, ": type = '"//trim(IC_type)// &
+          "' is not an initialisation type of a real-fluid zone (allowed: homogeneous, variable, interpolation)"
+        stop 1
+
     end select
 
     ! Turbulence post-assignment
 
-    ! Turbulence specific parameters
-    if (blk%nrans==1) then
-
-        if(mit/=0.0) blk%rf%turbprop(1,:,:,:) = mit
-
-    elseif (blk%nrans==2) then
-
-        if(kappa/=0.0) blk%rf%turbprop(1,:,:,:) = kappa
-        if(omega/=0.0) blk%rf%turbprop(2,:,:,:) = omega
-
-    elseif (blk%nrans==7) then
-
-        if(rhoRij/=0.0) blk%rf%turbprop(1:3,:,:,:) = rhoRij
-        blk%rf%turbprop(4:6,:,:,:) = 1d-8
-        if(omega/=0.0) blk%rf%turbprop(7,:,:,:) = omega
-
+    ! Turbulence free-stream constants of THIS zone: applied to the cells of the
+    ! zone range only (exactly like p, T, u), never block-wide, so a patch zone
+    ! cannot overwrite the field interpolated or assigned by another zone.
+    if (blk%nrans > 0) then
+      nset = 0
+      do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+        if (.not.cell_in_range(i,j,k)) cycle
+        nset = nset + 1
+        if (blk%nrans==1) then
+          if(mit/=0.0) blk%rf%turbprop(1,i,j,k) = mit
+          if(mit/=0.0) blk%set_turb_rf(1,i,j,k) = .true.
+        elseif (blk%nrans==2) then
+          if(kappa/=0.0) blk%rf%turbprop(1,i,j,k) = kappa
+          if(omega/=0.0) blk%rf%turbprop(2,i,j,k) = omega
+          if(kappa/=0.0) blk%set_turb_rf(1,i,j,k) = .true.
+          if(omega/=0.0) blk%set_turb_rf(2,i,j,k) = .true.
+        elseif (blk%nrans==7) then
+          if(rhoRij/=0.0) blk%rf%turbprop(1:3,i,j,k) = rhoRij
+          if(.not.interp_turb .and. rhoRij/=0.0) blk%rf%turbprop(4:6,i,j,k) = 1d-8   ! shear default only with an explicit rhoRij
+          if(omega/=0.0) blk%rf%turbprop(7,i,j,k) = omega
+          if(rhoRij/=0.0) blk%set_turb_rf(1:6,i,j,k) = .true.
+          if(omega/=0.0) blk%set_turb_rf(7,i,j,k) = .true.
+        endif
+      enddo; enddo; enddo
+      if (nset < product(blk%dim) .and. (mit /= 0.0_R8 .or. kappa /= 0.0_R8 .or. omega /= 0.0_R8 .or. rhoRij /= 0.0_R8)) &
+        write(*,*) ' - build_RF_field: turbulence constants of this zone applied to ', nset, ' of ', product(blk%dim), &
+          ' cells (zone range); the other cells keep their current turbulence field'
     endif
+    ! A configured model with neither an interpolated source field nor a
+    ! free-stream key keeps the zero initialisation: say so.
+    ! a zero omega / k / stress band under an omega model is refused (see build_IG_field)
+    if (blk%nrans > 0 .and. .not.interp_turb .and. fresh_turb) then
+      if (blk%nrans == 1 .and. mit    == 0.0_R8) call warn_unset("mi_t (key mit)")
+      if (blk%nrans == 2 .and. kappa  == 0.0_R8) call refuse_unset("kappa (key kappa)", "k-omega (nrans = 2)", "kappa and omega")
+      if (blk%nrans == 2 .and. omega  == 0.0_R8) call refuse_unset("omega (key omega)", "k-omega (nrans = 2)", "kappa and omega")
+      if (blk%nrans == 7 .and. rhoRij == 0.0_R8) call refuse_unset("ru'u' rv'v' rw'w' (key rhoRij)", "Reynolds-stress (nrans = 7)", "rhoRij and omega")
+      if (blk%nrans == 7 .and. omega  == 0.0_R8) call refuse_unset("omega (key omega)", "Reynolds-stress (nrans = 7)", "rhoRij and omega")
+    endif
+    ! L5 (state-range check): the state this zone wrote must be physical (p > 0, T > 0)
+    do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+      if (.not. cell_in_range(i,j,k)) cycle
+      if (.not. (blk%rf%pressure(i,j,k) > 0.0_R8 .and. blk%rf%temperature(i,j,k) > 0.0_R8)) then
+        write(*,'(A,I0,A,I0,A,I0,A,I0,A,ES12.5,A,ES12.5,A)') '[ERROR] build_RF_field block ', blk%id, &
+          ': the initial field is not physical at cell (', i, ',', j, ',', k, '): p = ', blk%rf%pressure(i,j,k), &
+          ' Pa, T = ', blk%rf%temperature(i,j,k), ' K (check p, T, h, or the source)'
+        stop 1
+      endif
+    enddo; enddo; enddo
 
 
   contains
 
     ! -----------------------------------------------------------------------
+    subroutine warn_unset(what)
+      implicit none
+      character(len=*), intent(in) :: what
+      write(*,*) '[WARNING] build_RF_field: turbulence band '//what// &
+        ' has no value for this zone (no turbulent source, no key): it keeps its current content (0 unless set by another zone)'
+    end subroutine warn_unset
+
+    subroutine refuse_unset(what, model, keys)
+      implicit none
+      character(len=*), intent(in) :: what, model, keys
+      write(*,'(A)') '[ERROR] build_RF_field: turbulence band '//what//' would be written as 0 under the '//model// &
+        ' model: the solver kernels divide by it. Give the zone keys '//keys//' (a laminar source onto a'// &
+        ' RANS target needs free-stream values), or nrans = 0 for a laminar field'
+      stop 1
+    end subroutine refuse_unset
+
+    ! -----------------------------------------------------------------------
     subroutine assign_interpolation()
       implicit none
+      real(R8), allocatable :: sv_h(:,:,:), sv_vel(:,:,:,:), sv_p(:,:,:), sv_T(:,:,:), sv_turb(:,:,:,:)
+      logical :: partial
+
+      ! The zone writes the cells of its range only (as build_IG_field): the other cells are kept aside
+      partial = .false.
+      do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+        if (.not. cell_in_range(i,j,k)) partial = .true.
+      enddo; enddo; enddo
+      if (partial) then
+        sv_h   = blk%rf%enthalpy
+        sv_vel = blk%rf%velocity
+        sv_p   = blk%rf%pressure
+        sv_T   = blk%rf%temperature
+        if (allocated(blk%rf%turbprop)) sv_turb = blk%rf%turbprop
+      endif
 
       call ensure_old_solution(OFF, 'RF')
+
+      ! Turbulence policy (same as IG): adopt the source model when the block
+      ! has none; a configured model wins and is interpolated only if it is the
+      ! same model as the source's.
+      if (oldblock(1)%nrans > 0) then
+        if (blk%nrans == 0) then
+          blk%nrans = oldblock(1)%nrans
+          if (allocated(blk%rf%turbprop)) deallocate(blk%rf%turbprop)
+          allocate(blk%rf%turbprop(blk%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+          blk%rf%turbprop = 0.0_R8
+          call new_turbulence_mask()
+        elseif (blk%nrans /= oldblock(1)%nrans) then
+          write(*,*) '[WARNING] build_RF_field: block turbulence model (nrans =', blk%nrans, &
+            ') differs from the source solution (nrans =', oldblock(1)%nrans, &
+            '): source turbulence NOT interpolated (slots of different models do not correspond)'
+        endif
+      endif
+
       call compute_interp_map(map, oldblock, blk, oldid, config_interpolation%law)
 
       ! ---- Enthalpy ----
@@ -146,20 +262,6 @@ contains
         call dealloc_src()
       enddo
 
-      ! 2D -> 3D azimuthal velocity rotation (index law only)
-      if (config_interpolation%law == 'index') then
-        if (oldblock(max(oldid,1))%dim(3) == 1 .and. blk%dim(3) /= 1) then
-          !$omp parallel do collapse(3) private(i,j,k)
-          do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
-            blk%rf%velocity(2,i,j,k) = blk%rf%velocity(2,i,j,k) * &
-              cos(atan2(blk%center(i,j,k)%c(3), blk%center(i,j,k)%c(2)))
-            blk%rf%velocity(3,i,j,k) = blk%rf%velocity(3,i,j,k) * &
-              sin(atan2(blk%center(i,j,k)%c(3), blk%center(i,j,k)%c(2)))
-          enddo; enddo; enddo
-          !$omp end parallel do
-        endif
-      endif
-
       ! ---- Pressure ----
       allocate(src_field(size(oldblock)))
       do bb = 1, size(oldblock)
@@ -170,7 +272,10 @@ contains
       call dealloc_src()
 
       ! ---- Turbulent properties ----
-      if (blk%nrans > 0) then
+      ! Interpolate the turbulence field only when source and block use the
+      ! same model (same band count): slots of different models never
+      ! correspond positionally.
+      if (blk%nrans > 0 .and. oldblock(1)%nrans == blk%nrans) then
         do cnt = 1, blk%nrans
           allocate(src_field(size(oldblock)))
           do bb = 1, size(oldblock)
@@ -181,6 +286,21 @@ contains
           call apply_interp_map(map, blk%rf%turbprop(cnt,:,:,:), src_field)
           call dealloc_src()
         enddo
+        interp_turb = .true.
+      endif
+
+      ! ---- 2D -> 3D rotation of the interpolated velocity / Reynolds stresses (index law) ----
+      ! One-cell source (pure-2D x-r plane or one-cell wedge) revolved onto a target whose k-lines
+      ! are circles about x; nothing is rotated for a z-extruded (planar) target; with another law a
+      ! revolved target is refused with an ERROR. See rotate_2d_to_3d.
+      if (config_interpolation%law == 'extrude') then
+        continue   ! the extruded source already carries the velocity (and stresses) of each azimuth
+      elseif (interp_turb .and. blk%nrans == 7) then
+        call rotate_2d_to_3d(map, oldblock, blk, old_mesh_type == MESH_PURE_2D, config_interpolation%law == 'index', &
+                             blk%rf%velocity, blk%rf%turbprop)
+      else
+        call rotate_2d_to_3d(map, oldblock, blk, old_mesh_type == MESH_PURE_2D, config_interpolation%law == 'index', &
+                             blk%rf%velocity)
       endif
 
       call map%destroy()
@@ -192,7 +312,28 @@ contains
       enddo; enddo; enddo
       !$omp end parallel do
 
+      do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+        if (cell_in_range(i,j,k)) then
+          blk%set_rf(i,j,k) = .true.
+          if (interp_turb) blk%set_turb_rf(:,i,j,k) = .true.
+        elseif (partial) then
+          blk%rf%enthalpy(i,j,k)    = sv_h(i,j,k)
+          blk%rf%velocity(:,i,j,k)  = sv_vel(:,i,j,k)
+          blk%rf%pressure(i,j,k)    = sv_p(i,j,k)
+          blk%rf%temperature(i,j,k) = sv_T(i,j,k)
+          if (allocated(sv_turb)) then
+            if (size(sv_turb,1) == size(blk%rf%turbprop,1)) blk%rf%turbprop(:,i,j,k) = sv_turb(:,i,j,k)
+          endif
+        endif
+      enddo; enddo; enddo
+
     end subroutine assign_interpolation
+
+    subroutine new_turbulence_mask()
+      implicit none
+      if (allocated(blk%set_turb_rf)) deallocate(blk%set_turb_rf)
+      allocate(blk%set_turb_rf(blk%nrans,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)), source=.false.)
+    end subroutine new_turbulence_mask
 
     ! -----------------------------------------------------------------------
     subroutine assign_homogeneous()
@@ -216,6 +357,7 @@ contains
           blk%rf%enthalpy   (i,j,k) = hc
           blk%rf%temperature(i,j,k) = Tc
           call assign_velocity_components(i, j, k, vel_c)
+          blk%set_rf(i,j,k) = .true.
         endif
       enddo; enddo; enddo
       !$omp end parallel do
@@ -241,6 +383,7 @@ contains
           blk%rf%enthalpy   (i,j,k) = hv
           blk%rf%temperature(i,j,k) = Tv
           call assign_velocity_components(i, j, k, vel(i,j,k))
+          blk%set_rf(i,j,k) = .true.
         endif
       enddo; enddo; enddo
 
@@ -279,11 +422,20 @@ contains
     logical function cell_in_range(i, j, k)
       implicit none
       integer, intent(in) :: i, j, k
+      real(R8)            :: here(3)   ! local: the host array is shared by the OpenMP threads (a private clause does not reach a host-associated reference)
 
+      integer             :: n
+
+      ! a coordinate letter compares the cell centre, an index letter (i, j, k) the cell index
       here = 1.0_R8
-      if (dirSize>=1) here(1) = blk%center(i,j,k)%c(dir(1))
-      if (dirSize>=2) here(2) = blk%center(i,j,k)%c(dir(2))
-      if (dirSize>=3) here(3) = blk%center(i,j,k)%c(dir(3))
+      do n = 1, min(dirSize, 3)
+        select case (dir(n))
+        case (6); here(n) = real(i, R8)
+        case (7); here(n) = real(j, R8)
+        case (8); here(n) = real(k, R8)
+        case default; here(n) = blk%center(i,j,k)%c(dir(n))
+        end select
+      enddo
       cell_in_range = here(1)>=range(1) .and. here(1)<=range(2) .and. &
                       here(2)>=range(3) .and. here(2)<=range(4) .and. &
                       here(3)>=range(5) .and. here(3)<=range(6)
@@ -296,9 +448,6 @@ contains
       integer,  intent(in) :: i, j, k
       real(R8), intent(in) :: vel_mag
       integer :: l
-
-      if (alpha>2026d0) alpha = 0d0
-      if (beta>2026d0)  beta = 0d0
 
       if (ux == 0.0_R8) then
         blk%rf%velocity(1,i,j,k) = vel_mag*cos(alpha)*cos(beta)
