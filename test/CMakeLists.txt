@@ -477,9 +477,11 @@ set_tests_properties(IG+DP-population-forms PROPERTIES
 # a TAB, false, (their defaults): FiNeR reads the first item of the value, so the BC file must be
 # DP-population-list's. chimera/ is IG-chimera's deck with BC-chimera = T#note, a comment attached to
 # a value that is not the default: its BC file must be IG-chimera's (same tolerance as IG-chimera).
+# _run-strict: strict-keys is read before any key table, with the rule of every logical key: Tomato stops the tool
+# with the message of that rule and no BC file; true and .false. give DP-population-list's BC file.
 add_test(
     NAME    DP-logical-forms
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/drop-bc.txt ../DP-population-list/reference/drop-bc.txt && cd chimera && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../IG-chimera/reference/bc.txt fromATLAStoSolver/bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/drop-bc.txt ../DP-population-list/reference/drop-bc.txt && cd chimera && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../IG-chimera/reference/bc.txt fromATLAStoSolver/bc.txt && cd .. && rm -rf _run-strict && mkdir _run-strict && cp input.ini mesh.tec drop-phase.txt _run-strict/ && cd _run-strict && sed -i 's/^strict-keys = .*/strict-keys = Tomato/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key strict-keys of section [ATLAS-Parameters]: value Tomato is not a logical (T or F)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && sed -i 's/^strict-keys = .*/strict-keys = true/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > /dev/null && diff fromATLAStoSolver/drop-bc.txt ../../DP-population-list/reference/drop-bc.txt && rm -rf fromATLAStoSolver && sed -i 's/^strict-keys = .*/strict-keys = .false./' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > /dev/null && diff fromATLAStoSolver/drop-bc.txt ../../DP-population-list/reference/drop-bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-logical-forms"
 )
 set_tests_properties(DP-logical-forms PROPERTIES

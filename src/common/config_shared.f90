@@ -58,7 +58,8 @@ module config_shared_mod
 contains
 
   subroutine load_atlas_parameters(prog, cfg, input_file)
-    use input_keys_mod, only: input_keys_check_section, input_keys_set_strict, input_keys_check_duplicate_sections
+    use input_keys_mod, only: input_keys_check_section, input_keys_set_strict, input_keys_check_duplicate_sections, &
+                              input_keys_check_logical
     implicit none
     character(len=64) :: strict_value
     character(*), intent(in)              :: prog
@@ -104,18 +105,13 @@ contains
                   val=strict_value, error=error)
     cfg%strict_keys = .true.
     if (error == 0) then
+      ! the whole value, with the rule of every logical key (T, F, true, false, .true., .false., any
+      ! case, a comment after it), also in a tool that checks no key table: a word that only starts
+      ! like a logical (Tomato) is refused, not read by its first letter
+      call input_keys_check_logical('strict-keys', strict_value, 'ATLAS-Parameters')
       strict_value = adjustl(strict_value)
       if (strict_value(1:1) == '.') strict_value = strict_value(2:)
-      select case (strict_value(1:1))
-      case ('T', 't')
-        cfg%strict_keys = .true.
-      case ('F', 'f')
-        cfg%strict_keys = .false.
-      case default
-        write(*,'(A)') '[ERROR] key strict-keys of section [ATLAS-Parameters]: value '// &
-                       trim(strict_value)//' is not a logical (T or F)'
-        stop 1
-      end select
+      cfg%strict_keys = strict_value(1:1) == 'T' .or. strict_value(1:1) == 't'
     endif
     call input_keys_set_strict(cfg%strict_keys)
     call input_keys_check_duplicate_sections(trim(ini_filename), fini)   ! L0: a section header written twice (FiNeR keeps the first in silence)

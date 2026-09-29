@@ -40,7 +40,7 @@ module input_keys_mod
   public :: input_keys_snapshot, input_keys_set_phases, input_keys_check_section, &
             input_keys_set_strict, input_keys_strict, input_keys_warn_unused, &
             input_keys_format_ok, input_keys_refuse_or_warn, input_keys_check_duplicate_sections, &
-            input_keys_phase_key
+            input_keys_phase_key, input_keys_check_logical
 
   integer, parameter :: KLEN = 64, ALEN = 200
   type :: key_t
@@ -970,6 +970,14 @@ contains
                    ': value '//trim(adjustl(value))//' is not a logical (T or F)'
     stop 1
   end subroutine check_logical
+
+  !> check_logical for a key read before the key table of the tool (strict-keys, which selects the mode
+  !> of that check): the same rule and the same message
+  subroutine input_keys_check_logical(key, value, section_name)
+    implicit none
+    character(len=*), intent(in) :: key, value, section_name
+    call check_logical(key, value, section_name, 'atlas')
+  end subroutine input_keys_check_logical
 
   !> L3 for a numeric row: every token of the value inside the registry range
   !> ('>=1', '>0', '<=1', '<1', '(0,1]', '[0,1)', ...); the tokens were
