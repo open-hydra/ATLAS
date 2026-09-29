@@ -73,9 +73,13 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                     viscosity_aux[species_name].append(mu)
                     conductivity_aux[species_name].append(k)
 
-            if not species_found:
-                    print(f"Warning: Transport model is not valid for species '{species_name}'.")
-                    print(f"         CEA simplified law is applied!")
+            if not species_found:  # no record for this species in the selected transport source
+                if model == 'CEA':
+                    print(f"[WARNING] GPB: transport = CEA: no CEApolynomials record for species "
+                          f"'{species_name}': simplified law applied")
+                else:
+                    print(f"[WARNING] GPB: transport = {model} is not cantera, CEA or constant: "
+                          f"simplified law applied for species '{species_name}'")
 
         if 'mixture' not in solution.name:
             for sp in species_names_aux:

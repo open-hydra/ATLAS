@@ -20,21 +20,31 @@ if args.write_config_doc:
     print(' GPB input documentation written to gpb-input.md')
     raise SystemExit(0)
 
-import ideal_gas
-import condensed
-import real_fluid
-from ini import load_phase_definitions
+# The products of a run are written into a temporary directory and moved into
+# fromATLAStoSolver/ only when every phase of the deck succeeded: a refusal or a
+# crash leaves no product of this run. stage_output() must run before the
+# builder modules are imported (they bind the output path at import).
+import config
+config.stage_output()
+try:
+    import ideal_gas
+    import condensed
+    import real_fluid
+    from ini import load_phase_definitions
 
-inifile = args.input_file
-phase_definitions = load_phase_definitions(inifile)
+    inifile = args.input_file
+    phase_definitions = load_phase_definitions(inifile)
 
-for phase in phase_definitions:
-    phase_type = phase.phase_type.lower()
-    if ('ideal' in phase_type or 'heavy' in phase_type):
-        ideal_gas.build(inifile, phase.section)
-    elif ('dispersed' in phase_type or phase_type in ('solid', 'solid-bulk')):
-        condensed.build(phase_type, inifile, phase.section, phase.phase_modeling)
-    elif ('real' in phase_type):
-        real_fluid.build(inifile, phase.section)
-    else:
-        raise SystemExit(f"[ERROR] [{phase.section}] type = '{phase.phase_type}' is not a GPB phase type")
+    for phase in phase_definitions:
+        phase_type = phase.phase_type.lower()
+        if ('ideal' in phase_type or 'heavy' in phase_type):
+            ideal_gas.build(inifile, phase.section)
+        elif ('dispersed' in phase_type or phase_type in ('solid', 'solid-bulk')):
+            condensed.build(phase_type, inifile, phase.section, phase.phase_modeling)
+        elif ('real' in phase_type):
+            real_fluid.build(inifile, phase.section)
+        else:
+            raise SystemExit(f"[ERROR] [{phase.section}] type = '{phase.phase_type}' is not a GPB phase type")
+    config.commit_output()   # every phase succeeded: each product replaces its namesake in fromATLAStoSolver/ (no other file is touched)
+finally:
+    config.discard_output()  # removes the temporary directory (empty after a successful run)

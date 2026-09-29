@@ -14,17 +14,18 @@
 | type | ideal-gas | ideal-gas,heavy-gas,condensed-dispersed,liquid-dispersed,solid-dispersed,solid,solid-bulk,real-fluid | no | Phase model selector for the current section. |
 | modeling |  | lagrangian,eulerian | no | Dispersed phase treatment the solver will use; written on line 1 of <name>phase.txt as modeling=<value>. |
 | name |  |  | no | Prefix for generated output files. |
-| Tmin | 1 | >0 | no | Minimum tabulation temperature [K]. |
-| Tmax | 5000 | >0 | no | Maximum tabulation temperature [K]. |
+| Tmin | 1 | >0 | no | Minimum tabulation temperature [K] (integer; the tables have a 1 K step). |
+| Tmax | 5000 | >0 | no | Maximum tabulation temperature [K] (integer; the tables have a 1 K step). |
 
 ## GPB-IdealGas
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| phase |  |  | no | Existing Cantera phase file stem (without .yaml). |
+| phase |  |  | no | Existing Cantera phase file stem (without .yaml): the name of the database file, which may differ from the phase name inside it. |
 | thermo |  | NASA7,NASA9,Burcat | no | Thermodynamic species database selector. |
 | transport |  | CEA,cantera | no | Transport model source. |
 | reactions |  |  | no | Reaction mechanism file stem (without .yaml). |
+| strict-thermo | False | True,False | no | Refuse (instead of warning) when a database thermo record replaces a mechanism species record by more than 1 kJ/mol at 298.15 K. |
 | inerts-mixing | False | True,False | no | Mix equilibrium species into a single mixture phase. |
 | species |  |  | no | Manual inert species list. |
 | add-species |  |  | no | Alternative key for manual inert species list. |

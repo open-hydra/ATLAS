@@ -1685,3 +1685,176 @@ set_tests_properties(CP-psat-refuse PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GPB : database-flint-contract (every database/chemistry yaml whose phase name selects a compiled FLINT routine matches the routine in the copy of FLINT's contract file, test/tools/flint_mechanism_contract.json; the hooks below are pinned) -------------
+add_test(
+    NAME    database-flint-contract
+    COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/tools/flint_contract_check.py ${CMAKE_SOURCE_DIR}/database --expect UCSD.yaml=sandiego20161214 Frolov.yaml=Frolov Frolov_nopressure.yaml=Frolov_nopressure Nassini_Original.yaml=Nassini_4 Nassini_Montanari_Grossi.yaml=Nassini_4 FFCMy_12.yaml=FFCMy_12 ONERA-7.yaml=ONERA_7 ONERA-7_rev.yaml=general"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tools"
+)
+set_tests_properties(database-flint-contract PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-reactions-without-thermo (reactions = without thermo: the thermo records of the file are used, said with an INFO line; thermo.dat, chemistry-info.txt and chemistry-Arrhenius.dat equal to those of phase = on the same file) -------------
+add_test(
+    NAME    IG-reactions-without-thermo
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-reactions && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 && grep -q -F '[INFO] GPB: reactions = tiny-h2 without thermo: the thermo records of the file are used' gpb.log && ! grep -q -F 'not present in the employed database' gpb.log && mv fromATLAStoSolver _run-reactions && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input phase.ini > gpb-phase.log 2>&1 && diff _run-reactions/thermo.dat fromATLAStoSolver/thermo.dat && diff _run-reactions/chemistry-info.txt fromATLAStoSolver/chemistry-info.txt && diff _run-reactions/chemistry-Arrhenius.dat fromATLAStoSolver/chemistry-Arrhenius.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-reactions-without-thermo"
+)
+set_tests_properties(IG-reactions-without-thermo PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-strict-thermo (strict-thermo = true refuses a database thermo record that differs from the file record by more than 1 kJ/mol at 298.15 K) -------------
+add_test(
+    NAME    IG-strict-thermo
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1; then cat gpb.log; false; else grep -q -F '[ERROR] GPB: strict-thermo = true: the database thermo differs by more than 1 kJ/mol at 298.15 K (or at the lower bound of a record that starts above it) for: H2O' gpb.log; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-strict-thermo"
+)
+set_tests_properties(IG-strict-thermo PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-fixgas-gas-constant (a species given by gamma and mw: cp = gamma/(gamma-1) R_u/mw with the exact R_u = 8314.46261815324 J/(kmol K)) -------------
+add_test(
+    NAME    IG-fixgas-gas-constant
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && awk 'BEGIN{cp=3.5*8314.46261815324/28.97; n=0; bad=0} /^ *[0-9]/{ n++; d=$2-cp; if(d<0) d=-d; if(d>2e-6) bad++ } END{ exit (n==5000 && bad==0) ? 0 : 1 }' fromATLAStoSolver/air-thermo.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-fixgas-gas-constant"
+)
+set_tests_properties(IG-fixgas-gas-constant PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-transport-CEA-species-without-data (transport = CEA with a mechanism species that has no transport data and exists in the thermo database: accepted, transport.dat equal to the one of the same mechanism with transport records) -------------
+add_test(
+    NAME    IG-transport-CEA-species-without-data
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/transport.dat reference/transport.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-transport-CEA-species-without-data"
+)
+set_tests_properties(IG-transport-CEA-species-without-data PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-tmin-noninteger (a non-integer Tmin of a condensed phase is refused naming the key; the products of the ideal-gas phase before it, with an integer Tmin = 300, are not left behind) -------------
+add_test(
+    NAME    CP-tmin-noninteger
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1; then cat gpb.log; false; else grep -q -F '[ERROR] key Tmin of section [GPB-Phase2]: Tmin = 300.5 is not an integer number of kelvin' gpb.log && ! grep -q 'section \\[GPB-Phase1\\]' gpb.log && test ! -e fromATLAStoSolver && ! ls -d .gpb-tmp-* 2>/dev/null; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-tmin-noninteger"
+)
+set_tests_properties(CP-tmin-noninteger PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : GPB-tmin-range (Tmin at or below 0 K, or above Tmax, stops GPB naming the key (ideal gas and condensed phase)) -------------
+add_test(
+    NAME    GPB-tmin-range
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input tmin-zero.ini 2>&1); test $? -eq 1 && grep -q -F '[ERROR] key Tmin of section [GPB-Phase1]: Tmin = 0 is not a temperature above 0 K' <<< \"$out\" && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input tmin-above-tmax.ini 2>&1); test $? -eq 1 && grep -q -F 'Tmin = 450 is above Tmax = 400' <<< \"$out\" && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input cp-tmin-zero.ini 2>&1); test $? -eq 1 && grep -q -F 'Tmin = 0 is not a temperature above 0 K' <<< \"$out\""
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/GPB-tmin-range"
+)
+set_tests_properties(GPB-tmin-range PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-falloff-irreversible-orders (k_c = 0 on every row of an irreversible falloff reaction, > 0 on a reversible one, in the Lindemann and Troe tables; explicit orders of a phase FLINT runs with general end chemistry-info.txt as the orders block) -------------
+add_test(
+    NAME    IG-falloff-irreversible-orders
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 && for f in Lindemann Troe; do awk 'BEGIN{z=0;bad=0} /^ZONE/{z++} /^ *[0-9]/{ if(z==1 && $4+0<=0) bad++; if(z==2 && $4+0!=0) bad++ } END{ if(z!=2) bad++; exit bad?1:0 }' fromATLAStoSolver/chemistry-$f.dat || exit 1; done && tail -n 4 fromATLAStoSolver/chemistry-info.txt | diff - expected-orders.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-falloff-irreversible-orders"
+)
+set_tests_properties(IG-falloff-irreversible-orders PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-orders-block-always (the orders block ends chemistry-info.txt whatever the phase name: a phase named like a compiled FLINT routine (WD) keeps its explicit orders) -------------
+add_test(
+    NAME    IG-orders-block-always
+    COMMAND bash -c "rm -rf _run-hooked && mkdir _run-hooked && cp *.ini *.yaml *.txt _run-hooked/ 2>/dev/null; cd _run-hooked && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input hooked.ini > gpb.log 2>&1 && tail -n 4 fromATLAStoSolver/chemistry-info.txt | diff - expected-orders.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-falloff-irreversible-orders"
+)
+set_tests_properties(IG-orders-block-always PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : GPB-falloff-form-refused (a falloff form other than Troe and Lindemann (here Tsang) stops GPB naming the reaction: the tables could not hold it) -------------
+add_test(
+    NAME    GPB-falloff-form-refused
+    COMMAND bash -c "rm -rf _run-tsang && mkdir _run-tsang && cp *.ini *.yaml *.txt _run-tsang/ 2>/dev/null; cd _run-tsang && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input tsang.ini 2>&1); test $? -eq 1 && grep -q -F '1 (H + O2 (+M) <=> HO2 (+M); falloff-Tsang)' <<< \"$out\" && test ! -e fromATLAStoSolver/chemistry-info.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-falloff-irreversible-orders"
+)
+set_tests_properties(GPB-falloff-form-refused PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-phase-file-name-hint (phase = takes the yaml file name: phase = WD-Andersen, the phase name inside WD-andersen.yaml, stops with an error that suggests WD-andersen) -------------
+add_test(
+    NAME    IG-phase-file-name-hint
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1; then cat gpb.log; false; else grep -q -F 'did you mean phase = WD-andersen?' gpb.log; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-phase-file-name-hint"
+)
+set_tests_properties(IG-phase-file-name-hint PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-ct-equilibrium -------------
+# The Cantera equilibrium of the tutorial (eq-of, eq-pressure, eq-fuel, eq-oxidizer): the phase holds the species of
+# the H2/O2 flame above the mole-fraction threshold; phase and composition files as in the reference, thermo table written.
+add_test(
+    NAME    IG-ct-equilibrium
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/gasmix-phase.txt reference/gasmix-phase.txt && diff fromATLAStoSolver/gasmix-composition.txt reference/gasmix-composition.txt && test -s fromATLAStoSolver/gasmix-thermo.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-ct-equilibrium"
+)
+set_tests_properties(IG-ct-equilibrium PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-ct-equilibrium-inerts -------------
+# Cantera equilibrium at a rich mixture (eq-of = 2) with inerts-mixing = true and add-species = N2: the cte-mixture
+# pseudo-species has the mean molecular weight of the kept equilibrium species (H, H2, H2O), each with its own mass
+# fraction, and the added N2 stays a separate species of the phase.
+add_test(
+    NAME    IG-ct-equilibrium-inerts
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gasmix-phase.txt fromATLAStoSolver/gasmix-phase.txt && diff fromATLAStoSolver/gasmix-composition.txt reference/gasmix-composition.txt && test -s fromATLAStoSolver/gasmix-thermo.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-ct-equilibrium-inerts"
+)
+set_tests_properties(IG-ct-equilibrium-inerts PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : GPB-launcher-atlasdir (ATLAS.sh derives ATLASDIR from its own location and passes it to GPB when the environment does not set it) -------------
+add_test(
+    NAME    GPB-launcher-atlasdir
+    COMMAND bash -c "rm -rf _run-env && mkdir _run-env && cp *.ini *.yaml *.txt _run-env/ 2>/dev/null; cd _run-env && env -u ATLASDIR ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 && tail -n 4 fromATLAStoSolver/chemistry-info.txt | diff - expected-orders.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-falloff-irreversible-orders"
+)
+set_tests_properties(GPB-launcher-atlasdir PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

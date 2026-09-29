@@ -22,7 +22,7 @@ conda env create -f ct-env.yaml
 conda activate ct-env
 
 # Or install requirements manually with pip
-pip install cantera coolprop 'numpy<2' pyyaml
+pip install 'cantera>=3.0' coolprop 'numpy<2' pyyaml
 
 # Set ATLAS environment variable (required by GPB)
 export ATLASDIR=/path/to/ATLAS

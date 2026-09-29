@@ -1,4 +1,14 @@
-description: |- 
+description: |-
+  Frolov single-step H2-air mechanism, variant of the CFD++ reaction panel (the reaction file of the CFD++
+  solver), not the formula published by Frolov et al.: 2 H2 + O2 <=> 2 H2O, reversible (backward rate from the
+  equilibrium constant), forward Arrhenius A = 8e11 (m3/kmol)^2/s on the reaction progress rate q, b = 0,
+  Ea = 8.314e7 J/kmol, no pressure factor.
+  Consequence of the source: d[H2]/dt = -2 q, i.e. twice the rate of the published formula at 1 atm (Frolov.yaml
+  uses A = 0.5*8e11 = 4e11 on q, the published 8e11 being d[H2]/dt), with the
+  standard H2O (no calibrated heat effect as H2OFrolov in Frolov.yaml).
+  FLINT: GPB writes the phase name 'Frolov_nopressure' on line 1 of chemistry-info.txt and the species in the
+  order [O2, H2O, H2, N2]; FLINT selects a compiled routine by that name (see
+  docs/user/chemistry_routines.md in the FLINT repository): keep the phase name and the species order.
 
 generator: Alessandro Montanari
 date: Tue, 18 Feb 2025
@@ -6,7 +16,7 @@ date: Tue, 18 Feb 2025
 units: {length: m, time: s, quantity: kmol, activation-energy: J/kmol}
 
 phases:
-- name: Frolov-nopressure
+- name: Frolov_nopressure
   thermo: ideal-gas
   elements: [O, H, N]
   species: [O2, H2O, H2, N2]

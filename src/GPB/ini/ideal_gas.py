@@ -1,5 +1,7 @@
 import numpy as np
+import sys
 from PiNeR import get
+from ini.common import get_bool, get_integer_kelvin, check_kelvin_range
 
 # -----------------------------------------------------------------------
 # Ideal-gas phase routines
@@ -19,21 +21,16 @@ def IG_read_models(ini_file,section):
   transport = get(ini_file, section, 'transport', str)
   reactions = get(ini_file, section, 'reactions', str)
 
-  T1 = get(ini_file, section, 'Tmin', int)
-  T2 = get(ini_file, section, 'Tmax', int)
-  if T1 is None:
-    T1 = 1
-  if T2 is None:
-    T2 = 5000
+  T1 = get_integer_kelvin(ini_file, section, 'Tmin', 1)
+  T2 = get_integer_kelvin(ini_file, section, 'Tmax', 5000)
+  check_kelvin_range(section, T1, T2)
 
   return name, T1, T2, phase, thermo, transport, reactions
 
 #
 def IG_read_options(ini_file,section):
 
-  mix = get(ini_file, section, 'inerts-mixing', bool)
-  if mix is None:
-    mix = False
+  mix = get_bool(ini_file, section, 'inerts-mixing', False)   # a misspelt value is refused, not read as false
 
   HG = False
   type = get(ini_file, section, 'type', str)
@@ -41,7 +38,10 @@ def IG_read_options(ini_file,section):
     if 'heavy' in type:
       HG = True
 
-  return mix, HG
+  # strict-thermo: refuse (instead of warning) a database thermo record that differs from the mechanism record by more than 1 kJ/mol
+  strict = get_bool(ini_file, section, 'strict-thermo', False)
+
+  return mix, HG, strict
 
 #
 def IG_read_inert_species(ini_file,section):
@@ -73,7 +73,7 @@ def IG_read_fixgas(ini_file,section):
 
   ecp = ecv = egamma = eR = ew = emil = ekl = ePr = 0
 
-  Runi = 8314.51
+  Runi = 8314.46261815324  # J/(kmol K): exact SI value (N_A k_B), the constant Cantera uses (ct.gas_constant)
 
   species = get(ini_file, section, 'species', list)
 

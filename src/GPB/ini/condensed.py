@@ -1,5 +1,6 @@
 import numpy as np
 from PiNeR import get
+from ini.common import get_integer_kelvin, check_kelvin_range
 
 # -----------------------------------------------------------------------
 # Condensed phase routines
@@ -19,12 +20,9 @@ def CP_read_models(ini_file,section):
   if thermo is not None and thermo not in ('NASA7', 'NASA9', 'Burcat', 'SP-database'):
     raise SystemExit(f"[ERROR] [{section}] thermo = {thermo}: expected NASA7, NASA9, Burcat or SP-database")
 
-  T1 = get(ini_file, section, 'Tmin', int)
-  T2 = get(ini_file, section, 'Tmax', int)
-  if T1 is None:
-    T1 = 1
-  if T2 is None:
-    T2 = 5000
+  T1 = get_integer_kelvin(ini_file, section, 'Tmin', 1)
+  T2 = get_integer_kelvin(ini_file, section, 'Tmax', 5000)
+  check_kelvin_range(section, T1, T2)
 
   return name, T1, T2, thermo
 

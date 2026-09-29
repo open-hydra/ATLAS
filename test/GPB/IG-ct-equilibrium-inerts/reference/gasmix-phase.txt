@@ -1,0 +1,3 @@
+ideal-gas phase
+cte-mixture 6.047558
+N2 28.014000

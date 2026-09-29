@@ -262,3 +262,6 @@ Reaction definition
 17 N2 0.0 0.0 1.0
 17 inertMix 0.0 0.0 0.0
 17 M 1.0 1.0 0.0
+
+Reaction orders
+0

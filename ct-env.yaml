@@ -4,7 +4,7 @@ channels:
 dependencies:
 - python  # Cantera supports Python 3.8 and up
 - numpy
-- cantera
+- cantera>=3.0  # GPB and KAnT need Cantera 3.0 or later (tested with 3.0.1)
 - coolprop
 - ipython  # optional (needed for nicer interactive command line)
 - jupyter  # optional (needed for Jupyter Notebook)

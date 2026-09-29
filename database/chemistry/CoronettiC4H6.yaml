@@ -1,3 +1,9 @@
+description: |-
+  NOTE (FLINT): GPB writes the phase name 'CoronettiC4H6' on line 1 of chemistry-info.txt and the species in the
+  order of this file; FLINT selects a compiled routine by that name. The reaction orders that routine uses, and
+  how they compare with the orders of this file, are described in docs/user/chemistry_routines.md in the FLINT repository.
+  The ctest database-flint-contract verifies the species order and the table counts expected for this phase
+  name, not the reaction orders.
 units: {length: dm, quantity: mol, activation-energy: cal/mol}
 
 phases:

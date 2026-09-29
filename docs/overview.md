@@ -91,7 +91,7 @@ ATLAS hosts two language stacks that coexist in the same CMake build tree:
 
 | Library | Role | Source |
 |---------|------|--------|
-| [Cantera](https://github.com/Cantera/cantera) | Thermodynamic & chemical kinetics evaluation (GPB, KAnT) | conda / pip |
+| [Cantera](https://github.com/Cantera/cantera) | Thermodynamic & chemical kinetics evaluation (GPB, KAnT); 3.0 or later (`ct-env.yaml`; tested with 3.0.1) | conda / pip |
 | [CoolProp](http://www.coolprop.org) | Real-fluid equations of state (GPB real-fluid phase) | conda / pip |
 | [CEA](https://github.com/nasa/cea) | NASA CEA chemical equilibrium solver (GPB, BCB, ICB) | Bundled submodule |
 | [ORION](https://github.com/MarcoGrossi92/ORION) | Multi-format I/O — Tecplot, VTK, Plot3D (BCB, ICB, STB) | Bundled submodule |

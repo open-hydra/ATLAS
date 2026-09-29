@@ -34,6 +34,9 @@
 #
 #***************************************************************************************
 
+description: |-
+  NOTE: contains falloff-SRI reactions, which the GPB tables for FLINT cannot carry: GPB refuses this file for FLINT; usable in Cantera and KAnT
+
 units: {length: cm, quantity: mol, activation-energy: cal/mol}
 
 phases:

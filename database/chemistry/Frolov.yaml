@@ -1,0 +1,145 @@
+description: |-
+  Frolov single-step global mechanism for H2-air detonation (4 species, 1 irreversible reaction): the formula
+  published by Frolov et al., with its p^-1.15 pressure factor.
+
+  FLINT: GPB writes the phase name 'Frolov' on line 1 of chemistry-info.txt, and FLINT selects a compiled
+  routine by that name; what that routine computes, and which of the GPB tables it reads, is described in
+  docs/user/chemistry_routines.md in the FLINT repository. Through GPB this file provides the species (name, order,
+  molecular weights), the thermodynamic tables (including the calibrated heat release of H2OFrolov), the
+  transport tables (CEApolynomials.yaml carries H2OFrolov = the water polynomials) and the rate tables, where
+  the PLOG rate below is frozen at 1 atm; Cantera and KAnT use the kinetics of this file as written.
+
+  Source: Frolov, S. M., Dubrovskii, A. V., Ivanov, V. S., "Three-dimensional numerical
+  simulation of operation process in rotating detonation engine", Progress in Propulsion
+  Physics 4 (2013) 467-488, doi:10.1051/eucass/201304467. Eq. (11) and the rate expression
+  on p. 474.
+
+  Model as published:
+    H2 + H2 + O2 -> H2O + H2O
+    [H2dot] = -8.0e11 * P^-1.15 * [H2]^2 * [O2] * exp(-10000/T)   (atm, mole, l, s)
+  fitted to the ignition delays of a detailed mechanism for P = 5-40 atm, T = 1100-2000 K.
+
+  IMPLEMENTATION NOTES
+  1. The pre-exponential below is A = 4.0e11, i.e. HALF of the published 8.0e11, because
+     the paper gives the rate of change of [H2] while Cantera (and the GPB rate tables) apply A
+     to the reaction progress rate q, and d[H2]/dt = -2q for the stoichiometry as written.
+  2. The P^-1.15 factor is expressed as a two-point PLOG: log k is linear in log P for a
+     power law, so the interpolation reproduces it exactly between 1e-4 and 1e4 atm.
+     Outside that interval Cantera clamps to the end values. GPB tabulates PLOG rates at
+     1 atm only; for the use FLINT makes of that table under the phase name "Frolov" see
+     docs/user/chemistry_routines.md in the FLINT repository.
+  3. Because reaction (11) does not account for water dissociation, the paper states that
+     its heat effect "was properly modified to fit the theoretical Chapman-Jouguet
+     detonation velocity (~1970 m/s)". That is implemented here as species H2OFrolov, whose
+     NASA7 a6 coefficient is shifted by +3792.311 K (+31531.0 J/mol) in both temperature
+     ranges with respect to L5/89 H2O. Resulting dHf(298.15 K) = -210.29 kJ/mol; the
+     resulting CJ velocity of the stoichiometric H2-air mixture at 298.15 K and 1 atm, with
+     frozen products (no dissociation, as the irreversible step implies), is 1970.0 m/s.
+     Without the shift the same computation gives 2084.0 m/s (+5.8%).
+     The species is deliberately NOT named H2O: GPB overrides the thermodynamic data of a
+     species by name from the database selected in the deck, which would silently discard
+     the modified heat effect.
+  4. The calibration is done at 1 atm, as the paper's text implies. Over the pressure range
+     of the paper's own simulations the model is slow with respect to a detailed mechanism:
+     -1.5% at 5 atm, -2.1% at 10 atm, -2.7% at 25 atm, -3.0% at 40 atm.
+  5. The phase name must stay exactly "Frolov": GPB writes it on line 1 of chemistry-info.txt
+     and FLINT selects its compiled routine by it. The species order must stay
+     [O2, H2OFrolov, H2, N2], the order that routine expects.
+
+generator: Alessandro Montanari
+date: Wed, 23 Sep 2026
+
+units: {length: m, time: s, quantity: kmol, activation-energy: K}
+
+phases:
+- name: Frolov
+  thermo: ideal-gas
+  elements: [O, H, N]
+  species: [O2, H2OFrolov, H2, N2]
+  kinetics: gas
+  reactions: all
+  transport: mixture-averaged
+  state:
+    T: 300.0
+    P: 1.01325e+05
+
+species:
+- name: H2
+  composition: {H: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [2.34433112, 7.98052075e-03, -1.9478151e-05, 2.01572094e-08, -7.37611761e-12,
+      -917.935173, 0.683010238]
+    - [2.93286575, 8.26608026e-04, -1.46402364e-07, 1.54100414e-11, -6.888048e-16,
+      -813.065581, -1.02432865]
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 2.92
+    well-depth: 38.0
+    polarizability: 0.79
+    rotational-relaxation: 280.0
+  note: TPIS78
+- name: O2
+  composition: {O: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.78245636, -2.99673416e-03, 9.84730201e-06, -9.68129509e-09, 3.24372837e-12,
+      -1063.94356, 3.65767573]
+    - [3.66096065, 6.56365811e-04, -1.41149627e-07, 2.05797935e-11, -1.29913436e-15,
+      -1215.97718, 3.41536279]
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 3.458
+    well-depth: 107.4
+    polarizability: 1.6
+    rotational-relaxation: 3.8
+  note: RUS89
+- name: H2OFrolov
+  composition: {H: 2, O: 1}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [4.1986352, -2.0364017e-03, 6.5203416e-06, -5.4879269e-09, 1.771968e-12,
+      -2.6501415e+04, -0.84900901]   # a6 shifted (+3792.311)
+    - [2.6770389, 2.9731816e-03, -7.7376889e-07, 9.4433514e-11, -4.2689991e-15,
+      -2.6093583e+04, 6.88255]       # a6 shifted (+3792.311)
+  transport:
+    model: gas
+    geometry: nonlinear
+    diameter: 2.605
+    well-depth: 572.4
+    dipole: 1.844
+    rotational-relaxation: 4.0
+  note: L5/89 with the heat effect of Frolov et al. (2013)
+- name: N2
+  composition: {N: 2}
+  thermo:
+    model: NASA7
+    temperature-ranges: [200.0, 1000.0, 6000.0]
+    data:
+    - [3.53100528, -1.23660988e-04, -5.02999433e-07, 2.43530612e-09, -1.40881235e-12,
+      -1046.97628, 2.96747038]
+    - [2.95257637, 1.3969004e-03, -4.92631603e-07, 7.86010195e-11, -4.60755204e-15,
+      -923.948688, 5.87188762]
+  transport:
+    model: gas
+    geometry: linear
+    diameter: 3.621
+    well-depth: 97.53
+    polarizability: 1.76
+    rotational-relaxation: 4.0
+  note: G8/02
+
+reactions:
+- equation: 2 H2 + O2 => 2 H2OFrolov
+  type: pressure-dependent-Arrhenius
+  rate-constants:
+  - {P: 1.0e-04 atm, A: 1.592428682e+16, b: 0.0, Ea: 10000.0}
+  - {P: 1.0e+04 atm, A: 1.004754573e+07, b: 0.0, Ea: 10000.0}
