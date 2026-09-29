@@ -3,15 +3,16 @@
 src/lib/Lib_ChemMech/mechanism_contract.json in test/tools/flint_mechanism_contract.json).
 
 FLINT selects its compiled chemistry routine by the exact phase name GPB writes on line 1 of
-<name>chemistry-info.txt (read list-directed: a blank truncates the name); any other name falls back to the
+<name>chemistry-info.txt (the whole line, TAB and CR read as blanks, trimmed); any other name falls back to the
 'general' procedure with a WARNING. FLINT's contract file records, for every hooked name, the routine's
 species slots, number of species, reaction counts per table type and, for generated routines, the per-reaction
 fingerprint that FLINT computes from its own sources; test/tools/flint_mechanism_contract.source names the
 FLINT commit of the copy. The Frolov law points are ATLAS test data (test/tools/flint_rate_points.json).
 
 For every database/chemistry/*.yaml (Cantera parse = the parse GPB uses):
-  1. effective name = the phase name as FLINT reads it (first blank-delimited token); a name with blanks is
-     flagged, and it is an ERROR if the truncation changes the hook (full name vs effective name);
+  1. effective name = the phase name as FLINT reads it (the whole line, TAB and CR as blanks, trimmed); a name
+     that FLINT reads otherwise is flagged, and it is an ERROR if the difference changes the hook (full name vs
+     effective name);
   2. hooked name (a case): species slots must match by elemental composition, and by name for generated
      routines (same generator source) or where two slots share a composition; ns exact, except that a
      routine which zeroes omegadot before its assignments may be followed by inert species (in no
@@ -61,13 +62,8 @@ NAME_READ = 'whole line (trimmed)'   # how FLINT reads line 1 of chemistry-info.
 
 def effective_name(name):
     """The phase name as FLINT Load_Chemistry.f90 reads line 1 of chemistry-info.txt: the whole line with TAB/CR as
-    blanks, trimmed (snapshot name_read 'whole line (trimmed)'), or the first token delimited by a blank, comma or
-    slash (older FLINT, list-directed read)."""
-    if NAME_READ.startswith('whole line'):
-        return name.replace('\t', ' ').replace('\r', ' ').strip()
-    for sep in (' ', ',', '/'):
-        name = name.split(sep)[0]
-    return name
+    blanks, trimmed (snapshot name_read 'whole line (trimmed)')."""
+    return name.replace('\t', ' ').replace('\r', ' ').strip()
 
 # 7. derived rate closures: file -> forward/backward reaction (1-based), p0 [Pa], 1 K grid range, tolerance
 CLOSURES = {'Nassini_Montanari_Grossi.yaml': dict(forward=1, backward=2, p0=1.0e5, Tmin=200, Tmax=6000, rtol=1.1e-4, law='k_f(r1) sqrt(p0/RT)/K_c(r1), p0 = 1 bar')}
@@ -117,9 +113,7 @@ def check_fingerprint(g, fp):
         row = om.get(str(i))
         if row is None: errs.append('species %d %s: omegadot never assigned' % (i, s)); continue
         yrow = {}
-        for r in rx:
-            v = r['rev'].get(str(i), 0.0) - r['fwd'].get(str(i), 0.0) if True else 0
-            # stoichiometry, not orders: recompute from the reaction dictionaries
+        # stoichiometry, not orders: recompute from the reaction dictionaries
         for r in rx:
             react = g.reaction(r['n'] - 1); v = react.products.get(s, 0.0) - react.reactants.get(s, 0.0)
             if abs(v) > 0: yrow[str(r['n'])] = round(v, 9)
@@ -167,8 +161,8 @@ def main():
         name = g.name; eff = effective_name(name)
         if eff != name:
             hook_full, hook_eff = name in cases, eff in cases
-            msg = "%s: phase name %r contains a blank/comma/slash: FLINT reads %r (%s)" % (fn, name, eff, 'hooks %s' % cases[eff]['routine'] if hook_eff else 'general')
-            if hook_full != hook_eff: errors.append(msg + ' - the truncation changes the hook')
+            msg = "%s: phase name %r is read by FLINT as %r (%s)" % (fn, name, eff, 'hooks %s' % cases[eff]['routine'] if hook_eff else 'general')
+            if hook_full != hook_eff: errors.append(msg + ' - the difference changes the hook')
             else: flags.append(msg)
         byname.setdefault(name, []).append((fn, g)); byeff.setdefault(eff, set()).add(name)
         if a.only and fn != a.only: continue
