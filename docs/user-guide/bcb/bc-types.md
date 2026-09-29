@@ -37,6 +37,10 @@ This page covers the full BC roster with reference tables and INI syntax for eve
 
 ## INI Syntax
 
+Units: every value is SI (Pa, K, J/kg, kg m⁻² s⁻¹ for `g`, m/s). The one exception is the
+`p0-time-file` series of BC `402`, whose values are in **bar**, as the solvers read them (`p0` in the
+same section is in Pa).
+
 Every BC below is selected by the `type` key of a named section, except the
 keyword BCs, which are written straight onto the face line. Where a type has
 several variants, BCB picks one from the **keys present in the section** — the
@@ -123,6 +127,11 @@ on the keys provided.
 | `ks` | Roughness height (`0` = smooth wall) |
 | `eps` | Wall emissivity |
 
+A wall section that gives more than one of `q`, `T`, `qrad` is written as BC 300 (Eulerian symmetry, no
+thermal condition) with a WARNING; a key of another family on a wall (`p0`, `T0`, `g`, `mach`, ...) has no
+field in a 3xx record and is reported as ignored (WARNING).
+
+
 ```ini
 [wall_adiabatic]
 type = wall
@@ -137,10 +146,11 @@ eps  = 0.8
 
 !!! warning "`qrad` is not a fluid-wall key"
     A fluid-phase `wall` accepts **either** `q` **or** `T`, never both and never
-    together with `qrad`. Any other combination — including a section that sets
-    `qrad` — falls through to the Eulerian-symmetry branch and is written as
-    `id = 300`, with no diagnostic. Radiative coupling on a gas-side boundary
-    belongs to [`gsi`](#gsi); `qrad` remains valid on a **solid-phase** wall.
+    together with `qrad`. Any other combination falls through to the
+    Eulerian-symmetry branch and is written as `id = 300`: two or more of `q`,
+    `T`, `qrad` with the WARNING above, `qrad` alone (or none of the three) with
+    no diagnostic. Radiative coupling on a gas-side boundary belongs to
+    [`gsi`](#gsi); `qrad` remains valid on a **solid-phase** wall.
 
 #### Solid phase
 
@@ -154,6 +164,10 @@ values through `*-time-file` keys.
 | Convection + radiative flux | `hconv` **and** `qrad` **and** `Tref` | `303` |
 | Radiative exchange | `eps` **and** `Tref` | `304` |
 | Convection + radiative exchange | `hconv` **and** `eps` **and** `Tref`, no `qrad` | `305` |
+
+A solid-phase wall whose keys select none of these records (for example `q` and `T` together, or `hconv`
+without `Tref`) gets no wall record: its faces are written with BC id 0, as upstream writes them, with a
+WARNING that names the section and the keys given.
 
 | Key | Meaning |
 |---|---|
@@ -213,9 +227,65 @@ q-time-file = wall_q.dat
 
 ### `inlet`
 
-The inlet model is chosen from the provided keys. The variants are tested in the
-order below and the first match wins, so a section giving `p0`, `T0` **and** `p`
-selects `407`, not `401`.
+The inlet model is chosen from the provided keys. BCB first looks at the injector
+selectors, whatever else the section contains: a non-zero `a1-a3` selects `421`
+(which then refuses every other selector, see below), and `Ae_At`, or the complete
+`g`, `psub`, `psup` trio, selects `420` (`420` refuses `alpha`/`beta`, `p0-time-file`
+and `time-file`). An incomplete trio (`g` with only one of `psub`/`psup`) and `g`
+next to an explicit `p0` without the trio are refused (`g, psub and psup must be
+given together`; `g together with an explicit p0 selects neither the mass-flux inlet
+(403: g, T0) nor the nozzle (420: g, psub, psup)`): `g` with `T0` and no `p0` is the
+mass-flux inlet `403`. Only when neither selector applies are the remaining variants
+tested in the order below, the first match winning, so a section giving `p0`, `T0`
+**and** `p` selects `407`, not `401`.
+
+Once the type is resolved, every other key of the inlet/outlet family in the section
+must be one the record carries: a selector of another type (`mach` on a `401`, `un`
+on a `420`, `p0` on an outlet) or a field the record has no slot for (composition and
+turbulence on an outlet or on a `410`) stops BCB with
+`[ERROR] key <key> of section [<name>]: not honoured by BC <id>`; with `strict-keys =
+false` it is reported once and ignored. `Ae_At = 0` and `a1-a3 = 0` are the defaults and
+mean "not given". `u`, `v`, `w` and `p-time-file` are documented keys that no record carries
+(the outlet `406` is written with `p` and `rf` only): one `[WARNING]` per section, whatever
+`strict-keys`, and the key has no effect. Negative `T0`, `p0`, `T` or `p` are refused
+on every type, the gsi records (502-506) included. Each `y<species>` value is one number in
+[0, 1] (`[ERROR] key <key> = <value>: the mass fraction must lie in [0, 1]`, the same message on
+every tool); a value outside [0, 1] by rounding only, at most 1e-12 (`1.0000000000000002`,
+`-1.0e-20`), is accepted and set exactly to 1 or 0. The mass fractions given by `y<species>` keys must sum to 1: within 1e-3 (with a 1e-12 slack on both limits, the rounding of decimal constants,
+so that `0.249 + 0.75` is accepted; deviations up to 1e-12 are silent) they are renormalised with a
+`[WARNING]`, beyond it the section is refused; a multi-species inlet that gives neither `y<species>`
+keys nor `eq-CEA-file` is refused as well (every mass fraction would be written as 1e-20). A
+composition taken from `eq-CEA-file` follows the
+same rule on the mass of the CEA products that are not species of the run (dropped species):
+renormalised with a `[WARNING]` within 1e-3, refused beyond it (declare the products, or add a
+CEA-mixture species to absorb them). Values of enumerated keys (`type`, `axis`, `direction`) are
+case-sensitive: `Outlet` or `SX` is refused at
+configuration time with the list of allowed values. A section header written twice in a deck
+(the INI reader keeps the first `[section]` and drops the second in silence) is refused when the two
+copies differ: `[ERROR] section [<name>] of <deck>: declared twice (lines <n1> and <n2>), the second is
+ignored: merge them` (a `[WARNING]` under `strict-keys = false`, and a `[WARNING]` only when the tool does
+not read that section: a disabled block, a section no `face<n>` names). Two copies with the same keys and
+the same values (blank lines, comments and the order of the keys do not count; values are compared as
+written, so `p0 = 30e+5` and `p0 = 3.0e6` differ) give the products of the deck with one copy: the same
+message is then a `[WARNING]` that ends with `(the two copies hold the same keys and values)`, whatever
+`strict-keys`.
+
+Physical envelope of the `420` kernels (MOSE, Q2D): `g <= G*(T0, p0)` (the choked
+mass flux of the isentrope from the stagnation state) and `psup <= psub < p0`; a trio
+outside it has no root in the solver. When `thermo.dat` is loaded BCB checks the
+explicit trio against the isentrope and prints a `[WARNING]` when `g > G*` or when
+`psub`/`psup` differ by more than 5 % from the isentropic values (never a refusal).
+Between `psup` and `psub` the kernels impose the mass flux `g` and the stagnation enthalpy
+and leave `p0` free: this is the exact closure while a normal shock stands inside the
+divergent part (subsonic exit, part of `p0` lost), and an approximation in the
+over-expanded part of the band next to `psup`, where the real exit stays supersonic at
+`psup` with oblique shocks outside it: there the kernel returns the state of mass flux
+`g` and stagnation enthalpy at the boundary-cell pressure (a Fanno-type state, supersonic
+with an entropy rise) instead of the design exit state; the boundary-cell pressure is
+not a far-field back-pressure.
+The `line-file` mapping of a `410` inlet samples the unwrapped record at the face
+cell centres (point sampling): on a face much coarser than the record it is not
+conservative (the flux of the mapped record differs from the record's).
 
 #### Gas / fluid phase
 
@@ -229,7 +299,37 @@ selects `407`, not `401`.
 | Total conditions with back-pressure | `p0` **and** `T0` **and** `p` | `407` |
 | Normal velocity | `un` **and** `T` | `408` |
 | Full state from file | `time-file` | `410` |
-| Injector nozzle | `Ae_At`, or `g` **and** `psub` **and** `psup` | `420` |
+| Injector nozzle (tested first, after `421`) | `Ae_At`, or `g` **and** `psub` **and** `psup`; `p0` **and** `T0` (or `eq-CEA-file`) are required as well | `420` |
+| Borda choked injector (Q2D only, 2D meshes; tested first) | `a1-a3` **and** `p0` **and** `T0` | `421` |
+
+On a 2D (x,y) mesh, the deck format read by Q2D only, `408` and `410` are refused at build time
+(`[ERROR] <section> (normal-velocity inlet, BC 408): a 2D mesh (x,y file) is read by Q2D, which does
+not implement BC 408`): Q2D rejects them at start-up. The manifold `501` is refused on a 2D mesh by the same gate (`[ERROR] <section> (manifold, BC 501): a 2D mesh (x,y file) is read by Q2D, which does not implement BC 501: use 101 or 401-407`): Q2D refuses it at its pre-scan. With `BC-force-connect`
+(default `true`, see [connectivity](connectivity.md)) the connection step works cell by cell on every face, whatever
+its declared type: the cells of a face declared `inlet`, `gsi`, `wall` or `symmetry` that coincide with a cell of another
+block are written as connections (101/103) and the other cells keep the declared BC. This is how an injection plate
+with holes is set up: declare the whole plate face `inlet` (or `wall`) and mesh every hole as a block of its own; the hole
+cells are connected automatically and no multipatch is needed. BCB prints one line per such face
+(` [LOG] BC-force-connect: block <b> face <f>: <n> cells connected to block(s) <list>, <m> cells keep the declared BC [<section>]`)
+and a `[WARNING]` only when a declared section is left with no cell on the face (the declaration has no effect there);
+`BC-force-connect = false` keeps the declared BC on every cell.
+
+The `p0`, `T0` form of `405` writes the static state of the isentropic expansion computed on the
+species tables of `thermo.dat` (required: without it BCB stops): `T` from the enthalpy balance
+h(T0) = h(T) + M²/2 γ(T) R T (variable cp, Newton) and `p` from ln(p0/p) = ∫ cp/(R T') dT' between
+`T` and `T0` (trapezoidal rule on the 1 K grid, the quadrature of the solvers' nozzle kernels); the
+constant-γ relation p0/(1 + (γ-1)/2 M²)^(γ/(γ-1)) of earlier versions is 1 % off at T0 = 2000 K, M = 2.
+The record is the one of the `p`, `T` form (`mach`, static `T`, static `p`); the solvers know no other.
+A `T0` outside the loaded table is refused (`[ERROR] <name> (supersonic inlet, BC 405): T0 = ...
+lies outside the temperature range of thermo.dat [Tmin, Tmax] K`) as the 420 kernel refuses its `T0`;
+a static `T` that the expansion at `mach` takes outside the table is written with a `[WARNING]`
+(the solvers clamp their cp/h lookups at the ends of the table, and ICB reports the same expansion;
+extend the table, or give `p` and `T`). This is the rule of the whole family: a stagnation `T0` is
+refused outside the table wherever it is expanded (`420`, this form of `405`, the ICB `nozzle`,
+homogeneous and `variable` states given by `T0`), while a deck `T0` or `T` that a record carries as
+given (`401`-`404`, `405` by `p` and `T`, `407`, `408`) outside the loaded table is reported with a
+`[WARNING] <name> (inlet, BC <id>): T0 = ... lies outside the temperature range of thermo.dat` and
+never clamped in silence.
 
 | Key | Meaning |
 |---|---|
@@ -243,8 +343,64 @@ selects `407`, not `401`.
 | `rf` | Relaxation factor |
 | `Ae_At` | Nozzle exit-to-throat area ratio (must be ≥ 1) |
 | `psub`, `psup` | Subsonic / supersonic injector exit pressures |
-| `time-file`, `p0-time-file` | Time series replacing the scalars |
+| `a1-a3` | Borda injector throat-to-face area ratio A1/A3, in (0, 1] |
+| `time-file`, `p0-time-file` | Time series replacing the scalars; the `p0-time-file` values are in **bar** (the solvers read them so), `p0` itself in Pa |
 | `periodic` | Loop a `time-file` series instead of holding the last value |
+| `line-file` | Unwrapped (2D) time series to be mapped onto the 3D face; the `time-file` is then *written* by BCB (see below) |
+| `center` | Cylinder axis point `x y z` for the `line-file` mapping (required with `line-file`) |
+| `strip-j-face` | Node row of the line-file zone used as the strip (default `1`) |
+| `axis` | Cylinder axis of the `line-file` mapping, `x`, `y` or `z`; default: from the face geometry (see below) |
+| `n-repeat` | Sector strips: the line-file covers `1/n-repeat` of the lap and is repeated `n-repeat` times around the face (default `1`) |
+
+The names of the series files written into the record (`time-file`, `p0-time-file`, `p-time-file`, `q-time-file`,
+`T-time-file`) are limited to 32 characters: the record keeps 32 characters of the name (MOSE reads the `402` series
+name and FUSS the wall series name with 32 characters), so a longer name of a file you provide is refused
+(`[ERROR] key <k>: file name longer than 32 characters ...`) instead of being truncated in silence. The `time-file`
+of a section with `line-file` is written by BCB itself: a longer name is accepted, the file is written under its first
+32 characters and the record names that file (one ` [LOG] time-file ...` line).
+
+With `line-file`, BCB maps each zone of the unwrapped 2D record onto the block face and writes the result to `time-file`
+(one zone per block and time level). The circumferential coordinate of the line-file (the one with the larger node range)
+is assumed to cover exactly **one lap**, or one sector of `1/n-repeat` lap: its full node span L is the period, so cell
+centres fall at half-cell offsets from the seam.
+
+**Line-file header.** The header must name exactly the coordinates that the zone shape implies (`x y` for a
+2D zone; a 1D zone or a zone with a third coordinate `z` is refused), followed by the variables; a header
+that starts with other names, a `strip-j-face` beyond the node rows of the zone and a zone without variables
+are refused with an explicit `[ERROR] line-file ...` message instead of being read as shifted columns.
+
+**Angular mapping (thin-annulus assumption).** The angle of every face cell is measured about `center`, right-handed
+about the cylinder axis, and the strip coordinate s is mapped as θ = 2π (s − s₀)/(L · `n-repeat`), the pattern being
+repeated `n-repeat` times around the face. The face radius does not enter: the number of waves per lap, the angular
+velocity of the pattern (the zone times are copied unchanged), the velocity components in m/s, the densities and the
+pressure are preserved; the arc length is not. This is the thin-annulus assumption of the unrolled 2D model: the
+wave-frame kinematics of the 2D solution (front speed relative to the gas, hence the jump conditions it satisfies) are
+exact only at the equivalent radius R₂D = `n-repeat` · L / 2π; at another radius r the front sweeps at D · r/R₂D while the
+imposed gas state is unchanged. The mass flux per unit area is preserved, the total mass flow scales with the face area.
+With `-v` BCB prints L, R₂D and the face radius range, and it **warns** (always) when R₂D lies outside the radial
+extent of the face (node radii) or differs from the mean cell-centre radius by more than 10 %: a strip that covers a sector (L = 2πR/n) but has no
+`n-repeat` is stretched over the full lap (wave count not preserved) and triggers this warning.
+
+**Axis and axial sign.** The cylinder axis is the dominant component of the area-weighted mean inward normal of the face
+(`axis = x|y|z` overrides it; `auto`, the default, keeps the geometric rule). Face `face` of every block of the mesh is
+mapped, but the solver uses a block's zone only where that block carries the inlet: a block whose face has no dominant
+component (mean normal more than 30° off every axis) or no mean normal (zero-area or closed face) is written about the
+axis of the logical face index (1/2 → x, 3/4 → y, 5/6 → z) with a warning, and BCB stops only when no block gives an
+axis: give `axis`. With `axis`, a block face parallel to that axis (no inward component along it) is treated the same way. The velocity component of the line-file along the circumferential coordinate becomes the tangential velocity
+(+s → +θ, right-handed about the +x/+y/+z direction whatever the sign of the inward normal: on a face whose inward normal
+is −axis the pattern turns the other way when seen from downstream), the other one the axial velocity, imposed **along the inward normal of the face**: a positive 2D axial velocity
+is an inflow on every face, minimum- or maximum-index. BCB prints this at every run, whatever the verbosity, one line per face it maps about an axis, e.g. `[INFO] Block 1 face 6: line-file mapped about axis x, inward normal along -x: a positive axial velocity of the record enters the domain`: on a face whose inward normal is −axis, a record whose axial velocity was negated to give an inflow gives an outflow. The radial component is zero, so only planar faces normal to the
+axis are consistent with the mapping; BCB warns when a face cell deviates by more than 5° from the axis (conical or
+curved injector planes).
+
+**Zone times.** Every zone of the line-file must carry a `SOLUTIONTIME` (a zone header may span several lines); a record
+where some zones lack it is refused, a record with none is written without times (warning: MOSE then reads every zone at t = 0 and keeps the last zone of
+each block, i.e. a steady inflow), and times that are not
+strictly increasing produce a warning.
+
+One mapping serves every block that uses the same section; a `time-file` name can hold only one mapping, so sections
+that differ in line-file, face, `center`, `strip-j-face`, `axis` or `n-repeat` must use distinct `time-file` names
+(BCB stops otherwise).
 
 ```ini
 [inlet_p0T0]
@@ -290,12 +446,22 @@ time-file = inlet_transient.dat
 
 [inlet_p0_timevarying]
 type         = inlet
-p0-time-file = p0_transient.dat
+p0-time-file = p0_transient.dat   ; values in bar, as the solvers read them (p0 is in Pa)
 T0           = 300.0
 ```
 
-Injector nozzle — either give the area ratio and let BCB derive the rest, or
-prescribe the exit pressures together with the mass flux:
+Injector nozzle — either give the area ratio and let BCB derive the rest
+(`thermo.dat` is required: the thresholds are computed on the species cp/h
+tables, which must cover the expansion from `T0` down to the supersonic exit
+state, with `T0` at most one grid step below the top of the table because the
+solvers' interpolation clamps there), or prescribe the exit pressures together with the mass flux. Both forms need the stagnation state
+`p0`, `T0` (explicit, or from `eq-CEA-file`: an explicit value always wins).
+The solvers switch on the boundary-cell pressure `p`: `psub <= p < p0` subsonic
+inflow from (`T0`, `p0`), `psup <= p < psub` choked inflow with the mass flux
+`g`, `p < psup` supersonic inflow — so an explicit trio must satisfy
+`0 < psup <= psub < p0` (`psub` is the exit pressure of the just-choked subsonic
+solution, `psup` the design supersonic exit pressure); BCB stops otherwise.
+The record is steady (no `p0-time-file`, no `time-file`):
 
 ```ini
 [inlet_nozzle_arearatio]
@@ -304,16 +470,70 @@ Ae_At = 1.5
 p0    = 1.013e5
 T0    = 300.0
 
+# the same injector written explicitly (air, gamma = 1.4; values rounded):
 [inlet_nozzle_explicit]
 type = inlet
-g    = 1983.448
-psub = 10.0e5
-psup = 20.0e5
+g    = 157.6
+psub = 8.920e4
+psup = 1.623e4
+p0   = 1.013e5
+T0   = 300.0
 ```
 
-With `Ae_At`, BCB solves the area–Mach relation for the subsonic and supersonic
-branches using the mixture `gamma` from the phase composition, and derives
-`psub`, `psup` and `g` from `p0` and `T0`.
+With `Ae_At`, BCB computes `psub`, `psup` and `g` on the tabulated-cp isentrope
+from (`T0`, `p0`), with the discrete arithmetic of the MOSE/Q2D nozzle kernels
+(cp and h interpolated linearly on the 1 K grid of `thermo.dat`, isentrope by the
+trapezoidal rule on the same grid): `g = G*/Ae_At` with `G*` the maximum of
+`rho*u` along the expansion (sonic throat), `psub` and `psup` the pressures of
+the two exit states with `rho*u = g` (subsonic and supersonic branch, each
+bracketed). The thresholds therefore coincide with the states the solvers
+recompute from the record (the supersonic kernel returns `psup` to its own
+tolerance), and the 420 record is written with 17 significant digits so that
+`g` reaches the solvers unrounded: at `Ae_At = 1` a `g` rounded up by more than
+1e-9 relative has no root in their supersonic kernel. No frozen `gamma` is
+involved; for a calorically perfect table the values differ from the closed-form
+area–Mach relations by the quadrature bias of the 1 K grid (~1e-5).
+
+Decks written before June 2026 called the mass flux `rt`; that key was renamed `g`
+and BCB now stops with an explicit message when it finds `rt`.
+
+Keys of older decks: a renamed key is an unknown key like any other (`[ERROR]`, or one `[WARNING]` with
+`strict-keys = false`) whose hint names the current key; a removed key has no effect and gets one `[WARNING]`:
+
+| Key of older decks | Status | Use instead |
+|---|---|---|
+| `rt` | renamed | `g` (nozzle mass flux, kg m⁻² s⁻¹) |
+| `force-connect` (in a BC section) | moved | `BC-force-connect` in `[ATLAS-Parameters]` |
+| `p-time-file` | removed (never read by any record) | `p0-time-file` (BC 402) or a `time-file` inlet (BC 410) |
+| `u`, `v`, `w` | removed (no record carries a velocity vector) | `alpha`, `beta` for the direction, `un` for BC 408 |
+
+Borda choked injector (BC `421`, Q2D solver only) — a choked orifice of throat
+area A1 followed by a sudden expansion into the boundary face of area A3; the
+solver computes the regimes itself from the plenum state, so only the area ratio
+is needed:
+
+```ini
+[inlet_borda]
+type  = inlet
+a1-a3 = 0.2
+p0    = 1.0e6
+T0    = 300.0
+```
+
+!!! note "BC 421 is a Q2D feature"
+    `a1-a3` is accepted only on a 2D mesh (an `x,y` mesh file, the deck format
+    Q2D reads); on any other mesh BCB stops, because no other solver implements
+    BC 421. The key is exclusive with every other inlet selector (`Ae_At`,
+    `psub`/`psup`, `g`, `mach`, `p`, `un`, `T`, the time files) and with
+    `alpha`/`beta`: injection is along the face normal by construction.
+    Every refusal stops BCB with a non-zero status, so a chained
+    `ATLAS.sh BCB && <solver>` does not continue, and no `bc.txt` is written
+    for the refused grid level.
+
+    With `MG-levels > 1` the coarse levels of a 2D mesh keep its 2D form,
+    so every level carries the BC 421 records.
+    How the solver treats the orifice in each flow regime, and for which
+    `a1-a3` its kernel holds, is described in the Q2D documentation.
 
 !!! note "Direction defaults to normal"
     Omit `alpha` and `beta` and BCB writes the `normal,` sentinel, meaning
@@ -330,7 +550,14 @@ branches using the mixture `gamma` from the phase composition, and derives
     it does not fall through silently.
 
 Turbulence keys (`mit`, `kappa`, `omega`, `rhoRij`, `nrans`) may be added to any
-inlet and are appended to the payload after the mass fractions.
+inlet and are appended to the payload after the mass fractions. A band left at zero
+under a model (`nrans = 1` without `mit`, `nrans = 2` without `kappa` or `omega`,
+`nrans = 7` without `rhoRij` or `omega`) is written with a `[WARNING]` naming the
+keys: the inlet carries no turbulence (ICB refuses the same initial field under an
+omega model).
+On a pure-2D (`x,y`) mesh a Reynolds-stress inlet (`nrans = 7`) carries the 5-band tail
+that Q2D reads (`R11, R22, R33, R12, omega`; `R13`, `R23` are not part of its 2-D state);
+the 7-band tail (`R11 R22 R33 R12 R13 R23 omega`) is written on 3-D meshes only.
 
 #### Dispersed phase
 
@@ -411,7 +638,10 @@ partE-type = symmetry
 `gas-bc.txt` keeps `200` on face 3; `partL-bc.txt` carries `400` there and `partE-bc.txt`
 `300` (no payload in either). Only `outlet` and `symmetry` are accepted — any other word
 stops BCB with `[ERROR] partL-type = <word>: only "outlet" or "symmetry" is allowed ...`.
-The wedge faces BCB auto-tags on a 2Daxi mesh carry no section and always stay `200`.
+The wedge faces BCB auto-tags on a 2Daxi mesh carry no section and always stay `200`. The key
+is read only there, for a dispersed phase: on a face of any other type, or with the name of a
+phase that is not dispersed, BCB stops with `[ERROR] key partL-type of section [<s>]: not
+honoured (type = <type>) ...` (a `[WARNING]` with `strict-keys = F`, and the key is ignored).
 
 ---
 
@@ -459,7 +689,7 @@ block = 3
 face  = 2
 ```
 
-Output ID: `501`; the payload is the source `block, face` pair.
+Output ID: `501`; the payload is the source `block, face` pair, written as two integers (the solvers read them as integers).
 
 ---
 
@@ -525,6 +755,35 @@ a           = 0.0052
 n           = 0.35
 SF          = 1.0
 rhoGrain    = 1750.0
+```
+
+The injected composition is the CEA product composition restricted to the species of the
+run: each species of `phase.txt` takes the mass fraction of the CEA product of the same name,
+and a species named `CEA-mixture` takes the rest (1 minus the sum of the others), condensed
+products included. Declare the gas products in `phase.txt` together with a `CEA-mixture`
+species (GPB writes one with `CEA-file`, `reactions` and `inerts-mixing = true`). Without it,
+when the declared products sum to less than 1 − 1e-3 BCB stops with
+`[ERROR] composition of section [<name>] from the CEA file: the products declared as species
+of the run sum to <sum>, they must sum to 1 within 1e-3 (...)`; a smaller deficit is
+renormalised with a `[WARNING]`. For an aluminised ammonium-perchlorate/HTPB propellant (the
+`CEA.inp` of `test/ICB/IG-interp-species-decomposition`: 67 % AP, 20 % Al, 13 % HTPB), whose
+aluminium products (condensed alumina among them) are not gas species of the run, `phase.txt` reads:
+
+```text
+ideal-gas phase
+H 1.008000
+O2 31.998000
+OH 17.007000
+O 15.999000
+H2O 18.015000
+H2 2.016000
+CO 28.010000
+CO2 44.009000
+CL 35.450000
+CL2 70.900000
+HCL 36.458000
+N2 28.014000
+CEA-mixture 56.478204
 ```
 
 `n` and `rhoGrain` are mandatory — BCB stops if either is left at `0`.

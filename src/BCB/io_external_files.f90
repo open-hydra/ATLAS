@@ -67,7 +67,15 @@ contains
     integer :: ios
 
     call read_ascii_table(bf%name, tmp_dir, tmp_val, ios)
-    if (ios /= 0) then
+    if (ios == -4) then
+       ! the file exists: read_ascii_table has named the row where the coordinate turns back
+       write(*,*) '[ERROR] BC file '//trim(bf%name)//' refused: its coordinate column is not monotone'
+       stop 1
+    elseif (ios == -1) then
+       ! the file exists but no row holds two numbers (empty, or header and comments only)
+       write(*,*) '[ERROR] BC file '//trim(bf%name)//' has no data row (one "coordinate value" pair per row)'
+       stop 1
+    elseif (ios /= 0) then
        write(*,*) '[ERROR] BC file '//trim(bf%name)//' not found'
        stop 1
     endif

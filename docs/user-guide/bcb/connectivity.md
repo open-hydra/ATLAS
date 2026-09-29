@@ -41,6 +41,9 @@ Requirements:
   facelets that happen to match a neighbouring block and keep symmetry
   elsewhere. Set it to `false` to search only the declared `connection` faces,
   which is faster on large meshes.
+  A face declared with another BC (wall, inlet, periodic, ...) whose cells coincide with another
+  block is overwritten by the connection there; BCB prints one LOG line per such face, and a WARNING
+  only when a declared section is left with no cell on the face.
 
 ---
 

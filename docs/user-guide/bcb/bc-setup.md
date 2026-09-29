@@ -132,6 +132,12 @@ Supported `*-file` keys: `ks-file`, `q-file`, `T-file`, `Tref-file`, `hconv-file
 `eps-file`, `alpha-file`, `beta-file`, `g-file`, `krho-file`, `a-file`, `n-file`, `pRef-file`,
 `rhoGrain-file`, `Taf-file`, `SFgeo-file`, `SF-file`.
 
+A one-direction file holds one `coordinate value` pair per row, coordinates in order (increasing or
+decreasing; a decreasing file is read as the same rows in increasing order): a row that is not two numbers
+is skipped with `[WARNING] table file ...`, a coordinate that turns back is refused (`[ERROR] table file ...:
+the coordinate column is not monotone at row n`), and a file without any row of two numbers is refused
+(`[ERROR] BC file ... has no data row`).
+
 Mass-flux varying along `y` from a file:
 
 ```ini
@@ -291,7 +297,9 @@ MG-levels = 3
 
     So a **1-D** mesh must run **along `i`** (`Nj = Nk = 1`) and a **2-D** mesh must lie in
     the **`i–j` plane** (`Nk = 1`). A mesh whose only non-trivial extent is on `j` or `k`
-    is not supported and produces inconsistent coarse-grid BC files.
+    is not supported and produces inconsistent coarse-grid BC files. A pure-2D mesh (`X`, `Y`
+    only, or three coordinates on one node plane) stays pure 2D on every level: `bc2.txt`,
+    `bc3.txt`, ... have the five-integer records of `bc.txt`, as the 2D solver reads them.
 
 !!! warning "Starting-mesh divisibility requirement"
     The supplied (finest) mesh must already satisfy the coarsening requirement: **every

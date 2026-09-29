@@ -1,5 +1,7 @@
 # BCB Input Parameters
 
+Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file` series (BC 402) is in bar, as the solvers read it.
+
 
 ## ATLAS-Parameters
 
@@ -29,6 +31,7 @@
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | type | null | null<br>axisymmetric<br>extrapolation<br>connection<br>chimera<br>symmetry<br>periodic<br>wall<br>inlet<br>outlet<br>manifold<br>gsi |  no | Boundary-condition type for the named section. |
+| <phase>-type |  |  |  no | Dispersed phase on a face of type axisymmetric: outlet lets that phase leave through the axis (BC 400 in its file), symmetry mirrors it at the axis (BC 300); the other phases keep 200. Read nowhere else. |
 | direction |  |  |  no | Patch directions using x,y,z,r,t,i,j,k. |
 | patch<n> |  |  |  no | Named sub-patch section used by multipatch boundaries. |
 | range<n> | 0.0 |  |  no | Sub-patch limits associated with patch<n>. |
@@ -37,6 +40,11 @@
 | block | 0 |  |  no | Connected block index for manifold. |
 | face | 0 |  |  no | Connected face index for manifold. |
 | file-direction |  |  |  no | Coordinate or index directions used by varying BC files. |
+| range-file |  |  |  no | File of the injector plate patches (with inner-patch and outer-patch). |
+| inner-patch |  |  |  no | Section applied inside the range-file patches. |
+| outer-patch |  |  |  no | Section applied outside the range-file patches. |
+| full-plate | F |  |  no | With range-file: T maps the face as a full injector plate of square sectors, F maps the injectors of the range-file one by one. |
+| z-hydra | 1.0 |  |  no | With range-file and full-plate = F: depth of the pure 2-D (x,y) mesh in the equivalent radius A/(2 z-hydra) of each injector (injector_data_block<b>_face<f>.dat). |
 | eq-OG | F |  |  no | Keep only the gaseous products of the CEA equilibrium of `eq-CEA-file`: the condensed products are dropped and the mass fractions of the gaseous ones are renormalised to 1. |
 | eq-CEA-file |  |  |  no | CEA input file used to derive equilibrium composition. |
 | eq-CEA-section | 1 | >=1 |  no | CEA section index used when eq-CEA-file is provided. |
@@ -79,10 +87,15 @@
 | time-file | none |  |  no | Time-series file of full boundary state. |
 | periodic | F |  |  no | Treat a time-file series as periodic. |
 | rf | 1.0 |  |  no | Boundary relaxation factor. |
-| Ae_At | 0.0 | >=1 |  no | Nozzle exit-to-throat area ratio. |
-| rt | 0.0 |  |  no | Nozzle throat loading parameter. |
-| psub | 0.0 |  |  no | Subsonic exit pressure used with rt. |
-| psup | 0.0 |  |  no | Supersonic exit pressure used with rt. |
+| Ae_At | 0.0 | 0 or >=1 |  no | Nozzle exit-to-throat area ratio (0 = not given). |
+| psub | 0.0 |  |  no | Nozzle (BC 420) exit pressure of the just-choked subsonic solution; given with g and psup, or computed from Ae_At. |
+| psup | 0.0 |  |  no | Nozzle (BC 420) design exit pressure of the supersonic expansion; given with g and psub, or computed from Ae_At. |
+| a1-a3 | 0.0 | [0,1] |  no | Borda injector throat-to-face area ratio A1/A3: nonzero selects the Borda choked injector (BC 421, Q2D solver, 2D meshes only); 0 = not given. |
+| line-file | none |  |  no | Unwrapped (2D) time record mapped onto the 3D face; BCB then writes time-file (angular mapping, see bc-types). |
+| center | 0.0 |  |  no | Cylinder axis point x y z of the line-file mapping (required with line-file). |
+| strip-j-face | 1 | >=1 |  no | Node row of the line-file zone used as the strip. |
+| axis | auto | auto<br>x<br>y<br>z |  no | Cylinder axis of the line-file mapping; auto = dominant component of the mean inward normal of the face. |
+| n-repeat | 1 | >=1 |  no | Sector strips: the line-file covers 2 pi / n-repeat of the face and is repeated n-repeat times around it. |
 | q | 0.0 |  |  no | Prescribed wall heat flux. |
 | T | 0.0 |  |  no | Prescribed wall temperature. |
 | ks | 0.0 |  |  no | Wall roughness height. |
@@ -107,6 +120,7 @@
 | rp | 0.0 |  |  no | Particle radii per dispersed population. |
 | dp | 0.0 |  |  no | Particle diameters per dispersed population. |
 | sigmap | 0.0 |  |  no | Particle dispersion widths. |
+| distribution |  |  |  no | Size-distribution file of a dispersed population (prefixed by the phase name: <phase>-distribution). |
 | ds | 0.0 |  |  no | Injection-point spacing per dispersed population (cm; converted to m). |
 | alphap | 0.0 |  |  no | Primary injection angle per dispersed population. |
 | betap | 0.0 |  |  no | Secondary injection angle per dispersed population. |

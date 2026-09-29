@@ -45,6 +45,7 @@ contains
     character(len=20)             :: definition
     character(len=20)             :: definition_inner, definition_outer
     character(len=50)             :: inner_patch_name, outer_patch_name
+    character(len=20)             :: cell_name
     integer                       :: dirSize, fileDirSize
     integer, allocatable          :: dir(:), fileDir(:)
     real(R8), allocatable         :: here(:)
@@ -70,6 +71,10 @@ contains
     inner_patch_name = face_cfg%inner_patch
     outer_patch_name = face_cfg%outer_patch
     file_named_multipatch = file_multipatch .and. face_cfg%has_inner_patch .and. face_cfg%has_outer_patch
+    ! Section name of the cells built below (the builders' diagnostics print it; it was left undefined
+    ! on a varying face): the patch of a multipatch face, else the face section
+    cell_name = face%bc%name
+    if (len_trim(face_cfg%name) > 0) cell_name = face_cfg%name
 
     ! Populate CELL ini with the options from the FACE section
     call ini_o%free
@@ -159,7 +164,7 @@ contains
             ! Build facet BC
             if (here(1)>rng(1) .and. here(1)<=rng(2) .and. .not.file_multipatch) then
               face%center(m,n)%bc%definition = definition
-              call face%center(m,n)%bc%build(ini_c,'cell',phase)
+              face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
             endif
             if (file_multipatch) then
               select type (plate_file)
@@ -175,21 +180,21 @@ contains
                 endif
                 if (file_named_multipatch) then
                   if (has_injector) then
-                    call face%center(m,n)%bc%build(ini_inner,'cell',phase)
+                    face%center(m,n)%bc%name = inner_patch_name; call face%center(m,n)%bc%build(ini_inner,'cell',phase)
                   else
                     face%center(m,n)%bc%definition = trim(definition_outer)
-                    call face%center(m,n)%bc%build(ini_outer,'cell',phase)
+                    face%center(m,n)%bc%name = outer_patch_name; call face%center(m,n)%bc%build(ini_outer,'cell',phase)
                   endif
                 else
                   if (.not. has_injector) then
                     face%center(m,n)%bc%definition = trim(definition)
                   endif
-                  call face%center(m,n)%bc%build(ini_c,'cell',phase)
+                  face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
                 endif
               type is (KAFFS_plate_type)
                 call Full_plate_2D(plate_file, face, n, m, dir, Inj_phi_R, &
                   definition, A_inj, z_input, ini_c)
-                call face%center(m,n)%bc%build(ini_c,'cell',phase)
+                face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
               end select
             endif
         enddo; enddo
@@ -227,7 +232,7 @@ contains
             if (here(1)>=rng(1) .and. here(1)<=rng(2) .and. &
                 here(2)>=rng(3) .and. here(2)<=rng(4) .and. .not.file_multipatch) then
               face%center(m,n)%bc%definition = definition
-              call face%center(m,n)%bc%build(ini_c,'cell',phase)
+              face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
             endif
             if (file_multipatch) then
               select type (plate_file)
@@ -243,21 +248,21 @@ contains
                 endif
                 if (file_named_multipatch) then
                   if (has_injector) then
-                    call face%center(m,n)%bc%build(ini_inner,'cell',phase)
+                    face%center(m,n)%bc%name = inner_patch_name; call face%center(m,n)%bc%build(ini_inner,'cell',phase)
                   else
                     face%center(m,n)%bc%definition = trim(definition_outer)
-                    call face%center(m,n)%bc%build(ini_outer,'cell',phase)
+                    face%center(m,n)%bc%name = outer_patch_name; call face%center(m,n)%bc%build(ini_outer,'cell',phase)
                   endif
                 else
                   if (.not. has_injector) then
                     face%center(m,n)%bc%definition = trim(definition)
                   endif
-                  call face%center(m,n)%bc%build(ini_c,'cell',phase)
+                  face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
                 endif
               type is (KAFFS_plate_type)
                 call Injector_mapping(plate_file, here, Inj_phi_R, n, m, face, &
                   A_inj, definition, ini_c)
-                call face%center(m,n)%bc%build(ini_c,'cell',phase)
+                face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
               end select
             endif
         enddo; enddo
@@ -364,7 +369,7 @@ contains
         do n = ni, ne
           do m = mi, me
             face%center(m,n)%bc%definition = definition
-            call face%center(m,n)%bc%build(ini_c,'cell',phase)
+            face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
           enddo
         enddo
       
@@ -388,7 +393,7 @@ contains
             enddo
           endif
           face%center(m,n)%bc%definition = definition
-          call face%center(m,n)%bc%build(ini_c,'cell',phase)
+          face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
         enddo; enddo
 
       ! Two dimensional variation
@@ -412,7 +417,7 @@ contains
               enddo
             endif
             face%center(m,n)%bc%definition = definition
-            call face%center(m,n)%bc%build(ini_c,'cell',phase)
+            face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
         enddo; enddo
       end select
 

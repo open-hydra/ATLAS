@@ -4,7 +4,7 @@ BCB writes plain-text BC files into `fromATLAStoSolver/` (created automatically 
 
 The files are consumed directly by all Hydra solvers.
 
-The format is designed to be simple and flexible, with a fixed coordinate line followed by a variable payload depending on the BC type. See [File Format](#file-format) for details.
+The format is designed to be simple and flexible, with a fixed coordinate line followed by a variable payload depending on the BC type. See [File Format](#file-format) for details. Every numeric field of a record is written with the edit descriptor `ES24.16` (17 significant digits: the exact round trip of an IEEE double); the solvers read the records list-directed, so the field width carries no meaning.
 
 ---
 
@@ -100,7 +100,7 @@ Written after the chimera interpolation pass. Covers two ghost-cell layers inwar
 **Record structure** (multiple lines):
 
 1. Counts line: `nchi_g1  nchi_g2` — number of donor cells for ghost layers 1 and 2 (`I8` format).
-2. For ghost layer 1: `nchi_g1` donor lines, each `b  i  j  k  weight` (`4I8 + E20.10`).
+2. For ghost layer 1: `nchi_g1` donor lines, each `b  i  j  k  weight` (`4I8 + ES24.16`).
 3. For ghost layer 2: `nchi_g2` donor lines, same format.
 
 `weight` is the donor's share of the receiver ghost cell, so the weights of one
@@ -187,7 +187,7 @@ Example (`id = 302`, prescribed wall temperature):
 
 ---
 
-### `401`–`420` — Inlet / Outlet (MOSE/ARES solvers)
+### `401`–`421` — Inlet / Outlet (MOSE/ARES/Q2D solvers)
 
 | ID | Payload fields (in order) |
 |----|--------------------------|
@@ -200,9 +200,10 @@ Example (`id = 302`, prescribed wall temperature):
 | `407` | `T0, p0, p, alpha, beta, rf, massf(1:ns) [, turb…]` |
 | `408` | `T, un, alpha, beta, rf, massf(1:ns) [, turb…]` |
 | `410` | `<time_file>, 'periodic'` |
-| `420` | `T0, p0, psub, psup, g, alpha, beta, rf, massf(1:ns) [, turb…]` |
+| `420` | `T0, p0, psub, psup, g, rf, massf(1:ns) [, turb…]` — no angle fields: the MOSE/Q2D nozzle kernels inject along the face normal (`alpha`/`beta` are refused on a 420 section) |
+| `421` | `T0, p0, A1_A3, rf, massf(1:ns) [, turb…]` — Borda choked injector (Q2D only); no angle fields, injection is face-normal |
 
-`p0`, `T0` = total pressure/temperature; `p`, `T` = static pressure/temperature; `g` = mass flux [kg m⁻² s⁻¹]; `un` = normal velocity [m s⁻¹]; `mach` = Mach number; `alpha`, `beta` = inflow direction angles (`normal,` sentinel when free-stream normal); `rf` = relaxation factor; `massf(1:ns)` = injected species mass fractions; `psub`/`psup` = subsonic/supersonic injector nozzle pressures.
+`p0`, `T0` = total pressure/temperature; `p`, `T` = static pressure/temperature; `g` = mass flux [kg m⁻² s⁻¹]; `un` = normal velocity [m s⁻¹]; `mach` = Mach number; `alpha`, `beta` = inflow direction angles (`normal,` sentinel when free-stream normal); `rf` = relaxation factor; `massf(1:ns)` = injected species mass fractions; `psub`/`psup` = regime thresholds of the injector nozzle (`psup <= psub < p0`): exit pressure of the just-choked subsonic solution / design supersonic exit pressure. The `420` record carries 17 significant digits (`ES24.16`, like every record): on the `Ae_At` path its `psub`, `psup`, `g` are computed on the solvers' own `thermo.dat` tables and compared by their kernels with states recomputed from `T0`, `p0`, `massf` to 1e-9, and a 6-digit `g` rounded up would leave the supersonic kernel without a root at `Ae_At = 1`. `A1_A3` = Borda injector throat-to-face area ratio, in (0, 1] (`a1-a3 = 0`, the default, means not given, as `Ae_At = 0`).
 
 !!! tip "Time-file option"
     For time-varying inlet conditions, the payload line contains the time-file name string instead of numeric values.
@@ -287,7 +288,9 @@ Only `502` carries a turbulence suffix, using the same layout as the inlet IDs
 fractions.
 
 !!! note "Model codes"
-    `pyro` and `surf` are written as reals encoding the model chosen in the INI file:
+    `pyro` and `surf` are written as integers (`I8`, like the `501` payload: MOSE reads them
+    list-directed into `integer` variables, and gfortran rejects a real such as `0.100000E+01`
+    there) encoding the model chosen in the INI file:
 
     | Field | INI key | Value → code |
     |---|---|---|

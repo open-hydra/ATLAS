@@ -11,6 +11,7 @@ contains
     use ir_precision
     use strings,             only: parse
     use bcb_config_mod,      only: bcb_block_config_t, bcb_face_setup_t, load_bcb_block_config, load_bcb_face_setup
+    use input_keys_mod,      only: input_keys_check_section
     use finer,               only: file_ini
     use phase_mod,           only: phase_t
     use grid_mod,            only: mesh_cfg
@@ -154,9 +155,11 @@ contains
             do p = 1, face_cfg%patch_count
               patchname = face_cfg%patches(p)%name
               patchrange = face_cfg%patches(p)%range
+              call input_keys_check_section(sini, trim(patchname), 'section')
               call patchini%free
               call patchini%add(section_name='face')
               call patchini%add(section_name='face', option_name='name', val=patchname)
+              call patchini%add(section_name='face', option_name='face', val=ff)   ! the face of the patch (line-file mapping)
               do while (sini%loop(section_name=patchname, option_pairs=option_pairs))
                 call patchini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
               enddo
@@ -225,8 +228,10 @@ contains
           allocate(this%bc%ig_properties(1:face%bc%ig_n))
           this%bc%ig_properties    = face%bc%ig_properties
           if (allocated(face%bc%ig_time)) then
-            this%bc%ig_time_file   = face%bc%ig_time_file
             this%bc%ig_time        = face%bc%ig_time
+            ! every builder now allocates ig_time_file next to ig_time; the guard keeps the copy
+            ! defined for any record built elsewhere
+            if (allocated(face%bc%ig_time_file)) this%bc%ig_time_file = face%bc%ig_time_file
           endif
           if (face%bc%ig_species%n>0) then
             this%bc%ig_species%n     = face%bc%ig_species%n

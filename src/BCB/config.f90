@@ -141,6 +141,7 @@ module bcb_config_mod
     real(R8) :: Ae_At = 0.0_R8
     real(R8) :: psup = 0.0_R8
     real(R8) :: psub = 0.0_R8
+    real(R8) :: a1_a3 = 0.0_R8
     character(len=32) :: p0_time_file = 'none'
     character(len=32) :: p_time_file = 'none'
     character(len=32) :: time_file = 'none'
@@ -180,6 +181,8 @@ module bcb_config_mod
     real(R8)           :: center(3) = 0.0_R8
     integer            :: strip_j_face = 1
     integer            :: face = 0
+    character(len=8)   :: axis = ''      ! '' = from the face geometry, else x|y|z
+    integer            :: n_repeat = 1   ! sector strips: the strip covers 2 pi / n_repeat of the face
     logical            :: has_linefile = .false.
     logical            :: has_center = .false.
   end type bcb_unwrapped_config_t
@@ -201,6 +204,7 @@ module bcb_config_mod
 contains
 
   subroutine load_bcb_block_config(sini, section_name, nfaces, cfg)
+    use input_keys_mod, only: input_keys_check_section
     implicit none
     type(file_ini), intent(in)            :: sini
     character(*), intent(in)              :: section_name
@@ -210,6 +214,7 @@ contains
     character(len=4) :: ind
     integer :: error, ff
 
+    call input_keys_check_section(sini, section_name, 'block')
     cfg%has_phase = .false.
     cfg%phase = ''
     cfg%face_names = ''
@@ -225,7 +230,70 @@ contains
     enddo
   end subroutine load_bcb_block_config
 
+  !> full-plate and z-hydra are read by the injector-plate mapping only (read_plate_config,
+  !> builder_plate.f90), that is in a section with range-file. Anywhere else the key would
+  !> be ignored: ERROR under strict-keys, WARNING otherwise, once per section.
+  subroutine check_plate_keys(sini, section, has_range_file)
+    use input_keys_mod, only: input_keys_refuse_or_warn
+    implicit none
+    type(file_ini), intent(in)   :: sini
+    character(*), intent(in)     :: section
+    logical, intent(in)          :: has_range_file
+    character(len=:), allocatable :: option_pairs(:), key
+    character(len=llen), allocatable, save :: done(:)
+    integer :: i
+
+    if (has_range_file) return
+    if (.not. allocated(done)) allocate(done(0))
+    do i = 1, size(done)
+      if (trim(done(i)) == section) return
+    enddo
+    done = [character(len=llen) :: done, section]
+    do while (sini%loop(section_name=section, option_pairs=option_pairs))
+      key = trim(option_pairs(1))
+      if (key /= 'full-plate' .and. key /= 'z-hydra') cycle
+      call input_keys_refuse_or_warn('key '//key//' of section ['//section//']: not honoured (read only with'// &
+                                     ' range-file, by the injector-plate mapping)')
+    enddo
+  end subroutine check_plate_keys
+
+  !> `<phase>-type` is read in one place only (types_bc.f90, dispersed_axis_override):
+  !> a dispersed phase on a face of type axisymmetric. Anywhere else the key would be
+  !> ignored: ERROR under strict-keys, WARNING otherwise, once per section. `label` is
+  !> the section name of the deck (`section` may be the copy the builders read).
+  subroutine check_phase_type_keys(sini, section, label, definition)
+    use input_keys_mod, only: input_keys_phase_key, input_keys_refuse_or_warn
+    implicit none
+    type(file_ini), intent(in)   :: sini
+    character(*), intent(in)     :: section, label, definition
+    character(len=:), allocatable :: option_pairs(:), key, why
+    character(len=llen) :: pname, ptype
+    character(len=llen), allocatable, save :: done(:)
+    integer :: i
+
+    if (.not. allocated(done)) allocate(done(0))
+    do i = 1, size(done)
+      if (trim(done(i)) == label) return
+    enddo
+    done = [character(len=llen) :: done, label]
+    do while (sini%loop(section_name=section, option_pairs=option_pairs))
+      key = trim(option_pairs(1))
+      if (.not. input_keys_phase_key(key, 'type', pname, ptype)) cycle
+      if (trim(ptype) == 'DP' .and. trim(adjustl(definition)) == trim(MARKER_AXIS)) cycle
+      if (trim(ptype) /= 'DP') then
+        why = trim(pname)//' is not a dispersed phase'
+      elseif (len_trim(definition) == 0) then
+        why = 'the section has no type'
+      else
+        why = 'type = '//trim(adjustl(definition))
+      endif
+      call input_keys_refuse_or_warn('key '//key//' of section ['//label//']: not honoured ('//why// &
+                                     '): only a dispersed phase on a face of type axisymmetric reads it')
+    enddo
+  end subroutine check_phase_type_keys
+
   subroutine load_bcb_face_setup(sini, bc_name, cfg)
+    use input_keys_mod, only: input_keys_check_section
     implicit none
     type(file_ini), intent(in)           :: sini
     character(*), intent(in)             :: bc_name
@@ -247,6 +315,7 @@ contains
     has_outer_patch = .false.
     if (allocated(cfg%patches)) deallocate(cfg%patches)
 
+    call input_keys_check_section(sini, trim(bc_name), 'section')
     do while (sini%loop(section_name=trim(bc_name), option_pairs=option_pairs))
       if (index(option_pairs(1), 'patch') == 1) cfg%multipatch = .true.
       if (trim(option_pairs(1)) == 'range-file') has_range_file = .true.
@@ -261,9 +330,18 @@ contains
       has_inner_patch .and. has_outer_patch)) then
       call check_assignment_no_input(trim(cfg%name), cfg%definition)
     endif
+    call check_phase_type_keys(sini, trim(bc_name), trim(bc_name), cfg%definition)
+    call check_plate_keys(sini, trim(bc_name), has_range_file)
 
     call sini%get(section_name=trim(bc_name), option_name='direction', val=cfg%direction, error=error)
     cfg%has_direction = error == 0
+    if (cfg%has_direction) then
+      if (verify(trim(adjustl(cfg%direction)), 'xyzrtijk') /= 0 .or. len_trim(cfg%direction) == 0) then
+        write(*,'(A)') '[ERROR] key direction of section ['//trim(bc_name)//']: value '//trim(cfg%direction)// &
+          ' is not a direction (letters x, y, z, r, t, i, j, k, lower case)'
+        stop 1
+      endif
+    endif
 
     if (.not. cfg%multipatch) return
     if (.not. cfg%has_direction) return
@@ -306,6 +384,48 @@ contains
     call sourceini%get(section_name=section, option_name='faces', val=cfg%faces, error=error)
     cfg%has_connection = (error == 0)
   end subroutine load_bcb_periodic_config
+
+  !> A file name written into the BC record (time-file, p0-time-file, p-time-file, q-time-file,
+  !> T-time-file): ATLAS keeps 32 characters of it (the record field; MOSE reads the 402 series name
+  !> and FUSS the wall series name with 32 characters too). A longer name of a file the user provides
+  !> would be truncated in the record and the solver would look for a file that does not exist:
+  !> refused. The time-file of a section with line-file is written by ATLAS itself under the same
+  !> 32 characters (file and record agree, as upstream): accepted, with one LOG line per name.
+  subroutine get_file_name32(sourceini, section, key, val, error)
+    implicit none
+    type(file_ini), intent(in)     :: sourceini
+    character(len=*), intent(in)   :: section, key
+    character(len=32), intent(out) :: val
+    integer, intent(out)           :: error
+    character(len=llen)            :: buffer, linefile
+    character(len=llen), allocatable, save :: announced(:)
+    integer                        :: lerr, i
+
+    buffer = ''
+    call sourceini%get(section_name=section, option_name=key, val=buffer, error=error)
+    if (error /= 0) then
+      val = 'none'
+      return
+    endif
+    val = buffer(1:32)
+    if (len_trim(buffer) <= 32) return
+    linefile = ''
+    lerr = 1
+    if (key == 'time-file') call sourceini%get(section_name=section, option_name='line-file', val=linefile, error=lerr)
+    if (lerr /= 0) then
+      write(*,'(A)') '[ERROR] key '//key//': file name longer than 32 characters: the BC record keeps 32'// &
+                     ' characters of it, so the solver would look for a file that does not exist'// &
+                     ' (shorten the name): '//trim(buffer)
+      stop 1
+    endif
+    if (.not. allocated(announced)) allocate(announced(0))
+    do i = 1, size(announced)
+      if (trim(announced(i)) == trim(buffer)) return
+    enddo
+    announced = [character(len=llen) :: announced, buffer]
+    write(*,'(A)') ' [LOG] time-file '//trim(buffer)//' (written from line-file '//trim(linefile)// &
+                   ') is named '//trim(val)//': the BC record keeps 32 characters'
+  end subroutine get_file_name32
 
   subroutine load_bcb_face_runtime_config(sourceini, section, cfg)
     implicit none
@@ -362,6 +482,8 @@ contains
     elseif (.not. file_named_multipatch) then
       call check_assignment_no_input(trim(cfg%name), cfg%definition)
     endif
+    ! the sections of a multipatch face (the face-level section is checked by load_bcb_face_setup)
+    if (len_trim(cfg%name) > 0) call check_phase_type_keys(sourceini, section, trim(cfg%name), cfg%definition)
 
   end subroutine load_bcb_face_runtime_config
 
@@ -433,11 +555,11 @@ contains
 
     integer :: error
 
-    call sourceini%get(section_name=section, option_name='q-time-file', val=cfg%q_timefile, error=error)
+    call get_file_name32(sourceini, section, 'q-time-file', cfg%q_timefile, error)
     cfg%has_q_timefile = error == 0
     if (.not. cfg%has_q_timefile) cfg%q_timefile = 'none'
 
-    call sourceini%get(section_name=section, option_name='T-time-file', val=cfg%T_timefile, error=error)
+    call get_file_name32(sourceini, section, 'T-time-file', cfg%T_timefile, error)
     cfg%has_T_timefile = error == 0
     if (.not. cfg%has_T_timefile) cfg%T_timefile = 'none'
 
@@ -486,14 +608,16 @@ contains
     if (error /= 0) cfg%T = 0.0_R8
     call sourceini%get(section_name=section, option_name='g', val=cfg%g, error=error)
     if (error /= 0) cfg%g = 0.0_R8
+    ! 'rt' was the name of the nozzle mass flux until June 2026 (ATLAS 7bae255 renamed it 'g'): a deck
+    ! that still uses it gets the unknown-key diagnostic of input_keys_mod, whose hint names 'g'.
     call sourceini%get(section_name=section, option_name='p', val=cfg%p, error=error)
     if (error /= 0) cfg%p = 0.0_R8
 
-    call sourceini%get(section_name=section, option_name='p0-time-file', val=cfg%p0_time_file, error=error)
+    call get_file_name32(sourceini, section, 'p0-time-file', cfg%p0_time_file, error)
     if (error /= 0) cfg%p0_time_file = 'none'
-    call sourceini%get(section_name=section, option_name='p-time-file', val=cfg%p_time_file, error=error)
+    call get_file_name32(sourceini, section, 'p-time-file', cfg%p_time_file, error)
     if (error /= 0) cfg%p_time_file = 'none'
-    call sourceini%get(section_name=section, option_name='time-file', val=cfg%time_file, error=error)
+    call get_file_name32(sourceini, section, 'time-file', cfg%time_file, error)
     if (error /= 0) cfg%time_file = 'none'
     call sourceini%get(section_name=section, option_name='periodic', val=cfg%periodic, error=error)
     if (error /= 0) cfg%periodic = .false.
@@ -507,6 +631,8 @@ contains
     if (error /= 0) cfg%psub = 0.0_R8
     call sourceini%get(section_name=section, option_name='psup', val=cfg%psup, error=error)
     if (error /= 0) cfg%psup = 0.0_R8
+    call sourceini%get(section_name=section, option_name='a1-a3', val=cfg%a1_a3, error=error)
+    if (error /= 0) cfg%a1_a3 = 0.0_R8
 
     call load_shared_velocity_config(sourceini, cfg%velocity, section)
     call load_shared_turbulence_config(sourceini, cfg%turbulence, section)
@@ -740,13 +866,23 @@ contains
     cfg%has_center = error == 0
     call sourceini%get(section_name=section, option_name='strip-j-face', val=cfg%strip_j_face, error=error)
     if (error /= 0) cfg%strip_j_face = 1
+    call sourceini%get(section_name=section, option_name='axis', val=cfg%axis, error=error)
+    if (error /= 0) cfg%axis = ''
+    ! the admitted values (auto, x, y, z) and n-repeat >= 1 (an integer: '4.0' or 'four' are refused
+    ! as non-numbers) are the registry rows, checked by input_keys_check_section before this loader
+    cfg%axis = lowercase(trim(adjustl(cfg%axis)))
+    if (trim(cfg%axis) == 'auto') cfg%axis = ''
+    call sourceini%get(section_name=section, option_name='n-repeat', val=cfg%n_repeat, error=error)
+    if (error /= 0) cfg%n_repeat = 1
 
   end subroutine load_bcb_unwrapped_config
 
-  subroutine write_bcb_registry_markdown(filename)
+  subroutine write_bcb_registry_markdown(filename, keys_only)
     use ir_precision
+    use input_keys_mod, only: input_keys_snapshot
     implicit none
     character(*), intent(in), optional :: filename
+    logical, intent(in), optional      :: keys_only   ! .true.: snapshot the keys for input_keys_mod, no file
 
     type(registry_t) :: bcb_registry
     type(atlas_parameters_t), target :: atlas_cfg
@@ -756,6 +892,7 @@ contains
     character(len=llen), target :: phase_name
     character(len=50), target :: face_name
     character(len=20), target :: bc_type
+    character(len=20), target :: dp_axis_type
     character(len=7), target :: direction
     character(len=50), target :: patch_name
     real(R8), target :: patch_range(4)
@@ -763,6 +900,7 @@ contains
     integer, target :: periodic_faces(2)
     integer, target :: manifold_block
     integer, target :: manifold_face
+    integer, target :: unwrapped_int
     character(len=7), target :: file_direction
     type(bcb_wall_fluid_config_t), target :: wall_fluid_cfg
     type(bcb_wall_solid_config_t), target :: wall_solid_cfg
@@ -773,6 +911,8 @@ contains
     logical, target :: periodic
     real(R8), target :: relaxation_factor
     real(R8), target :: nozzle_scalar
+    logical, target :: plate_full
+    real(R8), target :: plate_z
     character(len=llen) :: fileout
     integer :: ff
 
@@ -786,6 +926,7 @@ contains
     phase_name = ''
     face_name = ''
     bc_type = MARKER_NULL
+    dp_axis_type = ''
     direction = ''
     patch_name = ''
     patch_range = 0.0_R8
@@ -793,6 +934,7 @@ contains
     periodic_faces = 0
     manifold_block = 0
     manifold_face = 0
+    unwrapped_int = 1
     file_direction = ''
     wall_fluid_cfg = bcb_wall_fluid_config_t()
     wall_solid_cfg = bcb_wall_solid_config_t()
@@ -803,6 +945,8 @@ contains
     periodic = .false.
     relaxation_factor = 1.0_R8
     nozzle_scalar = 0.0_R8
+    plate_full = .false.
+    plate_z = 1.0_R8
 
     call add_atlas_registry_entries(bcb_registry, 'BCB', atlas_cfg)
 
@@ -814,6 +958,12 @@ contains
     enddo
 
     call bcb_registry%add('bc-section', 'type', bc_type, MARKER_NULL,'Boundary-condition type for the named section.', boundary_type_list(),.false.)
+    ! no allowed set here: the word is checked where it is read (dispersed_axis_override), whose
+    ! message names both accepted words
+    call bcb_registry%add('bc-section', '<phase>-type', dp_axis_type, '', 'Dispersed phase on a face of type '// &
+                          'axisymmetric: outlet lets that phase leave through the axis (BC 400 in its file), '// &
+                          'symmetry mirrors it at the axis (BC 300); the other phases keep 200. Read nowhere else.', &
+                          '', .false.)
     call bcb_registry%add('bc-section', 'direction', direction, '', 'Patch directions using x,y,z,r,t,i,j,k.', '', .false.)
     call bcb_registry%add('bc-section', 'patch<n>', patch_name, '', 'Named sub-patch section used by multipatch boundaries.', '', .false.)
     call bcb_registry%add('bc-section', 'range<n>', patch_range, '0.0', 'Sub-patch limits associated with patch<n>.', '', .false.)
@@ -822,6 +972,14 @@ contains
     call bcb_registry%add('bc-section', 'block', manifold_block, '0', 'Connected block index for manifold.', '', .false.)
     call bcb_registry%add('bc-section', 'face', manifold_face, '0', 'Connected face index for manifold.', '', .false.)
     call bcb_registry%add('bc-section', 'file-direction', file_direction, '','Coordinate or index directions used by varying BC files.', '', .false.)
+    call bcb_registry%add('bc-section', 'range-file', patch_name, '', 'File of the injector plate patches (with inner-patch and outer-patch).', '', .false.)
+    call bcb_registry%add('bc-section', 'inner-patch', patch_name, '', 'Section applied inside the range-file patches.', '', .false.)
+    call bcb_registry%add('bc-section', 'outer-patch', patch_name, '', 'Section applied outside the range-file patches.', '', .false.)
+    call bcb_registry%add('bc-section', 'full-plate', plate_full, 'F', 'With range-file: T maps the face as a full'// &
+                          ' injector plate of square sectors, F maps the injectors of the range-file one by one.', '', .false.)
+    call bcb_registry%add('bc-section', 'z-hydra', plate_z, '1.0', 'With range-file and full-plate = F: depth of'// &
+                          ' the pure 2-D (x,y) mesh in the equivalent radius A/(2 z-hydra) of each injector'// &
+                          ' (injector_data_block<b>_face<f>.dat).', '', .false.)
 
     call add_composition_registry_entries(bcb_registry, 'bc-section', composition_cfg)
 
@@ -839,7 +997,14 @@ contains
       fileout = 'docs/user-guide/bcb/input-reference.md'
     endif
 
-    call bcb_registry%generate_markdown(trim(fileout), 'BCB Input Parameters')
+    call input_keys_snapshot(bcb_registry, 'BCB')
+    if (present(keys_only)) then
+      if (keys_only) return
+    endif
+
+    call bcb_registry%generate_markdown(trim(fileout), 'BCB Input Parameters', preamble= &
+      'Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file`'// &
+      ' series (BC 402) is in bar, as the solvers read it.')
 
   contains
 
@@ -856,10 +1021,15 @@ contains
       call bcb_registry%add('bc-section', 'time-file', time_file, 'none', 'Time-series file of full boundary state.', '', .false.)
       call bcb_registry%add('bc-section', 'periodic', periodic, 'F', 'Treat a time-file series as periodic.', '', .false.)
       call bcb_registry%add('bc-section', 'rf', relaxation_factor, '1.0', 'Boundary relaxation factor.', '', .false.)
-      call bcb_registry%add('bc-section', 'Ae_At', nozzle_scalar, '0.0', 'Nozzle exit-to-throat area ratio.', '>=1', .false.)
-      call bcb_registry%add('bc-section', 'rt', nozzle_scalar, '0.0', 'Nozzle throat loading parameter.', '', .false.)
-      call bcb_registry%add('bc-section', 'psub', nozzle_scalar, '0.0', 'Subsonic exit pressure used with rt.', '', .false.)
-      call bcb_registry%add('bc-section', 'psup', nozzle_scalar, '0.0', 'Supersonic exit pressure used with rt.', '', .false.)
+      call bcb_registry%add('bc-section', 'Ae_At', nozzle_scalar, '0.0', 'Nozzle exit-to-throat area ratio (0 = not given).', '0 or >=1', .false.)
+      call bcb_registry%add('bc-section', 'psub', nozzle_scalar, '0.0', 'Nozzle (BC 420) exit pressure of the just-choked subsonic solution; given with g and psup, or computed from Ae_At.', '', .false.)
+      call bcb_registry%add('bc-section', 'psup', nozzle_scalar, '0.0', 'Nozzle (BC 420) design exit pressure of the supersonic expansion; given with g and psub, or computed from Ae_At.', '', .false.)
+      call bcb_registry%add('bc-section', 'a1-a3', nozzle_scalar, '0.0', 'Borda injector throat-to-face area ratio A1/A3: nonzero selects the Borda choked injector (BC 421, Q2D solver, 2D meshes only); 0 = not given.', '[0,1]', .false.)
+      call bcb_registry%add('bc-section', 'line-file', patch_name, 'none', 'Unwrapped (2D) time record mapped onto the 3D face; BCB then writes time-file (angular mapping, see bc-types).', '', .false.)
+      call bcb_registry%add('bc-section', 'center', dp_scalar, '0.0', 'Cylinder axis point x y z of the line-file mapping (required with line-file).', '', .false.)
+      call bcb_registry%add('bc-section', 'strip-j-face', unwrapped_int, '1', 'Node row of the line-file zone used as the strip.', '>=1', .false.)
+      call bcb_registry%add('bc-section', 'axis', patch_name, 'auto', 'Cylinder axis of the line-file mapping; auto = dominant component of the mean inward normal of the face.', 'auto<br>x<br>y<br>z', .false.)
+      call bcb_registry%add('bc-section', 'n-repeat', unwrapped_int, '1', 'Sector strips: the line-file covers 2 pi / n-repeat of the face and is repeated n-repeat times around it.', '>=1', .false.)
     end subroutine add_ig_entries
 
     subroutine add_wall_entries()
@@ -891,6 +1061,7 @@ contains
       call bcb_registry%add('bc-section', 'rp', dp_scalar, '0.0', 'Particle radii per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'dp', dp_scalar, '0.0', 'Particle diameters per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'sigmap', dp_scalar, '0.0', 'Particle dispersion widths.', '', .false.)
+      call bcb_registry%add('bc-section', 'distribution', patch_name, '', 'Size-distribution file of a dispersed population (prefixed by the phase name: <phase>-distribution).', '', .false.)
       call bcb_registry%add('bc-section', 'ds', dp_scalar, '0.0', 'Injection-point spacing per dispersed population (cm; converted to m).', '', .false.)
       call bcb_registry%add('bc-section', 'alphap', dp_scalar, '0.0', 'Primary injection angle per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'betap', dp_scalar, '0.0', 'Secondary injection angle per dispersed population.', '', .false.)

@@ -509,11 +509,10 @@ set_tests_properties(IG-interp-mindist PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-
 # ---- BCB : IG-inflow-nozzle -------------
 add_test(
     NAME    IG-inflow-nozzle
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1); rc=$?; echo \"$out\" | grep -F '[WARNING]'; test $rc -eq 0 && grep -q -F -- \"$(cat expected.txt)\" <<< \"$out\" && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-nozzle"
 )
 set_tests_properties(IG-inflow-nozzle PROPERTIES
@@ -521,7 +520,6 @@ set_tests_properties(IG-inflow-nozzle PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
-
 
 # ---- BCB : IG-multipatch-file -------------
 add_test(
@@ -548,9 +546,11 @@ set_tests_properties(IG-multipatch-1D PROPERTIES
 )
 
 # ---- BCB : IG-inflow-ceafile-inertmix -------------
+# The records carry 17 digits (ES24.16): the CEA-equilibrium T0 of ifx and gfortran builds differs in the
+# 16th digit (3399.5978434892600 vs ...659, 1.7e-15), so the record is compared numerically (tolerance 1e-12).
 add_test(
     NAME    IG-inflow-ceafile-inertmix
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-ceafile-inertmix"
 )
 set_tests_properties(IG-inflow-ceafile-inertmix PROPERTIES
@@ -603,11 +603,11 @@ set_tests_properties(IG-table-header-skipped PROPERTIES
 )
 
 # ---- BCB : IG-table-not-monotone -------------
-# A T-file whose coordinate column turns back (0, 1, 0.5) is refused: the table reader names the row where the column
-# turns back and BCB stops; no bc.txt.
+# A T-file whose coordinate column turns back (0, 1, 0.5) is refused: the table reader names the row and BCB says the
+# file is refused for its content (it exists); no bc.txt.
 add_test(
     NAME    IG-table-not-monotone
-    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] table file Twall.dat: the coordinate column is not monotone at row 3' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] table file Twall.dat: the coordinate column is not monotone at row 3' bcb.log && grep -q -F '[ERROR] BC file Twall.dat refused: its coordinate column is not monotone' bcb.log && ! grep -q -F 'BC file Twall.dat not found' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-not-monotone"
 )
 set_tests_properties(IG-table-not-monotone PROPERTIES
@@ -1009,6 +1009,288 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-axis-refused"
 )
 set_tests_properties(DP-axis-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-plate-keys -------------
+# IG-multipatch-file's injector plate with its two plate keys written out (full-plate = F, z-hydra = 1.0, the
+# defaults): the plate mapping reads them, so the deck passes the key check and writes the same bc.txt.
+add_test(
+    NAME    IG-plate-keys
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt ../IG-multipatch-file/reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-plate-keys"
+)
+set_tests_properties(IG-plate-keys PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-renamed-keys-lenient -------------
+# Keys of older decks (rt, renamed g; force-connect, now BC-force-connect in [ATLAS-Parameters]) are unknown
+# keys like any other: with strict-keys = false one WARNING each, whose hint names the current key, and the
+# deck is written as without them.
+add_test(
+    NAME    IG-renamed-keys-lenient
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F \"[WARNING] key rt of section [noz]: unknown key (key 'rt' was renamed 'g'\" <<< \"$out\" && grep -q -F '[WARNING] key force-connect of section [ATLAS-Parameters]: unknown key (the option is BC-force-connect' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-renamed-keys-lenient"
+)
+set_tests_properties(IG-renamed-keys-lenient PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-value-not-a-number (a value with a trailing comment (T0 = 3400.0 ! K) stops BCB naming the key: it is not a number; nothing is written) -------------
+add_test(
+    NAME    IG-value-not-a-number
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] key T0 of section [noz]: value 3400.0 ! K is not a number' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-value-not-a-number"
+)
+set_tests_properties(IG-value-not-a-number PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-phase-type-refused (<phase>-type outside an axisymmetric face) -------------
+# DP-axis-override's deck with partL-type = outlet also on the wall [noz]. Only a dispersed
+# phase on a face of type axisymmetric reads the key, so BCB stops (strict-keys) instead of
+# ignoring it. `!` inverts BCB's status and the grep pins the reason, as in DP-bad-name.
+add_test(
+    NAME    DP-phase-type-refused
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q -F '[ERROR] key partL-type of section [noz]: not honoured (type = wall)' bcb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-phase-type-refused"
+)
+set_tests_properties(DP-phase-type-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-keys-documented -------------
+# Documented keys that do not stop BCB under strict-keys: Ae_At = 0.0 and a1-a3 = 0.0 (their defaults, "not
+# given") are silent; u on the inlet and p-time-file on the outlet are carried by no record: one WARNING each.
+# bc.txt is the one of the same deck without these keys.
+add_test(
+    NAME    IG-keys-documented
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && test $(grep -c -e '[[]WARNING[]] key' -e '[[]ERROR[]] key' <<< \"$out\") -eq 2 && grep -q -F '[WARNING] key u of section [noz]: no BC record carries' <<< \"$out\" && grep -q -F '[WARNING] key p-time-file of section [outflow]: no BC record carries' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-keys-documented"
+)
+set_tests_properties(IG-keys-documented PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-nozzle-arearatio -------------
+# BC 420 from Ae_At = 2.5 on a calorically perfect gas (thermo.dat with a constant cp): psub, psup and g of the
+# record (reference checked against the closed-form isentrope) in the solvers' order T0, p0, psub, psup, g, rf, massf.
+add_test(
+    NAME    IG-nozzle-arearatio
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-nozzle-arearatio"
+)
+set_tests_properties(IG-nozzle-arearatio PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-borda-2D -------------
+# BC 421, the Borda choked injector read by Q2D only (2-D mesh), selected by a1-a3 = A1/A3 in (0, 1]: record
+# T0, p0, A1/A3, rf, massf, no angle fields; the 2-D product passes the consistency check of scripts/check-bc.py.
+add_test(
+    NAME    IG-borda-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/bc.txt | grep -q -F 'all 32 connection records reciprocal'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-borda-2D"
+)
+set_tests_properties(IG-borda-2D PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-inflow-405a -------------
+# An inlet given mach, p0 and T0 is the supersonic 405 (it was written as 401): static T and p of the isentropic
+# expansion on thermo.dat (constant cp; M = 2, T0 = 300 K, p0 = 1.013e5 Pa give T = 166.667 K, p = 12946.6 Pa).
+# h0-first-node: a single-species inlet on its own N2 table, which starts at 100 K: h0 equal to the enthalpy of the
+# first row gives T0 = 100 K, the bc.txt of T0 = 100, and neither warns, since the solvers' lookup reads the first
+# row; an h0 below the first row stops BCB with its message.
+add_test(
+    NAME    IG-inflow-405a
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt && cd h0-first-node && { rm -rf fromATLAStoSolver t0 && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input t0.ini 2>&1 < /dev/null) && mv fromATLAStoSolver t0 && out2=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input h0.ini 2>&1 < /dev/null) && diff t0/bc.txt fromATLAStoSolver/bc.txt && rm -rf fromATLAStoSolver t0 || { echo \"$out\" | tail -n 2; echo \"$out2\" | tail -n 2; exit 1; }; ! grep -F 'lies outside the temperature range' <<< \"$out $out2\" || exit 1; out3=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input below.ini 2>&1 < /dev/null); rc3=$?; echo \"$out3\" | tail -n 2; test $rc3 -eq 1 && grep -q -F '[ERROR] h0 = -2.06000E+05 J/kg lies outside the enthalpy range of thermo.dat: no T0 for it' <<< \"$out3\" && test ! -e fromATLAStoSolver/bc.txt; }"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-405a"
+)
+set_tests_properties(IG-inflow-405a PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-composition-sum-refused (mass fractions of an inlet that sum to 0.99 stop BCB naming the section and the sum; nothing is written) -------------
+add_test(
+    NAME    IG-composition-sum-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] composition of section [injOX] (keys yO2 yCH4): the mass fractions sum to  9.90000E-01, they must sum to 1 within 1e-3' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-composition-sum-refused"
+)
+set_tests_properties(IG-composition-sum-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-nozzle-inlet-envelope-refused (a nozzle inlet (BC 420) with psup above psub stops BCB: the solvers need 0 < psup <= psub < p0; nothing is written) -------------
+add_test(
+    NAME    IG-nozzle-inlet-envelope-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] nozzle inlet (BC 420) requires 0 < psup <= psub < p0' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-nozzle-inlet-envelope-refused"
+)
+set_tests_properties(IG-nozzle-inlet-envelope-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-2D-inlet-408-refused (a normal-velocity inlet (BC 408) on a pure 2-D mesh stops BCB: Q2D, which reads 2-D meshes, does not implement BC 408; nothing is written) -------------
+add_test(
+    NAME    IG-2D-inlet-408-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] inflow (normal-velocity inlet, BC 408): a 2D mesh (x,y file) is read by Q2D, which does not implement BC 408' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D-inlet-408-refused"
+)
+set_tests_properties(IG-2D-inlet-408-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-force-connect-plate -------------
+# Injection plate with holes, the designed use of BC-force-connect (default true): block 1 face 1 is declared
+# inlet [plate]; the cells that coincide with the hole blocks 2 and 3 are written as connections (101, with the
+# hole's cell and orientation, the facelet ids and connection lines upstream writes), the other cells keep the
+# inlet. One LOG line for the face, no WARNING, no refusal.
+add_test(
+    NAME    IG-force-connect-plate
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -x -F -- ' [LOG] BC-force-connect: block 1 face 1: 5 cells connected to block(s) 2 3, 3 cells keep the declared BC [plate]' <<< \"$out\" && ! grep -q -F '[WARNING] BC-force-connect' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-force-connect-plate"
+)
+set_tests_properties(IG-force-connect-plate PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-time-file-long-name -------------
+# A time-file name longer than 32 characters. With line-file BCB writes the series itself: file and record take
+# the first 32 characters of the name (one LOG line), the mapping is unchanged. Without line-file (user-file.ini)
+# the file is the user's and the solver would look for the truncated name: BCB stops, no bc.txt.
+add_test(
+    NAME    IG-time-file-long-name
+    COMMAND bash -c "rm -rf fromATLAStoSolver mapped_with_a_very_long_name_ove; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F ' [LOG] time-file mapped_with_a_very_long_name_over_32_chars.tec (written from line-file strip.tec) is named mapped_with_a_very_long_name_ove' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt && diff mapped_with_a_very_long_name_ove reference/mapped_with_a_very_long_name_ove && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input user-file.ini > user-file.log 2>&1 && grep -q -F '[ERROR] key time-file: file name longer than 32 characters' user-file.log && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-time-file-long-name"
+)
+set_tests_properties(IG-time-file-long-name PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-linefile-sector-axis -------------
+# A line-file strip that covers a quarter of the lap, n-repeat = 4, mapped about the key axis x onto face 6 of an
+# annulus about x, whose inward normal is -x: each face cell holds the closed-form law of the strip at 4 theta,
+# the axial velocity of the record enters the domain (check-mapping.py computes both from mesh.tec and the law),
+# and one INFO line names the axis and the normal. With axis = y (axis-y.ini), parallel to the face, BCB stops.
+add_test(
+    NAME    IG-linefile-sector-axis
+    COMMAND bash -c "rm -rf fromATLAStoSolver mapped.tec; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -x -F -- '[INFO] Block 1 face 6: line-file mapped about axis x, inward normal along -x: a positive axial velocity of the record enters the domain' <<< \"$out\" && python3 check-mapping.py && rm -rf fromATLAStoSolver mapped.tec && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input axis-y.ini > axis-y.log 2>&1 && grep -q -F 'the face is parallel to the y axis' axis-y.log && grep -q -F '[ERROR] face 6: not aligned with a Cartesian axis on any block' axis-y.log && test ! -e mapped.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-linefile-sector-axis"
+)
+set_tests_properties(IG-linefile-sector-axis PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-multipatch-410-linefile (a 410 inlet written from a line-file as the one patch of a multipatch face equals the same face declared directly; two patches run) -------------
+add_test(
+    NAME    IG-multipatch-410-linefile
+    COMMAND bash -c "rm -rf fromATLAStoSolver single mapped.tec && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input single.ini && mkdir single && mv fromATLAStoSolver/bc.txt mapped.tec single/ && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff single/bc.txt fromATLAStoSolver/bc.txt && diff single/mapped.tec mapped.tec && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input two-patches.ini"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-410-linefile"
+)
+set_tests_properties(IG-multipatch-410-linefile PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-ablation -------------
+# BC 505 (ablation, surface reactions): the model id is written as an integer (MOSE reads it into an INTEGER);
+# the exact diff is the only registered check of the 505 record.
+add_test(
+    NAME    IG-ablation
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-ablation"
+)
+set_tests_properties(IG-ablation PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-table-no-data -------------
+# A T-file that exists but holds no row of two numbers (a header and a comment) is refused as a file without data
+# rows, not reported as missing; no bc.txt.
+add_test(
+    NAME    IG-table-no-data
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] BC file Twall.dat has no data row' bcb.log && ! grep -q -F 'BC file Twall.dat not found' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-no-data"
+)
+set_tests_properties(IG-table-no-data PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-multigrid-2D -------------
+# MG-levels = 3 on a pure-2D mesh (9 x 5 nodes, X and Y): every coarse level stays pure 2D; bc2.txt and bc3.txt equal
+# the bc.txt of the level meshes (every second and every fourth node) given directly.
+add_test(
+    NAME    IG-multigrid-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt && diff fromATLAStoSolver/bc2.txt reference/bc2.txt && diff fromATLAStoSolver/bc3.txt reference/bc3.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multigrid-2D"
+)
+set_tests_properties(IG-multigrid-2D PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : BCB-direction-refused (a direction letter outside x, y, z, r, t, i, j, k (here X) stops BCB naming the key) -------------
+add_test(
+    NAME    BCB-direction-refused
+    COMMAND bash -c "rm -rf _run-dir && mkdir _run-dir && cp *.ini *.tec *.txt *.dat _run-dir/ 2>/dev/null; cd _run-dir && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input direction-X.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F 'key direction of section [isoth]: value X is not a direction' <<< \"$out\""
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-xtheta-variable-T"
+)
+set_tests_properties(BCB-direction-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : SP-wall-305 (a solid wall with hconv, eps and Tref is written as BC 305) ----
+# One solid block (IG-ablation's mesh, solid-bulk phase): face 4 gives hconv, eps and Tref and must be written as
+# 305 with hconv, eps, Tref, the order in which FUSS reads that record; face 2 gives eps and Tref only and stays
+# 304. check-walls.awk takes the values from input.ini and the counts from the mesh, not from a saved bc.txt.
+# _run-none: [adiabatic] (the last section of input.ini) given q and T selects no solid-wall record: a WARNING names the section and the keys, and its
+# faces (1, 3, 5, 6: 2070 records) are written with BC id 0, as upstream writes them; faces 4 and 2 keep 305 and 304.
+add_test(
+    NAME    SP-wall-305
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-none && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -f check-walls.awk fromATLAStoSolver/bc.txt && mkdir _run-none && cp input.ini mesh.tec phase.txt check-walls.awk _run-none/ && cd _run-none && echo 'T    = 300.0' >> input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] section [adiabatic] (solid wall): the keys given (q, T) select none of the records' <<< \"$out\" && awk -f check-walls.awk fromATLAStoSolver/bc.txt && test $(awk 'NF == 6 && $6 == 0' fromATLAStoSolver/bc.txt | wc -l) -eq 2070"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/SP-wall-305"
+)
+set_tests_properties(SP-wall-305 PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

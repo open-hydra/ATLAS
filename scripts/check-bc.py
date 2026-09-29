@@ -23,7 +23,8 @@ import sys
 from collections import defaultdict
 
 ONE_PROP = set([101, 103, 201, 420]) | set(range(301, 310)) | set(range(401, 409)) | {410}
-ONE_PROP |= {501, 502}
+ONE_PROP |= {421, 501, 502, 503, 504, 505, 506}   # 421 Borda (Q2D), 5xx gsi records: one property line each
+FLAT = set()   # blocks of a 2D (x,y) bc.txt: faces 1-4 only
 
 # A dispersed-phase file carries a property line only under a connection, a
 # chimera and a 401-403 inlet.
@@ -32,6 +33,7 @@ ONE_PROP_DP = {101, 103, 201, 401, 402, 403}
 
 def parse(path, dispersed=False):
     one_prop = ONE_PROP_DP if dispersed else ONE_PROP
+    FLAT.clear()   # per file: a later 3-D file of the same call must not inherit the 2-D blocks of an earlier one
     recs = defaultdict(list)   # (b,i,j,k,f) -> [(type, propline), ...] one per copy
     chim = []          # (b,i,j,k,f, [(db,di,dj,dk)])
     xchim = []         # the same for type 104, whose donors live in the other phase
@@ -46,7 +48,12 @@ def parse(path, dispersed=False):
         if not s:
             il += 1
             continue
-        b, i, j, k, f, t = (int(x) for x in s[:6])
+        if len(s) == 5:   # 2D mesh (x,y deck, Q2D): no k index in the record header
+            b, i, j, f, t = (int(x) for x in s)
+            k = 1
+            FLAT.add(b)
+        else:
+            b, i, j, k, f, t = (int(x) for x in s[:6])
         nrec += 1
         d = dims[b]
         d[0] = max(d[0], i); d[1] = max(d[1], j); d[2] = max(d[2], k)
@@ -79,7 +86,7 @@ def main(path, dispersed=False):
     # completeness
     expected = 0
     for b, (ni, nj, nk) in dims.items():
-        expected += 2 * (nj * nk + ni * nk + ni * nj)
+        expected += 2 * (ni + nj) if b in FLAT else 2 * (nj * nk + ni * nk + ni * nj)
     uneven = sum(1 for v in recs.values() if len(v) != ncopy)
     if uneven:
         print(f'  [FAIL] {uneven} boundary cells do not appear {ncopy} times')
@@ -102,6 +109,8 @@ def main(path, dispersed=False):
             continue
         nconn += 1
         v = [int(x) for x in prop.split()[:5]]
+        if b in FLAT:   # 2D property line: donor block, i, j, face (no k index, like the header)
+            v = v[:3] + [1, v[3]]
         key = tuple(v)
         other = recs.get(key)
         if other is not None:
@@ -118,6 +127,8 @@ def main(path, dispersed=False):
                 print(f'  [FAIL] {(b,i,j,k,f)} -> {key} is type {ot}, not a connection')
             continue
         back = tuple(int(x) for x in oprop.split()[:5])
+        if key[0] in FLAT:   # 2D property line (no k index)
+            back = back[:3] + (1, back[3])
         if back != (b, i, j, k, f):
             bad += 1
             if bad < 4:
