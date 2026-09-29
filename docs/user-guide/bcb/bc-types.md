@@ -146,10 +146,11 @@ eps  = 0.8
 
 !!! warning "`qrad` is not a fluid-wall key"
     A fluid-phase `wall` accepts **either** `q` **or** `T`, never both and never
-    together with `qrad`. Any other combination — including a section that sets
-    `qrad` — falls through to the Eulerian-symmetry branch and is written as
-    `id = 300`, with no diagnostic. Radiative coupling on a gas-side boundary
-    belongs to [`gsi`](#gsi); `qrad` remains valid on a **solid-phase** wall.
+    together with `qrad`. Any other combination falls through to the
+    Eulerian-symmetry branch and is written as `id = 300`: two or more of `q`,
+    `T`, `qrad` with the WARNING above, `qrad` alone (or none of the three) with
+    no diagnostic. Radiative coupling on a gas-side boundary belongs to
+    [`gsi`](#gsi); `qrad` remains valid on a **solid-phase** wall.
 
 #### Solid phase
 
@@ -163,6 +164,10 @@ values through `*-time-file` keys.
 | Convection + radiative flux | `hconv` **and** `qrad` **and** `Tref` | `303` |
 | Radiative exchange | `eps` **and** `Tref` | `304` |
 | Convection + radiative exchange | `hconv` **and** `eps` **and** `Tref`, no `qrad` | `305` |
+
+A solid-phase wall whose keys select none of these records (for example `q` and `T` together, or `hconv`
+without `Tref`) gets no wall record: its faces are written with BC id 0, as upstream writes them, with a
+WARNING that names the section and the keys given.
 
 | Key | Meaning |
 |---|---|
