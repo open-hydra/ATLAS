@@ -183,7 +183,10 @@ contains
       real(R8), intent(in)         :: val
       integer :: lo, hi
       if (.not. allocated(self%ig_species%cp)) return
-      lo = lbound(self%ig_species%cp, dim=2) + 1; hi = ubound(self%ig_species%cp, dim=2) - 1
+      ! [lo, hi] is where the solvers' cp/h lookup reads the table without clamping: from its first
+      ! temperature (a table that starts at 1 K is loaded with an extra node at 0 K) to Tmax - 1
+      lo = lbound(self%ig_species%cp, dim=2); hi = ubound(self%ig_species%cp, dim=2) - 1
+      if (lo == 0) lo = 1
       if (val < real(lo, R8) .or. val > real(hi, R8)) &
         write(*,'(A,I0,A,ES12.5,A,I0,A,I0,A)') '[WARNING] '//trim(self%name)//' ('//trim(self%definition)//', BC ', &
           self%ig_id, '): '//what//' = ', val, ' K lies outside the temperature range of thermo.dat [', lo, ', ', hi, &
@@ -738,7 +741,7 @@ contains
     integer, intent(in) :: start
     real(8), intent(in) :: h(:,start:)
     real(8) :: T0
-    integer :: i
+    integer :: i, first
     T0 = -1.0d0
     do i = lbound(h, dim=2) + 1, ubound(h, dim=2)
       if (h0<=h(1,i) .and. h0>h(1,i-1)) then
@@ -746,6 +749,10 @@ contains
         exit
       endif
     enddo
+    ! the table includes its first temperature: an h0 equal to its enthalpy gives that temperature
+    ! (a table that starts at 1 K is loaded with an extra node at 0 K)
+    first = lbound(h, dim=2); if (first == 0) first = 1
+    if (T0 < 0.0d0 .and. h0 == h(1,first)) T0 = dble(first)
     if (T0 < 0.0d0) then
       write(*,'(A,ES12.5,A)') '[ERROR] h0 = ', h0, ' J/kg lies outside the enthalpy range of thermo.dat: no T0 for it'
       stop 1

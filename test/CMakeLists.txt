@@ -716,9 +716,12 @@ set_tests_properties(IG-borda-2D PROPERTIES
 # ---- BCB : IG-inflow-405a -------------
 # An inlet given mach, p0 and T0 is the supersonic 405 (it was written as 401): static T and p of the isentropic
 # expansion on thermo.dat (constant cp; M = 2, T0 = 300 K, p0 = 1.013e5 Pa give T = 166.667 K, p = 12946.6 Pa).
+# h0-first-node: a single-species inlet on its own N2 table, which starts at 100 K: h0 equal to the enthalpy of the
+# first row gives T0 = 100 K, the bc.txt of T0 = 100, and neither warns, since the solvers' lookup reads the first
+# row; an h0 below the first row stops BCB with its message.
 add_test(
     NAME    IG-inflow-405a
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt && cd h0-first-node && { rm -rf fromATLAStoSolver t0 && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input t0.ini 2>&1 < /dev/null) && mv fromATLAStoSolver t0 && out2=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input h0.ini 2>&1 < /dev/null) && diff t0/bc.txt fromATLAStoSolver/bc.txt && rm -rf fromATLAStoSolver t0 || { echo \"$out\" | tail -n 2; echo \"$out2\" | tail -n 2; exit 1; }; ! grep -F 'lies outside the temperature range' <<< \"$out $out2\" || exit 1; out3=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input below.ini 2>&1 < /dev/null); rc3=$?; echo \"$out3\" | tail -n 2; test $rc3 -eq 1 && grep -q -F '[ERROR] h0 = -2.06000E+05 J/kg lies outside the enthalpy range of thermo.dat: no T0 for it' <<< \"$out3\" && test ! -e fromATLAStoSolver/bc.txt; }"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-405a"
 )
 set_tests_properties(IG-inflow-405a PROPERTIES
