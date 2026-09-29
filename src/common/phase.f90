@@ -125,20 +125,24 @@ contains
     !> The value of a y<species> key: one number in [0, 1]; anything else is an ERROR. This is the
     !> only check of the range (the key validator reads the value as a number and leaves the range here).
     !> A value outside [0, 1] by rounding only, at most YROUND (1.0000000000000002 left by a sum,
-    !> -1e-20), is set exactly to the bound it passes.
+    !> -1e-20), is set exactly to the bound it passes. A TAB is white space like a blank: around the
+    !> number it is ignored, inside the value it separates a second token and the value is refused.
     function read_massf(key, value) result(y)
       implicit none
       character(len=*), intent(in)  :: key, value
       real(R8)                      :: y
       character(len=:), allocatable :: token
-      integer                       :: ios
+      integer                       :: ios, first, last
       real(R8), parameter           :: YROUND = 1.0e-12_R8
 
-      token = trim(adjustl(value))
+      first = verify(value, ' '//achar(9))
+      last  = verify(value, ' '//achar(9), back=.true.)
+      token = ''
+      if (first > 0) token = value(first:last)
       ios = 1
       y = 0.0_R8
       if (len(token) > 0) then
-        if (scan(token, ' ,;/*') == 0) read(token, *, iostat=ios) y
+        if (scan(token, ' ,;/*'//achar(9)) == 0) read(token, *, iostat=ios) y
       endif
       if (ios /= 0 .or. y /= y) then
         write(*,'(A)') '[ERROR] key '//key//' = '//token//': the mass fraction must be one number'
