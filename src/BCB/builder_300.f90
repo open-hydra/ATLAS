@@ -70,6 +70,7 @@ contains
   module procedure build_wall_solid
     implicit none
     type(bcb_wall_solid_config_t) :: cfg
+    character(len=:), allocatable :: given
 
     call load_bcb_wall_solid_config(sourceini, section, cfg)
 
@@ -132,6 +133,23 @@ contains
 
       self % sp_id = 305
       self % sp_properties(1:3) = [cfg%hconv, cfg%eps, cfg%Tref]
+
+    ! No record matches the keys (q and T together, a key without its partners, none of them): the faces
+    ! keep BC id 0, as upstream writes them; WARNING only, like the fluid wall with more than one of q, T, qrad
+    else
+      given = ''
+      if (cfg%has_q)          given = given//', q'
+      if (cfg%has_q_timefile) given = given//', q-time-file'
+      if (cfg%has_T)          given = given//', T'
+      if (cfg%has_T_timefile) given = given//', T-time-file'
+      if (cfg%has_qrad)       given = given//', qrad'
+      if (cfg%has_hconv)      given = given//', hconv'
+      if (cfg%has_eps)        given = given//', eps'
+      if (cfg%has_Tref)       given = given//', Tref'
+      if (len(given) == 0) given = ', none of them'
+      write(*,'(A)') '[WARNING] section ['//trim(self%name)//'] (solid wall): the keys given ('//given(3:)//') select none of'// &
+                     ' the records 301 (q), 302 (T), 303 (hconv, qrad, Tref), 304 (eps, Tref), 305 (hconv, eps, Tref):'// &
+                     ' its faces are written with BC id 0 (no wall condition)'
     endif
 
   end procedure build_wall_solid

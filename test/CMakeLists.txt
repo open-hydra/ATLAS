@@ -883,9 +883,11 @@ set_tests_properties(BCB-direction-refused PROPERTIES
 # One solid block (IG-ablation's mesh, solid-bulk phase): face 4 gives hconv, eps and Tref and must be written as
 # 305 with hconv, eps, Tref, the order in which FUSS reads that record; face 2 gives eps and Tref only and stays
 # 304. check-walls.awk takes the values from input.ini and the counts from the mesh, not from a saved bc.txt.
+# _run-none: [adiabatic] (the last section of input.ini) given q and T selects no solid-wall record: a WARNING names the section and the keys, and its
+# faces (1, 3, 5, 6: 2070 records) are written with BC id 0, as upstream writes them; faces 4 and 2 keep 305 and 304.
 add_test(
     NAME    SP-wall-305
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -f check-walls.awk fromATLAStoSolver/bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-none && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -f check-walls.awk fromATLAStoSolver/bc.txt && mkdir _run-none && cp input.ini mesh.tec phase.txt check-walls.awk _run-none/ && cd _run-none && echo 'T    = 300.0' >> input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] section [adiabatic] (solid wall): the keys given (q, T) select none of the records' <<< \"$out\" && awk -f check-walls.awk fromATLAStoSolver/bc.txt && test $(awk 'NF == 6 && $6 == 0' fromATLAStoSolver/bc.txt | wc -l) -eq 2070"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/SP-wall-305"
 )
 set_tests_properties(SP-wall-305 PROPERTIES
