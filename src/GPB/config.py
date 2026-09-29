@@ -46,12 +46,15 @@ def ensure_output_dir():
 
 # The products of a run are written into a temporary sibling directory and moved into OUTPATH only when every phase
 # of the deck succeeded; a refusal or a crash leaves nothing behind (the temporary directory is removed); files already
-# present in OUTPATH are never removed (a product of the same name is replaced).
+# present in OUTPATH are never removed (a product of the same name is replaced). The temporary directory is a new one
+# for every run (.gpb-tmp-<random>): a directory left by a run killed from outside is never reused, so its files never
+# reach OUTPATH.
 FINAL_OUTPATH = OUTPATH
 def stage_output():
     """Redirect OUTPATH to the staging directory. Call before the builder modules are imported (they bind OUTPATH at import)."""
     global OUTPATH
-    OUTPATH = f".gpb-tmp-{os.getpid()}/"
+    import tempfile
+    OUTPATH = os.path.join(tempfile.mkdtemp(prefix=".gpb-tmp-", dir="."), "")
     return OUTPATH
 
 def commit_output():

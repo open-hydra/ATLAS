@@ -8,7 +8,7 @@ GPB writes generated files to:
 fromATLAStoSolver/
 ```
 
-They are staged in a temporary directory `.gpb-tmp-<pid>/` while the deck is built and moved into `fromATLAStoSolver/` only when every phase succeeded (a refusal leaves nothing; pre-existing files are never removed).
+They are staged in a temporary directory `.gpb-tmp-<random>/`, a new one for every run, while the deck is built and moved into `fromATLAStoSolver/` only when every phase succeeded (a refusal leaves nothing; pre-existing files are never removed).
 
 ## Naming Convention
 

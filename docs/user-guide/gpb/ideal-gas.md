@@ -142,7 +142,7 @@ transport       = CEA
 
 ### Checks and messages
 
-Every diagnostic goes to standard output only; nothing is ever written into the product files (FLINT reads `chemistry-info.txt` and `phase.txt` positionally). The products of a run are written into a temporary directory `.gpb-tmp-<pid>/` next to `fromATLAStoSolver/` and moved there only when every phase of the deck succeeded: a refusal (exit status 1) or a crash leaves no product of that run and no temporary directory; files already present in `fromATLAStoSolver/` are never removed (a product of the same name is replaced, stale files of earlier runs stay). If GPB is killed from outside, remove `.gpb-tmp-<pid>/` by hand.
+Every diagnostic goes to standard output only; nothing is ever written into the product files (FLINT reads `chemistry-info.txt` and `phase.txt` positionally). The products of a run are written into a temporary directory `.gpb-tmp-<random>/` of its own next to `fromATLAStoSolver/` and moved there only when every phase of the deck succeeded: a refusal (exit status 1) or a crash leaves no product of that run and no temporary directory; files already present in `fromATLAStoSolver/` are never removed (a product of the same name is replaced, stale files of earlier runs stay). If GPB is killed from outside, its `.gpb-tmp-<random>/` stays behind: no later run reads it; remove it by hand.
 
 | situation | level | message starts with | what to do |
 |---|---|---|---|

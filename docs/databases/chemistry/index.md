@@ -81,6 +81,6 @@ The ctest `database-flint-contract` keeps the database consistent with the contr
 - **Temperature grid**: every table runs from `Tmin` to `Tmax` with a 1 K step (integer kelvin; defaults 1 K and 5000 K). FLINT reads each table at the temperature of its rows.
 - **Irreversible falloff reactions**: in `chemistry-Troe.dat` / `chemistry-Lindemann.dat` the column `k_c` is 0 on every row of an irreversible (`=>`) reaction and > 0 on a reversible one; FLINT computes no backward rate when `k_c = 0`. Arrhenius tables carry `k_b = 0` for `=>` reactions as before. FLINT versions older than the one released with this ATLAS version divide by `k_c` (infinite reverse rate): release FLINT first.
 - **Reaction orders**: for a phase that FLINT tabulates with its `general` procedure, the explicit `orders:` of the yaml end `chemistry-info.txt` as the optional block `Reaction orders` / `<n>` / `<ir> <species> <order>` (`ir` = index in the `Reaction type` list); older FLINT versions stop reading before it; compiled routines do not read it.
-- **Products**: a GPB run stages its files in `.gpb-tmp-<pid>/` and moves them into `fromATLAStoSolver/` only when every phase succeeded; pre-existing files are never removed.
+- **Products**: a GPB run stages its files in a new directory `.gpb-tmp-<random>/` and moves them into `fromATLAStoSolver/` only when every phase succeeded; pre-existing files are never removed.
 
 ---
