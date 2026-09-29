@@ -522,6 +522,7 @@ contains
       do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
         if (cell_in_range(i,j,k)) then
           blk%set_ig(i,j,k) = .true.
+          blk%zone_ig(i,j,k) = .true.
           if (interp_turb) blk%set_turb_ig(:,i,j,k) = .true.
         elseif (partial) then
           blk%ig%density(:,i,j,k)   = sv_rho(:,i,j,k)
@@ -676,6 +677,7 @@ contains
               call assign_velocity_components(i, j, k, vel)
               blk%ig%pressure(i,j,k) = pc
               blk%set_ig(i,j,k) = .true.
+              blk%zone_ig(i,j,k) = .true.
               if (isnan(blk%ig%pressure(i,j,k))) then
                 write(*,*) '[ERROR] NaN in pressure assignment'
                 stop 1
@@ -742,6 +744,7 @@ contains
               call assign_velocity_components(i, j, k, vel)
               blk%ig%pressure(i,j,k) = p(i,j,k)
               blk%set_ig(i,j,k) = .true.
+              blk%zone_ig(i,j,k) = .true.
               if (isnan(blk%ig%pressure(i,j,k))) then
                 write(*,*) '[ERROR] NaN in pressure assignment'
                 stop 1
@@ -838,6 +841,7 @@ contains
         blk%ig%velocity(:,i,:,:) = 0.0
         blk%ig%temperature(i,:,:) = T0c
         blk%set_ig(i,:,:) = .true.   ! plenum rows: every j, k of the row, whatever the range
+        blk%zone_ig(i,:,:) = .true.
       enddo
 
       do i = ib2, ib3, ip
@@ -864,6 +868,7 @@ contains
               blk%ig%velocity(3,i,j,k) = Mach*sqrt(gamma*Rgas*T0c/(1+del*(Mach**2)))*cos(zeta)*sin(phi)
               blk%ig%temperature(i,j,k) = T0c/(1+del*(Mach**2))
               blk%set_ig(i,j,k) = .true.
+              blk%zone_ig(i,j,k) = .true.
             endif
           end do
         end do

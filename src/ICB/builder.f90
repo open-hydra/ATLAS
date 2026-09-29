@@ -177,6 +177,7 @@ module ic_builder_mod
     if (allocated(blk%set_sp)) deallocate(blk%set_sp)
     if (allocated(blk%set_dp)) deallocate(blk%set_dp)
     if (allocated(blk%plenum_ig)) deallocate(blk%plenum_ig)
+    if (allocated(blk%zone_ig)) deallocate(blk%zone_ig)
     if (allocated(blk%set_turb_ig)) deallocate(blk%set_turb_ig)
     if (allocated(blk%set_turb_rf)) deallocate(blk%set_turb_rf)
     allocate(blk%set_ig(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
@@ -184,6 +185,7 @@ module ic_builder_mod
     allocate(blk%set_sp(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
     allocate(blk%set_dp(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
     allocate(blk%plenum_ig(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
+    allocate(blk%zone_ig(blk%dim(1), blk%dim(2), blk%dim(3)), source=.false.)
   end subroutine new_written_masks
 
   !> After the zones: the cells written so far by each phase of the block, for the message of refuse_unwritten_cells
@@ -226,6 +228,7 @@ module ic_builder_mod
     if (allocated(blk%set_turb_rf)) call refuse_turbulence(blk%set_turb_rf, 'RF')
     deallocate(blk%set_ig, blk%set_rf, blk%set_sp, blk%set_dp)
     if (allocated(blk%plenum_ig)) deallocate(blk%plenum_ig)
+    if (allocated(blk%zone_ig)) deallocate(blk%zone_ig)
     if (allocated(blk%set_turb_ig)) deallocate(blk%set_turb_ig)
     if (allocated(blk%set_turb_rf)) deallocate(blk%set_turb_rf)
   contains
@@ -488,6 +491,9 @@ module ic_builder_mod
       if (dir(i) >= 6) range(2*i-1:2*i) = real(nint(range(2*i-1:2*i)), R8)
     enddo
 
+    ! the cells that the gas writer of this zone writes (read by the dispersed-phase writer of the zone)
+    if (allocated(self%zone_ig)) self%zone_ig = .false.
+
     ig_loaded = .false.
     rf_loaded = .false.
     sp_loaded = .false.
@@ -530,7 +536,7 @@ module ic_builder_mod
           call load_dp_config(zoneini, nnn, dp_cfg)
           dp_loaded = .true.
         endif
-        call build_DP_field(self, dp_cfg, IC_type, self%associated_phase(pi)%material)
+        call build_DP_field(self, dp_cfg, IC_type, self%associated_phase(pi)%material, range, dirSize, dir)
 
       case ('SP')
 

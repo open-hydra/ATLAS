@@ -4,7 +4,7 @@ module ic_dp_mod
 
 contains
 
-  subroutine build_DP_field(blk,dp_cfg,IC_type,mat)
+  subroutine build_DP_field(blk,dp_cfg,IC_type,mat,range,dirSize,dir)
     use ic_block_mod
     use phase_mod, only: material_t
     use global_mod, only: llen
@@ -17,6 +17,9 @@ contains
     type(config_dp_t), intent(in)   :: dp_cfg
     character(len=*), intent(inout) :: IC_type
     type(material_t), intent(in)    :: mat
+    real(R8),         intent(in)    :: range(6)
+    integer,          intent(in)    :: dirSize
+    integer,          intent(in)    :: dir(:)
     integer                         :: i, j, k, nnn, g
     real(R8)                        :: rho
     ! Interpolation-specific locals
@@ -25,6 +28,9 @@ contains
     type(interp_map_t)              :: map
     type(var_block), allocatable    :: src_field(:)
     integer                         :: bb, m_i, cnt_vel
+    ! the cells of this zone, and the dispersed state of the other cells kept aside by an interpolation zone
+    logical, allocatable            :: inz(:,:,:)
+    real(R8), allocatable           :: sv_rho(:,:,:,:), sv_vel(:,:,:,:,:), sv_T(:,:,:,:), sv_nP(:,:,:,:), sv_pp(:,:,:,:)
 
     nnn = 0
     do k = 1, mat%n
@@ -39,6 +45,16 @@ contains
       allocate(blk%dp%pseudopressure( nnn ,1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
     endif
 
+    ! The dispersed keys of a zone apply to the cells of that zone, like its gas keys: the cells of its
+    ! range (a coordinate letter compares the cell centre, an index letter the cell index, as the gas
+    ! writer does) and the cells that the gas writer of the zone wrote outside it (the plenum rows of a
+    ! nozzle zone). A block without zones is one zone that covers every cell.
+    allocate(inz(blk%dim(1),blk%dim(2),blk%dim(3)))
+    do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+      inz(i,j,k) = cell_in_range(i,j,k)
+    enddo; enddo; enddo
+    if (allocated(blk%zone_ig)) inz = inz .or. blk%zone_ig
+
     OFF = dp_cfg%interpolation%old_solution
     oldid = dp_cfg%interpolation%old_block_id
     call sync_interpolation_config(dp_cfg%interpolation)
@@ -52,6 +68,15 @@ contains
       ! variable count (which breaks when extra trailing variables are present).
       call ensure_old_solution(OFF, 'CD', nnn)
       call compute_interp_map(map, oldblock, blk, oldid, config_interpolation % law)
+      ! the interpolation fills the whole block: the state of the cells outside the zone (set by other
+      ! zones) is kept aside here and put back after it, as the gas writer does
+      if (.not. all(inz)) then
+        sv_rho = blk%dp%density
+        sv_vel = blk%dp%velocity
+        sv_T   = blk%dp%temperature
+        sv_nP  = blk%dp%nP
+        sv_pp  = blk%dp%pseudopressure
+      endif
 
       ! ---- Per-population per-field interpolation ----
       allocate(src_field(size(oldblock)))
@@ -106,7 +131,17 @@ contains
 
       call map%destroy()
       deallocate(src_field)
-      blk%set_dp = .true.   ! every cell of the block
+      if (allocated(sv_rho)) then
+        do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+          if (inz(i,j,k)) cycle
+          blk%dp%density(:,i,j,k)        = sv_rho(:,i,j,k)
+          blk%dp%velocity(:,:,i,j,k)     = sv_vel(:,:,i,j,k)
+          blk%dp%temperature(:,i,j,k)    = sv_T(:,i,j,k)
+          blk%dp%nP(:,i,j,k)             = sv_nP(:,i,j,k)
+          blk%dp%pseudopressure(:,i,j,k) = sv_pp(:,i,j,k)
+        enddo; enddo; enddo
+      endif
+      blk%set_dp = blk%set_dp .or. inz
       return
     endif
 
@@ -129,14 +164,17 @@ contains
     select case (IC_type)
     case ('vacuum')
 
-      blk%dp%density(:,:,:,:) = 1d-20
-      blk%dp%velocity(:,1:3,:,:,:) = 1d-20
-      blk%dp%temperature(:,:,:,:) = 1d-20
-      blk%dp%nP(:,:,:,:) = 1d-20
-      if (blk%neuler==1 .or. blk%neuler==6) then
-        blk%dp%pseudopressure(:,:,:,:) = 1D-20
-      endif
-      blk%set_dp = .true.
+      ! the pseudo-pressure too, whatever neuler: the band is written when the block's neuler asks for it,
+      ! and another zone of the block may set neuler
+      do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+        if (.not. inz(i,j,k)) cycle
+        blk%dp%density(:,i,j,k) = 1d-20
+        blk%dp%velocity(:,1:3,i,j,k) = 1d-20
+        blk%dp%temperature(:,i,j,k) = 1d-20
+        blk%dp%nP(:,i,j,k) = 1d-20
+        blk%dp%pseudopressure(:,i,j,k) = 1D-20
+      enddo; enddo; enddo
+      blk%set_dp = blk%set_dp .or. inz
 
     case('equilibrium', 'thermo-mechanical equilibrium', 'mechanical equilibrium')
 
@@ -148,17 +186,19 @@ contains
     endif
     do g = 1, nnn
       if (dp_cfg%krho(g)==0.0_R8) then
-        blk%dp%density(g,:,:,:) = 0.0
-        blk%dp%velocity(g,1:3,:,:,:) = 0.0
-        blk%dp%temperature(g,:,:,:) = 0.0
-        blk%dp%nP(g,:,:,:) = 0.0
+        do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+          if (.not. inz(i,j,k)) cycle
+          blk%dp%density(g,i,j,k) = 0.0
+          blk%dp%velocity(g,1:3,i,j,k) = 0.0
+          blk%dp%temperature(g,i,j,k) = 0.0
+          blk%dp%nP(g,i,j,k) = 0.0
+        enddo; enddo; enddo
       else
-        ! the dispersed state is derived from the gas state of the cell: a cell whose gas state no zone
-        ! has written yet is left to a later zone (it read unset memory; the last zone rewrites every
-        ! cell from the complete gas field, so the written field is unchanged)
+        ! the dispersed state is derived from the gas state of the cell, which the gas writer of this
+        ! zone has just written in the cells of the zone (a cell whose gas state is not written is skipped)
         !$omp parallel do collapse(3) private(i,j,k,rho)
         do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
-              if (.not. blk%set_ig(i,j,k)) cycle
+              if (.not. (inz(i,j,k) .and. blk%set_ig(i,j,k))) cycle
               blk%dp%density(g,i,j,k) = sum(blk%ig%density(:,i,j,k)) * dp_cfg%krho(g)
               blk%dp%velocity(g,1:3,i,j,k) = blk%ig%velocity(:,i,j,k)
               blk%dp%temperature(g,i,j,k) = blk%ig%temperature(i,j,k) * dp_cfg%kT(g)
@@ -168,19 +208,40 @@ contains
         enddo; enddo; enddo
         !$omp end parallel do
       endif
-      if (blk%neuler==1 .or. blk%neuler==6) then
-        blk%dp%pseudopressure(g,:,:,:) = dp_cfg%Pp(g)
-      endif
+      ! the pseudo-pressure too, whatever neuler (see the vacuum case)
+      do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+        if (inz(i,j,k)) blk%dp%pseudopressure(g,i,j,k) = dp_cfg%Pp(g)
+      enddo; enddo; enddo
     enddo
     if (any(dp_cfg%krho(1:nnn) /= 0.0_R8)) then
-      blk%set_dp = blk%set_dp .or. blk%set_ig
+      blk%set_dp = blk%set_dp .or. (inz .and. blk%set_ig)
     else
-      blk%set_dp = .true.
+      blk%set_dp = blk%set_dp .or. inz
     endif
 
     end select
 
   contains
+
+    ! the cell rule of the gas writer (cell_in_range of build_IG_field): a coordinate letter compares the
+    ! cell centre, an index letter (i, j, k) the cell index; the limits are included
+    logical function cell_in_range(i, j, k)
+      integer, intent(in) :: i, j, k
+      real(R8)            :: here(3)
+      integer             :: n
+      here = 1.0_R8
+      do n = 1, min(dirSize, 3)
+        select case (dir(n))
+        case (6); here(n) = real(i, R8)
+        case (7); here(n) = real(j, R8)
+        case (8); here(n) = real(k, R8)
+        case default; here(n) = blk%center(i,j,k)%c(dir(n))
+        end select
+      enddo
+      cell_in_range = here(1)>=range(1) .and. here(1)<=range(2) .and. &
+                      here(2)>=range(3) .and. here(2)<=range(4) .and. &
+                      here(3)>=range(5) .and. here(3)<=range(6)
+    end function cell_in_range
 
     subroutine dealloc_src()
       integer :: bb_tmp

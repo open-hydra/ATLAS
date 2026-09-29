@@ -61,9 +61,12 @@ set_tests_properties(SP-basic PROPERTIES
 )
 
 # ---- ICB : IG+DP (gas + dispersed phase; DP IC file carries the population fields) -------------
+# _run-zones: the dispersed-phase keys of a zone apply to the cells of that zone: krho 0.20 and 0.40 in two zones
+# (zones-krho.ini); an interpolated zone next to a vacuum zone in a block that builds only the dispersed phase
+# (zones-interp.ini); check_zones.py compares the cells of each zone with the reference of IG+DP.
 add_test(
     NAME    IG+DP
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/particles-ic.tec reference/particles-ic.tec"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/particles-ic.tec reference/particles-ic.tec && rm -rf _run-zones && mkdir _run-zones && cp *.ini *.tec *.txt *.dat _run-zones/ && cd _run-zones && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input zones-krho.ini && python3 ../check_zones.py fromATLAStoSolver/particles-ic.tec ../reference/particles-ic.tec krho && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input zones-interp.ini && python3 ../check_zones.py fromATLAStoSolver/particles-ic.tec ../reference/particles-ic.tec interp"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG+DP"
 )
 set_tests_properties(IG+DP PROPERTIES

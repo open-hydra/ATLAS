@@ -58,6 +58,9 @@ module ic_block_mod
     ! cells that the plenum rows of a nozzle zone wrote outside the range of that zone (the plenum
     ! covers the whole cross-section upstream of nozzle-threshold): a later zone that writes them is reported
     logical, dimension(:,:,:), allocatable     :: plenum_ig
+    ! cells that the gas writer of the zone being built has written (its range and, for a nozzle zone, its
+    ! plenum rows): the dispersed phase of the zone is written in the same cells (build_DP_field)
+    logical, dimension(:,:,:), allocatable     :: zone_ig
     logical, dimension(:,:,:,:), allocatable   :: set_turb_ig, set_turb_rf
   contains
     private

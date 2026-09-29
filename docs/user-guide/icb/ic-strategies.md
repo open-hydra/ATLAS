@@ -19,6 +19,12 @@ The dispersed-phase keys `krho`, `kT`, `Pp`, `dp` and `rp` take one value, which
 phase receives, or one value per pair in the order of `<name>phase.txt` (material by material, populations in order); any
 other count stops ICB.
 
+In a block with zones the dispersed-phase keys of a zone apply to the cells of that zone, like its gas keys: each zone
+derives the dispersed state of its cells from its own `krho` and `kT` and the gas state it wrote there, starts them from
+vacuum when it has no `krho` (or `krho = 0`), or interpolates them from its own `old-solution`; every zone that is not
+interpolated gives `dp` or `rp`. The layout of the dispersed IC file (the pseudo-pressure bands of `neuler`) is one per
+block: the `neuler` of the last zone that is not interpolated decides it, as in a block without zones.
+
 ## Direct Assignment
 
 | Strategy | `type` | Phase | When to use |
@@ -275,7 +281,8 @@ Every cell of every block must be written by a zone, for every phase of the bloc
 records the cells it assigns: the cells of its range (an `interpolation` zone too: it writes its
 range only, like every other zone type), the plenum rows of a `nozzle` zone (the whole cross-section
 upstream of `nozzle-threshold`, also outside its range: the zone order decides, see
-[Nozzle Initialization](#nozzle-initialization)), every cell of the block for the dispersed phase. A cell that no zone wrote stops ICB (`[ERROR] build_IC block <b>, <type> phase <name>: <n> of <N> cells are initialised by no zone (first cell (i,j,k))`, followed by the cells written after each zone) instead of reaching the IC file with the content of unset memory. Under an omega turbulence model (k-omega, Reynolds stresses) the turbulence bands that no zone sets are refused in the same way; under SA they are reported with a `[WARNING]`.
+[Nozzle Initialization](#nozzle-initialization)); the dispersed phase of a zone is written in the cells of its range and in
+the plenum rows its gas writer wrote. A cell that no zone wrote stops ICB (`[ERROR] build_IC block <b>, <type> phase <name>: <n> of <N> cells are initialised by no zone (first cell (i,j,k))`, followed by the cells written after each zone) instead of reaching the IC file with the content of unset memory. Under an omega turbulence model (k-omega, Reynolds stresses) the turbulence bands that no zone sets are refused in the same way; under SA they are reported with a `[WARNING]`.
 `range<n>` holds one pair `low high` per letter of `direction` (six values for `xyz`); the letters are
 written in the order x, y, z, r, t, i, j, k; an index letter (`i`, `j`, `k`) ranges cell indices
 (`range1 = 1 4` = the cells 1 to 4 along that index). A `zone<n>` after a missing index is never read
