@@ -6,7 +6,8 @@
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | ICB-file | input.ini |  |  no | INI file containing ICB block definitions. |
-| IC-format | tec |  |  no | Output format used when writing initial conditions. |
+| IC-format | tec | tec<br>tec-binary<br>vtk<br>vtk-binary<br>vtk-ascii<br>vtk-raw |  no | Output format used when writing initial conditions: a family (tec, tecplot, vtk) with an optional mode (binary, ascii, raw) joined by -, blank or _ (tecplot binary, vtk binary, tecplot-ascii are accepted); a binary Tecplot file (.szplt) needs a TecIO build. |
+| strict-keys | T |  |  no | F turns the error on a key the tool does not read (or not honoured by the resolved BC type, or y of an undeclared species) into a WARNING; wrong values are always errors (keys with the prefix ignore- are never read). |
 
 ## ICB-Block*
 
@@ -23,10 +24,10 @@
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| eq-OG | F |  |  no | Enable CEA oxidizer-fuel equilibrium mode. |
+| eq-OG | F |  |  no | Keep only the gaseous products of the CEA equilibrium of `eq-CEA-file`: the condensed products are dropped and the mass fractions of the gaseous ones are renormalised to 1. |
 | eq-CEA-file |  |  |  no | CEA input file used to derive equilibrium composition. |
 | eq-CEA-section | 1 | >=1 |  no | CEA section index used when eq-CEA-file is provided. |
-| yspecies | 0.0 | >=0 |  no | Mass fraction assigned to a species name suffix. |
+| yspecies | 0.0 |  |  no | Mass fraction assigned to a species name suffix: one number in [0, 1]. |
 
 ## ICB-IG
 
@@ -55,6 +56,7 @@
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |
+| un | 0.0 |  |  no | Prescribed normal velocity component. |
 | mit | 0.0 |  |  no | Turbulence intensity for 1-equation models. |
 | kappa | 0.0 |  |  no | Turbulent kinetic energy. |
 | omega | 0.0 |  |  no | Specific dissipation rate. |
@@ -90,6 +92,7 @@
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |
+| un | 0.0 |  |  no | Prescribed normal velocity component. |
 | mit | 0.0 |  |  no | Turbulence intensity for 1-equation models. |
 | kappa | 0.0 |  |  no | Turbulent kinetic energy. |
 | omega | 0.0 |  |  no | Specific dissipation rate. |

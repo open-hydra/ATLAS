@@ -238,7 +238,7 @@ contains
     end do
 
     ! Remove repeated points by rounding and unique filtering
-    points = round(points, 10, size(points))
+    points(1:tot) = round(points(1:tot), 10, tot)   ! only the tot points written above: the tail of the array is undefined (sNaN under FPE traps)
     num_unique = 0
     do i = 1, tot, 3
       pr1 = points(i:i+2)
@@ -669,7 +669,7 @@ contains
     real(8), dimension(dim) :: val
     real(8), dimension(dim) :: roundedval
     do i = 1, dim
-      roundedval(i) = anint(val(i) * 10.0**n) / 10.0**n
+      roundedval(i) = anint(val(i) * 10.0d0**n) / 10.0d0**n
     end do
   end function round
 

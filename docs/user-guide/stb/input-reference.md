@@ -1,6 +1,12 @@
 # ATLAS STB Input Parameters
 
 
+## ATLAS-Parameters
+
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| strict-keys | T |  |  no | F turns the error on a key the tool does not read (or not honoured by the resolved BC type, or y of an undeclared species) into a WARNING; wrong values are always errors (keys with the prefix ignore- are never read). |
+
 ## STB-Block*
 
 | Parameter | Default | Allowed | Required | Description |

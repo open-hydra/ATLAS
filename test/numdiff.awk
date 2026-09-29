@@ -8,17 +8,21 @@
 #  physically correct but not bit-identical across CPU architectures, where
 #  FMA contraction perturbs the last one or two significant digits.
 #
+#  A numeric token may carry ONE trailing comma (the comma-separated records
+#  of bc.txt, e.g. `9.608492380332379E+05,`): the comma is set aside for the
+#  numeric comparison and must be present in both files or in neither.
+#
 #  Usage:  awk -v tol=1e-6 -f numdiff.awk reference.txt produced.txt
 #          exit status 0 == match within tolerance, 1 == mismatch.
 # ---------------------------------------------------------------------------
-function isnum(s){ return s ~ /^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([EeDd][+-]?[0-9]+)?$/ }
-function num(s){ gsub(/[Dd]/,"E",s); return s+0 }
+function isnum(s){ sub(/,$/,"",s); return s ~ /^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([EeDd][+-]?[0-9]+)?$/ }
+function num(s){ sub(/,$/,"",s); gsub(/[Dd]/,"E",s); return s+0 }
 function abs(x){ return x<0 ? -x : x }
 
 BEGIN { if (tol == "") tol = 1e-6; bad = 0 }
 
 # first file: stash every line keyed by its line number
-NR == FNR { line[FNR] = $0; nref = FNR; next }
+FILENAME == ARGV[1] { line[FNR] = $0; nref = FNR; next }
 
 # second file: compare token by token against the stashed reference line
 {
@@ -28,7 +32,7 @@ NR == FNR { line[FNR] = $0; nref = FNR; next }
   for (i = 1; i <= NF; i++) {
     x = R[i]; y = $i
     if (x == y) continue
-    if (isnum(x) && isnum(y)) {
+    if (isnum(x) && isnum(y) && (x ~ /,$/) == (y ~ /,$/)) {
       dx = num(x); dy = num(y); d = abs(dx - dy)
       s = abs(dx); if (abs(dy) > s) s = abs(dy)
       if (d <= tol || d <= tol * s) continue
@@ -40,6 +44,7 @@ NR == FNR { line[FNR] = $0; nref = FNR; next }
 }
 
 END {
+  if (nref == 0) { printf("empty reference file %s\n", ARGV[1]); exit 1 }
   if (FNR < nref) { printf("produced file has %d lines, reference %d\n", FNR, nref); bad++ }
   if (bad > 0) { printf("%d mismatch(es) exceeding tol=%g\n", bad, tol); exit 1 }
 }

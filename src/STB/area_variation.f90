@@ -58,8 +58,9 @@ contains
     call load_area_variation_config(section_name, sini, cfg)
     if (.not. cfg%has_profile) return
 
-    ! Read (coord, A) pairs from shared ASCII utility
-    call read_ascii_table(cfg%file, xin, ain, ierr)
+    ! Read (coord, A) pairs from shared ASCII utility; the rows may come in any order, they are
+    ! sorted below (sort_pair_by_x)
+    call read_ascii_table(cfg%file, xin, ain, ierr, check_order=.false.)
     if (ierr /= 0) then
       write(*,*) '[ERROR] Cannot read area variation file: ', trim(cfg%file)
       stop 1

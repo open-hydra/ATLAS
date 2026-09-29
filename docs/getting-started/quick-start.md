@@ -46,7 +46,7 @@ thermo = NASA9
 transport = CEA
 
 [ATLAS-Parameters]
-IC-format = vtk-binary
+IC-format = tec
 
 [ICB-Block1]
 type = nozzle
@@ -85,6 +85,17 @@ ATLAS GPB
 ATLAS BCB
 ATLAS ICB
 ```
+
+### What the tools check in the INI
+
+The section headers of `input.ini` and of the `<tool>-file` deck are checked when
+the file is read: a section written twice with copies that differ stops the tool
+with `[ERROR] section [<name>] of <deck>: declared twice (lines <n1> and <n2>), the
+second is ignored: merge them`; two copies with the same keys and the same values
+(blank lines, comments and the order of the keys do not count) give that message as
+a `[WARNING]`. `strict-keys = false` in `[ATLAS-Parameters]` turns the error on
+differing copies into a `[WARNING]` (the first copy is then used); `strict-keys`
+takes `T` or `F`, and `MG-levels` must be at least 1.
 
 You can also run the whole sequence in one command when using a combined `input.ini`:
 

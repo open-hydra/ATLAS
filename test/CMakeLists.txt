@@ -7,6 +7,9 @@ set(_TEST_ENV
     "OMP_NUM_THREADS=1"
     "KMP_STACKSIZE=100M"
     "ATLASDIR=${CMAKE_SOURCE_DIR}"
+    # test/numdiff.awk reads numbers with the awk's own conversion: a POSIX-mode awk (POSIXLY_CORRECT,
+    # gawk --posix) takes the decimal point from the locale, and under it_IT "0.611E+000" reads as 0.
+    "LC_ALL=C"
 )
 
 # ---- GPB : ceafile-reactive-OG -------------
@@ -160,6 +163,149 @@ set_tests_properties(IG-inflow-ceafile-inertmix PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-comment-lines (comment lines starting with #, ; or ! that hold an equals sign are ignored: bc.txt equals the one of the deck without them) -------------
+add_test(
+    NAME    IG-comment-lines
+    COMMAND bash -c "rm -rf _run-comments && mkdir _run-comments && cp *.ini *.tec *.txt *.dat _run-comments/ 2>/dev/null; cd _run-comments && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && mv fromATLAStoSolver plain && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input comments.ini && diff plain/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-basic"
+)
+set_tests_properties(IG-comment-lines PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : mesh-p3d-fallback -------------
+# Without a path the mesh is searched as mesh.tec, mesh.p3d, mesh.szplt. A mesh.p3d that cannot be read (40
+# bytes here) is followed by mesh.szplt, as upstream, with a WARNING naming both files; mesh.szplt is a
+# placeholder, so every build then stops on it (TecIO message or unreadable file): the WARNING and the stop are pinned.
+add_test(
+    NAME    mesh-p3d-fallback
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q -F '[WARNING] mesh.p3d found, but failed to read it (read error): mesh.szplt is read instead' bcb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-p3d-fallback"
+)
+set_tests_properties(mesh-p3d-fallback PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-table-header-skipped -------------
+# A table row that is not two numbers (the header row "x T" without #) is skipped with a WARNING, as upstream
+# skips it (in silence): the wall temperature profile and bc.txt are those of the same file without the row.
+# Twall-extra.dat: a row with a third number (0.5 400.0 999) is read as its first two, as upstream reads it, with a
+# WARNING naming it; a comment after the two numbers of a row gives no WARNING; bc.txt is the same.
+add_test(
+    NAME    IG-table-header-skipped
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-extra; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] table file Twall.dat: line 1 is not two numbers (coordinate value), skipped: x T' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt && mkdir _run-extra && cp input.ini mesh.tec phase.txt _run-extra/ && cp Twall-extra.dat _run-extra/Twall.dat && cd _run-extra && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] table file Twall.dat: line 3 holds more than two numbers: the first two are read (coordinate value), the rest is ignored: 0.5 400.0 999' <<< \"$out\" && ! grep -q -F 'line 2 ' <<< \"$out\" && diff fromATLAStoSolver/bc.txt ../reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-header-skipped"
+)
+set_tests_properties(IG-table-header-skipped PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-table-not-monotone -------------
+# A T-file whose coordinate column turns back (0, 1, 0.5) is refused: the table reader names the row where the column
+# turns back and BCB stops; no bc.txt.
+add_test(
+    NAME    IG-table-not-monotone
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] table file Twall.dat: the coordinate column is not monotone at row 3' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-not-monotone"
+)
+set_tests_properties(IG-table-not-monotone PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-table-decreasing -------------
+# A T-file whose coordinates decrease (1, 0.5, 0) is read in increasing order: bc.txt equals the one of the same rows
+# written in increasing order (isothermal wall 302 with T = 310, 330, 350, 370 on face 3).
+add_test(
+    NAME    IG-table-decreasing
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-decreasing"
+)
+set_tests_properties(IG-table-decreasing PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-duplicate-section-lenient -------------
+# strict-keys = false and the deck in a BCB-file that writes the section [noz] twice: one WARNING, the second copy is
+# ignored and bc.txt is that of the deck without it (the key check reads every option of every section).
+add_test(
+    NAME    IG-duplicate-section-lenient
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] section [noz] of deck.ini: declared twice (lines 11 and 16), the second is ignored: merge them' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-duplicate-section-lenient"
+)
+set_tests_properties(IG-duplicate-section-lenient PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-duplicate-section-identical -------------
+# Default settings (strict-keys = true) and a BCB-file that writes the section [noz] twice with the same keys and
+# values (another key order, a comment line and a blank line in the second copy): one WARNING that says so, and
+# bc.txt is that of the deck with one [noz] (the reference of IG-duplicate-section-lenient).
+add_test(
+    NAME    IG-duplicate-section-identical
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] section [noz] of deck.ini: declared twice (lines 11 and 16), the second is ignored: merge them (the two copies hold the same keys and values)' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-duplicate-section-identical"
+)
+set_tests_properties(IG-duplicate-section-identical PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-duplicate-section-conflict -------------
+# The two copies of [noz] differ (p0): with the default settings BCB stops with the ERROR and writes no bc.txt; with
+# strict-keys = false (lenient.ini) one WARNING, the second copy is ignored and bc.txt is that of the first copy.
+add_test(
+    NAME    IG-duplicate-section-conflict
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F '[ERROR] section [noz] of deck.ini: declared twice (lines 11 and 16), the second is ignored: merge them' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input lenient.ini 2>&1) && grep -q -F '[WARNING] section [noz] of deck.ini: declared twice (lines 11 and 16), the second is ignored: merge them' <<< \"$out\" && ! grep -q -F 'same keys and values' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-duplicate-section-conflict"
+)
+set_tests_properties(IG-duplicate-section-conflict PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : mesh-p3d-single-plane -------------
+# A PLOT3D mesh written with three coordinates and one node plane (5 4 1, z = 0) is the pure-2D mesh of its x-y plane.
+# reference/bc.txt was written by BCB from this mesh; mesh-tec-single-plane reads the same grid as a Tecplot zone with
+# K = 1 (on the plane z = 0 and on a tilted plane) and compares its bc.txt with this same file.
+add_test(
+    NAME    mesh-p3d-single-plane
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-p3d-single-plane"
+)
+set_tests_properties(mesh-p3d-single-plane PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : mesh-p3d-plane-perpendicular -------------
+# A PLOT3D mesh with three coordinates on one node plane that lies in x-z (y = 0) has no area on x-y, where the 2D
+# mesh is read: refused with the block named; no bc.txt.
+add_test(
+    NAME    mesh-p3d-plane-perpendicular
+    COMMAND bash -c "rm -rf fromATLAStoSolver; if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] mesh block 1: three coordinates on a single node plane that is perpendicular to x-y' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-p3d-plane-perpendicular"
+)
+set_tests_properties(mesh-p3d-plane-perpendicular PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-chimera (overset overlap connections) -------------
 # Volume fractions come from an ill-conditioned hull volume of sliver contacts;
 # they are correct to ~1e-9 but not bit-identical across CPU architectures
@@ -226,6 +372,21 @@ set_tests_properties(IG-force-chimera PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : mesh-p3d-3D -------------
+# Without a path the mesh is searched as mesh.tec, mesh.p3d, mesh.szplt: a PLOT3D mesh alone, with three coordinates and
+# three node planes (4 3 3), is read as a 3D mesh: bc.txt equals the one BCB writes for the same grid given as a Tecplot
+# zone (same-grid.tec, run again in fromATLAStoSolver/tecplot).
+add_test(
+    NAME    mesh-p3d-3D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && mkdir fromATLAStoSolver/tecplot && cp input.ini phase.txt fromATLAStoSolver/tecplot/ && cp same-grid.tec fromATLAStoSolver/tecplot/mesh.tec && cd fromATLAStoSolver/tecplot && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff ../bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-p3d-3D"
+)
+set_tests_properties(mesh-p3d-3D PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-basic (dispersed-phase inlets, distribution field) -------------
 add_test(
     NAME    DP-basic
@@ -277,6 +438,53 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-population-count"
 )
 set_tests_properties(DP-population-count PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-population-forms (the per-population reader's value forms) --------------------------
+# DP-population-list with drop-Tp = 450, 460, 470, drop-dp = 0.01/ 0.02, 0.03, and drop-gp = 3*345.0
+# (one value for every pair): the per-population reader reads each token with list-directed input,
+# so the BC file must be DP-population-list's.
+add_test(
+    NAME    DP-population-forms
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/drop-bc.txt ../DP-population-list/reference/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-population-forms"
+)
+set_tests_properties(DP-population-forms PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG+DP-population-forms (the same forms in an ICB block section) ------------------------
+# krho = 0.20, 0.30, and dp = 2*20e-6: the particle fields must be those of krho = 0.20 0.30 and
+# dp = 20e-6.
+add_test(
+    NAME    IG+DP-population-forms
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && mkdir fromATLAStoSolver/plain && mv fromATLAStoSolver/particles-ic.tec fromATLAStoSolver/plain/block.tec && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input forms.ini && cmp fromATLAStoSolver/particles-ic.tec fromATLAStoSolver/plain/block.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG+DP-population-forms"
+)
+set_tests_properties(IG+DP-population-forms PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-logical-forms (logical values as FiNeR's get reads them) ----------------------------
+# DP-population-list with the logical keys of [ATLAS-Parameters] written .true # ..., T ! ..., F and
+# a TAB, false, (their defaults): FiNeR reads the first item of the value, so the BC file must be
+# DP-population-list's. chimera/ is IG-chimera's deck with BC-chimera = T#note, a comment attached to
+# a value that is not the default: its BC file must be IG-chimera's (same tolerance as IG-chimera).
+# _run-strict: strict-keys is read before any key table, with the rule of every logical key: Tomato stops the tool
+# with the message of that rule and no BC file; true and .false. give DP-population-list's BC file.
+add_test(
+    NAME    DP-logical-forms
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/drop-bc.txt ../DP-population-list/reference/drop-bc.txt && cd chimera && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../IG-chimera/reference/bc.txt fromATLAStoSolver/bc.txt && cd .. && rm -rf _run-strict && mkdir _run-strict && cp input.ini mesh.tec drop-phase.txt _run-strict/ && cd _run-strict && sed -i 's/^strict-keys = .*/strict-keys = Tomato/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key strict-keys of section [ATLAS-Parameters]: value Tomato is not a logical (T or F)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && sed -i 's/^strict-keys = .*/strict-keys = true/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > /dev/null && diff fromATLAStoSolver/drop-bc.txt ../../DP-population-list/reference/drop-bc.txt && rm -rf fromATLAStoSolver && sed -i 's/^strict-keys = .*/strict-keys = .false./' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > /dev/null && diff fromATLAStoSolver/drop-bc.txt ../../DP-population-list/reference/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-logical-forms"
+)
+set_tests_properties(DP-logical-forms PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -422,6 +630,20 @@ set_tests_properties(x-variable PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- STB : area-any-order -------------
+# An x-areavariation profile whose rows are not in coordinate order: STB sorts the rows, the area law is that of the
+# sorted profile.
+add_test(
+    NAME    area-any-order
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh STB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/block1_area.dat fromATLAStoSolver/block1_area.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/area-any-order"
+)
+set_tests_properties(area-any-order PROPERTIES
+    LABELS      "STB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---------------------------------------------------------------------------
 #  MDB : mesh decomposition
 # ---------------------------------------------------------------------------
@@ -520,6 +742,22 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/split-longest"
 )
 set_tests_properties(split-longest PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : grid-p3d-3D (a 3D grid given as PLOT3D) -------------
+# MDB reads the grid of [MDB-Parameters] grid by its path: a PLOT3D file with five node planes (grid.p3d) must be split
+# as the same grid given as mesh.tec, i.e. the products equal those of the same deck with grid = mesh.tec (run again in
+# fromATLAStoSolver/tecplot): decomposition.map, INPUT-split/bc.txt and the nodes of mesh-split.tec (its ZONE lines
+# carry the solution time of the grid file, which a PLOT3D file does not hold: its zones carry SOLUTIONTIME=0).
+add_test(
+    NAME    grid-p3d-3D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && mkdir fromATLAStoSolver/tecplot && cp phase.txt mesh.tec fromATLAStoSolver/tecplot/ && sed 's/grid = grid.p3d/grid = mesh.tec/' input.ini > fromATLAStoSolver/tecplot/input.ini && cd fromATLAStoSolver/tecplot && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && diff ../decomposition.map fromATLAStoSolver/decomposition.map && diff ../INPUT-split/bc.txt fromATLAStoSolver/INPUT-split/bc.txt && diff <(grep -v ZONE ../mesh-split.tec) <(grep -v ZONE fromATLAStoSolver/mesh-split.tec) && ! grep ZONE ../mesh-split.tec | grep -q -v -F 'SOLUTIONTIME=0.000000000000000E+000'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/grid-p3d-3D"
+)
+set_tests_properties(grid-p3d-3D PROPERTIES
     LABELS      "MDB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -666,6 +904,36 @@ add_test(
 )
 set_tests_properties(CP-fixmat-tokens PROPERTIES
     LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-massfraction-range (a y<species> value outside [0, 1] stops BCB with one message, the same
+# ----       below 0 and above 1, naming the key and the value; nothing is written. A value outside [0, 1]
+# ----       by rounding only (1.0000000000000002, -1.0e-20) is read as 1 and 0: bc.txt equals the one of
+# ----       yO2 = 1, yCH4 = 0. A TAB is white space like a blank: around the number it is ignored (bc.txt
+# ----       of yO2 = 1, yCH4 = 0), inside the value (yO2 = 1.0<TAB>0.5) it stops BCB as two numbers) -----
+add_test(
+    NAME    IG-massfraction-range
+    COMMAND bash -c "rm -rf fromATLAStoSolver exact && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input exact.ini < /dev/null && mv fromATLAStoSolver exact && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input rounding.ini < /dev/null && diff exact/bc.txt fromATLAStoSolver/bc.txt && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input tab-around.ini < /dev/null && diff exact/bc.txt fromATLAStoSolver/bc.txt && rm -rf fromATLAStoSolver exact || exit 1; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input negative.ini 2>&1 < /dev/null); rc=$?; out2=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input above.ini 2>&1 < /dev/null); rc2=$?; out3=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input tab-inside.ini 2>&1 < /dev/null); rc3=$?; echo \"$out\" | tail -n 2; echo \"$out2\" | tail -n 2; echo \"$out3\" | tail -n 2; test $rc -eq 1 && test $rc2 -eq 1 && test $rc3 -eq 1 && grep -q -F '[ERROR] key yCH4 = -0.1: the mass fraction must lie in [0, 1]' <<< \"$out\" && grep -q -F '[ERROR] key yO2 = 1.5: the mass fraction must lie in [0, 1]' <<< \"$out2\" && grep -q -F ': the mass fraction must be one number' <<< \"$out3\" && grep -q -F '[ERROR] key yO2 = 1.0' <<< \"$out3\" && test $(grep -c -F '[ERROR]' <<< \"$out\") -eq 1 && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-massfraction-range"
+)
+set_tests_properties(IG-massfraction-range PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : mesh-tec-single-plane (a Tecplot mesh with x y z on one node plane, K = 1, follows the rule of a PLOT3D
+# ----       mesh written Ni Nj 1: on the plane z = 0 and on a tilted plane it gives the bc.txt of mesh-p3d-single-plane,
+# ----       with a WARNING for the tilted plane; on the plane x-z it is refused) -------------
+add_test(
+    NAME    mesh-tec-single-plane
+    COMMAND bash -c "for d in xy tilted; do (cd $d && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt ../reference/bc.txt) || { cat $d/bcb.log; exit 1; }; done && ! grep -q -F '[WARNING] mesh block' xy/bcb.log && grep -q -F '[WARNING] mesh block 1: three coordinates on a single node plane are read as a 2D (x, y) mesh, but z is not constant' tilted/bcb.log && cd perpendicular && rm -rf fromATLAStoSolver && if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] mesh block 1: three coordinates on a single node plane that is perpendicular to x-y' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/mesh-tec-single-plane"
+)
+set_tests_properties(mesh-tec-single-plane PROPERTIES
+    LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )

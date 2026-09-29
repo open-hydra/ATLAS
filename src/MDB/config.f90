@@ -76,7 +76,7 @@ contains
     cfg%input_file = atlas_cfg%input_file
     cfg%mg_levels  = max(1, atlas_cfg%mg_levels)
 
-    call fini%load(filename=trim(cfg%input_file))
+    call load_ini_file(fini, trim(cfg%input_file))
 
     call fini%get(section_name=SEC, option_name='ranks',            val=cfg%ranks,      error=error)
     call fini%get(section_name=SEC, option_name='target-balance',   val=cfg%target_bal, error=error)

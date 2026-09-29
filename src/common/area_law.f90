@@ -1,7 +1,7 @@
 module area_law
   implicit none
 
-  real(8), parameter :: Runi = 8314.51d0  !< Universal gas constant [J/(kmol·K)]
+  real(8), parameter :: Runi = 8314.46261815324d0  !< Universal gas constant [J/(kmol·K)], exact SI 2019 (N_A k_B)
 
 contains
 

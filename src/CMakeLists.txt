@@ -79,6 +79,17 @@ target_include_directories(STB PRIVATE
     $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
 )
 
+# Each program compiles the common sources itself. With one module directory for all of them, two
+# programs built in parallel (make -j) write the same .mod files at the same time and a compilation
+# can fail on a module file another one is renaming ("Cannot rename module file"). Each program writes
+# its modules to a directory of its own, searched before the shared one (which keeps ORION's modules).
+foreach(_atlas_prog ICB BCB MDB STB)
+  set_target_properties(${_atlas_prog} PROPERTIES
+      Fortran_MODULE_DIRECTORY "${CMAKE_Fortran_MODULE_DIRECTORY}/${_atlas_prog}")
+  target_include_directories(${_atlas_prog} BEFORE PRIVATE
+      $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}/${_atlas_prog}>)
+endforeach()
+
 if (TARGET cea_abort_support)
   target_link_libraries(ICB PRIVATE cea_abort_support)
   target_link_libraries(BCB PRIVATE cea_abort_support)
@@ -99,4 +110,17 @@ if(USE_TECIO)
   target_link_libraries(BCB PRIVATE -pthread)
   target_link_libraries(STB PRIVATE -pthread)
   target_link_libraries(MDB PRIVATE -pthread)
+  # src/common/read_mesh.f90 refuses a .szplt mesh with a clear message and a
+  # non-zero status when the build has no TecIO (ORION's own stop returns 0).
+  target_compile_definitions(ICB PRIVATE TECIO)
+  target_compile_definitions(BCB PRIVATE TECIO)
+  target_compile_definitions(STB PRIVATE TECIO)
+  target_compile_definitions(MDB PRIVATE TECIO)
 endif()
+
+# Link the Fortran programs with the Fortran driver. TecIO (C++, pulled in by
+# ORION) would otherwise make CMake pick the CXX linker, which does not provide
+# the entry point of an Intel Fortran main program (undefined reference to
+# `main'). CMake adds the C++ runtime by itself. Same convention as ORION's own
+# apps and as the Q2D/MOSE executables.
+set_target_properties(ICB BCB MDB STB PROPERTIES LINKER_LANGUAGE Fortran)

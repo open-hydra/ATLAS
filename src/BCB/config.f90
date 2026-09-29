@@ -896,6 +896,9 @@ contains
       call bcb_registry%add('bc-section', 'betap', dp_scalar, '0.0', 'Secondary injection angle per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'rRes', dp_scalar, '0.0', 'Residual radius per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'Tsat', dp_scalar, '0.0', 'Saturation temperature per dispersed population.', '', .false.)
+      ! read by get_population_reals (common/ini_values.f90), one token per (material, population) pair
+      call bcb_registry%set_per_population('bc-section', [character(len=6) :: 'krho', 'kV', 'kT', 'gp', 'up', 'vp', 'wp', &
+                                           'Vp', 'Tp', 'rp', 'dp', 'sigmap', 'ds', 'alphap', 'betap', 'rRes', 'Tsat'])
     end subroutine add_dp_entries
 
     subroutine add_gsi_entries()

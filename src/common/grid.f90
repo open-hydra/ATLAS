@@ -1,6 +1,7 @@
 !>@brief: Module for geometrical derived data types. 
 module grid_mod
   implicit none
+  private :: xy_area_fraction
 
   ! --- Mesh type identifiers ---
   integer, parameter :: MESH_PURE_2D = -2  ! Pure 2D (no extrusion)
@@ -64,32 +65,88 @@ module grid_mod
 contains
 
 
-  subroutine import_nodes(input,output)
+  !> Import mesh nodes from an ORION dataset and classify the mesh (classify_mesh).
+  !> Without cfg (PRIMARY mesh) the classification becomes the global mesh_cfg, as always.
+  !> With cfg (SECONDARY mesh, e.g. an interpolation source or a file-backed zone field) the
+  !> classification is returned in cfg only and the global mesh_cfg is not touched, so that it keeps
+  !> describing the primary mesh (output layout, ghost layers, delthe). A block imported with
+  !> cfg= must not be given to build_geometry/compute_* (they read the global mesh_cfg).
+  subroutine import_nodes(input,output,cfg)
     use Lib_ORION_data
     implicit none
     type(orion_data), intent(in)                :: input
     class(block_type), intent(out)              :: output(:)
-    integer :: b, i, j, k
+    type(mesh_config_type), intent(out), optional :: cfg
+    type(mesh_config_type) :: lcfg
+    integer :: b, i, j, k, bz
 
-    call check_mesh_type(input%block(1)%mesh)
+    ! the mesh is classified in its own configuration: returned in cfg when given (a secondary mesh,
+    ! e.g. an interpolation source), otherwise it becomes the global mesh_cfg (the primary mesh)
+    lcfg = mesh_cfg
+    call classify_mesh(input%block(1)%mesh, lcfg)
 
-    if (mesh_cfg%meshType==-2) then
-      mesh_cfg%gc = [2, 2, 0]
-    elseif (mesh_cfg%meshType==-1) then
-      mesh_cfg%gc = [2, 0, 0]
+    ! Block 1 decides the mesh type. With three coordinates, a block with a single node plane next to
+    ! blocks with several would be read out of bounds (k = 1) or flattened: refused. A single plane
+    ! read as 2D whose z varies is not an x-y plane: the mesh is its projection (WARNING); a plane
+    ! perpendicular to x-y projects on a line (cells without area): refused.
+    if (size(input%block(1)%mesh,1) == 3) then
+      do b = 1, size(input%block)
+        if ((size(input%block(b)%mesh,4) == 1) .neqv. (size(input%block(1)%mesh,4) == 1)) then
+          write(*,'(A,I0,A,I0,A,I0,A)') ' [ERROR] mesh block ', b, ' has ', size(input%block(b)%mesh,4), &
+            ' node plane(s) in k and block 1 has ', size(input%block(1)%mesh,4), &
+            ': a single-plane (K = 1) block cannot be mixed with blocks of several planes'
+          stop 1
+        endif
+      enddo
+      if (size(input%block(1)%mesh,4) == 1) then
+        bz = 0
+        do b = 1, size(input%block)
+          if (maxval(input%block(b)%mesh(3,:,:,:)) - minval(input%block(b)%mesh(3,:,:,:)) > &
+              1.d-9 * max(1.d0, maxval(abs(input%block(b)%mesh(1:2,:,:,:))))) then
+            if (xy_area_fraction(input%block(b)%mesh) < 1.d-6) then
+              write(*,'(A,I0,A)') ' [ERROR] mesh block ', b, ': three coordinates on a single node plane'// &
+                ' that is perpendicular to x-y: its projection on x-y has no area (write the mesh in the x-y plane)'
+              stop 1
+            endif
+            if (bz == 0) bz = b
+          endif
+        enddo
+        if (bz > 0) write(*,'(A,I0,A)') ' [WARNING] mesh block ', bz, ': three coordinates on a single node plane'// &
+          ' are read as a 2D (x, y) mesh, but z is not constant: the mesh is the projection on x-y'
+      endif
+    endif
+
+    if (lcfg%meshType==-2) then
+      lcfg%gc = [2, 2, 0]
+    elseif (lcfg%meshType==-1) then
+      lcfg%gc = [2, 0, 0]
     else
-      mesh_cfg%gc = 2
-    endif 
+      lcfg%gc = 2
+    endif
+
+    if (present(cfg)) then
+      cfg = lcfg
+    else
+      mesh_cfg = lcfg
+    endif
 
     do b = 1, size(input%block)
       output(b)%dim(1) = input%block(b)%Ni
       output(b)%dim(2) = input%block(b)%Nj
       output(b)%dim(3) = max(input%block(b)%Nk,1) ! Handle 2D meshes
       allocate(output(b)%node( &
-        0-mesh_cfg%gc(1):output(b)%dim(1)+mesh_cfg%gc(1), &
-        0-mesh_cfg%gc(2):output(b)%dim(2)+mesh_cfg%gc(2), &
-        0-mesh_cfg%gc(3):output(b)%dim(3)+mesh_cfg%gc(3)))
-      if (mesh_cfg%meshType/=-2) then
+        0-lcfg%gc(1):output(b)%dim(1)+lcfg%gc(1), &
+        0-lcfg%gc(2):output(b)%dim(2)+lcfg%gc(2), &
+        0-lcfg%gc(3):output(b)%dim(3)+lcfg%gc(3)))
+      ! ghost nodes that no extrapolation fills stay defined: compute_centers reads them for the ghost
+      ! centres (ifx DEBUG trapped on garbage coordinates of 2D ICB meshes, RELEASE stored garbage)
+      block
+        integer :: dd
+        do dd = 1, size(output(b)%node(0,0,0)%c)
+          output(b)%node%c(dd) = 0.0d0
+        enddo
+      end block
+      if (lcfg%meshType/=-2) then
         !$omp parallel do collapse(3) private(i,j,k)
         do k = 0, output(b)%dim(3); do j = 0, output(b)%dim(2); do i = 0, output(b)%dim(1)
               output(b)%node(i,j,k)%c(1:3) = input%block(b)%mesh(1:3,i,j,k)
@@ -137,6 +194,8 @@ contains
   end subroutine destroy
 
   !>@brief: subroutine to compute interface areas and normal vectors for a block
+  ! compute_norm_area has no caller in ATLAS (the face areas and normals come from compute_centers
+  ! and the builders); it is kept.
   subroutine compute_norm_area( self )
     implicit none
     class(block_type), intent(inout) :: self
@@ -564,28 +623,56 @@ contains
   end subroutine extrapolate_nodes
 
 
-  !> Check mesh type 
-  subroutine check_mesh_type( mesh )
+  !> Area of the cells of a single node plane (three coordinates, k = 1) projected on x-y, over their area in
+  !> space: 1 for a plane parallel to x-y, 0 for a plane perpendicular to it (1 when the block has no cell).
+  pure function xy_area_fraction( mesh ) result( f )
+    implicit none
+    real(8), intent(in) :: mesh(:,:,:,:)
+    real(8) :: f, d1(3), d2(3), c(3), a3, axy
+    integer :: i, j
+    a3 = 0.d0; axy = 0.d0
+    do j = 1, size(mesh,3)-1
+      do i = 1, size(mesh,2)-1
+        d1 = mesh(1:3,i+1,j+1,1) - mesh(1:3,i,j,1)
+        d2 = mesh(1:3,i,j+1,1) - mesh(1:3,i+1,j,1)
+        c = [d1(2)*d2(3) - d1(3)*d2(2), d1(3)*d2(1) - d1(1)*d2(3), d1(1)*d2(2) - d1(2)*d2(1)]
+        a3 = a3 + norm2(c)
+        axy = axy + abs(c(3))
+      enddo
+    enddo
+    f = 1.d0
+    if (a3 > 0.d0) f = axy / a3
+  end function xy_area_fraction
+
+
+  !> Classify a mesh (pure 2D, 1D, 2D plane or axisymmetric, 3D) into cfg (meshType, delthe): each
+  !> mesh is classified in its own configuration (import_nodes), the global mesh_cfg is never touched here
+  subroutine classify_mesh( mesh, cfg )
     implicit none
     real(8), intent(in) :: mesh(:,0:,0:,0:)
+    type(mesh_config_type), intent(inout) :: cfg
     real(8)             :: theta1, theta2, theta(2)
     integer             :: jm
 
     ! Mesh definition (2D,2Dplane,2Daxi,3D)
     if (size(mesh,4)>2) then
       ! 3D
-      mesh_cfg%meshType = 3
+      cfg%meshType = 3
     elseif (size(mesh,1)==2) then
       ! 2D
-      mesh_cfg%meshType = -2
+      cfg%meshType = -2
     elseif (size(mesh,1)==1) then
       ! 1D
-      mesh_cfg%meshType = -1
+      cfg%meshType = -1
+    elseif (size(mesh,4)==1) then
+      ! three coordinates on a single node plane (a PLOT3D file written 'Ni Nj 1'): the pure 2D mesh of
+      ! its (x, y) plane, as a Tecplot zone with K = 1 is read; z is not used
+      cfg%meshType = -2
     elseif (size(mesh,3)==2 .and. size(mesh,4)==2) then
       ! 1D (3D file)
-      mesh_cfg%meshType = 1
+      cfg%meshType = 1
     else
-      mesh_cfg%meshType = 2
+      cfg%meshType = 2
       theta1 = atan2( mesh(3,0,1,0),mesh(2,0,1,0) )
       theta2 = atan2( mesh(3,0,1,1),mesh(2,0,1,1) )
       theta(1) = theta2-theta1
@@ -593,16 +680,16 @@ contains
       theta1 = atan2( mesh(3,0,jm,0), mesh(2,0,jm,0) )
       theta2 = atan2( mesh(3,0,jm,1), mesh(2,0,jm,1) )
       theta(2) = theta2-theta1
-      if ( (theta(1)-theta(2)) < 1.d-5 ) then
+      if ( abs(theta(1)-theta(2)) < 1.d-5 ) then   ! |.| (a decreasing y gave a negative difference: always axi)
         ! 2Daxi
-        mesh_cfg%delthe = theta(1)
+        cfg%delthe = theta(1)
       else
         ! 2Dplane
-        mesh_cfg%delthe = 0.d0
+        cfg%delthe = 0.d0
       endif
     endif
 
-  end subroutine check_mesh_type
+  end subroutine classify_mesh
 
 
   !>@brief Compute the bounding box of each cell and of the whole block.

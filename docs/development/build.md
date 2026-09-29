@@ -35,6 +35,13 @@ cmake --preset default
 cmake --build .
 ```
 
+After switching branches (`git checkout`, `git switch`), run `git submodule update --init --recursive`
+before rebuilding: git does not move the submodule checkouts, and an existing build directory would
+otherwise compile ATLAS against the ORION, cea or FiNeR commits of the previous branch. `./install.sh build`
+does this for the bundled paths (and so resets any other commit checked out in them); CMake stops with
+an error when a bundled submodule is not at the commit recorded by ATLAS (configure with
+`-DATLAS_PIN_CHECK=WARNING` to build against another checkout on purpose).
+
 ## Build Options
 
 ATLAS supports two common build paths:
@@ -91,7 +98,21 @@ Scripted equivalents:
 | `CMAKE_Fortran_COMPILER` | Path | auto-detected | Explicit Fortran compiler |
 | `CMAKE_CXX_COMPILER` | Path | auto-detected | Explicit C++ compiler |
 
+### TecIO (`USE_TECIO=true`)
+
+TecIO is vendored inside ORION (`lib/ORION/lib/TecIO/`). When ORION is configured with TecIO it looks for an
+installed copy in `<ORION_PATH>/lib/TecIO/tecio-install-<suffix>` (`teciompi-install-<suffix>` with MPI), where
+`<suffix>` names the compiler pair (`lib/ORION/cmake/SetCompilerID.cmake`), e.g. `GNU` for gfortran + g++ and
+`IntelLLVM-IntelLLVM` for ifx + icpx. If that directory does not exist, ORION configures, builds and installs
+TecIO there during the CMake configure step (a few minutes, not parallel). The location is set in
+`lib/ORION/CMakeLists.txt` and has no `-D` override; an existing install is reused as it is, also after a
+compiler upgrade (remove the directory to rebuild it).
+
 ## Parallel Build
+
+Every program (ICB, BCB, MDB, STB) compiles the common sources itself and writes its Fortran modules
+to a directory of its own, `build/modules/<program>` (ORION's modules stay in `build/modules`), so all
+the targets can be built at once with any number of jobs.
 
 ```bash
 # Build using 4 cores
@@ -246,3 +267,20 @@ ctest --output-on-failure
 This ensures your changes pass the same checks as CI.
 
 See: [Testing](./testing.md), [Project Structure](./structure.md)
+
+## Submodule pins and external libraries
+
+The configure step compares the checkout of every bundled submodule (`lib/ORION`, `lib/PiNeR`,
+`lib/cea`, `lib/third_party/FiNeR`) with the commit this ATLAS commit records and **stops with an
+error** when they differ (`lib/ORION is checked out at ..., but this ATLAS commit records ...`): run
+`git submodule update --init --recursive` and configure again. To build on purpose against another
+checkout of a submodule (an ORION pull request under test inside `lib/ORION`), configure with
+`-DATLAS_PIN_CHECK=WARNING`. Tarballs, plain copies and libraries taken from outside the tree
+(`-DORION_PATH=/path/to/ORION`, an external ORION route) are not checked: nothing in them is a
+registered submodule.
+
+The pinned ORION reads PLOT3D meshes (`mesh.p3d`) with both compiler
+suites and exports the variable names of `.szplt` files (adopted by name by ICB, see the ICB
+strategies page). Binary Tecplot output (`IC-format = tec-binary`, STB `-o tec-binary`)
+needs a build with `-DUSE_TECIO=true`; without it the request is refused at start. The float32 output
+option of ORION is an ORION-side default: ATLAS reads both precisions with the pinned readers.

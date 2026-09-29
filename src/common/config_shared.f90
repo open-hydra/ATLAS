@@ -14,6 +14,7 @@ module config_shared_mod
     logical             :: bc_force_connect = .true.
     logical             :: bc_chimera = .false.
     logical             :: bc_force_chimera = .false.
+    logical             :: strict_keys = .true.     ! unknown key: error (T) or WARNING (F)
   end type atlas_parameters_t
 
   type, public :: config_velocity_t
@@ -42,17 +43,25 @@ module config_shared_mod
   end type config_composition_doc_t
 
   public :: load_atlas_parameters
+  public :: load_ini_file
   public :: load_shared_velocity_config
   public :: load_shared_turbulence_config
   public :: add_atlas_registry_entries
   public :: add_velocity_registry_entries
   public :: add_turbulence_registry_entries
   public :: add_composition_registry_entries
+  ! keys of [ATLAS-Parameters] read below for every tool (input_keys_mod)
+  character(len=16), parameter, public :: atlas_shared_keys(10) = [character(len=16) :: &
+    'BCB-file', 'ICB-file', 'STB-file', 'MDB-file', 'MG-levels', 'IC-format', &
+    'BC-force-connect', 'BC-chimera', 'BC-force-chimera', 'strict-keys']
 
 contains
 
   subroutine load_atlas_parameters(prog, cfg, input_file)
+    use input_keys_mod, only: input_keys_check_section, input_keys_set_strict, input_keys_check_duplicate_sections, &
+                              input_keys_check_logical
     implicit none
+    character(len=64) :: strict_value
     character(*), intent(in)              :: prog
     type(atlas_parameters_t), intent(out) :: cfg
     character(*), intent(in), optional    :: input_file
@@ -86,7 +95,27 @@ contains
     cfg%bc_chimera = .false.
     cfg%bc_force_chimera = .false.
 
-    call fini%load(filename=trim(ini_filename))
+    call load_ini_file(fini, trim(ini_filename))
+
+    ! strict-keys and the key check of the section come before the gets below: FiNeR reads an
+    ! integer (MG-levels = 1e0) or a logical (strict-keys = maybe) without iostat and would stop
+    ! with a runtime error instead of the diagnostic
+    strict_value = ''
+    call fini%get(section_name='ATLAS-Parameters', option_name='strict-keys', &
+                  val=strict_value, error=error)
+    cfg%strict_keys = .true.
+    if (error == 0) then
+      ! the whole value, with the rule of every logical key (T, F, true, false, .true., .false., any
+      ! case, a comment after it), also in a tool that checks no key table: a word that only starts
+      ! like a logical (Tomato) is refused, not read by its first letter
+      call input_keys_check_logical('strict-keys', strict_value, 'ATLAS-Parameters')
+      strict_value = adjustl(strict_value)
+      if (strict_value(1:1) == '.') strict_value = strict_value(2:)
+      cfg%strict_keys = strict_value(1:1) == 'T' .or. strict_value(1:1) == 't'
+    endif
+    call input_keys_set_strict(cfg%strict_keys)
+    call input_keys_check_duplicate_sections(trim(ini_filename), fini)   ! L0: a section header written twice (FiNeR keeps the first in silence)
+    call input_keys_check_section(fini, 'ATLAS-Parameters', 'atlas', extra=atlas_shared_keys)
 
     file_option = atlas_input_option_name(prog)
     if (len_trim(file_option) > 0) then
@@ -98,6 +127,10 @@ contains
     call fini%get(section_name='ATLAS-Parameters', option_name='MG-levels', &
                   val=cfg%mg_levels, error=error)
     if (error /= 0) cfg%mg_levels = 1
+    if (cfg%mg_levels < 1) then
+      write(*,'(A,I0,A)') '[ERROR] key MG-levels of section [ATLAS-Parameters]: value ', cfg%mg_levels, ' is not >= 1'
+      stop 1
+    endif
 
     call fini%get(section_name='ATLAS-Parameters', option_name='IC-format', &
                   val=cfg%ic_format, error=error)
@@ -114,6 +147,7 @@ contains
     call fini%get(section_name='ATLAS-Parameters', option_name='BC-force-chimera', &
                   val=cfg%bc_force_chimera, error=error)
     if (error /= 0) cfg%bc_force_chimera = .false.
+
   end subroutine load_atlas_parameters
 
   subroutine load_shared_velocity_config(zoneini, cfg, section_name)
@@ -201,12 +235,16 @@ contains
       call registry%add('ATLAS-Parameters', 'ICB-file', cfg%input_file, 'input.ini', &
                         'INI file containing ICB block definitions.', '', .false.)
       call registry%add('ATLAS-Parameters', 'IC-format', cfg%ic_format, 'tec', &
-                        'Output format used when writing initial conditions.', &
-                        '', .false.)
+                        'Output format used when writing initial conditions: a family (tec, tecplot, vtk) '// &
+                        'with an optional mode (binary, ascii, raw) joined by -, blank or _ (tecplot binary, '// &
+                        'vtk binary, tecplot-ascii are accepted); a binary Tecplot file (.szplt) needs a TecIO build.', &
+                        'tec<br>tec-binary<br>vtk<br>vtk-binary<br>vtk-ascii<br>vtk-raw', .false.)
     case ('BCB')
       call registry%add('ATLAS-Parameters', 'BCB-file', cfg%input_file, 'input.ini', &
                         'INI file containing BCB block and boundary definitions.', &
                         '', .false.)
+      call registry%add('ATLAS-Parameters', 'MG-levels', cfg%mg_levels, '1', &
+                        'Number of multigrid levels for which BC files are written.', '>=1', .false.)
       call registry%add('ATLAS-Parameters', 'BC-force-connect', cfg%bc_force_connect, &
                         'T', 'Force standard connection matching when chimera is off.', &
                         '', .false.)
@@ -219,6 +257,10 @@ contains
                         'its declared type. Facelets without donors keep their own BC.', &
                         '', .false.)
     end select
+    call registry%add('ATLAS-Parameters', 'strict-keys', cfg%strict_keys, 'T', &
+                      'F turns the error on a key the tool does not read (or not honoured by the '// &
+                      'resolved BC type, or y of an undeclared species) into a WARNING; wrong values '// &
+                      'are always errors (keys with the prefix ignore- are never read).', '', .false.)
   end subroutine add_atlas_registry_entries
 
   subroutine add_velocity_registry_entries(registry, section, velocity_cfg)
@@ -266,7 +308,9 @@ contains
     type(config_composition_doc_t), target, intent(inout) :: composition_cfg
 
     call registry%add(section, 'eq-OG', composition_cfg%eq_og, 'F', &
-                      'Enable CEA oxidizer-fuel equilibrium mode.', '', .false.)
+                      'Keep only the gaseous products of the CEA equilibrium of `eq-CEA-file`: the condensed '// &
+                      'products are dropped and the mass fractions of the gaseous ones are renormalised to 1.', &
+                      '', .false.)
     call registry%add(section, 'eq-CEA-file', composition_cfg%eq_cea_file, '', &
                       'CEA input file used to derive equilibrium composition.', &
                       '', .false.)
@@ -274,8 +318,8 @@ contains
                       'CEA section index used when eq-CEA-file is provided.', &
                       '>=1', .false.)
     call registry%add(section, 'yspecies', composition_cfg%y_species, '0.0', &
-                      'Mass fraction assigned to a species name suffix.', &
-                      '>=0', .false.)
+                      'Mass fraction assigned to a species name suffix: one number in [0, 1].', &
+                      '', .false.)
   end subroutine add_composition_registry_entries
 
   function atlas_input_option_name(prog) result(option_name)
@@ -291,5 +335,40 @@ contains
       option_name = 'BCB-file'
     end select
   end function atlas_input_option_name
+
+  !> Load an ini file into fini without its full-line comments (a line whose first non-blank character is
+  !> '#', ';' or '!'). FiNeR counts the options of a section by their '=' signs, comment lines included, and
+  !> stops with a segmentation fault on a comment that holds one ('# p0 = 10 bar'): the file is read here,
+  !> the comment lines are left out and the rest goes to FiNeR unchanged. Inline comments stay FiNeR's.
+  subroutine load_ini_file(fini, filename)
+    type(file_ini),   intent(inout) :: fini
+    character(len=*), intent(in)    :: filename
+    character(len=:), allocatable :: src, line
+    character(len=1024) :: buf
+    integer :: u, ios, sz, c
+    open(newunit=u, file=trim(filename), status='old', action='read', form='formatted', iostat=ios)
+    if (ios /= 0) then
+      call fini%load(filename=trim(filename))   ! FiNeR's own handling of a file it cannot read
+      return
+    endif
+    src = ''
+    do
+      line = ''
+      do
+        read(u, '(A)', advance='no', iostat=ios, size=sz) buf
+        line = line//buf(1:sz)
+        if (ios /= 0) exit
+      enddo
+      if (.not. (is_iostat_eor(ios) .or. (is_iostat_end(ios) .and. len(line) > 0))) exit
+      c = verify(line, ' '//char(9))
+      if (c > 0) then
+        if (index('#;!', line(c:c)) > 0) line = ''
+      endif
+      src = src//line//new_line('a')
+      if (is_iostat_end(ios)) exit
+    enddo
+    close(u)
+    call fini%load(source=src)
+  end subroutine load_ini_file
 
 end module config_shared_mod

@@ -6,9 +6,11 @@
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | BCB-file | input.ini |  |  no | INI file containing BCB block and boundary definitions. |
+| MG-levels | 1 | >=1 |  no | Number of multigrid levels for which BC files are written. |
 | BC-force-connect | T |  |  no | Force standard connection matching when chimera is off. |
 | BC-chimera | F |  |  no | Enable the overset search on the faces declared chimera. Faces declared connection keep the standard matching. |
 | BC-force-chimera | F |  |  no | Extend the overset search to every unresolved face, whatever its declared type. Facelets without donors keep their own BC. |
+| strict-keys | T |  |  no | F turns the error on a key the tool does not read (or not honoured by the resolved BC type, or y of an undeclared species) into a WARNING; wrong values are always errors (keys with the prefix ignore- are never read). |
 
 ## BCB-Block*
 
@@ -35,10 +37,10 @@
 | block | 0 |  |  no | Connected block index for manifold. |
 | face | 0 |  |  no | Connected face index for manifold. |
 | file-direction |  |  |  no | Coordinate or index directions used by varying BC files. |
-| eq-OG | F |  |  no | Enable CEA oxidizer-fuel equilibrium mode. |
+| eq-OG | F |  |  no | Keep only the gaseous products of the CEA equilibrium of `eq-CEA-file`: the condensed products are dropped and the mass fractions of the gaseous ones are renormalised to 1. |
 | eq-CEA-file |  |  |  no | CEA input file used to derive equilibrium composition. |
 | eq-CEA-section | 1 | >=1 |  no | CEA section index used when eq-CEA-file is provided. |
-| yspecies | 0.0 | >=0 |  no | Mass fraction assigned to a species name suffix. |
+| yspecies | 0.0 |  |  no | Mass fraction assigned to a species name suffix: one number in [0, 1]. |
 | alpha | 0.0 |  |  no | Velocity angle alpha. |
 | beta | 0.0 |  |  no | Velocity angle beta. |
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
