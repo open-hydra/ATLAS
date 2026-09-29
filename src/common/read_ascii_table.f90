@@ -19,7 +19,7 @@ contains
     integer :: ios, file_length, i, unitfile, error, nline
     logical :: up, check
     character(len=10*llen) :: line
-    real(8) :: tmp_dir, tmp_var
+    real(8) :: tmp_dir, tmp_var, tmp_extra
 
     file_length=0; error=0
     open(newunit=unitfile,file=trim(varfile),status='old',action='read',iostat=ios)
@@ -28,7 +28,10 @@ contains
       return
     endif
     ! A non-blank, non-comment line that is not two numbers is skipped, as upstream does (a header
-    ! row without #); a WARNING names it, since a typo in a data row drops that point.
+    ! row without #); a WARNING names it, since a typo in a data row drops that point. A row with more
+    ! than two numbers is read as its first two, as upstream does; a WARNING names it too, since a
+    ! third column may mean that the file is not the two-column table the key expects (a comment or a
+    ! word after the two numbers is not a number: no WARNING).
     nline = 0
     do
       read(unitfile,'(A)',iostat=ios) line
@@ -43,6 +46,12 @@ contains
                             ' is not two numbers (coordinate value), skipped: '//trim(line)
         cycle
       endif
+      tmp_extra = -huge(1.0d0)   ! left unchanged by a null value or a slash after the two numbers
+      read(line,*,iostat=ios) tmp_dir, tmp_var, tmp_extra
+      if (ios == 0 .and. tmp_extra /= -huge(1.0d0)) &
+        write(*,'(A,I0,A)') '[WARNING] table file '//trim(varfile)//': line ', nline, &
+                            ' holds more than two numbers: the first two are read (coordinate value), the rest'// &
+                            ' is ignored: '//trim(line)
       file_length = file_length+1
     enddo
 

@@ -193,9 +193,11 @@ set_tests_properties(mesh-p3d-fallback PROPERTIES
 # ---- BCB : IG-table-header-skipped -------------
 # A table row that is not two numbers (the header row "x T" without #) is skipped with a WARNING, as upstream
 # skips it (in silence): the wall temperature profile and bc.txt are those of the same file without the row.
+# Twall-extra.dat: a row with a third number (0.5 400.0 999) is read as its first two, as upstream reads it, with a
+# WARNING naming it; a comment after the two numbers of a row gives no WARNING; bc.txt is the same.
 add_test(
     NAME    IG-table-header-skipped
-    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] table file Twall.dat: line 1 is not two numbers (coordinate value), skipped: x T' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-extra; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] table file Twall.dat: line 1 is not two numbers (coordinate value), skipped: x T' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt && mkdir _run-extra && cp input.ini mesh.tec phase.txt _run-extra/ && cp Twall-extra.dat _run-extra/Twall.dat && cd _run-extra && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] table file Twall.dat: line 3 holds more than two numbers: the first two are read (coordinate value), the rest is ignored: 0.5 400.0 999' <<< \"$out\" && ! grep -q -F 'line 2 ' <<< \"$out\" && diff fromATLAStoSolver/bc.txt ../reference/bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-table-header-skipped"
 )
 set_tests_properties(IG-table-header-skipped PROPERTIES
