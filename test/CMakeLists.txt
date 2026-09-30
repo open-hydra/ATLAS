@@ -1366,7 +1366,7 @@ set_tests_properties(qvol-direction-combined PROPERTIES
 # each other, which is the only place a 103 record can be validated.
 add_test(
     NAME    coupled-phases
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map reference/plate-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/plate-bc.txt reference/plate-bc.txt"
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map reference/plate-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/plate-bc.txt reference/plate-bc.txt && grep -q 'Interface over MPI (phase 1 -> 2): 12 of 24' mdb.log"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases"
 )
 set_tests_properties(coupled-phases PROPERTIES
@@ -1567,6 +1567,40 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/three-parents-cost"
 )
 set_tests_properties(three-parents-cost PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : coupled-same-cut (one decomposition for two phases on one mesh) --
+# A gas and a dispersed phase on the same two blocks, the MOSE + ICE layout,
+# with same-cut = true: phase 2 takes the decomposition of phase 1, so the two
+# maps are identical byte for byte and every cell of one phase sits on the rank
+# of its twin. The dispersed file carries three copies of the boundary table,
+# all split the same way. (Two identical meshes are cut identically by either
+# walk today; the fixture pins the guarantee and the same-cut line, which a
+# binary ignoring the key does not print.)
+add_test(
+    NAME    coupled-same-cut
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'same-cut: decomposition of phase 1 applied' mdb.log && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py --dispersed fromATLAStoSolver/INPUT-split/drop-bc.txt && diff fromATLAStoSolver/gas-decomposition.map fromATLAStoSolver/drop-decomposition.map && diff fromATLAStoSolver/gas-decomposition.map reference/gas-decomposition.map && diff fromATLAStoSolver/drop-decomposition.map reference/drop-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/drop-bc.txt reference/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-same-cut"
+)
+set_tests_properties(coupled-same-cut PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : same-cut-mismatch (same-cut on phases that do not share the mesh)
+# The fluid-over-solid pair of coupled-phases with same-cut = true: one
+# decomposition cannot serve two meshes, and MDB refuses naming the block and
+# the two extents instead of cutting the solid at the fluid's indices.
+add_test(
+    NAME    same-cut-mismatch
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'same-cut needs the phases to share the mesh: block 1 of phase 2' mdb.log && test ! -e fromATLAStoSolver/INPUT-split/gas-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/same-cut-mismatch"
+)
+set_tests_properties(same-cut-mismatch PROPERTIES
     LABELS      "MDB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
