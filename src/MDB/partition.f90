@@ -26,6 +26,7 @@ module partition_mod
   private
 
   public :: build_decomposition, lpt_assign, report_decomposition
+  public :: halo_overhead, max_subdivisions
 
 contains
 
@@ -210,10 +211,14 @@ contains
   end subroutine lpt_assign
 
 
-  subroutine report_decomposition(dec, nranks, owner, orig_cells)
+  !> `objective` and `halo_weight` add the score line of a searched
+  !> decomposition; without them the report is the one the greedy always printed.
+  subroutine report_decomposition(dec, nranks, owner, orig_cells, objective, halo_weight)
     type(decomposition_t), intent(in) :: dec
     integer,               intent(in) :: nranks, owner(:)
     integer,               intent(in) :: orig_cells
+    character(len=*),      intent(in), optional :: objective
+    real(8),               intent(in), optional :: halo_weight
     ! Local
     integer :: p, r, cells, wmin, wmax
     integer, allocatable :: load(:)
@@ -249,6 +254,12 @@ contains
     write(*,'(A,T35,I0)')   '   Lightest rank', minval(load)
     write(*,'(A,T35,F5.1,A)') '   Predicted MOSE balance', bal, '% of ideal'
     write(*,'(A,T35,F5.1,A)') '   Ghost-cell overhead', halo, '%'
+    if (present(objective) .and. present(halo_weight)) then
+      if (trim(objective) /= 'balance') then
+        write(*,'(A,T35,A)')    '   Objective', trim(objective)
+        write(*,'(A,T35,F5.1)') '   Score balance/(1+w*ghost)', bal / (1.0d0 + halo_weight * halo / 100.0d0)
+      endif
+    endif
 
     if (dec%npieces < nranks) &
       write(*,'(A,I0,A,I0,A)') '   [WARNING] only ', dec%npieces, ' of ', nranks, ' ranks will have work'

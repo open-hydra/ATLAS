@@ -19,6 +19,7 @@ program MDB
   use split_grid_mod
   use split_bc_mod
   use bc_scan_mod
+  use search_mod
   use finer, only: file_ini
   implicit none
 
@@ -214,11 +215,18 @@ contains
     write(*,*)
     write(*,'(A,I0,A)') ' Decomposing for ', cfg%phase(ip)%ranks, ' MPI ranks ...'
     call dec_init(dec(ip), nb, pdim)
-    call build_decomposition(dec(ip), cfg%phase(ip)%ranks, cfg%target_bal, cfg%halo_weight, &
-                             cfg%max_blocks, cfg%min_cells, gran, allow, verbose)
+    if (trim(cfg%objective) == 'balance') then
+      call build_decomposition(dec(ip), cfg%phase(ip)%ranks, cfg%target_bal, cfg%halo_weight, &
+                               cfg%max_blocks, cfg%min_cells, gran, allow, verbose)
+    else
+      call search_decomposition(dec(ip), cfg%phase(ip)%ranks, trim(cfg%objective), cfg%target_bal, &
+                                cfg%halo_weight, cfg%max_blocks, cfg%min_cells, gran, allow, &
+                                cfg%blocks_per_rank, cfg%balance_tol, verbose)
+    endif
     call dec_finalize(dec(ip))
     call lpt_assign(dec(ip), cfg%phase(ip)%ranks, owner, bal)
-    call report_decomposition(dec(ip), cfg%phase(ip)%ranks, owner, orig_cells)
+    call report_decomposition(dec(ip), cfg%phase(ip)%ranks, owner, orig_cells, trim(cfg%objective), &
+                              cfg%halo_weight)
 
     call check_manifold_pairs(scan(ip), dec(ip), owner, err)
     if (err /= 0) stop 1

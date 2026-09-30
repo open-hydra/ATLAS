@@ -35,6 +35,12 @@ module config_mdb_mod
     real(R8)            :: halo_weight = 1.0_R8              !< cost of a ghost cell vs a real one
     integer             :: max_blocks = 0                    !< 0 -> 8*ranks
     integer             :: min_cells  = 0                    !< 0 -> 4*2**(mg_levels-1)
+    !> What the decomposition is chosen for. `balance` is the greedy walk of
+    !> build_decomposition, unchanged; `halo` searches every factorisation of
+    !> every part count for the best score (search_mod).
+    character(len=16)   :: objective  = 'balance'
+    integer             :: blocks_per_rank = 1              !< search starts at ranks x this many parts
+    real(R8)            :: balance_tol = 2.0_R8             !< % above the ideal load a block may keep whole
     character(len=llen) :: grid       = ''                   !< '' -> autodetect
     character(len=llen) :: grid_out   = ''                   !< '' -> <grid>-split.<ext>
     character(len=llen) :: bc_in      = 'INPUT'
@@ -90,9 +96,28 @@ contains
     call fini%get(section_name=SEC, option_name='prefix',           val=cfg%prefix,     error=error)
     call fini%get(section_name=SEC, option_name='map-file',         val=cfg%map_file,   error=error)
     call fini%get(section_name=SEC, option_name='split-directions', val=cfg%directions, error=error)
+    call fini%get(section_name=SEC, option_name='objective',        val=cfg%objective,  error=error)
+    call fini%get(section_name=SEC, option_name='blocks-per-rank',  val=cfg%blocks_per_rank, error=error)
+    call fini%get(section_name=SEC, option_name='balance-tolerance',val=cfg%balance_tol,error=error)
 
     if (cfg%min_cells  <= 0) cfg%min_cells  = 4 * 2**(cfg%mg_levels-1)
     if (cfg%max_blocks <= 0) cfg%max_blocks = max(8*cfg%ranks, 1)
+
+    select case (trim(cfg%objective))
+    case ('balance', 'halo')
+    case default
+      write(*,'(A)') ' [ERROR] [MDB-Parameters] objective must be balance or halo, not '// &
+        trim(cfg%objective)
+      stop 1
+    end select
+    if (cfg%blocks_per_rank < 1) then
+      write(*,'(A)') ' [ERROR] [MDB-Parameters] blocks-per-rank must be at least 1'
+      stop 1
+    endif
+    if (cfg%balance_tol < 0.0_R8) then
+      write(*,'(A)') ' [ERROR] [MDB-Parameters] balance-tolerance must not be negative'
+      stop 1
+    endif
 
     call load_phases(fini, cfg)
 
@@ -258,6 +283,19 @@ contains
       'Smallest admissible sub-block extent along a cut direction (0 = 4 x 2^(MG-levels-1)).', '', .false.)
     call reg%add(SEC, 'split-directions', dirs, 'ijk', &
       'Directions that may be cut; can be overridden per block in [MDB-Block#].', 'any subset of ijk', .false.)
+    call reg%add(SEC, 'objective', c%objective, 'balance', &
+      'What the decomposition is chosen for. balance: the greedy walk (cut the heaviest block along &
+      &its longest axis until target-balance), scored by balance / (1 + halo-weight x ghost). halo: &
+      &search every factorisation Px x Py x Pz of every admissible part count for the best value of &
+      &that same score, judged after the solvers'' own LPT assignment.', 'balance | halo', .false.)
+    call reg%add(SEC, 'blocks-per-rank', c%blocks_per_rank, '1', &
+      'Under objective = halo the search starts at ranks x blocks-per-rank parts and goes up to &
+      &max-blocks. MOSE and ICE thread inside a block, so more blocks per rank buy no OpenMP; raise it &
+      &only to reach balance at an awkward rank count.', '>= 1', .false.)
+    call reg%add(SEC, 'balance-tolerance', c%balance_tol, '2.0', &
+      'Under objective = halo, a block whose cells exceed the ideal load per part by at most this &
+      &percentage is left whole: a cut there buys no balance. Exact balance is impossible when the rank &
+      &count does not divide the cells, so a 98.5% cut is accepted, not refused.', '>= 0', .false.)
     call reg%add(SEC, 'grid', c%grid, '', &
       'Grid or grid+solution file to split (empty = autodetect INPUT/ic.* then mesh.*).', '', .false.)
     call reg%add(SEC, 'grid-out', c%grid_out, '', &
