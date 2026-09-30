@@ -53,8 +53,9 @@ contains
   !>                   part is left whole
   !> scan, coef      : the scanned fine-level BC file and the [MDB-Cost]
   !>                   coefficients, needed by objective = cost
+  !> quiet           : no summary line and no target warning (the sweep table)
   subroutine search_decomposition(dec, nranks, objective, target_bal, halo_weight, max_blocks, min_cells, &
-                                  gran, allow_dir, blocks_per_rank, balance_tol, verb, scan, coef)
+                                  gran, allow_dir, blocks_per_rank, balance_tol, verb, scan, coef, quiet)
     type(decomposition_t), intent(inout) :: dec
     integer,               intent(in)    :: nranks, max_blocks, min_cells, gran, blocks_per_rank
     character(len=*),      intent(in)    :: objective
@@ -63,11 +64,12 @@ contains
     logical,               intent(in)    :: verb
     type(bc_scan_t),       intent(in), optional :: scan
     type(cost_coef_t),     intent(in), optional :: coef
+    logical,               intent(in), optional :: quiet
     ! Local
     integer :: nb, b, d, nparts, n_lo, n_hi, nvec, ntried, neval, sweep, k
     integer :: total, best_nparts
     real(8) :: value, best_value, bal, halo, best_bal, best_halo, trial
-    logical :: improved
+    logical :: improved, talk
     integer, allocatable :: w(:), nmax(:,:), nshare(:), tried(:,:), choice(:), tchoice(:)
     type(flist_t), allocatable :: fl(:)
     type(decomposition_t) :: cand, best
@@ -156,11 +158,15 @@ contains
       endif
     enddo
 
-    write(*,'(A,I0,A,I0,A,I0,A)') '   search: ', ntried, ' part counts, ', neval, ' candidates; best ', &
-      best%npieces, ' blocks'
-    if (best_bal < target_bal) &
-      write(*,'(A,F0.1,A,F0.1,A)') '   [WARNING] the best candidate balances at ', best_bal, &
-        '%, below target-balance ', target_bal, '%'
+    talk = .true.
+    if (present(quiet)) talk = .not. quiet
+    if (talk) then
+      write(*,'(A,I0,A,I0,A,I0,A)') '   search: ', ntried, ' part counts, ', neval, ' candidates; best ', &
+        best%npieces, ' blocks'
+      if (best_bal < target_bal) &
+        write(*,'(A,F0.1,A,F0.1,A)') '   [WARNING] the best candidate balances at ', best_bal, &
+          '%, below target-balance ', target_bal, '%'
+    endif
 
     if (size(dec%piece) < best%npieces) then
       deallocate(dec%piece)

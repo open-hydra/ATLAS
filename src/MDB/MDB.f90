@@ -20,6 +20,7 @@ program MDB
   use split_bc_mod
   use bc_scan_mod
   use search_mod
+  use cost_mod, only: cost_evaluate
   use finer, only: file_ini
   implicit none
 
@@ -35,7 +36,7 @@ program MDB
   integer               :: lev, gran, ierr
   integer               :: ip, jp, ndonor
   logical               :: write_config_doc, coupled, anysplit, has_level
-  character(len=llen)   :: input_file, fin, fout
+  character(len=llen)   :: input_file, fin, fout, sweep_list
 
   write(*,*)
   write(*,*) ' ATLAS - Mesh Decomposition Builder'
@@ -74,6 +75,14 @@ program MDB
     write(*,*)
   elseif (cfg%same_cut) then
     write(*,'(A)') ' [WARNING] same-cut needs [MDB-Phase1] and [MDB-Phase2]: ignored for a single phase'
+  endif
+
+  ! ── Sweep: the best cut per rank count, nothing written ─────────────────────
+  if (len_trim(sweep_list) > 0) then
+    do ip = 1, cfg%nphase
+      call sweep_phase(ip)
+    enddo
+    stop
   endif
 
   ! ════ Stage 1: decompose every phase and write its grid ═══════════════════
@@ -313,6 +322,133 @@ contains
   end subroutine decompose_phase
 
 
+  !> `--sweep R1,R2,...`: decompose one phase for every rank count of the list
+  !> under the greedy walk and, when it differs, the configured objective, and
+  !> tabulate what each gives. Nothing is written. This is the sweep the ICE
+  !> campaign did by hand over min-cells to find a good cut per rank count; the
+  !> search makes that lever moot and the table shows the cut it settles on.
+  subroutine sweep_phase(ip)
+    integer, intent(in) :: ip
+    type(orion_data)     :: gin
+    type(file_ini)       :: sourceini
+    type(decomposition_t) :: d
+    type(bc_scan_t)      :: sc
+    logical, allocatable :: allow(:,:)
+    integer, allocatable :: owner(:), pdim(:,:), ranks(:)
+    integer              :: b, nb, r, err, pass, npass
+    real(8)              :: bal, halo, tmax, tmean
+    character(len=llen)  :: gridfile
+    character(len=16)    :: obj
+
+    call parse_list(sweep_list, ranks, err)
+    if (err /= 0) then
+      write(*,'(A)') ' [ERROR] --sweep takes a comma-separated list of rank counts, e.g. --sweep 8,12,16'
+      stop 1
+    endif
+
+    gridfile = cfg%phase(ip)%grid
+    if (len_trim(gridfile) == 0) call autodetect_grid(gridfile)
+    if (len_trim(gridfile) == 0) then
+      write(*,'(A)') ' [ERROR] no grid file found; set [MDB-Parameters] grid'
+      stop 1
+    endif
+    write(*,'(A)') ' Reading '//trim(gridfile)//' ...'
+    call read_mesh(gin, trim(gridfile))
+    nb = size(gin%block)
+    allocate(pdim(3,nb))
+    do b = 1, nb
+      pdim(1,b) = gin%block(b)%Ni
+      pdim(2,b) = max(gin%block(b)%Nj, 1)
+      pdim(3,b) = max(gin%block(b)%Nk, 1)
+    enddo
+    if (len_trim(input_file) > 0) then
+      call build_INI(prog='MDB', nb=nb, inisource=sourceini, input_file=trim(input_file))
+    else
+      call build_INI(prog='MDB', nb=nb, inisource=sourceini)
+    endif
+    allocate(allow(3,nb))
+    call load_block_directions(sourceini, nb, cfg%directions, allow)
+    call bc_scan_fine(bc_name(trim(cfg%phase(ip)%bc_in), 1, trim(cfg%phase(ip)%prefix)), nb, pdim, &
+                      cfg%phase(ip)%dispersed, sc, err)
+    if (err /= 0) stop 1
+    if (trim(cfg%objective) == 'cost' .and. .not. sc%ok) then
+      write(*,'(A)') ' [ERROR] objective = cost needs the fine-level BC file: '// &
+        trim(bc_name(trim(cfg%phase(ip)%bc_in), 1, trim(cfg%phase(ip)%prefix)))//' not found'
+      stop 1
+    endif
+
+    npass = 1
+    if (trim(cfg%objective) /= 'balance') npass = 2
+
+    write(*,*)
+    if (coupled) then
+      write(*,'(A,I0,A)') ' Sweep of rank counts (phase ', ip, ')'
+    else
+      write(*,'(A)') ' Sweep of rank counts'
+    endif
+    if (sc%ok) then
+      write(*,'(A)') '   ranks  objective  blocks  balance   ghost   score  pred.time  spread'
+    else
+      write(*,'(A)') '   ranks  objective  blocks  balance   ghost   score'
+    endif
+
+    do r = 1, size(ranks)
+      do pass = 1, npass
+        obj = 'balance'
+        if (pass == 2) obj = cfg%objective
+        call dec_init(d, nb, pdim)
+        if (trim(obj) == 'balance') then
+          call build_decomposition(d, ranks(r), cfg%target_bal, cfg%halo_weight, max(8*ranks(r), 1), &
+                                   cfg%min_cells, gran, allow, .false.)
+        else
+          call search_decomposition(d, ranks(r), trim(obj), cfg%target_bal, cfg%halo_weight, &
+                                    max(8*ranks(r), 1), cfg%min_cells, gran, allow, cfg%blocks_per_rank, &
+                                    cfg%balance_tol, .false., sc, cfg%cost, quiet=.true.)
+        endif
+        call dec_finalize(d)
+        call lpt_assign(d, ranks(r), owner, bal)
+        halo = halo_overhead(d)
+        if (sc%ok) then
+          call cost_evaluate(d, owner, ranks(r), sc, cfg%cost, tmax, tmean)
+          write(*,'(I8,2X,A9,I8,F8.1,A,F7.1,A,F8.1,F11.1,F7.1,A)') ranks(r), obj, d%npieces, bal, '%', halo, '%', &
+            bal / (1.0d0 + cfg%halo_weight * halo / 100.0d0), tmax, 100.0d0 * (tmax / max(tmean, tiny(1.0d0)) - 1.0d0), '%'
+        else
+          write(*,'(I8,2X,A9,I8,F8.1,A,F7.1,A,F8.1)') ranks(r), obj, d%npieces, bal, '%', halo, '%', &
+            bal / (1.0d0 + cfg%halo_weight * halo / 100.0d0)
+        endif
+      enddo
+    enddo
+    write(*,*)
+    write(*,'(A)') '   max-blocks is 8 x ranks for every row; score is balance / (1 + halo-weight x ghost);'
+    write(*,'(A)') '   pred.time and spread are the [MDB-Cost] model over the ranks the solvers'' LPT forms.'
+
+  end subroutine sweep_phase
+
+
+  !> "8,12,16" -> [8, 12, 16]
+  subroutine parse_list(s, v, err)
+    character(len=*),     intent(in)  :: s
+    integer, allocatable, intent(out) :: v(:)
+    integer,              intent(out) :: err
+    integer :: n, i, ios
+    character(len=len(s)) :: t
+
+    err = 0
+    t = s
+    n = 1
+    do i = 1, len_trim(t)
+      if (t(i:i) == ',') then
+        t(i:i) = ' '
+        n = n + 1
+      endif
+    enddo
+    allocate(v(n))
+    read(t,*,iostat=ios) v
+    if (ios /= 0 .or. any(v < 1)) err = 1
+
+  end subroutine parse_list
+
+
   !> How many type-103/104 cells of each phase face a partner the solvers' LPT
   !> puts on another rank: the exchange the coupling will pay for over MPI.
   !> A volumetric coupling has no such records and, under same-cut, sits on
@@ -347,6 +483,7 @@ contains
     verbose = .false.
     write_config_doc = .false.
     input_file = ''
+    sweep_list = ''
 
     n = command_argument_count()
     do i = 1, n
@@ -358,6 +495,8 @@ contains
         write_config_doc = .true.
       case('-i', '--input')
         if (i < n) call get_command_argument(i+1, input_file)
+      case('--sweep')
+        if (i < n) call get_command_argument(i+1, sweep_list)
       end select
     enddo
 

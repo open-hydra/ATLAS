@@ -326,13 +326,13 @@ contains
       &search every factorisation Px x Py x Pz of every admissible part count for the best value of &
       &that same score, judged after the solvers'' own LPT assignment. cost: the same search for the &
       &smallest predicted rank time of the [MDB-Cost] model, judged the same way.', &
-      'balance | halo | cost', .false.)
+      'balance, halo, cost', .false.)
     call reg%add(SEC, 'blocks-per-rank', c%blocks_per_rank, '1', &
-      'Under objective = halo | cost the search starts at ranks x blocks-per-rank parts and goes up to &
+      'Under objective = halo or cost the search starts at ranks x blocks-per-rank parts and goes up to &
       &max-blocks. MOSE and ICE thread inside a block, so more blocks per rank buy no OpenMP; raise it &
       &only to reach balance at an awkward rank count.', '>= 1', .false.)
     call reg%add(SEC, 'balance-tolerance', c%balance_tol, '2.0', &
-      'Under objective = halo | cost, a block whose cells exceed the ideal load per part by at most this &
+      'Under objective = halo or cost, a block whose cells exceed the ideal load per part by at most this &
       &percentage is left whole: a cut there buys no balance. Exact balance is impossible when the rank &
       &count does not divide the cells, so a 98.5% cut is accepted, not refused.', '>= 0', .false.)
     call reg%add(SEC, 'grid', c%grid, '', &
@@ -356,7 +356,7 @@ contains
       &must share its mesh block for block (a gas and its Eulerian condensed phase): every cell of one &
       &phase then sits on the rank of the same cell of the other by construction. false decomposes each &
       &phase on its own and reports how many type-103/104 interface cells face a partner on another rank &
-      &after the solvers'' LPT.', 'true | false', .false.)
+      &after the solvers'' LPT.', 'true, false', .false.)
 
     call reg%add(PSEC, 'grid', c%grid, '', &
       'Grid or grid+solution file of this phase. Declaring [MDB-Phase1] and &

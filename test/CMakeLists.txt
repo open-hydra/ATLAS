@@ -1606,6 +1606,22 @@ set_tests_properties(same-cut-mismatch PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- MDB : sweep (--sweep R1,R2,...: the best cut per rank count, tabulated)
+# The three-parents deck under `MDB --sweep 4,7,12`: the greedy walk and
+# objective = halo at every rank count of the list in one table, nothing
+# written. The table rows are pinned; the tool's own argument goes after
+# ATLAS.sh's `--`.
+add_test(
+    NAME    sweep
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && ${CMAKE_SOURCE_DIR}/ATLAS.sh MDB -- --sweep 4,7,12 2>&1 | tee sweep.log && sed -n '/ranks  objective/,/^ *$/p' sweep.log | sed '/^ *$/d' > fromATLAStoSolver/sweep.txt && diff fromATLAStoSolver/sweep.txt reference/sweep.txt && test ! -e fromATLAStoSolver/decomposition.map"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/sweep"
+)
+set_tests_properties(sweep PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- MDB : block-directions (per-block split-directions) -------------
 add_test(
     NAME    block-directions

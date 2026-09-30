@@ -1,0 +1,7 @@
+   ranks  objective  blocks  balance   ghost   score  pred.time  spread
+       4  balance         4    87.5%   14.3%    76.6     5633.0   14.3%
+       4  halo            4    87.5%   14.3%    76.6     5633.0   14.3%
+       7  balance         7   100.0%   50.0%    66.7     4354.0   16.7%
+       7  halo            7   100.0%   35.7%    73.7     3458.0    2.7%
+      12  balance        34    93.3%  117.9%    42.8     3660.0   16.0%
+      12  halo           22    93.3%   85.7%    50.3     3208.0   18.2%
