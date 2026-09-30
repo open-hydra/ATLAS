@@ -16,6 +16,7 @@
 !> MOSE_Mod_GhostExchange relies on to build contiguous face groups.
 module split_bc_mod
   use decomposition_mod
+  use bc_scan_mod, only: prop_lines
   implicit none
   private
 
@@ -255,6 +256,31 @@ contains
                     write(line,'(4I8,ES24.16)') q, qi, qj, qk, vf
                     call put(trim(line)//NL)
                   enddo
+
+                case(501)
+                  ! Manifold: the payload names the source block and face whole,
+                  ! not a cell (MOSE_Lib_BC_Fluxes_Manifold averages over the
+                  ! entire face), so the source is the piece that inherited that
+                  ! face entire. A cut through either face was refused at stage 1;
+                  ! the check here only guards the file against a stale decomposition.
+                  call get_line(rec_hdr(r)+1, line)
+                  read(line,*,iostat=ierr) cn(1:2)
+                  if (ierr /= 0) then
+                    write(*,'(A,I0)') ' [ERROR] malformed manifold record at line ', rec_hdr(r)+1
+                    write(*,'(A)')    '         (the solvers read two integers: source block, source face)'
+                    call finish(); return
+                  endif
+                  q = face_piece(dec, cn(1), cn(2))
+                  if (q == 0) then
+                    write(*,'(A,2(X,I0),A)') ' [ERROR] manifold source face', cn(1:2), ' is cut across new blocks'
+                    ierr = 1; call finish(); return
+                  endif
+                  if (face_piece(dec, b, f) /= p) then
+                    write(*,'(A,2(X,I0),A)') ' [ERROR] manifold target face', b, f, ' is cut across new blocks'
+                    ierr = 1; call finish(); return
+                  endif
+                  write(line,'(2(I8,A1))') q, ',', cn(2), ','
+                  call put(trim(line)//NL)
 
                 case default
                   do c = 1, rec_np(r)
@@ -627,33 +653,11 @@ contains
   end subroutine index_copies
 
 
-  !> Number of property lines following a header. The gas and solid files match
-  !> the dispatch of MOSE_IO_BC::Check_BC exactly; a dispersed-phase file is
-  !> written by ATLAS_BCB::write_dp_bc, which emits a property line only for a
-  !> connection, a chimera and a 401-403 inlet -- its walls and symmetries are a
-  !> bare header.
+  !> Number of property lines following a header, under the schema of this
+  !> file: the one table for the pre-scan and the split (bc_scan_mod::prop_lines).
   integer function nprop_lines(t) result(np)
     integer, intent(in) :: t
-
-    select case(t)
-    case(102, 104)
-      np = 1      ! caller replaces this with 1 + ni(1) + ni(2)
-    case(101, 103, 201)
-      np = 1
-    case default
-      if (dp_schema) then
-        select case(t)
-        case(401:403); np = 1
-        case default;  np = 0
-        end select
-      else
-        select case(t)
-        case(301:309, 401:408, 410, 420, 501:506); np = 1   ! gsi 503-506 carry one property line
-        case default;                              np = 0
-        end select
-      endif
-    end select
-
+    np = prop_lines(t, dp_schema)
   end function nprop_lines
 
 

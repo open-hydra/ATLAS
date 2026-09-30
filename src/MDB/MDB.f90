@@ -18,11 +18,13 @@ program MDB
   use partition_mod
   use split_grid_mod
   use split_bc_mod
+  use bc_scan_mod
   use finer, only: file_ini
   implicit none
 
   type(mdb_config_t)    :: cfg
   type(decomposition_t), allocatable :: dec(:)
+  type(bc_scan_t),       allocatable :: scan(:)
   integer               :: lev, gran, ierr
   integer               :: ip, jp, ndonor
   logical               :: write_config_doc, coupled, anysplit, has_level
@@ -56,7 +58,7 @@ program MDB
   if (cfg%min_cells < gran) cfg%min_cells = gran
 
   coupled = cfg%nphase > 1
-  allocate(dec(cfg%nphase))
+  allocate(dec(cfg%nphase), scan(cfg%nphase))
   anysplit = .false.
 
   if (coupled) then
@@ -200,6 +202,14 @@ contains
     allocate(allow(3,nb))
     call load_block_directions(sourceini, nb, cfg%directions, allow)
 
+    ! ── Fine-level boundary conditions ───────────────────────────────────────
+    ! Read once before anything is cut: a manifold (BC 501) ties two whole
+    ! faces together and MOSE refuses the pair on two ranks, so the
+    ! decomposition is checked against those records before it is written.
+    call bc_scan_fine(bc_name(trim(cfg%phase(ip)%bc_in), 1, trim(cfg%phase(ip)%prefix)), nb, pdim, &
+                      cfg%phase(ip)%dispersed, scan(ip), err)
+    if (err /= 0) stop 1
+
     ! ── Decomposition ────────────────────────────────────────────────────────
     write(*,*)
     write(*,'(A,I0,A)') ' Decomposing for ', cfg%phase(ip)%ranks, ' MPI ranks ...'
@@ -209,6 +219,9 @@ contains
     call dec_finalize(dec(ip))
     call lpt_assign(dec(ip), cfg%phase(ip)%ranks, owner, bal)
     call report_decomposition(dec(ip), cfg%phase(ip)%ranks, owner, orig_cells)
+
+    call check_manifold_pairs(scan(ip), dec(ip), owner, err)
+    if (err /= 0) stop 1
 
     call dec_write_map(dec(ip), trim(cfg%phase(ip)%map_file), owner)
     call append_face_map(trim(cfg%phase(ip)%map_file), dec(ip))

@@ -1456,6 +1456,57 @@ set_tests_properties(grid-p3d-3D PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- MDB : manifold-remap (a BC 501 payload survives the split) -------------
+# A manifold names a whole block face, not a cell (MOSE's BC_Manifold averages
+# the entire source face and scales the mass flux by the entire target face),
+# and MOSE aborts when the two blocks of a pair sit on different ranks.
+# check-manifold.py holds the split file against the original one and the map:
+# the payload renumbered to the piece that inherited the source face entire,
+# both faces whole, both pieces on one rank. Copying the payload raw, as MDB did
+# until 2026-09, leaves it pointing at a block whose face is now a cut.
+add_test(
+    NAME    manifold-remap
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-manifold.py fromATLAStoSolver/bc.txt fromATLAStoSolver/INPUT-split/bc.txt fromATLAStoSolver/decomposition.map && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-remap"
+)
+set_tests_properties(manifold-remap PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : manifold-split-ranks (a BC 501 pair LPT puts on two ranks) --------
+# The same mesh on 3 ranks: the solver's own LPT separates the two blocks of the
+# manifold, which MOSE refuses at start-up (abort_if_split). MDB has to say so
+# with the decomposition in front of the user instead of writing the files.
+# `!` inverts the status and the grep pins the reason (WILL_FAIL would accept
+# any crash).
+add_test(
+    NAME    manifold-split-ranks
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'MOSE aborts at start-up when the two blocks of a manifold' mdb.log && test ! -e fromATLAStoSolver/INPUT-split/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-split-ranks"
+)
+set_tests_properties(manifold-split-ranks PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : manifold-face-cut (a BC 501 source face cut tangentially) ---------
+# The same mesh with block 1 restricted to j cuts, so its face 2 -- the source
+# of the manifold -- is shared by two new blocks. A 501 payload cannot name half
+# a face: MDB refuses and names the direction that keeps it whole.
+add_test(
+    NAME    manifold-face-cut
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'draws from block 1 face 2, which is cut across new blocks' mdb.log && grep -q 'split-directions = i' mdb.log && test ! -e fromATLAStoSolver/INPUT-split/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-face-cut"
+)
+set_tests_properties(manifold-face-cut PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- MDB : block-directions (per-block split-directions) -------------
 add_test(
     NAME    block-directions
