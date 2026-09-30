@@ -1523,6 +1523,38 @@ set_tests_properties(gsi-melting PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- MDB : objective = halo (the search against the greedy walk) ------------
+# Each case is run twice: input.ini under objective = halo, then greedy.ini,
+# the same deck under objective = balance, into fromATLAStoSolver/greedy/.
+# analyse_decomp.py --assert-better scores both maps with MDB's own objective
+# and fails unless the searched cut is strictly better: that is the gate, and
+# it is red when the search is stubbed back to the greedy path, where the byte
+# diff of the map is red on any change. The 48^3 cases pin the map only; their
+# boundary file is checked by check-bc.py, not stored.
+foreach(_case cube48-r12 cube48-r20)
+  add_test(
+      NAME    ${_case}
+      COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && mkdir -p fromATLAStoSolver/greedy && ${CMAKE_SOURCE_DIR}/ATLAS.sh -i greedy.ini MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/analyse_decomp.py --assert-better fromATLAStoSolver/greedy/decomposition.map fromATLAStoSolver/decomposition.map"
+      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/${_case}"
+  )
+  set_tests_properties(${_case} PROPERTIES
+      LABELS      "MDB;regression"
+      TIMEOUT     300
+      ENVIRONMENT "${_TEST_ENV}"
+  )
+endforeach()
+
+add_test(
+    NAME    three-parents
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt && mkdir -p fromATLAStoSolver/greedy && ${CMAKE_SOURCE_DIR}/ATLAS.sh -i greedy.ini MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/analyse_decomp.py --assert-better fromATLAStoSolver/greedy/decomposition.map fromATLAStoSolver/decomposition.map"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/three-parents"
+)
+set_tests_properties(three-parents PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- MDB : block-directions (per-block split-directions) -------------
 add_test(
     NAME    block-directions
