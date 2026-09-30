@@ -1555,6 +1555,23 @@ set_tests_properties(three-parents PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- MDB : objective = cost (the predicted rank time against the greedy walk)
+# The same deck as three-parents under objective = cost with the coefficients
+# of cost.dat, then greedy.ini priced with the same file. Both logs carry the
+# `Predicted rank time (max)` of MDB's own model and check-predicted-time.py
+# fails unless the searched cut predicts strictly less: the gate, red when the
+# search is stubbed back to the greedy path.
+add_test(
+    NAME    three-parents-cost
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && mkdir -p fromATLAStoSolver/greedy && ${CMAKE_SOURCE_DIR}/ATLAS.sh -i greedy.ini MDB 2>&1 | tee greedy.log && python3 ${CMAKE_SOURCE_DIR}/scripts/check-predicted-time.py mdb.log greedy.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/three-parents-cost"
+)
+set_tests_properties(three-parents-cost PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- MDB : block-directions (per-block split-directions) -------------
 add_test(
     NAME    block-directions

@@ -1,0 +1,9 @@
+# Coefficients of the [MDB-Cost] model for this test: not measured, chosen so
+# that the faces and the exchange weigh more than under the unit defaults.
+c-cell          1.0
+c-face-wall     3.0     ; a viscous wall costs three cells
+c-face-inout    2.0
+c-ghost         0.5
+c-msg           50.0    ; latency
+c-byte          0.1
+bytes-per-cell  40      # five 8-byte primitives
