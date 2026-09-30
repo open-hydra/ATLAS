@@ -256,6 +256,13 @@ contains
                         'Extend the overset search to every unresolved face, whatever '// &
                         'its declared type. Facelets without donors keep their own BC.', &
                         '', .false.)
+    case ('MDB')
+      call registry%add('ATLAS-Parameters', 'MDB-file', cfg%input_file, 'input.ini', &
+                        'INI file containing the MDB parameters.', '', .false.)
+      call registry%add('ATLAS-Parameters', 'MG-levels', cfg%mg_levels, '1', &
+                        'Number of multigrid levels the solver will run. Every cut is placed at a '// &
+                        'multiple of 2^(MG-levels-1) so that each coarse level cuts at an integer index '// &
+                        'too, and one BC file per level is rewritten.', '>=1', .false.)
     end select
     call registry%add('ATLAS-Parameters', 'strict-keys', cfg%strict_keys, 'T', &
                       'F turns the error on a key the tool does not read (or not honoured by the '// &
