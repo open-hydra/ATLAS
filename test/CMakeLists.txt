@@ -1507,6 +1507,22 @@ set_tests_properties(manifold-face-cut PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- MDB : gsi-melting (a BC 503 record and its property line) --------------
+# The 503-506 gas-surface records carry one property line, which MDB read as a
+# bare header until f433f27: the property line was then taken for the next
+# header and the file rejected. The reference pins one property line per 503
+# record after the cut, and check-bc.py counts the file complete with them.
+add_test(
+    NAME    gsi-melting
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/gsi-melting"
+)
+set_tests_properties(gsi-melting PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- MDB : block-directions (per-block split-directions) -------------
 add_test(
     NAME    block-directions
