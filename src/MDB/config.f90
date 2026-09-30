@@ -44,6 +44,10 @@ module config_mdb_mod
     real(R8)            :: balance_tol = 2.0_R8             !< % above the ideal load a block may keep whole
     type(cost_coef_t)   :: cost                             !< [MDB-Cost] coefficients
     character(len=llen) :: cost_file  = ''                  !< measured table overriding them
+    !> Coupled phases that share the mesh (a gas and its Eulerian condensed
+    !> phase) get one decomposition, phase 1's, so that every cell of one phase
+    !> sits on the rank of the same cell of the other by construction.
+    logical             :: same_cut   = .false.
     character(len=llen) :: grid       = ''                   !< '' -> autodetect
     character(len=llen) :: grid_out   = ''                   !< '' -> <grid>-split.<ext>
     character(len=llen) :: bc_in      = 'INPUT'
@@ -103,6 +107,7 @@ contains
     call fini%get(section_name=SEC, option_name='objective',        val=cfg%objective,  error=error)
     call fini%get(section_name=SEC, option_name='blocks-per-rank',  val=cfg%blocks_per_rank, error=error)
     call fini%get(section_name=SEC, option_name='balance-tolerance',val=cfg%balance_tol,error=error)
+    call fini%get(section_name=SEC, option_name='same-cut',         val=cfg%same_cut,   error=error)
 
     if (cfg%min_cells  <= 0) cfg%min_cells  = 4 * 2**(cfg%mg_levels-1)
     if (cfg%max_blocks <= 0) cfg%max_blocks = max(8*cfg%ranks, 1)
@@ -345,6 +350,13 @@ contains
       'MOSE phase prefix of the BC files (<prefix>bc.txt).', '', .false.)
     call reg%add(SEC, 'map-file', c%map_file, 'decomposition.map', &
       'File recording the new-block to parent-block mapping.', '', .false.)
+
+    call reg%add(SEC, 'same-cut', c%same_cut, 'false', &
+      'Coupled mode only. true applies the decomposition of [MDB-Phase1] to every other phase, which &
+      &must share its mesh block for block (a gas and its Eulerian condensed phase): every cell of one &
+      &phase then sits on the rank of the same cell of the other by construction. false decomposes each &
+      &phase on its own and reports how many type-103/104 interface cells face a partner on another rank &
+      &after the solvers'' LPT.', 'true | false', .false.)
 
     call reg%add(PSEC, 'grid', c%grid, '', &
       'Grid or grid+solution file of this phase. Declaring [MDB-Phase1] and &

@@ -22,7 +22,9 @@ module bc_scan_mod
     integer              :: ntot = 0        !< boundary cells of one copy of the table
     integer, allocatable :: obase(:), fbase(:,:), pnm(:,:), pnn(:,:)
     integer, allocatable :: ctype(:)        !< BC id of every boundary cell (first copy)
-    integer, allocatable :: donor(:,:)      !< (4,ntot) donor block,i,j,k of a 101/103/201 record, 0 otherwise
+    integer, allocatable :: cell(:,:)       !< (4,ntot) block,i,j,k of every boundary cell
+    integer, allocatable :: donor(:,:)      !< (4,ntot) donor block,i,j,k of a 101/103/201 record, the first
+                                            !< donor of a 102/104 one, 0 otherwise
     integer              :: nman = 0        !< distinct manifold pairs
     integer, allocatable :: man(:,:)        !< (4,nman) target block, target face, source block, source face
   end type bc_scan_t
@@ -105,8 +107,9 @@ contains
     if (.not. ex) return
 
     call ordinal_layout(nb, dim, scan%obase, scan%fbase, scan%pnm, scan%pnn, scan%ntot)
-    allocate(scan%ctype(scan%ntot), scan%donor(4,scan%ntot), scan%man(4,8))
+    allocate(scan%ctype(scan%ntot), scan%cell(4,scan%ntot), scan%donor(4,scan%ntot), scan%man(4,8))
     scan%ctype = 0
+    scan%cell  = 0
     scan%donor = 0
     scan%nman  = 0
 
@@ -155,6 +158,7 @@ contains
       endif
       if (scan%ctype(ord) == 0) then
         scan%ctype(ord) = h(6)
+        scan%cell(:,ord) = h(1:4)
         select case(h(6))
         case(101, 103, 201)
           read(u,'(A)',iostat=ios) line
@@ -166,6 +170,18 @@ contains
           endif
           scan%donor(:,ord) = d
           np = np - 1
+        case(102, 104)
+          if (np >= 1) then
+            read(u,'(A)',iostat=ios) line
+            il = il + 1
+            if (ios == 0) read(line,*,iostat=ios) d(1:4)
+            if (ios /= 0) then
+              write(*,'(A,I0)') ' [ERROR] malformed chimera donor at line ', il
+              ierr = 1; exit
+            endif
+            scan%donor(:,ord) = d
+            np = np - 1
+          endif
         case(501)
           read(u,'(A)',iostat=ios) line
           il = il + 1

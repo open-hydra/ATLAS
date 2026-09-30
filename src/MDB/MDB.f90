@@ -23,9 +23,15 @@ program MDB
   use finer, only: file_ini
   implicit none
 
+  !> The rank of every piece, kept per phase for the interface count.
+  type :: owner_t
+    integer, allocatable :: r(:)
+  end type owner_t
+
   type(mdb_config_t)    :: cfg
   type(decomposition_t), allocatable :: dec(:)
   type(bc_scan_t),       allocatable :: scan(:)
+  type(owner_t),         allocatable :: own(:)
   integer               :: lev, gran, ierr
   integer               :: ip, jp, ndonor
   logical               :: write_config_doc, coupled, anysplit, has_level
@@ -59,12 +65,15 @@ program MDB
   if (cfg%min_cells < gran) cfg%min_cells = gran
 
   coupled = cfg%nphase > 1
-  allocate(dec(cfg%nphase), scan(cfg%nphase))
+  allocate(dec(cfg%nphase), scan(cfg%nphase), own(cfg%nphase))
   anysplit = .false.
 
   if (coupled) then
     write(*,'(A,I0,A)') ' Coupled mode: ', cfg%nphase, ' phases'
+    if (cfg%same_cut) write(*,'(A)') ' same-cut: the decomposition of phase 1 is applied to every phase'
     write(*,*)
+  elseif (cfg%same_cut) then
+    write(*,'(A)') ' [WARNING] same-cut needs [MDB-Phase1] and [MDB-Phase2]: ignored for a single phase'
   endif
 
   ! ════ Stage 1: decompose every phase and write its grid ═══════════════════
@@ -77,6 +86,8 @@ program MDB
     endif
     call decompose_phase(ip)
   enddo
+
+  if (coupled) call report_interface()
 
   if (coupled .and. .not. anysplit) then
     write(*,'(A)') ' Nothing to split: every phase already meets the target.'
@@ -151,6 +162,7 @@ contains
     integer, allocatable :: owner(:), pdim(:,:)
     real(8)              :: bal
     integer              :: b, d, nb, orig_cells, err
+    logical              :: same
     character(len=llen)  :: gridfile, gridout
 
     ! ── Grid import ──────────────────────────────────────────────────────────
@@ -194,6 +206,32 @@ contains
       stop 1
     endif
 
+    ! ── same-cut: this phase takes phase 1's decomposition ───────────────────
+    ! Only meaningful when the phases share the mesh block for block and are
+    ! balanced for the same ranks: then the same pieces get the same LPT owners
+    ! and every cell of one phase sits on the rank of its twin in the other.
+    same = cfg%same_cut .and. coupled .and. ip > 1
+    if (same) then
+      if (nb /= dec(1)%nparent) then
+        write(*,'(A,I0,A,I0,A)') ' [ERROR] same-cut needs the phases to share the mesh: phase ', ip, &
+          ' has ', nb, ' blocks, phase 1 has ', dec(1)%nparent
+        stop 1
+      endif
+      do b = 1, nb
+        if (any(pdim(:,b) /= dec(1)%pdim(:,b))) then
+          write(*,'(A,I0,A,I0,A,3(X,I0),A,3(X,I0))') ' [ERROR] same-cut needs the phases to share the mesh: block ', &
+            b, ' of phase ', ip, ' is', pdim(:,b), ' cells, of phase 1', dec(1)%pdim(:,b)
+          write(*,'(A)') '         decompose the phases on their own (same-cut = false)'
+          stop 1
+        endif
+      enddo
+      if (cfg%phase(ip)%ranks /= cfg%phase(1)%ranks) then
+        write(*,'(A,I0,A,I0,A,I0)') ' [ERROR] same-cut needs the phases balanced for the same ranks: phase ', &
+          ip, ' has ', cfg%phase(ip)%ranks, ', phase 1 has ', cfg%phase(1)%ranks
+        stop 1
+      endif
+    endif
+
     ! ── Per-block split directions ───────────────────────────────────────────
     if (len_trim(input_file) > 0) then
       call build_INI(prog='MDB', nb=nb, inisource=sourceini, input_file=trim(input_file))
@@ -215,7 +253,13 @@ contains
     write(*,*)
     write(*,'(A,I0,A)') ' Decomposing for ', cfg%phase(ip)%ranks, ' MPI ranks ...'
     call dec_init(dec(ip), nb, pdim)
-    if (trim(cfg%objective) == 'balance') then
+    if (same) then
+      write(*,'(A)') '   same-cut: decomposition of phase 1 applied'
+      deallocate(dec(ip)%piece)
+      allocate(dec(ip)%piece(dec(1)%npieces))
+      dec(ip)%piece   = dec(1)%piece(1:dec(1)%npieces)
+      dec(ip)%npieces = dec(1)%npieces
+    elseif (trim(cfg%objective) == 'balance') then
       call build_decomposition(dec(ip), cfg%phase(ip)%ranks, cfg%target_bal, cfg%halo_weight, &
                                cfg%max_blocks, cfg%min_cells, gran, allow, verbose)
     else
@@ -231,6 +275,7 @@ contains
     endif
     call dec_finalize(dec(ip))
     call lpt_assign(dec(ip), cfg%phase(ip)%ranks, owner, bal)
+    own(ip)%r = owner
     call report_decomposition(dec(ip), cfg%phase(ip)%ranks, owner, orig_cells, trim(cfg%objective), &
                               cfg%halo_weight, scan(ip), cfg%cost)
 
@@ -266,6 +311,33 @@ contains
     write(*,*)
 
   end subroutine decompose_phase
+
+
+  !> How many type-103/104 cells of each phase face a partner the solvers' LPT
+  !> puts on another rank: the exchange the coupling will pay for over MPI.
+  !> A volumetric coupling has no such records and, under same-cut, sits on
+  !> one rank cell for cell by construction.
+  subroutine report_interface()
+    integer :: ip, jp, o, p, q, ntot, nmpi
+
+    if (cfg%nphase /= 2) return
+    do ip = 1, 2
+      jp = 3 - ip
+      if (.not. scan(ip)%ok) cycle
+      ntot = 0; nmpi = 0
+      do o = 1, scan(ip)%ntot
+        if (scan(ip)%ctype(o) /= 103 .and. scan(ip)%ctype(o) /= 104) cycle
+        ntot = ntot + 1
+        p = dec_locate(dec(ip), scan(ip)%cell(1,o), scan(ip)%cell(2,o), scan(ip)%cell(3,o), scan(ip)%cell(4,o))
+        q = dec_locate(dec(jp), scan(ip)%donor(1,o), scan(ip)%donor(2,o), scan(ip)%donor(3,o), scan(ip)%donor(4,o))
+        if (p == 0 .or. q == 0) cycle
+        if (own(ip)%r(p) /= own(jp)%r(q)) nmpi = nmpi + 1
+      enddo
+      if (ntot > 0) write(*,'(A,I0,A,I0,A,I0,A,I0,A)') ' Interface over MPI (phase ', ip, ' -> ', jp, '): ', &
+        nmpi, ' of ', ntot, ' type-103/104 cells face a partner on another rank'
+    enddo
+
+  end subroutine report_interface
 
 
   subroutine command_line_argument()
