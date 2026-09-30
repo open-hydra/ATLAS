@@ -12,6 +12,7 @@
 !> candidate that scores best under the objective:
 !>
 !>   halo   balance / (1 + halo_weight * ghost_overhead), the greedy's own score
+!>   cost   the smallest predicted rank time of cost_mod
 !>
 !> Every candidate is judged as the solver will see it: pieces in their final
 !> numbering, assigned by the solver's own LPT on cell counts (lpt_assign). The
@@ -20,6 +21,8 @@
 module search_mod
   use decomposition_mod
   use partition_mod, only: lpt_assign, halo_overhead, max_subdivisions
+  use bc_scan_mod,   only: bc_scan_t
+  use cost_mod,      only: cost_coef_t, cost_evaluate
   implicit none
   private
 
@@ -44,18 +47,22 @@ contains
   !> Replace the trivial decomposition `dec` by the best-scoring one.
   !>
   !> nranks, max_blocks, min_cells, gran, allow_dir : as for build_decomposition
-  !> objective       : 'halo'
+  !> objective       : 'halo' or 'cost'
   !> blocks_per_rank : the search starts at nranks * blocks_per_rank parts
   !> balance_tol     : a parent within this percentage above the ideal load per
   !>                   part is left whole
+  !> scan, coef      : the scanned fine-level BC file and the [MDB-Cost]
+  !>                   coefficients, needed by objective = cost
   subroutine search_decomposition(dec, nranks, objective, target_bal, halo_weight, max_blocks, min_cells, &
-                                  gran, allow_dir, blocks_per_rank, balance_tol, verb)
+                                  gran, allow_dir, blocks_per_rank, balance_tol, verb, scan, coef)
     type(decomposition_t), intent(inout) :: dec
     integer,               intent(in)    :: nranks, max_blocks, min_cells, gran, blocks_per_rank
     character(len=*),      intent(in)    :: objective
     real(8),               intent(in)    :: target_bal, halo_weight, balance_tol
     logical,               intent(in)    :: allow_dir(:,:)
     logical,               intent(in)    :: verb
+    type(bc_scan_t),       intent(in), optional :: scan
+    type(cost_coef_t),     intent(in), optional :: coef
     ! Local
     integer :: nb, b, d, nparts, n_lo, n_hi, nvec, ntried, neval, sweep, k
     integer :: total, best_nparts
@@ -130,8 +137,15 @@ contains
       call evaluate(choice, value, bal, halo)
       ntried = ntried + 1
 
-      if (verb) write(*,'(A,I0,A,F0.1,A,F0.1,A,F0.1,A)') '    ', nparts, ' parts: score ', value, &
-        '  (balance ', bal, '%, ghost ', halo, '%)'
+      if (verb) then
+        if (trim(objective) == 'cost') then
+          write(*,'(A,I0,A,F0.1,A,F0.1,A,F0.1,A)') '    ', nparts, ' parts: predicted rank time ', -value, &
+            '  (balance ', bal, '%, ghost ', halo, '%)'
+        else
+          write(*,'(A,I0,A,F0.1,A,F0.1,A,F0.1,A)') '    ', nparts, ' parts: score ', value, &
+            '  (balance ', bal, '%, ghost ', halo, '%)'
+        endif
+      endif
 
       if (value > best_value) then
         best_value  = value
@@ -213,11 +227,16 @@ contains
       integer, intent(in)  :: ch(:)
       real(8), intent(out) :: v, b, h
       integer, allocatable :: owner(:)
+      real(8) :: tmax, tmean
 
       call build_candidate(ch, cand)
       call lpt_assign(cand, nranks, owner, b)
       h = halo_overhead(cand)
       select case (trim(objective))
+      case ('cost')
+        ! Lower time is better: the search maximises its negative
+        call cost_evaluate(cand, owner, nranks, scan, coef, tmax, tmean)
+        v = -tmax
       case default   ! 'halo'
         v = b / (1.0d0 + halo_weight * h / 100.0d0)
       end select

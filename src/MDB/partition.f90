@@ -22,6 +22,8 @@
 !> the historical balance-only behaviour.
 module partition_mod
   use decomposition_mod
+  use bc_scan_mod, only: bc_scan_t
+  use cost_mod,    only: cost_coef_t, cost_evaluate
   implicit none
   private
 
@@ -212,17 +214,24 @@ contains
 
 
   !> `objective` and `halo_weight` add the score line of a searched
-  !> decomposition; without them the report is the one the greedy always printed.
-  subroutine report_decomposition(dec, nranks, owner, orig_cells, objective, halo_weight)
-    type(decomposition_t), intent(in) :: dec
+  !> decomposition; `scan` and `coef`, when the BC file was scanned, add the
+  !> predicted rank time of the cost model beside the balance and the ghost
+  !> overhead, whatever the objective. Without them the report is the one the
+  !> greedy always printed.
+  subroutine report_decomposition(dec, nranks, owner, orig_cells, objective, halo_weight, scan, coef)
+    type(decomposition_t), intent(inout) :: dec
     integer,               intent(in) :: nranks, owner(:)
     integer,               intent(in) :: orig_cells
     character(len=*),      intent(in), optional :: objective
     real(8),               intent(in), optional :: halo_weight
+    type(bc_scan_t),       intent(in), optional :: scan
+    type(cost_coef_t),     intent(in), optional :: coef
     ! Local
     integer :: p, r, cells, wmin, wmax
     integer, allocatable :: load(:)
-    real(8) :: bal, ideal, halo
+    real(8) :: bal, ideal, halo, tmax, tmean
+    real(8), allocatable :: rank_time(:)
+    logical :: priced
 
     allocate(load(0:max(nranks,1)-1))
     load = 0
@@ -261,6 +270,17 @@ contains
       endif
     endif
 
+    ! The cost model, once the BC file is known: the spread of predicted time
+    ! over the ranks the solver will form, beside the cell balance above
+    priced = .false.
+    if (present(scan) .and. present(coef)) priced = scan%ok
+    if (priced) then
+      call cost_evaluate(dec, owner, nranks, scan, coef, tmax, tmean, rank_time)
+      write(*,'(A,T35,F0.1)')   '   Predicted rank time (max)', tmax
+      write(*,'(A,T35,F5.1,A)') '   Predicted cost balance', 100.0d0 * tmean / max(tmax, tiny(1.0d0)), '% of ideal'
+      write(*,'(A,T35,F5.1,A)') '   Predicted rank-time spread', 100.0d0 * (tmax / max(tmean, tiny(1.0d0)) - 1.0d0), '%'
+    endif
+
     if (dec%npieces < nranks) &
       write(*,'(A,I0,A,I0,A)') '   [WARNING] only ', dec%npieces, ' of ', nranks, ' ranks will have work'
 
@@ -269,10 +289,17 @@ contains
 
     if (verbose_ranks(nranks)) then
       write(*,*)
-      write(*,'(A)') '   rank      cells   blocks'
-      do r = 0, nranks-1
-        write(*,'(I7,I11,I9)') r, load(r), count(owner == r)
-      enddo
+      if (priced) then
+        write(*,'(A)') '   rank      cells   blocks   predicted time'
+        do r = 0, nranks-1
+          write(*,'(I7,I11,I9,F17.1)') r, load(r), count(owner == r), rank_time(r)
+        enddo
+      else
+        write(*,'(A)') '   rank      cells   blocks'
+        do r = 0, nranks-1
+          write(*,'(I7,I11,I9)') r, load(r), count(owner == r)
+        enddo
+      endif
     endif
 
   end subroutine report_decomposition

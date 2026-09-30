@@ -219,14 +219,20 @@ contains
       call build_decomposition(dec(ip), cfg%phase(ip)%ranks, cfg%target_bal, cfg%halo_weight, &
                                cfg%max_blocks, cfg%min_cells, gran, allow, verbose)
     else
+      if (trim(cfg%objective) == 'cost' .and. .not. scan(ip)%ok) then
+        write(*,'(A)') ' [ERROR] objective = cost prices the faces by their boundary conditions, so it needs'
+        write(*,'(A)') '         the fine-level BC file before the decomposition: '// &
+          trim(bc_name(trim(cfg%phase(ip)%bc_in), 1, trim(cfg%phase(ip)%prefix)))//' not found'
+        stop 1
+      endif
       call search_decomposition(dec(ip), cfg%phase(ip)%ranks, trim(cfg%objective), cfg%target_bal, &
                                 cfg%halo_weight, cfg%max_blocks, cfg%min_cells, gran, allow, &
-                                cfg%blocks_per_rank, cfg%balance_tol, verbose)
+                                cfg%blocks_per_rank, cfg%balance_tol, verbose, scan(ip), cfg%cost)
     endif
     call dec_finalize(dec(ip))
     call lpt_assign(dec(ip), cfg%phase(ip)%ranks, owner, bal)
     call report_decomposition(dec(ip), cfg%phase(ip)%ranks, owner, orig_cells, trim(cfg%objective), &
-                              cfg%halo_weight)
+                              cfg%halo_weight, scan(ip), cfg%cost)
 
     call check_manifold_pairs(scan(ip), dec(ip), owner, err)
     if (err /= 0) stop 1
