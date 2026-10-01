@@ -92,16 +92,10 @@ jobs:
         run: |
           ulimit -s unlimited || true
           # Every GPB-labelled test needs the GPB conda environment (cantera): the job above runs them.
-          # x-variable is skipped with ifx: its RELEASE output differs from the gfortran reference
-          # in the last printed digit, and the test compares it exactly.
-          # IG-chimera+connection is skipped with ifx until issue #17 is settled: with ifx 2026.1 and
-          # its default floating-point model one chimera weight of that case differs from the gfortran
-          # reference, on main before this pull request too (with -fp-model precise it matches).
-          if [ "${{ matrix.compilers }}" = intel ]; then
-            ctest --test-dir build --output-on-failure --timeout 300 -LE GPB -E '^(x-variable|IG-chimera\+connection)$'
-          else
-            ctest --test-dir build --output-on-failure --timeout 300 -LE GPB
-          fi
+          # Both rows run the same tests: cmake/SetFortranFlags.cmake builds with -fp-model precise
+          # under ifx, which gives the gfortran references of x-variable and IG-chimera+connection
+          # (issue #17).
+          ctest --test-dir build --output-on-failure --timeout 300 -LE GPB
 
   # OpenMP build under AddressSanitizer and UndefinedBehaviorSanitizer (gfortran -O1 -g), with
   # floating-point traps and signalling-NaN initialisation of reals: a test fails on a heap or
@@ -112,7 +106,12 @@ jobs:
   # environment of the job.
   # - cmake is called directly because install.sh cannot pass compiler flags. FF repeats the
   #   general flags of cmake/SetFortranFlags.cmake, which adds none of its own when the three
-  #   CMAKE_Fortran_FLAGS_<type> variables are given.
+  #   CMAKE_Fortran_FLAGS_<type> variables are given, except -march=native.
+  # - The target is x86-64-v3 (AVX2), not -march=native: the job runs on different processors, and
+  #   where -march=native enables AVX-512 (Sapphire and Emerald Rapids, Zen 4) gfortran 13 copies
+  #   64-byte character temporaries with aligned 512-bit moves. ASan's fake stack (on by default in
+  #   the libasan of Ubuntu 24.04: detect_stack_use_after_return) aligns them to 32 bytes only, so
+  #   on those processors every ideal-gas test crashed in input_keys_set_phases (PR #18).
   # - Bounds checking is off (-fcheck=all,no-bounds): with -fcheck=bounds, gfortran 12.3 stops
   #   every test whose mesh has one or two blocks in import_nodes (src/common/grid.f90), a false
   #   positive on the component subscripts of its class(block_type) array dummy.
@@ -136,7 +135,7 @@ jobs:
 
       - name: Configure (OpenMP, ASan/UBSan)
         run: |
-          FF="-fno-underscoring -march=native -cpp -ffree-line-length-none -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fcheck=all,no-bounds -ffpe-trap=invalid,zero,overflow -finit-real=snan"
+          FF="-fno-underscoring -march=x86-64-v3 -cpp -ffree-line-length-none -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fcheck=all,no-bounds -ffpe-trap=invalid,zero,overflow -finit-real=snan"
           cmake -S . -B build -DORION_PATH="$PWD/lib/ORION/" -DFINER_PATH="$PWD/lib/third_party/FiNeR/" -DCEA_PATH="$PWD/lib/cea/" \
             -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_CXX_COMPILER=g++ -DUSE_TECIO=false -DUSE_OPENMP=true \
             -DCMAKE_Fortran_FLAGS="$FF" -DCMAKE_Fortran_FLAGS_RELEASE=-O1 -DCMAKE_Fortran_FLAGS_DEBUG=-O1 -DCMAKE_Fortran_FLAGS_TESTING=-O1 \
