@@ -100,3 +100,7 @@ if(USE_TECIO)
   target_link_libraries(STB PRIVATE -pthread)
   target_link_libraries(MDB PRIVATE -pthread)
 endif()
+
+# TecIO is C++, so CMake would link with the C++ driver; ifx keeps the program's
+# main() in for_main.o, which only the Fortran driver adds (gfortran emits it inline).
+set_target_properties(ICB BCB STB MDB PROPERTIES LINKER_LANGUAGE Fortran)
