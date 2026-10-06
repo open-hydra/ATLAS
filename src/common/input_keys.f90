@@ -894,7 +894,8 @@ contains
           ! refuses and ifx's accepts: the refusal must not depend on the compiler)
           if (.not. token%is_integer(allow_spaces=.false.) .or. verify(value(i:j), '+-0123456789') /= 0) ios = 1
         else
-          if (.not. token%is_real(allow_spaces=.false.)) ios = 1
+          ! reals: is_number, as is_real refuses an integer-looking value (T = 2000) since StringiFor v1.3.0
+          if (.not. token%is_number(allow_spaces=.false.)) ios = 1
         endif
         if (ios == 0) then
           if (type_id == 1) then
