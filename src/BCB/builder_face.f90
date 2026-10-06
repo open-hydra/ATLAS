@@ -23,9 +23,9 @@ contains
     implicit none
     integer,        intent(in)     :: ib, if
     type(obj_face), intent(inout)  :: face
-    type(file_ini), intent(in)     :: ini_i
+    type(file_ini), intent(inout)  :: ini_i
     type(phase_t),  intent(in)     :: phase
-    type(file_ini), intent(in)     :: source_ini
+    type(file_ini), intent(inout)  :: source_ini
     ! Local
     type(file_ini)                :: ini_o
     type(file_ini)                :: ini_inner, ini_outer

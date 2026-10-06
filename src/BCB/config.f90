@@ -206,7 +206,7 @@ contains
   subroutine load_bcb_block_config(sini, section_name, nfaces, cfg)
     use input_keys_mod, only: input_keys_check_section
     implicit none
-    type(file_ini), intent(in)            :: sini
+    type(file_ini), intent(inout)         :: sini
     character(*), intent(in)              :: section_name
     integer, intent(in)                   :: nfaces
     type(bcb_block_config_t), intent(out) :: cfg
@@ -236,7 +236,7 @@ contains
   subroutine check_plate_keys(sini, section, has_range_file)
     use input_keys_mod, only: input_keys_refuse_or_warn
     implicit none
-    type(file_ini), intent(in)   :: sini
+    type(file_ini), intent(inout) :: sini
     character(*), intent(in)     :: section
     logical, intent(in)          :: has_range_file
     character(len=:), allocatable :: option_pairs(:), key
@@ -264,7 +264,7 @@ contains
   subroutine check_phase_type_keys(sini, section, label, definition)
     use input_keys_mod, only: input_keys_phase_key, input_keys_refuse_or_warn
     implicit none
-    type(file_ini), intent(in)   :: sini
+    type(file_ini), intent(inout) :: sini
     character(*), intent(in)     :: section, label, definition
     character(len=:), allocatable :: option_pairs(:), key, why
     character(len=llen) :: pname, ptype
@@ -295,7 +295,7 @@ contains
   subroutine load_bcb_face_setup(sini, bc_name, cfg)
     use input_keys_mod, only: input_keys_check_section
     implicit none
-    type(file_ini), intent(in)           :: sini
+    type(file_ini), intent(inout)        :: sini
     character(*), intent(in)             :: bc_name
     type(bcb_face_setup_t), intent(out)  :: cfg
 
@@ -429,7 +429,7 @@ contains
 
   subroutine load_bcb_face_runtime_config(sourceini, section, cfg)
     implicit none
-    type(file_ini), intent(in)               :: sourceini
+    type(file_ini), intent(inout)            :: sourceini
     character(*), intent(in)                 :: section
     type(bcb_face_runtime_config_t), intent(out) :: cfg
 

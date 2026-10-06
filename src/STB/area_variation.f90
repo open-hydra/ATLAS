@@ -25,7 +25,7 @@ contains
   ! Loop over blocks, look up area profile in INI and write output file
   subroutine build_area_variation(sini, blocks)
     type(block_type), intent(in) :: blocks(:)
-    type(file_ini),    intent(in) :: sini
+    type(file_ini),    intent(inout) :: sini
 
     integer :: b
     character(len=llen) :: section_name
@@ -45,7 +45,7 @@ contains
   ! Find direction key in INI, read profile, interpolate onto nodes, write output
   subroutine area_variation_for_block(block, sini, section_name, block_id)
     type(block_type), intent(in) :: block
-    type(file_ini),    intent(in) :: sini
+    type(file_ini),    intent(inout) :: sini
     character(len=*),  intent(in) :: section_name
     integer,           intent(in) :: block_id
 

@@ -117,7 +117,7 @@ contains
   subroutine input_keys_check_duplicate_sections(filename, ini)
     implicit none
     character(len=*), intent(in) :: filename
-    type(file_ini), intent(in)   :: ini
+    type(file_ini), intent(inout) :: ini
     character(len=1024)              :: buf
     character(len=:), allocatable    :: src, line, head, msg
     character(len=KLEN), allocatable :: hname(:)
@@ -266,7 +266,7 @@ contains
   logical function section_is_read(name, ini)
     implicit none
     character(len=*), intent(in) :: name
-    type(file_ini), intent(in)   :: ini
+    type(file_ini), intent(inout) :: ini
     character(len=:), allocatable :: sections(:), option_pairs(:)
     character(len=KLEN) :: sec
     integer :: s
@@ -386,7 +386,7 @@ contains
   !> is not one, and on the first value outside the allowed set / range of its row.
   subroutine input_keys_check_section(ini, section_name, kind, extra)
     implicit none
-    type(file_ini), intent(in)             :: ini
+    type(file_ini), intent(inout)          :: ini
     character(len=*), intent(in)           :: section_name, kind
     character(len=*), intent(in), optional :: extra(:)
     character(len=:), allocatable :: option_pairs(:)
@@ -430,7 +430,7 @@ contains
   !> section may belong to another tool of a combined input.ini).
   subroutine input_keys_warn_unused(ini)
     implicit none
-    type(file_ini), intent(in) :: ini
+    type(file_ini), intent(inout) :: ini
     character(len=:), allocatable :: sections(:), option_pairs(:)
     character(len=KLEN) :: sec
     integer :: s

@@ -20,7 +20,7 @@ contains
   use composition_check_mod,        only: check_composition, COMPOSITION_TOL
     implicit none
     type(IC_block),   intent(inout)  :: blk
-    type(file_ini),   intent(in)     :: zoneini
+    type(file_ini),   intent(inout)  :: zoneini
     type(config_ig_t), intent(in)    :: ig_cfg
     character(len=*), intent(inout)  :: IC_type
     real(R8),         intent(in)     :: range(6)

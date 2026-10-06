@@ -55,7 +55,7 @@ contains
   function generate_sections_input(prog,fini,nb) result(sini)
     implicit none
     character(len=3), intent(in)  :: prog
-    type(file_ini), intent(in)    :: fini
+    type(file_ini), intent(inout) :: fini
     integer, intent(in)           :: nb
     type(file_ini)                :: sini
     character(len=:), allocatable :: option_pairs(:)

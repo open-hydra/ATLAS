@@ -21,7 +21,7 @@ module ic_builder_mod
     implicit none
     type(phase_t), allocatable, intent(in)     :: phase(:)
     type(IC_block), intent(inout), target :: blocks(:)
-    type(file_ini), intent(in)       :: sini
+    type(file_ini), intent(inout)    :: sini
     ! Local
     character(len=30)             :: zonename, section_name
     character(len=:), allocatable :: option_pairs(:)
@@ -355,7 +355,7 @@ module ic_builder_mod
   subroutine check_zone_numbering(sini, section_name, nread)
     use input_keys_mod, only: input_keys_strict
     use ir_precision,   only: str
-    type(file_ini),   intent(in) :: sini
+    type(file_ini),   intent(inout) :: sini
     character(len=*), intent(in) :: section_name
     integer,          intent(in) :: nread
     character(len=:), allocatable :: option_pairs(:), key
@@ -385,7 +385,7 @@ module ic_builder_mod
     use input_keys_mod, only: input_keys_strict
     use ir_precision,   only: str
     implicit none
-    type(file_ini), intent(in)    :: sini
+    type(file_ini), intent(inout) :: sini
     character(len=*), intent(in)  :: section_name
     character(len=:), allocatable :: option_pairs(:), key, zones, msg
     character(len=30)             :: zonename
@@ -441,7 +441,7 @@ module ic_builder_mod
                           load_rf_config, load_sp_config, load_dp_config
     implicit none
     type(IC_block), intent(inout) :: self
-    type(file_ini), intent(in)    :: zoneini
+    type(file_ini), intent(inout) :: zoneini
     ! Local
     character(len=2)              :: phase_type
     logical                       :: index_based
