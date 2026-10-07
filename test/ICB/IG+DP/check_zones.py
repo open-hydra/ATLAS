@@ -12,7 +12,7 @@ import sys
 def fields(path):
     with open(path) as fh:
         lines = fh.read().split('\n')
-    names = re.findall(r'"([^"]+)"', lines[0])
+    names = [q or b for q, b in re.findall(r'"([^"]+)"|([^\s",]+)', lines[0].split('=', 1)[1])]   # quoted or bare
     ni, nj, nk = map(int, re.search(r'I=(\d+), J=(\d+), K=(\d+)', lines[1]).groups())
     nodal, cell = ni * nj * nk, (ni - 1) * (nj - 1) * (nk - 1)
     vals = ' '.join(lines[2:]).split()
