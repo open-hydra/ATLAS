@@ -22,7 +22,7 @@ contains
     implicit none
     type(phase_t),  intent(in)    :: phase(:)
     type(BC_block), intent(inout) :: blocks(:)
-    type(file_ini), intent(in)    :: sini
+    type(file_ini), intent(inout) :: sini
     ! Local variables
     integer                       :: n_blocks_phase(size(phase))
     integer                       :: ff, n, m, p, b

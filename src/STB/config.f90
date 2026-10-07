@@ -68,7 +68,7 @@ contains
     use input_keys_mod, only: input_keys_check_section
     implicit none
     character(*), intent(in) :: section_name
-    type(file_ini), intent(in) :: sini
+    type(file_ini), intent(inout) :: sini
     type(config_area_variation_t), intent(out) :: cfg
 
     integer :: error

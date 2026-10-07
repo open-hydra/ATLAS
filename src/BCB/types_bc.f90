@@ -62,7 +62,7 @@ module bc_mod
   interface
     module subroutine build_inflow_outflow_ig(self, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
-      type(file_ini),       intent(in)    :: sourceini
+      type(file_ini),       intent(inout) :: sourceini
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
     end subroutine
@@ -77,7 +77,7 @@ module bc_mod
 
     module subroutine build_wall_fluid(self, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
-      type(file_ini),       intent(in)    :: sourceini
+      type(file_ini),       intent(inout) :: sourceini
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
     end subroutine
@@ -112,7 +112,7 @@ module bc_mod
 
     module subroutine build_gsi_ig(self, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
-      type(file_ini),       intent(in)    :: sourceini
+      type(file_ini),       intent(inout) :: sourceini
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
     end subroutine
@@ -142,7 +142,7 @@ contains
     implicit none
     class(bc_t),          intent(inout) :: self
     type(phase_t),        intent(in)    :: phase
-    type(file_ini),       intent(in)    :: sourceini
+    type(file_ini),       intent(inout) :: sourceini
     character(len=*),     intent(in)    :: section
     integer                             :: k
 
