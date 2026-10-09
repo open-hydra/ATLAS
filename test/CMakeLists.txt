@@ -739,14 +739,52 @@ set_tests_properties(IG-chimera+connection PROPERTIES
 # IG-force-chimera's mesh and faces, with the large block in a gas phase and the
 # small one in a solid phase. With BC-force-chimera the facelets that see the
 # other block become chimera; receiver and donor belong to different phases, so
-# both gas-bc.txt and solid-bc.txt write them as 104 instead of 102. Same
+# both gas-bc.txt and solid-bc.txt write them as 104 instead of 102. The donor
+# blocks are numbered in the phase that owns them (check-coupling.py). Same
 # numeric tolerance as IG-chimera.
 add_test(
     NAME    IG+SP-force-chimera
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/solid-bc.txt fromATLAStoSolver/solid-bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/solid-bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/solid-bc.txt fromATLAStoSolver/solid-bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG+SP-force-chimera"
 )
 set_tests_properties(IG+SP-force-chimera PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG+SP-chimera-ks (inter-phase chimera with wall roughness, id 104) --
+# coupled-phases-ks with both sides of the gas/plate interface declared chimera:
+# the overset search finds the donors in the other phase, so both files write 104.
+# The gas section gives ks = 1.0e-5: a fluid phase writes it at the end of the
+# donor-count line of each 104 record, as at the end of a 103 record, and the
+# solid writes none. check-bc.py reads both files, check-coupling.py checks the
+# per-phase donor blocks; same numeric tolerance as IG+SP-force-chimera.
+add_test(
+    NAME    IG+SP-chimera-ks
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/plate-bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/plate-bc.txt fromATLAStoSolver/plate-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG+SP-chimera-ks"
+)
+set_tests_properties(IG+SP-chimera-ks PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG+SP-chimera-corner (104 interface along an L-shaped wall) ------
+# A gas block in the corner of an L-shaped plate (S1, corner block S2, S3), the
+# hydra-AF cooling-channel layout. The ghost cells of the S1 and S3 rows along
+# the corner touch S2 with zero volume; with no S2 donor they must stay 104. A
+# phase test that counted the zero-volume intersections wrote them as 102, and
+# the gas faces in front of them had no partner in hydra-AF. check-bc.py reads
+# both files, check-coupling.py checks the donors; same numeric tolerance as
+# IG+SP-force-chimera.
+add_test(
+    NAME    IG+SP-chimera-corner
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/plate-bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/plate-bc.txt fromATLAStoSolver/plate-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG+SP-chimera-corner"
+)
+set_tests_properties(IG+SP-chimera-corner PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -1423,6 +1461,23 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases-ksfile"
 )
 set_tests_properties(coupled-phases-ksfile PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : coupled-phases-chimera-ks (104 interface with roughness) ----------
+# coupled-phases-ks with both sides of the interface declared chimera: BCB writes
+# 104 records whose donors are numbered in the other phase, the gas ones with the
+# roughness at the end of the donor-count line. MDB remaps the donors against the
+# other phase's decomposition and carries the roughness through the split. Same
+# checks as coupled-phases-ks; the decompositions are those of coupled-phases.
+add_test(
+    NAME    coupled-phases-chimera-ks
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map ../coupled-phases/reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map ../coupled-phases/reference/plate-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/plate-bc.txt reference/plate-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases-chimera-ks"
+)
+set_tests_properties(coupled-phases-chimera-ks PROPERTIES
     LABELS      "MDB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

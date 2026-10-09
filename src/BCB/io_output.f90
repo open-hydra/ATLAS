@@ -101,7 +101,13 @@ module io_write_bc_mod
               write(unitfile,'(A)') ''
 
             case(102, 104)
-              call write_chimera(blk(b)%face(f), f, Ai, Aj, Ak)
+              ! Multi-solver chimera interface: the same trailing wall roughness as a 103,
+              ! at the end of the donor-count line (3-D records only)
+              if (this % gp_id==104 .and. mesh_cfg%meshType>0) then
+                call write_chimera(blk(b)%face(f), f, Ai, Aj, Ak, this % ci_ks)
+              else
+                call write_chimera(blk(b)%face(f), f, Ai, Aj, Ak)
+              endif
 
             end select
 
@@ -430,11 +436,14 @@ module io_write_bc_mod
   end subroutine write_dp_bc
 
 
-  subroutine write_chimera(face, f, Ai, Aj, Ak)
+  !> Chimera payload: the donor-count line, then one line per donor. ks, when given, is
+  !> written at the end of the donor-count line (wall roughness of a 104 interface).
+  subroutine write_chimera(face, f, Ai, Aj, Ak, ks)
     use bc_block_mod, only: obj_face
     implicit none
     type(obj_face), intent(in) :: face
     integer,        intent(in) :: f, Ai, Aj, Ak
+    real(R8), optional, intent(in) :: ks
     ! Local
     integer :: g, ii, jj, kk, i, j, nchi
 
@@ -462,6 +471,7 @@ module io_write_bc_mod
     
     enddo
 
+    if (present(ks)) write(unitfile,'(ES24.16)',advance='no') ks
     write(unitfile,'(A)') ''
 
     do g = 1, 2

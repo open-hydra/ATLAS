@@ -512,7 +512,7 @@ contains
 
     integer :: error
 
-    ! Optional: a connection without ks is a smooth interface
+    ! Optional: a connection or a chimera without ks is a smooth interface
     call sourceini%get(section_name=section, option_name='ks', val=cfg%ks, error=error)
     cfg%has_ks = error == 0
     if (.not. cfg%has_ks) cfg%ks = 0.0_R8

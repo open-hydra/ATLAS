@@ -126,6 +126,26 @@ Example (3-D, `id = 102`, 1 donor for layer 1, 2 donors for layer 2):
 ### `103` — Multi-solver connection
 
 Written for block-to-block connections in multi-solver setups. Similar to `101` but with a different ID to allow separate handling in the solver.
+In the file of a fluid phase (ideal gas or real fluid) of a 3-D mesh the line ends with the wall roughness `ks`
+of the `connection` section (`ES24.16`, `0` when the section gives none); a solid phase writes no roughness.
+
+---
+
+### `104` — Multi-solver chimera
+
+Written instead of `102` when the receiver and its donors belong to different phases (a fluid–solid interface
+found by the overset search). Same payload as `102`, but the donors are cells of the other phase, their block
+numbered in that phase as in its own file (ATLAS block ids restart at 1 for each phase). In the
+file of a fluid phase of a 3-D mesh the counts line ends with the wall roughness `ks` of the `chimera` section,
+as on a `103` record. Example (3-D, gas side, `ks = 1.0e-5`, 2 donors for layer 1, 3 for layer 2):
+
+```
+       1       1       1       1       3     104
+       2       3  1.0000000000000001E-05
+       1       1       7       1  5.4466914445427561E-01
+       1       1       8       1  4.5533085554572433E-01
+       ...
+```
 
 ### `201` — Periodic
 
