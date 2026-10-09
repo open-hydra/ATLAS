@@ -1472,9 +1472,13 @@ set_tests_properties(coupled-phases-ksfile PROPERTIES
 # roughness at the end of the donor-count line. MDB remaps the donors against the
 # other phase's decomposition and carries the roughness through the split. Same
 # checks as coupled-phases-ks; the decompositions are those of coupled-phases.
+# The bc files carry the donor volume fractions, which are not bit-identical across
+# builds (gfortran -O3 -march=native contracts them into FMAs, ifx with -fp-model
+# precise does not): they are compared with numdiff.awk at the tolerance of
+# IG+SP-chimera-ks, the indices and donor counts still exactly.
 add_test(
     NAME    coupled-phases-chimera-ks
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map ../coupled-phases/reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map ../coupled-phases/reference/plate-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/plate-bc.txt reference/plate-bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map ../coupled-phases/reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map ../coupled-phases/reference/plate-decomposition.map && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-bc.txt fromATLAStoSolver/INPUT-split/gas-bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/plate-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases-chimera-ks"
 )
 set_tests_properties(coupled-phases-chimera-ks PROPERTIES
