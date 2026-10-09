@@ -41,8 +41,8 @@ and supersedes the flat `grid` / `grid-out` / `prefix` / `map-file` keys of
 `MDB-Parameters`; with none declared those flat keys describe a single phase, so
 existing single-phase inputs are unaffected.
 
-Coupled mode is **required** whenever the BC files contain type-`103` records.
-A `103` record is the fluid–solid interface, and its donor is numbered in the
+Coupled mode is **required** whenever the BC files contain type-`103` or `104` records.
+A `103` record (connection) or a `104` record (chimera) is the fluid–solid interface, and its donor is numbered in the
 *other* phase — ATLAS block ids restart at 1 for each phase — so the donor can
 only be resolved against that other phase's decomposition. Splitting a coupled
 case one phase at a time cannot do that, and MDB now stops with an error rather

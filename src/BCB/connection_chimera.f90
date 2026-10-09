@@ -620,9 +620,12 @@ contains
     allocate(block(br)%face(fr)%cell(ir,jr,kr)%chimerainfo(1:ni_per_receiver,1:5))
     call ijk2mn(ir,jr,kr,fr,m,n)
     
+    ! 102 when a donor shares a phase with the receiver, 104 otherwise. Only the donors
+    ! written below count: a ghost cell that merely touches a block of its own phase
+    ! (zero intersection volume, as the solid row along a corner block) stays 104
     block(br)%face(fr)%center(m,n)%bc%gp_id = 104
     do i = 1, ni
-      if (all(intersection(i)%receiverID==localID)) then
+      if (all(intersection(i)%receiverID==localID) .and. intersection(i)%inter_volume>vol_tol) then
         do p1 = 1, size(block(br)%associated_phase)
           do p2 = 1, size(block(intersection(i)%donorID(1))%associated_phase)
               if (block(br)%associated_phase(p1)%name==block(intersection(i)%donorID(1))%associated_phase(p2)%name) then
@@ -638,7 +641,11 @@ contains
       if (all(intersection(i)%receiverID==localID)) then
         if (intersection(i)%inter_volume>vol_tol) then
           k = k+1
-          block(br)%face(fr)%cell(ir,jr,kr)%chimerainfo(k,1:4) = real(intersection(i)%donorID)
+          ! donorID(1) indexes block(:), all phases together: the bc files number blocks
+          ! per phase (block%id, as the receiver header and a 101/103 partner), and the
+          ! two differ as soon as another phase comes first (every 104 donor, 102 too)
+          block(br)%face(fr)%cell(ir,jr,kr)%chimerainfo(k,1)   = real(block(intersection(i)%donorID(1))%id)
+          block(br)%face(fr)%cell(ir,jr,kr)%chimerainfo(k,2:4) = real(intersection(i)%donorID(2:4))
           block(br)%face(fr)%cell(ir,jr,kr)%chimerainfo(k,5) = intersection(i)%volume_fraction
         endif
       endif

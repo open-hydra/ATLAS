@@ -226,6 +226,13 @@ contains
                     write(*,'(A,I0)') ' [ERROR] malformed chimera header at line ', rec_hdr(r)+1
                     call finish(); return
                   endif
+                  tail = ''
+                  if (t == 104) then
+                    ! Fluid phases append the interface roughness to the donor-count line of
+                    ! a 104 record, as to a 103 record: carry its text over unchanged.
+                    read(line,*,iostat=ios_tail) cn_tail(1:2), tail
+                    if (ios_tail /= 0) tail = ''
+                  endif
                   ! Inter-phase chimera: the donors are numbered in the other
                   ! phase, so they must be located in that phase's decomposition.
                   if (t == 104 .and. .not. have_donor) then
@@ -235,6 +242,8 @@ contains
                     ierr = 1; call finish(); return
                   endif
                   write(line,'(2I8)') nb1, nb2
+                  if (len_trim(tail) > 0) &
+                    line = trim(line)//repeat(' ', max(1, 16-len_trim(tail)))//trim(tail)
                   call put(trim(line)//NL)
                   do c = 1, nb1+nb2
                     call get_line(rec_hdr(r)+1+c, line)

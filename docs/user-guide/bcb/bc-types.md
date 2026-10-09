@@ -70,10 +70,12 @@ face4 = wall_hot        ; a named section, defined below
 | `symmetry` | `300` | No payload. |
 | `extrapolation` | `400` | No payload. |
 | `connection` | `101` / `103` | Resolved by face-centre matching during the connection pass. |
-| `chimera` | `102` | Resolved by the overset donor search. |
+| `chimera` | `102` / `104` | Resolved by the overset donor search. |
 
 `connection` and `chimera` carry no parameters but do constrain the mesh — read
-[Block Connectivity](./connectivity.md) before using either.
+[Block Connectivity](./connectivity.md) before using either. The one optional key is `ks` (or `ks-file`) in a
+section of a fluid phase: the wall roughness the fluid sees where the face becomes a multi-solver interface,
+written on its `103` (connection) or `104` (chimera) records. `0`, the default, is a smooth interface.
 
 ---
 

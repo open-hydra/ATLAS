@@ -29,7 +29,7 @@ module bc_mod
     integer, allocatable       :: ci_properties(:)
     integer                    :: connection(4)=0
     logical                    :: adj_assigned=.false.
-    real(8)                    :: ci_ks=0.0d0      ! roughness seen by the fluid on a 103 interface
+    real(8)                    :: ci_ks=0.0d0      ! roughness seen by the fluid on a 103/104 interface
     ! Ideal gas
     integer                    :: ig_id=0
     integer                    :: ig_n=0
@@ -167,9 +167,9 @@ contains
 
     case(trim(MARKER_CONN), trim(MARKER_CHIM))
       self % gp_id = 100
-      ! Fluid phases only: the roughness ends up on the 103 records of their bc file
-      if (trim(self % definition)==trim(MARKER_CONN) .and. &
-          (phase % type=='IG' .or. phase % type=='RF')) &
+      ! Fluid phases only: the roughness ends up on the 103 records (connection) and on
+      ! the 104 records (chimera with the other phase) of their bc file
+      if (phase % type=='IG' .or. phase % type=='RF') &
         call build_connection(self, sourceini, section, phase)
       return
 

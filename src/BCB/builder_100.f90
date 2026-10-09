@@ -11,8 +11,8 @@ contains
 
     call load_bcb_connection_config(sourceini, section, cfg)
 
-    ! Wall roughness seen by the fluid when the connection turns into a
-    ! multi-solver interface (103); 0 if not given
+    ! Wall roughness seen by the fluid when the connection or the chimera turns
+    ! into a multi-solver interface (103, 104); 0 if not given
     self % ci_ks = cfg%ks
 
   end procedure build_connection

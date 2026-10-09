@@ -60,7 +60,7 @@ def parse(path, dispersed=False):
         prop = None
         np_ = 0
         if t in (102, 104):
-            n1, n2 = (int(x) for x in lines[il + 1].split())
+            n1, n2 = (int(x) for x in lines[il + 1].split()[:2])   # a 104 may end with ks
             np_ = 1 + n1 + n2
             donors = []
             for c in range(n1 + n2):
