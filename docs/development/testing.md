@@ -41,7 +41,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `ICB-type-refused` | ICB | `ICB/ICB-type-refused` | A zone `type` that no writer knows stops ICB naming the value. |
 | `IG-interp-2D` | ICB | `ICB/IG-interp-2D` | Pure-2D source onto a pure-2D target (index law). |
 | `IG-interp-2Dto3D` | ICB | `ICB/IG-interp-2Dto3D` | Pure-2D source onto a revolved 3D target: the source mesh is classified in its own configuration and the product keeps the 3D layout (tolerance 1e-12). |
-| `IG-interp-rans-src` | ICB | `ICB/IG-interp-rans-src` | Source with a trailing turbulence band: the SA model of the source is adopted and `mi_t` interpolated. |
+| `IG-interp-rans-src` | ICB | `ICB/IG-interp-rans-src` | Source with a trailing turbulence band: the SA model of the source is adopted and `rhoNuTilde` interpolated. |
 | `IG-interp-3D` | ICB | `ICB/IG-interp-3D` | 3D source onto a 3D target (index law). |
 | `IG-interp-extrude` | ICB | `ICB/IG-interp-extrude` | `interpolation-law = extrude` (`theta`, `nz`) on a target revolved with the same cells gives the field of the index law. |
 | `IG-zones-index-direction` | ICB | `ICB/IG-zones-index-direction` | Zones ranged by cell index (`direction = i`) give the field of the same zones ranged by coordinate. |
@@ -52,9 +52,13 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG+DP-phase-order` | ICB | `ICB/IG+DP` | `phase = particles gas` builds as `gas particles`: the dispersed state derives from the gas state. |
 | `ICB-phase-key-refused` | ICB | `ICB/IG+DP` | A phase name that no phase file declares, and a dispersed phase without the gas it derives from, stop ICB naming the cause. |
 | `IG-pfile-oneplane-noK` | ICB | `ICB/IG-pfile-oneplane-2block` | A two-block pure 2-D p-file written without K in its ZONE lines reads like K = 1: the product equals the K = 1 reference. |
-| `IG-zone-interp-range-turb` | ICB | `ICB/IG-zone-interp-range-turb` | A partial interpolation zone that adopts the source turbulence model writes `mi_t` in its range only; the cells of the other zone keep 0. |
+| `IG-zone-interp-range-turb` | ICB | `ICB/IG-zone-interp-range-turb` | A partial interpolation zone that adopts the source turbulence model writes `rhoNuTilde` in its range only; the cells of the other zone keep 0. |
+| `IG-turbulence-specific` | ICB | `ICB/IG-turbulence-specific` | Turbulence keys: the specific `k`, `omega`, `nuTilde` are written times the cell density, the density-weighted `rhoK`, `rhoOmega`, `rhoNuTilde` as given, in the bands `rhoK`, `rhoOmega`, `rhoNuTilde`. |
+| `IG-turbulence-keys-refused` | ICB | `ICB/IG-turbulence-specific` | `k` and `rhoK` in one zone stop ICB (one quantity given twice); the retired `kappa` stops ICB as an unknown key whose hint names `k` and `rhoK`; `nut`, the eddy viscosity, stops it with a hint that names `nuTilde`. |
+| `IG-turbulence-source-names` | ICB | `ICB/IG-turbulence-specific` | Turbulence bands of an interpolation source, by name: the specific `k`, `omega` are multiplied by the density of the source; `rhoK`, `rhoOmega` and the earlier `kappa`, `omega` are carried as they are. |
+| `IG-turbulence-source-names-sa` | ICB | `ICB/IG-turbulence-specific` | Spalart-Allmaras band of an interpolation source, by name: `rhoNuTilde` is carried as it is, `nuTilde` is multiplied by the density of the source, and `mut` (the eddy viscosity) is ignored with a notice. |
 | `IG-range-separator-refused` | ICB | `ICB/IG-multizone` | A TAB between the two values of `range<n>` stops ICB naming the separator (the values are read on blanks). |
-| `IG-turbulence-zero-refused` | ICB | `ICB/IG-turbulence-zero-refused` | A k-omega zone (nrans = 2) with `kappa` and no `omega` stops ICB (omega = 0 would divide in the solver kernels); nothing is written. |
+| `IG-turbulence-zero-refused` | ICB | `ICB/IG-turbulence-zero-refused` | A k-omega zone (nrans = 2) with `k` and no `omega` stops ICB (omega = 0 would divide in the solver kernels); nothing is written. |
 | `IG-state-not-physical` | ICB | `ICB/IG-state-not-physical` | A zone with a negative pressure stops ICB naming the first cell and the state; nothing is written. |
 | `IG-interp-band-refused` | ICB | `ICB/IG-interp-band-refused` | An interpolation source whose band after the velocities is `T`, not `p`, stops ICB naming the band; nothing is written. |
 | `IG-species-profile-linear` | ICB | `ICB/IG-species-profile-linear` | `y<species>-file` tables along x (`yH2` linear, `yN2` its complement) next to a constant `yO2`: every cell holds the analytic mass fractions, summing to 1, and a density that follows its own composition. |
@@ -84,6 +88,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `IG-keys-documented` | BCB | `BCB/IG-keys-documented` | `Ae_At = 0`, `a1-a3 = 0` (not given) are silent; `u` and `p-time-file` get one WARNING each and do not stop BCB. |
 | `IG-nozzle-arearatio` | BCB | `BCB/IG-nozzle-arearatio` | BC 420 from `Ae_At` on a constant-cp gas (closed-form thresholds). |
 | `IG-borda-2D` | BCB | `BCB/IG-borda-2D` | BC 421 Borda injector on a 2D mesh; the product passes `scripts/check-bc.py`. |
+| `IG-turbulence-boundary-weighted` | BCB | `BCB/IG-borda-2D` | `rhoK` on an inlet stops BCB as an unknown key whose hint names the specific `k` (a boundary takes the specific values, weighted by the solver). |
 | `IG-inflow-405a` | BCB | `BCB/IG-inflow-405a` | The supersonic 405 given by `mach`, `p0`, `T0` (static state of the isentropic expansion). |
 | `IG-composition-sum-refused` | BCB | `BCB/IG-composition-sum-refused` | Mass fractions of an inlet that sum to 0.99 stop BCB naming the section and the sum; nothing is written. |
 | `IG-nozzle-inlet-envelope-refused` | BCB | `BCB/IG-nozzle-inlet-envelope-refused` | A nozzle inlet (BC 420) with `psup` above `psub` stops BCB (0 < psup <= psub < p0 is required); nothing is written. |

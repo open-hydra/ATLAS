@@ -155,14 +155,61 @@ For angular ranges, `t` is read in degrees and converted internally.
 
 - If `type` is omitted, ICB defaults to `homogeneous`.
 - If `old-solution` is present, ICB forces `type = interpolation`.
-- Turbulence keys (`mit`, `kappa`, `omega`, `rhoRij`, `nrans`) are available for IG/RF.
+- Turbulence keys are available for IG/RF; see [Turbulence](#turbulence) below.
+
+## Turbulence
+
+The free-stream turbulence of a zone is given either **specific** or
+**density-weighted**, each quantity with its own pair of keys:
+
+| Quantity | Specific key | Density-weighted key | Model |
+|----------|--------------|----------------------|-------|
+| Spalart-Allmaras working variable $\tilde\nu$ | `nuTilde` $= \tilde\nu$ [m²/s] | `rhoNuTilde` $= \rho\tilde\nu$ [kg/(m·s)] | `nrans = 1` |
+| Turbulent kinetic energy $k$ | `k` [m²/s²] | `rhoK` $= \rho k$ [kg/(m·s²)] | `nrans = 2` |
+| Specific dissipation rate $\omega$ | `omega` [1/s] | `rhoOmega` $= \rho\omega$ [kg/(m³·s)] | `nrans = 2`, `7` |
+| Normal Reynolds stresses $R_{11} = R_{22} = R_{33}$ | `Rij` [m²/s²] | `rhoRij` $= \rho R_{ii}$ [kg/(m·s²)] | `nrans = 7` |
+
+The names are those of the [NASA Turbulence Modeling Resource](https://tmbwg.github.io/turbmodels/).
+`nuTilde` is the variable the Spalart-Allmaras model transports, $\tilde\nu$, and
+`rhoNuTilde` its density-weighted form. It is not the eddy viscosity
+$\mu_t = \rho\tilde\nu f_{v1}$, which the Resource and the solvers call `mut` and
+which is not an input: the keys `nut` and `mut` stop ICB with a hint. The two differ
+where $\tilde\nu$ is of the order of the molecular viscosity: at the usual free-stream
+level $\tilde\nu = 3\nu$ the eddy viscosity is $0.21\,\mu$.
+
+The IC file carries the density-weighted variables the solvers advance, in bands that
+take the names of the density-weighted keys: `rhoNuTilde`, `rhoK`, `rhoOmega` (the Reynolds
+stresses keep their names `ru'u'` ... `rv'w'`). A specific key is multiplied by the
+density of each cell; a density-weighted key is written as given. Give each quantity
+once: `k` and `rhoK` together stop ICB. The model (`nrans`) follows from the keys
+given, or from `nrans`.
+
+- **Ideal-gas zone:** both forms are accepted.
+- **Real-fluid zone:** only the density-weighted keys. The real-fluid table
+  ($p$, $h$ → $T$) carries no density, so a specific key stops ICB.
+- **Interpolation source:** the turbulence bands are recognised by name. A
+  density-weighted band (`rhoNuTilde`, `rhoK`, `rhoOmega`, or the earlier `mi_t`, `mi_tilde`,
+  `kappa` with its `omega`) is interpolated as it is. A specific band (`nuTilde`, `k` with
+  its `omega`) is first multiplied by the density of the source; a real-fluid source
+  with specific bands stops ICB. A band named `mut`, `mu_t`, `nut` or `nu_t` is the
+  eddy viscosity, the auxiliary band of the solvers: it is ignored with a notice, not
+  read as the Spalart-Allmaras variable.
+
+The keys `mit` and `kappa` of earlier decks are retired and stop ICB with a hint, as
+an unknown key. ICB wrote them as given, so they held the density-weighted values:
+`mit` becomes `rhoNuTilde`, `kappa` becomes `rhoK`, and **`omega` becomes `rhoOmega`**: the
+key `omega` keeps its name but is now specific. `rhoRij` is unchanged. Alternatively,
+divide each by the density and give the specific keys.
+
+The boundary records written by BCB take the specific `nuTilde`, `k` and `omega`
+([inlet turbulence keys](../bcb/bc-types.md#inlet-turbulence-keys)).
 
 ## Next
 
 - [IC Strategies](./ic-strategies.md)
 
 !!! note "A zone whose keys cover part of the block"
-    The turbulence constants (`mit`, `kappa`, `omega`, `rhoRij`) of a zone are applied to the cells of
+    The turbulence constants (`nuTilde`, `k`, `omega`, `Rij` or `rhoNuTilde`, `rhoK`, `rhoOmega`, `rhoRij`) of a zone are applied to the cells of
     its range only, exactly like `p`, `T` and the velocity: the cells outside it keep the field
     written by the other zones (ICB prints ` - build_IG_field: turbulence constants of this zone
     applied to n of N cells`). A zone that is meant to cover the whole block must have no `range`.

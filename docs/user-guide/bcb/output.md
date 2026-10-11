@@ -235,11 +235,11 @@ For turbulence-specified inlets, the payload line is extended with additional fi
 
 Turbulence suffix:
 
-| Appended fields |
-|----------------|
-| `mit` |
-| `kappa, omega` |
-| `rhoR11, rhoR22, rhoR33, 1e-8, 1e-8, 1e-8, omega` |
+| Model | Appended fields |
+|-------|-----------------|
+| `nrans = 1` | `nuTilde` |
+| `nrans = 2` | `k, omega` |
+| `nrans = 7` | `rhoRij, rhoRij, rhoRij, 1e-8, 1e-8, 1e-8, omega` |
 
 ---
 

@@ -99,7 +99,7 @@ contains
 
     subroutine build_srm_ig
       implicit none
-      real(R8) :: mit, kappa, omega, rhoRij
+      real(R8) :: nuTilde, k, omega, rhoRij
       real(R8) :: T0, a_srm, n_srm, pRef_srm, rhoGrain_srm, SFgeo_srm
       integer  :: dim, start, nrans
 
@@ -111,8 +111,8 @@ contains
       if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
       self % ig_species % massf = 1d-20
 
-      mit = cfg%turbulence%mit
-      kappa = cfg%turbulence%kappa
+      nuTilde = cfg%turbulence%nuTilde   ! specific: the solver weights it with the boundary density
+      k = cfg%turbulence%k
       omega = cfg%turbulence%omega
       rhoRij = cfg%turbulence%rhoRij
       nrans = cfg%turbulence%nrans
@@ -173,10 +173,10 @@ contains
       ! Turbulence
       start = dim + self%ig_species%n
       if     (nrans==1) then
-        self%ig_properties(start+1) = mit
+        self%ig_properties(start+1) = nuTilde
 
       elseif (nrans==2) then
-        self%ig_properties(start+1) = kappa
+        self%ig_properties(start+1) = k
         self%ig_properties(start+2) = omega
 
       elseif (nrans==7) then

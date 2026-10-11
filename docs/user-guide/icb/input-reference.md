@@ -59,10 +59,14 @@ Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile fi
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |
 | un | 0.0 |  |  no | Prescribed normal velocity component. |
-| mit | 0.0 |  |  no | Turbulence intensity for 1-equation models. |
-| kappa | 0.0 |  |  no | Turbulent kinetic energy. |
-| omega | 0.0 |  |  no | Specific dissipation rate. |
-| rhoRij | 0.0 |  |  no | Reynolds-stress tensor magnitude. |
+| nuTilde | 0.0 |  |  no | Spalart-Allmaras working variable nu_tilde [m2/s] (not the eddy viscosity), specific. ICB multiplies it by the cell density (ideal-gas zone; refused in a real-fluid zone, whose table carries no density). Give it or the density-weighted rhoNuTilde. |
+| k | 0.0 |  |  no | Turbulent kinetic energy k [m2/s2], specific. ICB multiplies it by the cell density (ideal-gas zone; refused in a real-fluid zone, whose table carries no density). Give it or the density-weighted rhoK. |
+| omega | 0.0 |  |  no | Specific dissipation rate omega [1/s], specific. ICB multiplies it by the cell density (ideal-gas zone; refused in a real-fluid zone, whose table carries no density). Give it or the density-weighted rhoOmega. |
+| Rij | 0.0 |  |  no | Normal Reynolds stresses R11 = R22 = R33 [m2/s2], specific (the shear stresses are set to 1e-8). ICB multiplies it by the cell density (ideal-gas zone; refused in a real-fluid zone, whose table carries no density). Give it or the density-weighted rhoRij. |
+| rhoNuTilde | 0.0 |  |  no | Density-weighted Spalart-Allmaras working variable rho*nu_tilde [kg/(m s)]. ICB writes it as given (the band of the IC file). Give it or the specific nuTilde. |
+| rhoK | 0.0 |  |  no | Density-weighted turbulent kinetic energy rho*k [kg/(m s2)]. ICB writes it as given (the band of the IC file). Give it or the specific k. |
+| rhoOmega | 0.0 |  |  no | Density-weighted specific dissipation rate rho*omega [kg/(m3 s)]. ICB writes it as given (the band of the IC file). Give it or the specific omega. |
+| rhoRij | 0.0 |  |  no | Density-weighted normal Reynolds stresses rho*Rij [kg/(m s2)], one value for the three (the shear stresses are set to 1e-8). ICB writes it as given (the band of the IC file). Give it or the specific Rij. |
 | nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
 | old-solution |  |  |  no | Previous solution file used for interpolation. |
 | old-block-id | 0 | >=0 |  no | Source block index for interpolation. Zero means auto. |
@@ -97,10 +101,14 @@ Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile fi
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |
 | un | 0.0 |  |  no | Prescribed normal velocity component. |
-| mit | 0.0 |  |  no | Turbulence intensity for 1-equation models. |
-| kappa | 0.0 |  |  no | Turbulent kinetic energy. |
-| omega | 0.0 |  |  no | Specific dissipation rate. |
-| rhoRij | 0.0 |  |  no | Reynolds-stress tensor magnitude. |
+| nuTilde | 0.0 |  |  no | Spalart-Allmaras working variable nu_tilde [m2/s] (not the eddy viscosity), specific. ICB multiplies it by the cell density (ideal-gas zone; refused in a real-fluid zone, whose table carries no density). Give it or the density-weighted rhoNuTilde. |
+| k | 0.0 |  |  no | Turbulent kinetic energy k [m2/s2], specific. ICB multiplies it by the cell density (ideal-gas zone; refused in a real-fluid zone, whose table carries no density). Give it or the density-weighted rhoK. |
+| omega | 0.0 |  |  no | Specific dissipation rate omega [1/s], specific. ICB multiplies it by the cell density (ideal-gas zone; refused in a real-fluid zone, whose table carries no density). Give it or the density-weighted rhoOmega. |
+| Rij | 0.0 |  |  no | Normal Reynolds stresses R11 = R22 = R33 [m2/s2], specific (the shear stresses are set to 1e-8). ICB multiplies it by the cell density (ideal-gas zone; refused in a real-fluid zone, whose table carries no density). Give it or the density-weighted rhoRij. |
+| rhoNuTilde | 0.0 |  |  no | Density-weighted Spalart-Allmaras working variable rho*nu_tilde [kg/(m s)]. ICB writes it as given (the band of the IC file). Give it or the specific nuTilde. |
+| rhoK | 0.0 |  |  no | Density-weighted turbulent kinetic energy rho*k [kg/(m s2)]. ICB writes it as given (the band of the IC file). Give it or the specific k. |
+| rhoOmega | 0.0 |  |  no | Density-weighted specific dissipation rate rho*omega [kg/(m3 s)]. ICB writes it as given (the band of the IC file). Give it or the specific omega. |
+| rhoRij | 0.0 |  |  no | Density-weighted normal Reynolds stresses rho*Rij [kg/(m s2)], one value for the three (the shear stresses are set to 1e-8). ICB writes it as given (the band of the IC file). Give it or the specific Rij. |
 | nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
 | old-solution |  |  |  no | Previous solution file used for interpolation. |
 | old-block-id | 0 | >=0 |  no | Source block index for interpolation. Zero means auto. |

@@ -320,13 +320,61 @@ set_tests_properties(IG-range-separator-refused PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- ICB : IG-turbulence-zero-refused (a k-omega zone (nrans = 2) with kappa and no omega stops ICB: omega = 0 would divide in the solver kernels; nothing is written) -------------
+# ---- ICB : IG-turbulence-zero-refused (a k-omega zone (nrans = 2) with k and no omega stops ICB: omega = 0 would divide in the solver kernels; nothing is written) -------------
 add_test(
     NAME    IG-turbulence-zero-refused
-    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] build_IG_field: turbulence band omega (key omega) would be written as 0 under the k-omega (nrans = 2) model' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
+    COMMAND bash -c "rm -rf fromATLAStoSolver; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] build_IG_field: turbulence band rhoOmega (key omega or rhoOmega) would be written as 0 under the k-omega (nrans = 2) model' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-turbulence-zero-refused"
 )
 set_tests_properties(IG-turbulence-zero-refused PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-turbulence-specific (turbulence keys: a specific key (k, omega, nuTilde) is written times the cell density, a density-weighted key (rhoK, rhoOmega, rhoNuTilde) as given; the bands carry the density-weighted names rhoK, rhoOmega, rhoNuTilde) -------------
+add_test(
+    NAME    IG-turbulence-specific
+    COMMAND bash -c "rm -rf _run-input _run-weighted _run-sa _run-sa-weighted && for d in input weighted sa sa-weighted; do mkdir _run-$d && cp *.ini *.tec *.txt *.dat _run-$d/ && (cd _run-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_density_weighted.py _run-input/fromATLAStoSolver/ic.tec 'rhoK=1.0*rho' 'rhoOmega=100.0*rho' && python3 check_density_weighted.py _run-weighted/fromATLAStoSolver/ic.tec 'rhoK=2.0' 'rhoOmega=50.0' && python3 check_density_weighted.py _run-sa/fromATLAStoSolver/ic.tec 'rhoNuTilde=3.0e-5*rho' && python3 check_density_weighted.py _run-sa-weighted/fromATLAStoSolver/ic.tec 'rhoNuTilde=4.0e-5'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-turbulence-specific"
+)
+set_tests_properties(IG-turbulence-specific PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-turbulence-keys-refused (one quantity given twice, k and rhoK, stops ICB; the retired key kappa is an unknown key whose hint names k and rhoK; nut, the eddy viscosity, is an unknown key whose hint names nuTilde) -------------
+add_test(
+    NAME    IG-turbulence-keys-refused
+    COMMAND bash -c "rm -rf _run-both _run-retired _run-eddy && for d in both retired eddy; do mkdir _run-$d && cp *.ini *.tec *.txt *.dat _run-$d/; done && out=$(cd _run-both && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input both.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F '[ERROR] keys k and rhoK of section [ICB-Block1]: one quantity given twice' <<< \"$out\" && test ! -e _run-both/fromATLAStoSolver/ic.tec && out=$(cd _run-retired && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input retired.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F \"unknown key (key 'kappa' was renamed: k (specific, m2/s2) or, in ICB, rhoK (density-weighted, kg/(m s2)))\" <<< \"$out\" && out=$(cd _run-eddy && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input eddy.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F 'unknown key (nut names the eddy viscosity, not an input: give the Spalart-Allmaras variable nuTilde (m2/s))' <<< \"$out\""
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-turbulence-specific"
+)
+set_tests_properties(IG-turbulence-keys-refused PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-turbulence-source-names (the turbulence bands of an interpolation source are read by name: the specific k, omega are multiplied by the density of the source; the density-weighted rhoK, rhoOmega and the earlier kappa, omega are carried as they are) -------------
+add_test(
+    NAME    IG-turbulence-source-names
+    COMMAND bash -c "rm -rf _run-source _run-src-specific _run-src-earlier _run-src-weighted && for d in source src-specific src-earlier src-weighted; do mkdir _run-$d && cp *.ini *.tec *.txt *.dat _run-$d/; done && (cd _run-source && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input weighted.ini) && for d in specific earlier weighted; do cp _run-source/fromATLAStoSolver/ic.tec _run-src-$d/field.tec; done && sed -i '1s/rhoK rhoOmega/k omega/' _run-src-specific/field.tec && sed -i '1s/rhoK rhoOmega/kappa omega/' _run-src-earlier/field.tec && for d in specific earlier weighted; do (cd _run-src-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input source.ini) || exit 1; done && python3 check_density_weighted.py _run-src-specific/fromATLAStoSolver/ic.tec 'rhoK=2.0*rho' 'rhoOmega=50.0*rho' && python3 check_density_weighted.py _run-src-earlier/fromATLAStoSolver/ic.tec 'rhoK=2.0' 'rhoOmega=50.0' && python3 check_density_weighted.py _run-src-weighted/fromATLAStoSolver/ic.tec 'rhoK=2.0' 'rhoOmega=50.0'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-turbulence-specific"
+)
+set_tests_properties(IG-turbulence-source-names PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-turbulence-source-names-sa (the Spalart-Allmaras band of an interpolation source is read by name: rhoNuTilde is carried as it is, nuTilde is multiplied by the density of the source, and mut, the eddy viscosity, is not the Spalart-Allmaras variable: ignored with a notice) -------------
+add_test(
+    NAME    IG-turbulence-source-names-sa
+    COMMAND bash -c "rm -rf _run-sa-source _run-sa-src-weighted _run-sa-src-specific _run-sa-src-eddy && for d in sa-source sa-src-weighted sa-src-specific sa-src-eddy; do mkdir _run-$d && cp *.ini *.tec *.txt *.dat _run-$d/; done && (cd _run-sa-source && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input sa-weighted.ini) && for d in weighted specific eddy; do cp _run-sa-source/fromATLAStoSolver/ic.tec _run-sa-src-$d/field.tec; done && sed -i '1s/rhoNuTilde/nuTilde/' _run-sa-src-specific/field.tec && sed -i '1s/rhoNuTilde/mut/' _run-sa-src-eddy/field.tec && for d in weighted specific; do (cd _run-sa-src-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input source.ini) || exit 1; done && python3 check_density_weighted.py _run-sa-src-weighted/fromATLAStoSolver/ic.tec 'rhoNuTilde=4.0e-5' && python3 check_density_weighted.py _run-sa-src-specific/fromATLAStoSolver/ic.tec 'rhoNuTilde=4.0e-5*rho' && out=$(cd _run-sa-src-eddy && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input source.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | grep -F 'eddy viscosity'; test $rc -eq 0 && grep -q -F \"band 'mut' of 'field.tec' is an eddy viscosity, not the Spalart-Allmaras variable (nuTilde, rhoNuTilde): ignored\" <<< \"$out\" && ! head -n 1 _run-sa-src-eddy/fromATLAStoSolver/ic.tec | grep -q -i tilde"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-turbulence-specific"
+)
+set_tests_properties(IG-turbulence-source-names-sa PROPERTIES
     LABELS      "ICB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -1103,6 +1151,18 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-phase-type-refused"
 )
 set_tests_properties(DP-phase-type-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-turbulence-boundary-weighted (a boundary takes the specific k, omega, nuTilde, which the solver weights with the density of the boundary state: the density-weighted rhoK on the Borda inlet of IG-borda-2D is an unknown key whose hint names k; nothing is written) -------------
+add_test(
+    NAME    IG-turbulence-boundary-weighted
+    COMMAND bash -c "rm -rf _run-weighted && mkdir _run-weighted && cp input.ini mesh.tec phase.txt _run-weighted/ && cd _run-weighted && sed -i 's/^k = 1.5/rhoK = 1.5/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F '[ERROR] key rhoK of section [injBorda]: unknown key (a boundary takes the specific k: the solver multiplies it by the density of the boundary state)' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-borda-2D"
+)
+set_tests_properties(IG-turbulence-boundary-weighted PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

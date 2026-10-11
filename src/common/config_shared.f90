@@ -26,10 +26,21 @@ module config_shared_mod
     real(R8) :: w = 0.0_R8
   end type config_velocity_t
 
+  !> Free-stream turbulence keys. Each quantity has a specific key and a density-weighted one:
+  !>   Spalart-Allmaras working variable   nuTilde [m2/s]    rhoNuTilde = rho*nuTilde [kg/(m s)]
+  !>   turbulent kinetic energy            k       [m2/s2]   rhoK       = rho*k       [kg/(m s2)]
+  !>   specific dissipation rate           omega   [1/s]     rhoOmega   = rho*omega   [kg/(m3 s)]
+  !>   normal Reynolds stresses            Rij     [m2/s2]   rhoRij     = rho*Rij     [kg/(m s2)]
+  !> (the names of the NASA Turbulence Modeling Resource; nuTilde is the variable the model
+  !> transports, not the eddy viscosity, which TMR and the solvers call mut).
   type, public :: config_turbulence_t
-    real(R8) :: mit = 0.0_R8
-    real(R8) :: kappa = 0.0_R8
+    real(R8) :: nuTilde = 0.0_R8
+    real(R8) :: k = 0.0_R8
     real(R8) :: omega = 0.0_R8
+    real(R8) :: Rij = 0.0_R8
+    real(R8) :: rhoNuTilde = 0.0_R8
+    real(R8) :: rhoK = 0.0_R8
+    real(R8) :: rhoOmega = 0.0_R8
     real(R8) :: rhoRij = 0.0_R8
     integer  :: nrans = 0
     logical  :: has_nrans = .false.
@@ -46,6 +57,7 @@ module config_shared_mod
   public :: load_ini_file
   public :: load_shared_velocity_config
   public :: load_shared_turbulence_config
+  public :: turbulence_weighted, turbulence_specific_keys
   public :: add_atlas_registry_entries
   public :: add_velocity_registry_entries
   public :: add_turbulence_registry_entries
@@ -183,46 +195,101 @@ contains
     if (error /= 0) cfg%w = 0.0_R8
   end subroutine load_shared_velocity_config
 
-  subroutine load_shared_turbulence_config(zoneini, cfg, section_name)
+  !> The turbulence keys of a section. boundary = .true. (BCB): nuTilde, k, omega and rhoRij only
+  !> (the keys of a boundary record; input_keys reports the others as unknown, with a hint).
+  subroutine load_shared_turbulence_config(zoneini, cfg, section_name, boundary)
     implicit none
     type(file_ini), intent(in)             :: zoneini
     type(config_turbulence_t), intent(out) :: cfg
     character(*), intent(in), optional     :: section_name
+    logical, intent(in), optional          :: boundary
 
-    character(len=32) :: section_id
+    character(len=32)   :: section_id
+    character(len=llen) :: deck_section
     integer :: error
+    logical :: read_all
 
     section_id = 'zone'
     if (present(section_name)) section_id = section_name
+    read_all = .true.
+    if (present(boundary)) read_all = .not. boundary
+    ! the deck section, for the messages (an ICB zone is read from a copy named 'zone')
+    deck_section = section_id
+    call zoneini%get(section_name=section_id, option_name='x-section', val=deck_section, error=error)
+    if (error /= 0) deck_section = section_id
 
-    cfg%mit = 0.0_R8
-    cfg%kappa = 0.0_R8
-    cfg%omega = 0.0_R8
-    cfg%rhoRij = 0.0_R8
-    cfg%nrans = 0
-    cfg%has_nrans = .false.
-
-    call zoneini%get(section_name=section_id, option_name='mit', val=cfg%mit, error=error)
-    if (error /= 0) cfg%mit = 0.0_R8
-    call zoneini%get(section_name=section_id, option_name='kappa', val=cfg%kappa, error=error)
-    if (error /= 0) cfg%kappa = 0.0_R8
-    call zoneini%get(section_name=section_id, option_name='omega', val=cfg%omega, error=error)
-    if (error /= 0) cfg%omega = 0.0_R8
-    call zoneini%get(section_name=section_id, option_name='rhoRij', val=cfg%rhoRij, error=error)
-    if (error /= 0) cfg%rhoRij = 0.0_R8
+    cfg = config_turbulence_t()
+    call get_key('nuTilde', cfg%nuTilde)
+    call get_key('k', cfg%k)
+    call get_key('omega', cfg%omega)
+    call get_key('rhoRij', cfg%rhoRij)
+    if (read_all) then
+      call get_key('Rij', cfg%Rij)
+      call get_key('rhoNuTilde', cfg%rhoNuTilde)
+      call get_key('rhoK', cfg%rhoK)
+      call get_key('rhoOmega', cfg%rhoOmega)
+    endif
+    call refuse_both('nuTilde', 'rhoNuTilde', cfg%nuTilde, cfg%rhoNuTilde)
+    call refuse_both('k', 'rhoK', cfg%k, cfg%rhoK)
+    call refuse_both('omega', 'rhoOmega', cfg%omega, cfg%rhoOmega)
+    call refuse_both('Rij', 'rhoRij', cfg%Rij, cfg%rhoRij)
 
     call zoneini%get(section_name=section_id, option_name='nrans', val=cfg%nrans, error=error)
     cfg%has_nrans = error == 0
     if (cfg%has_nrans) return
 
-    if (cfg%rhoRij /= 0.0_R8) then
+    if (cfg%Rij /= 0.0_R8 .or. cfg%rhoRij /= 0.0_R8) then
       cfg%nrans = 7
-    elseif (cfg%kappa /= 0.0_R8 .or. cfg%omega /= 0.0_R8) then
+    elseif (cfg%k /= 0.0_R8 .or. cfg%omega /= 0.0_R8 .or. cfg%rhoK /= 0.0_R8 .or. cfg%rhoOmega /= 0.0_R8) then
       cfg%nrans = 2
-    elseif (cfg%mit /= 0.0_R8) then
+    elseif (cfg%nuTilde /= 0.0_R8 .or. cfg%rhoNuTilde /= 0.0_R8) then
       cfg%nrans = 1
     endif
+
+  contains
+
+    subroutine get_key(key, val)
+      character(*), intent(in) :: key
+      real(R8), intent(inout)  :: val
+      call zoneini%get(section_name=section_id, option_name=key, val=val, error=error)
+      if (error /= 0) val = 0.0_R8
+    end subroutine get_key
+
+    subroutine refuse_both(specific_key, weighted_key, specific, weighted)
+      character(*), intent(in) :: specific_key, weighted_key
+      real(R8), intent(in)     :: specific, weighted
+      if (specific /= 0.0_R8 .and. weighted /= 0.0_R8) then
+        write(*,'(A)') '[ERROR] keys '//specific_key//' and '//weighted_key//' of section ['//trim(deck_section)// &
+          ']: one quantity given twice (give the specific '//specific_key//' or the density-weighted '//weighted_key//')'
+        stop 1
+      endif
+    end subroutine refuse_both
   end subroutine load_shared_turbulence_config
+
+  !> The density-weighted free-stream values (rhoNuTilde, rhoK, rhoOmega, rhoRij) for a cell of density
+  !> rho: a specific key times rho, a density-weighted key as given (0 = not given).
+  pure function turbulence_weighted(cfg, rho) result(w)
+    type(config_turbulence_t), intent(in) :: cfg
+    real(R8), intent(in)                  :: rho
+    real(R8)                              :: w(4)
+    w = [cfg%rhoNuTilde, cfg%rhoK, cfg%rhoOmega, cfg%rhoRij]
+    if (cfg%nuTilde /= 0.0_R8)   w(1) = rho*cfg%nuTilde
+    if (cfg%k /= 0.0_R8)     w(2) = rho*cfg%k
+    if (cfg%omega /= 0.0_R8) w(3) = rho*cfg%omega
+    if (cfg%Rij /= 0.0_R8)   w(4) = rho*cfg%Rij
+  end function turbulence_weighted
+
+  !> The specific turbulence keys given (blank-separated), '' if none.
+  function turbulence_specific_keys(cfg) result(keys)
+    type(config_turbulence_t), intent(in) :: cfg
+    character(len=:), allocatable         :: keys
+    keys = ''
+    if (cfg%nuTilde /= 0.0_R8)   keys = keys//' nuTilde'
+    if (cfg%k /= 0.0_R8)     keys = keys//' k'
+    if (cfg%omega /= 0.0_R8) keys = keys//' omega'
+    if (cfg%Rij /= 0.0_R8)   keys = keys//' Rij'
+    keys = trim(adjustl(keys))
+  end function turbulence_specific_keys
 
   subroutine add_atlas_registry_entries(registry, prog, cfg)
     implicit none
@@ -283,22 +350,63 @@ contains
                       'Prescribed normal velocity component.', '', .false.)
   end subroutine add_velocity_registry_entries
 
-  subroutine add_turbulence_registry_entries(registry, section, turbulence_cfg)
+  !> The turbulence keys. boundary = .true. (BCB): the keys of a boundary record, nuTilde, k, omega
+  !> (specific) and rhoRij.
+  subroutine add_turbulence_registry_entries(registry, section, turbulence_cfg, boundary)
     implicit none
     class(registry_t), intent(inout)       :: registry
     character(*), intent(in)               :: section
     type(config_turbulence_t), target, intent(inout) :: turbulence_cfg
+    logical, intent(in), optional          :: boundary
+    character(len=*), parameter :: ICB_SPECIFIC = ' ICB multiplies it by the cell density (ideal-gas zone; refused in a'// &
+      ' real-fluid zone, whose table carries no density). Give it or the density-weighted '
+    character(len=*), parameter :: ICB_WEIGHTED = ' ICB writes it as given (the band of the IC file). Give it or the specific '
+    character(len=*), parameter :: BCB_SPECIFIC = ' BCB writes it as given; the solver multiplies it by the density of the'// &
+      ' boundary state.'
+    logical :: bc
 
-    call registry%add(section, 'mit', turbulence_cfg%mit, '0.0', &
-                      'Turbulence intensity for 1-equation models.', '', .false.)
-    call registry%add(section, 'kappa', turbulence_cfg%kappa, '0.0', &
-                      'Turbulent kinetic energy.', '', .false.)
+    bc = .false.
+    if (present(boundary)) bc = boundary
+
+    call registry%add(section, 'nuTilde', turbulence_cfg%nuTilde, '0.0', &
+      'Spalart-Allmaras working variable nu_tilde [m2/s] (not the eddy viscosity), specific.'// &
+      use_specific('rhoNuTilde'), '', .false.)
+    call registry%add(section, 'k', turbulence_cfg%k, '0.0', &
+      'Turbulent kinetic energy k [m2/s2], specific.'//use_specific('rhoK'), '', .false.)
     call registry%add(section, 'omega', turbulence_cfg%omega, '0.0', &
-                      'Specific dissipation rate.', '', .false.)
-    call registry%add(section, 'rhoRij', turbulence_cfg%rhoRij, '0.0', &
-                      'Reynolds-stress tensor magnitude.', '', .false.)
+      'Specific dissipation rate omega [1/s], specific.'//use_specific('rhoOmega'), '', .false.)
+    if (.not. bc) then
+      call registry%add(section, 'Rij', turbulence_cfg%Rij, '0.0', &
+        'Normal Reynolds stresses R11 = R22 = R33 [m2/s2], specific (the shear stresses are set to 1e-8).'// &
+        use_specific('rhoRij'), '', .false.)
+      call registry%add(section, 'rhoNuTilde', turbulence_cfg%rhoNuTilde, '0.0', &
+        'Density-weighted Spalart-Allmaras working variable rho*nu_tilde [kg/(m s)].'//ICB_WEIGHTED//'nuTilde.', '', .false.)
+      call registry%add(section, 'rhoK', turbulence_cfg%rhoK, '0.0', &
+        'Density-weighted turbulent kinetic energy rho*k [kg/(m s2)].'//ICB_WEIGHTED//'k.', '', .false.)
+      call registry%add(section, 'rhoOmega', turbulence_cfg%rhoOmega, '0.0', &
+        'Density-weighted specific dissipation rate rho*omega [kg/(m3 s)].'//ICB_WEIGHTED//'omega.', '', .false.)
+      call registry%add(section, 'rhoRij', turbulence_cfg%rhoRij, '0.0', &
+        'Density-weighted normal Reynolds stresses rho*Rij [kg/(m s2)], one value for the three (the shear stresses'// &
+        ' are set to 1e-8).'//ICB_WEIGHTED//'Rij.', '', .false.)
+    else
+      call registry%add(section, 'rhoRij', turbulence_cfg%rhoRij, '0.0', &
+        'Density-weighted normal Reynolds stresses [kg/(m s2)], written as given (the band the Q2D'// &
+        ' Reynolds-stress inlet reads; the shear stresses are set to 1e-8).', '', .false.)
+    endif
     call registry%add(section, 'nrans', turbulence_cfg%nrans, '0', &
                       'Explicit turbulence model size override.', '>=0', .false.)
+
+  contains
+
+    function use_specific(weighted_key) result(t)
+      character(*), intent(in)      :: weighted_key
+      character(len=:), allocatable :: t
+      if (bc) then
+        t = BCB_SPECIFIC
+      else
+        t = ICB_SPECIFIC//weighted_key//'.'
+      endif
+    end function use_specific
   end subroutine add_turbulence_registry_entries
 
   subroutine add_composition_registry_entries(registry, section, composition_cfg)
