@@ -65,11 +65,20 @@ module input_keys_mod
   character(len=*), parameter :: ESCAPE = 'ignore-'
   ! keys of earlier decks that are not read any more: an unknown key like any other
   ! (ERROR, or WARNING with strict-keys = false), whose hint names the current key.
-  integer, parameter :: NHINTS = 2
-  character(len=KLEN), parameter :: hint_key(NHINTS) = [character(len=KLEN) :: 'rt', 'force-connect']
-  character(len=80), parameter :: hint_text(NHINTS) = [character(len=80) :: &
+  integer, parameter :: NHINTS = 10
+  character(len=KLEN), parameter :: hint_key(NHINTS) = [character(len=KLEN) :: 'rt', 'force-connect', &
+    'mit', 'kappa', 'nut', 'mut', 'rhoNuTilde', 'rhoK', 'rhoOmega', 'Rij']
+  character(len=120), parameter :: hint_text(NHINTS) = [character(len=120) :: &
     "key 'rt' was renamed 'g' (nozzle mass flux, kg m-2 s-1)", &
-    "the option is BC-force-connect in [ATLAS-Parameters]"]
+    "the option is BC-force-connect in [ATLAS-Parameters]", &
+    "key 'mit' was renamed: nuTilde (specific, m2/s) or, in ICB, rhoNuTilde (density-weighted, kg/(m s))", &
+    "key 'kappa' was renamed: k (specific, m2/s2) or, in ICB, rhoK (density-weighted, kg/(m s2))", &
+    "nut names the eddy viscosity, not an input: give the Spalart-Allmaras variable nuTilde (m2/s)", &
+    "mut names the eddy viscosity, not an input: give nuTilde (m2/s) or, in ICB, rhoNuTilde (kg/(m s))", &
+    "a boundary takes the specific nuTilde: the solver multiplies it by the density of the boundary state", &
+    "a boundary takes the specific k: the solver multiplies it by the density of the boundary state", &
+    "a boundary takes the specific omega: the solver multiplies it by the density of the boundary state", &
+    "a boundary takes the density-weighted rhoRij (the band the Q2D Reynolds-stress inlet reads)"]
 
 contains
 

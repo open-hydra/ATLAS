@@ -40,16 +40,18 @@ Variable payload depends on phase type:
 
 | Phase | Typical variables |
 |-------|-------------------|
-| IG | species densities, velocity components, pressure, optional turbulence fields |
-| RF | pressure, velocity components, enthalpy, optional turbulence fields |
+| IG | species densities, velocity components, pressure, optional turbulence fields (density-weighted: `rhoNuTilde`, or `rhoK rhoOmega`, or the Reynolds stresses and `rhoOmega`) |
+| RF | pressure, velocity components, enthalpy, optional turbulence fields (named as for IG) |
 | SP | temperature, material ID |
 | DP/CD | per-population density, velocity, pseudo-pressure (if enabled), temperature, number density |
 
 The writer exports exactly what ICB built at initialization time, after any multizone logic and interpolation.
+The turbulence fields are the density-weighted variables the solvers advance, whichever form
+the keys were given in ([Turbulence](./ic-setup.md#turbulence)).
 
 Under the Reynolds-stress model a pure-2D target (two coordinates, or a single node plane) carries five turbulence
-bands, `ruu rvv rww ruv omega`: the Reynolds-stress state of Q2D, which reads the initial condition by position.
-Every other target (a single layer of cells included) carries seven, `ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' omega`.
+bands, `ruu rvv rww ruv rhoOmega`: the Reynolds-stress state of Q2D, which reads the initial condition by position.
+Every other target (a single layer of cells included) carries seven, `ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' rhoOmega`.
 Main wrote the seven bands on a pure-2D target too, so Q2D read `ru'w'` as omega.
 
 ## Notes

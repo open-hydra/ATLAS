@@ -635,7 +635,7 @@ contains
     if (error /= 0) cfg%a1_a3 = 0.0_R8
 
     call load_shared_velocity_config(sourceini, cfg%velocity, section)
-    call load_shared_turbulence_config(sourceini, cfg%turbulence, section)
+    call load_shared_turbulence_config(sourceini, cfg%turbulence, section, boundary=.true.)
   end subroutine load_bcb_ig_boundary_config
 
   subroutine load_bcb_gsi_fluid_config(sourceini, section, cfg)
@@ -646,7 +646,7 @@ contains
 
     integer :: error
 
-    call load_shared_turbulence_config(sourceini, cfg%turbulence, section)
+    call load_shared_turbulence_config(sourceini, cfg%turbulence, section, boundary=.true.)
 
     call sourceini%get(section_name=section, option_name='a', val=cfg%a, error=error)
     if (error /= 0) cfg%a = 0.0_R8
@@ -984,7 +984,7 @@ contains
     call add_composition_registry_entries(bcb_registry, 'bc-section', composition_cfg)
 
     call add_velocity_registry_entries(bcb_registry, 'bc-section', velocity_cfg)
-    call add_turbulence_registry_entries(bcb_registry, 'bc-section', turbulence_cfg)
+    call add_turbulence_registry_entries(bcb_registry, 'bc-section', turbulence_cfg, boundary=.true.)
     call add_gsi_entries()
     call add_ig_entries()
     call add_wall_entries()
@@ -1078,7 +1078,7 @@ contains
       call bcb_registry%add('bc-section', 'cp', gsi_cfg%cp, '0.0', 'GSI boundary specific heat.', '', .false.)
       call bcb_registry%add('bc-section', 'Ti', gsi_cfg%Ti, '0.0', 'GSI boundary ignition temperature.', '', .false.)
       call bcb_registry%add('bc-section', 'dh', gsi_cfg%dh, '0.0', 'GSI boundary heat of reaction.', '', .false.)
-      call add_turbulence_registry_entries(bcb_registry, 'bc-section', gsi_cfg%turbulence)
+      call add_turbulence_registry_entries(bcb_registry, 'bc-section', gsi_cfg%turbulence, boundary=.true.)
       call bcb_registry%add('bc-section', 'a', gsi_cfg%a, '0.0', 'Burn-rate pre-exponential coefficient.', '', .false.)
       call bcb_registry%add('bc-section', 'n', gsi_cfg%n, '0.0', 'Burn-rate pressure exponent.', '', .false.)
       call bcb_registry%add('bc-section', 'pRef', gsi_cfg%pRef, '1.0', 'Reference pressure for the burn law.', '', .false.)

@@ -196,9 +196,9 @@ A wedge or one-cell 3-D source mapped onto a pure-2D (`x,y`) target keeps `u`, `
 component (the swirl `w` = v_theta) is discarded with a `[WARNING]` naming the component and its largest magnitude.
 
 Turbulence of a laminar source onto a RANS target: under an omega model (`nrans =
-2` or `7`) a zero `omega`, `kappa` or stress band divides in the solver kernels, so
-ICB refuses to write it and names the zone keys (`kappa`/`omega`, `rhoRij`/`omega`)
-that give the free-stream values; under Spalart-Allmaras (`nrans = 1`) `mi_t = 0` is
+2` or `7`) a zero `rhoOmega`, `rhoK` or stress band divides in the solver kernels, so
+ICB refuses to write it and names the zone keys (`k`/`omega` or `rhoK`/`rhoOmega`, `Rij`/`omega` or `rhoRij`/`rhoOmega`)
+that give the free-stream values; under Spalart-Allmaras (`nrans = 1`) `rhoNuTilde = 0` is
 written with a `[WARNING]`. Species of the source that the run does not declare are
 dropped: the partial densities are rescaled to the source density with a `[WARNING]`
 when the lost fraction is at most 1e-3, the block is refused beyond that (declare
@@ -269,7 +269,7 @@ turbulence not adopted`. When names are present, the last mandatory band must be
 named `p` (IG) or `h` (RF): otherwise the species count of `old-species` does not
 match the file and ICB stops (`[ERROR] read_vtk_tec: band N of '...' is named
 '...'`) instead of writing shifted bands. A zone whose turbulence model has neither
-a source band nor a free-stream key (`mit`, `kappa`, `omega`, `rhoRij`) keeps its
+a source band nor a free-stream key (`nuTilde`, `k`, `omega`, `Rij` or `rhoNuTilde`, `rhoK`, `rhoOmega`, `rhoRij`) keeps its
 current content in that band (0 unless another zone set it) and says so with a
 `[WARNING]`. Species are mapped by name through `old-species`: a species absent
 from the source is set to `1e-20`.

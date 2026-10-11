@@ -56,7 +56,7 @@ contains
   !>   IG -> number of species ; CD -> number of dispersed populations.
   !> Mandatory bands:   IG  [rho(1:n)] [u v (w)] [p]      RF  [p] [u v (w)] [h]
   !> Everything after them (soot, passive scalars, turbulence, T, gamma, R,
-  !> mil, kl, mit, ...) is scanned BY NAME: the turbulence bands are adopted
+  !> mil, kl, mut, ...) is scanned BY NAME: the turbulence bands are adopted
   !> into ATLAS's own slots (see detect_turbulence), the rest is ignored.
   subroutine read_vtk_tec (phase_type,filename,blk,n,src_cfg)
     use Lib_VTK
@@ -78,6 +78,7 @@ contains
     integer:: error, b, s, m
     integer :: n_species, nnn, nvel, nvars, nmand, ncoord
     integer :: nrans_src, slot_band(7)
+    logical :: slot_specific(7)
 
     ! The extension (suffix, as in read_mesh) picks the reader; a .szplt needs a TecIO build:
     ! without the guard ORION's own stop returned 0 and no IC was written.
@@ -144,7 +145,7 @@ contains
         stop 1
       endif
       call check_mandatory_name(IOfield, ncoord, nvars, nmand, 'p', filename)
-      call detect_turbulence(IOfield, ncoord, nmand, nvars, filename, nrans_src, slot_band)
+      call detect_turbulence(IOfield, ncoord, nmand, nvars, filename, nrans_src, slot_band, slot_specific)
       do b = 1, size(blk)
         blk(b)%nrans = nrans_src
         call blk(b)%compute_centers([0,0,0])
@@ -161,6 +162,12 @@ contains
           do s = 1, blk(b)%nrans
             if (slot_band(s) > 0) blk(b)%ig%turbprop(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = &
               IOfield%block(b)%vars(slot_band(s),:,:,:)
+            ! a band with a specific name (nuTilde, k, omega): weighted with the density of the source,
+            ! as the bands carried from here on are the density-weighted ones
+            if (slot_band(s) > 0 .and. slot_specific(s)) &
+              blk(b)%ig%turbprop(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) = &
+                blk(b)%ig%turbprop(s,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)) * &
+                sum(blk(b)%ig%density(1:n_species,1:blk(b)%dim(1),1:blk(b)%dim(2),1:blk(b)%dim(3)), dim=1)
           enddo
         endif
       end do
@@ -229,7 +236,13 @@ contains
         stop 1
       endif
       call check_mandatory_name(IOfield, ncoord, nvars, nmand, 'h', filename)
-      call detect_turbulence(IOfield, ncoord, nmand, nvars, filename, nrans_src, slot_band)
+      call detect_turbulence(IOfield, ncoord, nmand, nvars, filename, nrans_src, slot_band, slot_specific)
+      if (any(slot_specific)) then
+        write(*,'(A)') "[ERROR] read_vtk_tec: '"//trim(filename)//"' carries specific turbulence bands (nuTilde, k or omega):"// &
+          " a real-fluid source has no density to weight them (name the bands rhoNuTilde, rhoK, rhoOmega if they are"// &
+          " density-weighted)"
+        stop 1
+      endif
       do b = 1, size(blk)
         blk(b)%nrans = nrans_src
         call blk(b)%compute_centers([0,0,0])
@@ -347,22 +360,30 @@ contains
   !>   Reynolds stresses + one omega   -> nrans = 7 : [R11 R22 R33 R12 R13 R23 omega]
   !>                                      (components the code did not write,
   !>                                       e.g. R13/R23 of a 2D solver, stay 0)
-  !> Any other tail band (soot, passive scalars, T, gamma, R, mil, kl, mit, ...)
-  !> is ignored. Names are trusted only when the file carries exactly one name
+  !> Any other tail band (soot, passive scalars, T, gamma, R, mil, kl, ...) is ignored, the
+  !> eddy viscosity (mut, mu_t, nut, nu_t, the auxiliary band of the solvers) with a notice: it
+  !> is not the Spalart-Allmaras variable. Names are trusted only when the file carries exactly one name
   !> per coordinate and per band; otherwise (no names, unparsable names, .szplt)
   !> nothing is adopted and the tail is ignored with a notice.
-  subroutine detect_turbulence(IOfield, ncoord, nmand, nvars, filename, nrans_src, slot_band)
+  !> slot_specific: the band of the slot carries a specific quantity, by its name: nuTilde (any
+  !> Spalart-Allmaras name beginning with nu), k (or tke), and omega next to such a k or to rhoK.
+  !> The density-weighted names are rhoNuTilde, rhoK, rhoOmega and those of earlier files (mi_t,
+  !> mi_tilde, kappa, and omega next to kappa or to the Reynolds stresses), which the solvers and
+  !> ATLAS wrote density-weighted.
+  subroutine detect_turbulence(IOfield, ncoord, nmand, nvars, filename, nrans_src, slot_band, slot_specific)
     use Lib_ORION_data
     implicit none
     type(Orion_Data), intent(in)  :: IOfield
     integer,          intent(in)  :: ncoord, nmand, nvars
     character(len=*), intent(in)  :: filename
     integer,          intent(out) :: nrans_src, slot_band(7)
+    logical,          intent(out) :: slot_specific(7)
     integer :: s, kind_, nsa, nk, nom, nst, band_sa, band_k, band_om, stress_band(6)
     logical :: names_ok, dup
 
     nrans_src = 0
     slot_band = 0
+    slot_specific = .false.
     if (nvars <= nmand) return
 
     names_ok = allocated(IOfield%varnames)
@@ -385,6 +406,10 @@ contains
         nst = nst + 1
         if (stress_band(kind_-10) /= 0) dup = .true.
         stress_band(kind_-10) = s
+      case default
+        if (any(lower(IOfield%varnames(ncoord + s)) == [character(len=4) :: 'mut', 'mu_t', 'nut', 'nu_t'])) &
+          write(*,'(A)') "  - read_vtk_tec: band '"//trim(adjustl(IOfield%varnames(ncoord + s)))//"' of '"//trim(filename)// &
+            "' is an eddy viscosity, not the Spalart-Allmaras variable (nuTilde, rhoNuTilde): ignored"
       end select
     enddo
 
@@ -402,9 +427,13 @@ contains
       nrans_src = 2
       slot_band(1) = band_k
       slot_band(2) = band_om
+      slot_specific(1) = any(lower(IOfield%varnames(ncoord + band_k)) == [character(len=8) :: 'k', 'tke'])
+      slot_specific(2) = lower(IOfield%varnames(ncoord + band_om)) == 'omega' .and. &
+                         lower(IOfield%varnames(ncoord + band_k)) /= 'kappa'
     elseif (nst == 0 .and. nsa == 1 .and. nk == 0 .and. nom == 0) then
       nrans_src = 1
       slot_band(1) = band_sa
+      slot_specific(1) = index(lower(IOfield%varnames(ncoord + band_sa)), 'nu') == 1
     else
       write(*,*) "[WARNING] read_vtk_tec: the turbulence variables of '"//trim(filename)// &
         "' do not form a supported set (SA / k-omega / Reynolds stresses): not adopted"
@@ -415,6 +444,10 @@ contains
       return
     endif
     write(*,*) " - read_vtk_tec: adopting ", nrans_src, " turbulence band(s) of '"//trim(filename)//"' by name"
+    do s = 1, 7
+      if (slot_specific(s)) write(*,*) " - read_vtk_tec: band '"//trim(adjustl(IOfield%varnames(ncoord + slot_band(s))))// &
+        "' is specific: multiplied by the density of the source"
+    enddo
     if (nvars - nmand - count(slot_band > 0) > 0) &
       write(*,*) " - read_vtk_tec: ignoring ", nvars - nmand - count(slot_band > 0), &
         " other trailing band(s) (auxiliary variables)"
@@ -422,8 +455,8 @@ contains
 
 
   !> Classify a solution-variable name: 0 = not a turbulence quantity,
-  !> 1 = Spalart-Allmaras working variable (mi_t, mi_tilde, nut, mut, mu_t, nu_t,
-  !> ...tilde...), 2 = turbulent kinetic energy (kappa, tke, k), 3 = omega
+  !> 1 = Spalart-Allmaras working variable (nuTilde, rhoNuTilde, any name with tilde or tilda,
+  !> mi_t of earlier files; not mut, mu_t, nut, nu_t, the eddy viscosity), 2 = turbulent kinetic energy (rhoK, kappa, tke, k), 3 = omega (rhoOmega, omega)
   !> (epsilon is a different quantity and is deliberately NOT mapped), 11..16 = Reynolds stresses R11 R22 R33 R12
   !> R13 R23 in MOSE/ARES/ATLAS spelling (ru'u' rv'v' rw'w' ru'v' ru'w' rv'w')
   !> or Q2D spelling (ruu rvv rww ruv ruw rvw). Case-insensitive.
@@ -449,12 +482,11 @@ contains
     enddo
 
     turb_kind = 0
-    if (index(s, "mi_t") > 0 .or. index(s, "tilde") > 0 .or. &
-        s == "nut" .or. s == "mut" .or. s == "mu_t" .or. s == "nu_t") then
+    if (index(s, "mi_t") > 0 .or. index(s, "tilde") > 0 .or. index(s, "tilda") > 0) then
       turb_kind = 1
-    elseif (s == "kappa" .or. s == "tke" .or. s == "k") then
+    elseif (s == "rhok" .or. s == "kappa" .or. s == "tke" .or. s == "k") then
       turb_kind = 2
-    elseif (s == "omega") then
+    elseif (s == "rhoomega" .or. s == "omega") then
       turb_kind = 3   ! epsilon/eps are NOT omega: a k-epsilon file is refused by detect_turbulence (k without omega)
     elseif (t == "ruu") then
       turb_kind = 11
@@ -470,6 +502,19 @@ contains
       turb_kind = 16
     endif
   end function turb_kind
+
+
+  !> A variable name left-adjusted and in lower case.
+  pure function lower(rawname) result(s)
+    character(len=*), intent(in) :: rawname
+    character(len=len(rawname))  :: s
+    integer :: i, ic
+    s = adjustl(rawname)
+    do i = 1, len_trim(s)
+      ic = iachar(s(i:i))
+      if (ic >= iachar('A') .and. ic <= iachar('Z')) s(i:i) = achar(ic + 32)
+    enddo
+  end function lower
 
 
   !> True if a solution variable name denotes a turbulence quantity.
@@ -592,16 +637,19 @@ contains
           else
             varnames = trim(varnames)//' u v w p'
           endif
+          ! the turbulence bands are density-weighted (build_IG_field multiplies a specific key by
+          ! the cell density, takes a density-weighted key as given) and carry the names of the
+          ! density-weighted keys: rhoNuTilde (= rho*nu_tilde), rhoK, rhoOmega
           if (nrans_ref==1) then
-            varnames = trim(varnames)//' mi_t'
+            varnames = trim(varnames)//' rhoNuTilde'
           elseif (nrans_ref==2) then
-            varnames = trim(varnames)//' kappa omega'
+            varnames = trim(varnames)//' rhoK rhoOmega'
           elseif (nrans_ref==7 .and. mesh_cfg%meshType == -2) then
             ! pure-2D target: the Reynolds-stress state of Q2D has 5 bands; R13 and R23 are not part of it
-            varnames = trim(varnames)//' ruu rvv rww ruv omega'
+            varnames = trim(varnames)//' ruu rvv rww ruv rhoOmega'
             write(*,*) ' - write_vtk_tec: 2D target, Reynolds stresses written in the Q2D 5-band layout (R13, R23 dropped)'
           elseif (nrans_ref==7) then
-            varnames = trim(varnames)//' ru''u'' rv''v'' rw''w'' ru''v'' ru''w'' rv''w'' omega'
+            varnames = trim(varnames)//' ru''u'' rv''v'' rw''w'' ru''v'' ru''w'' rv''w'' rhoOmega'
           endif
         case('DP')   ! see note at the `mat =` assignment above: the type string is 'DP'
           nnn = 0
@@ -635,13 +683,14 @@ contains
           else
             varnames = trim(varnames)//' "p" "u" "v" "w" "h"'
           endif
+          ! density-weighted bands, as in an ideal-gas zone (build_RF_field takes the density-weighted keys only)
           if (nrans_ref==1) then
-            varnames = trim(varnames)//' "mi_t"'
+            varnames = trim(varnames)//' "rhoNuTilde"'
           elseif (nrans_ref==2) then
-            varnames = trim(varnames)//' "kappa" "omega"'
+            varnames = trim(varnames)//' "rhoK" "rhoOmega"'
           elseif (nrans_ref==7) then
             varnames = trim(varnames)// &
-              ' "ru''u''" "rv''v''" "rw''w''" "ru''v''" "ru''w''" "rv''w''" "omega"'
+              ' "ru''u''" "rv''v''" "rw''w''" "ru''v''" "ru''w''" "rv''w''" "rhoOmega"'
           endif
       end select
 

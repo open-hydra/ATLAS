@@ -60,7 +60,7 @@ contains
       character(len=*), intent(in) :: key
       inlet_family_key = any(key == [character(len=14) :: 'p0', 'T0', 'h0', 'g', 'mach', 'p', 'un', 'alpha', 'beta', 'rf', &
                              'time-file', 'line-file', 'p0-time-file', 'p-time-file', 'periodic', 'Ae_At', 'psub', 'psup', &
-                             'a1-a3', 'mit', 'kappa', 'omega', 'rhoRij', 'nrans', 'eq-OG', 'eq-CEA-file', 'eq-CEA-section', &
+                             'a1-a3', 'nuTilde', 'k', 'omega', 'rhoRij', 'nrans', 'eq-OG', 'eq-CEA-file', 'eq-CEA-section', &
                              'u', 'v', 'w'])
       if (.not. inlet_family_key .and. len(key) > 1) inlet_family_key = key(1:1) == 'y'
     end function inlet_family_key

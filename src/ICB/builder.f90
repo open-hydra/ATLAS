@@ -254,15 +254,16 @@ module ic_builder_mod
       select case (size(tmask, 1))
       case (1)
         n = count(.not. tmask(1,:,:,:))
-        if (n > 0) write(*,'(A,I0,A,I0,A,I0,A)') '[WARNING] build_IC block ', blk%id, ' ('//ptype//'): mi_t of ', n, &
-          ' of ', size(tmask(1,:,:,:)), ' cells is set by no zone (no key mit, no turbulent source there): it stays 0'
+        if (n > 0) write(*,'(A,I0,A,I0,A,I0,A)') '[WARNING] build_IC block ', blk%id, ' ('//ptype//'): '// &
+          'rhoNuTilde of ', n, ' of ', size(tmask(1,:,:,:)), &
+          ' cells is set by no zone (no key nuTilde or rhoNuTilde, no turbulent source there): it stays 0'
         return
       case (2)
         ok = tmask(1,:,:,:) .and. tmask(2,:,:,:)
-        model = 'k-omega (nrans = 2)'; keys = 'kappa and omega'
+        model = 'k-omega (nrans = 2)'; keys = 'k and omega (or rhoK and rhoOmega)'
       case (7)
         ok = tmask(1,:,:,:) .and. tmask(2,:,:,:) .and. tmask(3,:,:,:) .and. tmask(7,:,:,:)
-        model = 'Reynolds-stress (nrans = 7)'; keys = 'rhoRij and omega'
+        model = 'Reynolds-stress (nrans = 7)'; keys = 'Rij and omega (or rhoRij and rhoOmega)'
       case default
         return
       end select

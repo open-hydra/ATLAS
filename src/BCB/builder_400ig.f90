@@ -29,7 +29,7 @@ contains
     type(bcb_ig_boundary_config_t) :: cfg
     real(R8) :: p0, T0, h0, mach, T, g, un, alpha, beta, p, rel_fac, Ae_At, rt, psup, psub
     real(R8) :: a1_a3
-    real(R8) :: mit, kappa, omega, rhoRij
+    real(R8) :: nuTilde, k, omega, rhoRij
     integer  :: dim, start, nrans, tlo, thi
     logical  :: no_angles_rec
     real(R8) :: ceah0, ceaT0, ceap0
@@ -61,8 +61,8 @@ contains
     p_time_file  = cfg%p_time_file
     time_file    = cfg%time_file
     periodic     = cfg%periodic
-    mit          = cfg%turbulence%mit
-    kappa        = cfg%turbulence%kappa
+    nuTilde          = cfg%turbulence%nuTilde
+    k            = cfg%turbulence%k
     omega        = cfg%turbulence%omega
     rhoRij       = cfg%turbulence%rhoRij
     nrans        = cfg%turbulence%nrans
@@ -151,13 +151,13 @@ contains
       ! in silence); ICB refuses the same initial field under an omega model and the
       ! same refusal on the inlet record is deliberately not applied here (WARNING only)
       if     (nrans==1) then
-        self%ig_properties(start+1) = mit
-        if (mit <= 0._R8) call warn_turbulence_zero('mit', 'Spalart-Allmaras (nrans = 1)', 'mit')
+        self%ig_properties(start+1) = nuTilde
+        if (nuTilde <= 0._R8) call warn_turbulence_zero('nuTilde', 'Spalart-Allmaras (nrans = 1)', 'nuTilde')
       elseif (nrans==2) then
-        self%ig_properties(start+1) = kappa
+        self%ig_properties(start+1) = k
         self%ig_properties(start+2) = omega
-        if (kappa <= 0._R8 .or. omega <= 0._R8) &
-          call warn_turbulence_zero('kappa or omega', 'k-omega (nrans = 2)', 'kappa and omega')
+        if (k <= 0._R8 .or. omega <= 0._R8) &
+          call warn_turbulence_zero('k or omega', 'k-omega (nrans = 2)', 'k and omega')
       elseif (nrans==7 .or. nrans==5) then
         ! 7 bands (3-D solvers): R11 R22 R33 R12 R13 R23 omega; 5 bands (Q2D, pure-2D mesh): R11 R22 R33 R12 omega
         self%ig_properties(start+1:start+3) = rhoRij
@@ -457,7 +457,7 @@ contains
       case ('a1-a3');         ok = id == 421
       case ('alpha', 'beta'); ok = tail .and. id < 420; selector = .false.
       case ('rf');            ok = id /= 410; selector = .false.
-      case ('mit', 'kappa', 'omega', 'rhoRij', 'nrans', 'eq-OG', 'eq-CEA-file', 'eq-CEA-section')
+      case ('nuTilde', 'k', 'omega', 'rhoRij', 'nrans', 'eq-OG', 'eq-CEA-file', 'eq-CEA-section')
         ok = tail; selector = .false.
       case ('u', 'v', 'w', 'p-time-file')
         ok = .false.; selector = .false.

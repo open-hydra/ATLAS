@@ -551,12 +551,15 @@ T0    = 300.0
     `insufficient or inconsistent inflow properties specified`. Unlike the walls,
     it does not fall through silently.
 
-Turbulence keys (`mit`, `kappa`, `omega`, `rhoRij`, `nrans`) may be added to any
-inlet and are appended to the payload after the mass fractions. A band left at zero
-under a model (`nrans = 1` without `mit`, `nrans = 2` without `kappa` or `omega`,
-`nrans = 7` without `rhoRij` or `omega`) is written with a `[WARNING]` naming the
-keys: the inlet carries no turbulence (ICB refuses the same initial field under an
-omega model).
+#### Inlet turbulence keys
+
+Turbulence keys (`nuTilde`, `k`, `omega`, `rhoRij`, `nrans`) may be added to any inlet and
+are appended to the payload after the mass fractions, as given. `nuTilde` (the
+variable the Spalart-Allmaras model transports, $\tilde\nu$, not the eddy viscosity) [m²/s], `k` [m²/s²] and `omega` [1/s]
+are **specific**. A band left at zero under a model (`nrans = 1` without `nuTilde`,
+`nrans = 2` without `k` or `omega`, `nrans = 7` without `rhoRij` or `omega`) is written
+with a `[WARNING]` naming the keys: the inlet carries no turbulence (ICB refuses the
+same initial field under an omega model).
 On a pure-2D (`x,y`) mesh a Reynolds-stress inlet (`nrans = 7`) carries the 5-band tail
 that Q2D reads (`R11, R22, R33, R12, omega`; `R13`, `R23` are not part of its 2-D state);
 the 7-band tail (`R11 R22 R33 R12 R13 R23 omega`) is written on 3-D meshes only.
@@ -789,8 +792,6 @@ CEA-mixture 56.478204
 ```
 
 `n` and `rhoGrain` are mandatory — BCB stops if either is left at `0`.
-Turbulence keys (`mit`, `kappa`, `omega`, `rhoRij`, `nrans`) may be appended and
-are written after the mass fractions.
 
 #### `gsi` — Melting
 
