@@ -49,36 +49,35 @@ contains
         !$omp do collapse(2)
         do n1 = 1, blk(b1)%face(f1)%Nn
           do m1 = 1, blk(b1)%face(f1)%Nm
-            associate( this => blk(b1)%face(f1)%center(m1,n1) )
-            if (this%bc%gp_id==201 .and. this%bc%connection(3)>0) then
-              if (this%bc%connection(1)==0) then
+            if (blk(b1)%face(f1)%center(m1,n1)%bc%gp_id==201 .and. &
+                blk(b1)%face(f1)%center(m1,n1)%bc%connection(3)>0) then
+              if (blk(b1)%face(f1)%center(m1,n1)%bc%connection(1)==0) then
                 b2 = b1
               else
-                b2 = this%bc%connection(1)
-                if (b1==b2) b2 = this%bc%connection(2)
+                b2 = blk(b1)%face(f1)%center(m1,n1)%bc%connection(1)
+                if (b1==b2) b2 = blk(b1)%face(f1)%center(m1,n1)%bc%connection(2)
               endif
-              f2 = this%bc%connection(3)
-              if (f1==f2) f2 = this%bc%connection(4)
-              this%bc%adj_assigned = .true.
+              f2 = blk(b1)%face(f1)%center(m1,n1)%bc%connection(3)
+              if (f1==f2) f2 = blk(b1)%face(f1)%center(m1,n1)%bc%connection(4)
+              blk(b1)%face(f1)%center(m1,n1)%bc%adj_assigned = .true.
               m2 = m1
               n2 = n1
               call fmn2ijk(f2,m2,n2,nx(b2),ny(b2),nz(b2),i2,j2,k2)
               if (mesh_cfg%meshType == -2) then
               ! ----- Caso 2D: b, i, j, f -----
-                this%bc%ci_properties(1) = b2
-                this%bc%ci_properties(2) = i2
-                this%bc%ci_properties(3) = j2
-                this%bc%ci_properties(4) = f2
+                blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1) = b2
+                blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(2) = i2
+                blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(3) = j2
+                blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(4) = f2
               else
                 ! ----- Caso 3D: b, i, j, k, f -----
-                this%bc%ci_properties(1) = b2
-                this%bc%ci_properties(2) = i2
-                this%bc%ci_properties(3) = j2
-                this%bc%ci_properties(4) = k2
-                this%bc%ci_properties(5) = f2
+                blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1) = b2
+                blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(2) = i2
+                blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(3) = j2
+                blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(4) = k2
+                blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(5) = f2
               end if
             endif
-            endassociate
           enddo
         enddo
         !$omp end parallel
@@ -138,8 +137,6 @@ contains
 
           if (blk(b1)%face(f1)%center(m1,n1)%bc%adj_assigned) then
 
-            associate( this => blk(b1)%face(f1)%center(m1,n1) )
-
             ! legge dati della faccia di contorno
             if1 = f1; ib1 = b1
             call fmn2ijk(f1,m1,n1,nx(b1),ny(b1),nz(b1),i1,j1,k1)
@@ -172,17 +169,17 @@ contains
             ! legge  dati della faccia a cui e' connessa la faccia di contorno
 
             if (mesh_cfg%meshType == -2) then
-              ib2 = this%bc%ci_properties(1)
-              i2 = this%bc%ci_properties(2)-1
-              j2 = this%bc%ci_properties(3)-1
+              ib2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1)
+              i2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(2)-1
+              j2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(3)-1
               k2 = 0
-              if2 = this%bc%ci_properties(4)
+              if2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(4)
             else
-              ib2 = this%bc%ci_properties(1)
-              i2 = this%bc%ci_properties(2)-1
-              j2 = this%bc%ci_properties(3)-1
-              k2 = this%bc%ci_properties(4)-1
-              if2 = this%bc%ci_properties(5)
+              ib2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1)
+              i2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(2)-1
+              j2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(3)-1
+              k2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(4)-1
+              if2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(5)
             endif
 
             x11 = blk(ib2)%node(i2+di11(if2),j2+dj11(if2),k2+dk11(if2))%c(1)
@@ -239,12 +236,11 @@ contains
             dumji=ejx1do*eix2up+ejy1do*eiy2up+ejz1do*eiz2up
             dumjj=ejx1do*ejx2up+ejy1do*ejy2up+ejz1do*ejz2up
 
-            this%bc%connection(1) = NINT(dumii)
-            this%bc%connection(2) = NINT(dumij)
-            this%bc%connection(3) = NINT(dumji)
-            this%bc%connection(4) = NINT(dumjj)
+            blk(b1)%face(f1)%center(m1,n1)%bc%connection(1) = NINT(dumii)
+            blk(b1)%face(f1)%center(m1,n1)%bc%connection(2) = NINT(dumij)
+            blk(b1)%face(f1)%center(m1,n1)%bc%connection(3) = NINT(dumji)
+            blk(b1)%face(f1)%center(m1,n1)%bc%connection(4) = NINT(dumjj)
 
-            endassociate
           endif
         enddo
       enddo
@@ -256,7 +252,6 @@ contains
 
 
 
-  !> Based on the find_connect.F file of AFFS
   !> `skip_chimera` leaves the faces declared 'chimera' to the overset search.
   !> BC-force-connect summary (called by find_connect). The face-centre matching works cell by cell: on a face
   !> declared with another BC (inlet, gsi, wall, symmetry, ...) the cells that coincide with a cell of another
@@ -522,10 +517,9 @@ contains
           do m1 = 1, blk(b1)%face(f1)%Nm
             j = i + (n1-1)*blk(b1)%face(f1)%Nm + m1
             if ((def(j)==101 .or. def(j)==103) .and. adj(j)) then
-              associate( this => blk(b1)%face(f1)%center(m1,n1) )
-              this%bc%gp_id = def(j)
-              this%bc%adj_assigned = adj(j)
-              this%bc%ci_properties(:) = prop(j,:)
+              blk(b1)%face(f1)%center(m1,n1)%bc%gp_id = def(j)
+              blk(b1)%face(f1)%center(m1,n1)%bc%adj_assigned = adj(j)
+              blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(:) = prop(j,:)
               if (any(prop(j,:)==0)) then
                 !$omp critical(conn_print)
                 write(*,*) "[ERROR] Connection not found"
@@ -533,17 +527,12 @@ contains
                 !$omp end critical(conn_print)
                 stop 1
               endif
-              endassociate
             endif
           enddo
         enddo
         !$omp end parallel
       enddo
     enddo
-
-    ! parte sperimentale per la determinazione degli indici delle
-    ! celle adiacenti a quella a cui e'connessa
-    ! questa parte e' necessaria nel caso di flag VISC attivo
 
     di11(1) =-1; dj11(1) = 0; dk11(1) = 0
     di01(1) =-1; dj01(1) =-1; dk01(1) = 0
@@ -594,9 +583,6 @@ contains
 
           if (blk(b1)%face(f1)%center(m1,n1)%bc%adj_assigned) then
 
-            associate( this => blk(b1)%face(f1)%center(m1,n1) )
-
-            ! legge dati della faccia di contorno
             if1 = f1; ib1 = b1
             call fmn2ijk(f1,m1,n1,nx(b1),ny(b1),nz(b1),i1,j1,k1)
             i1 = i1-1; j1 = j1-1; k1 = k1-1
@@ -625,20 +611,18 @@ contains
             ejy1do= 0.5*(y11+y01)-0.5*(y10+y00)
             ejz1do= 0.5*(z11+z01)-0.5*(z10+z00)
 
-            ! legge  dati della faccia a cui e' connessa la faccia di contorno
-
             if (mesh_cfg%meshType == -2) then
-              ib2 = this%bc%ci_properties(1)
-              i2 = this%bc%ci_properties(2)-1
-              j2 = this%bc%ci_properties(3)-1
+              ib2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1)
+              i2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(2)-1
+              j2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(3)-1
               k2 = 0
-              if2 = this%bc%ci_properties(4)
+              if2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(4)
             else
-              ib2 = this%bc%ci_properties(1)
-              i2 = this%bc%ci_properties(2)-1
-              j2 = this%bc%ci_properties(3)-1
-              k2 = this%bc%ci_properties(4)-1
-              if2 = this%bc%ci_properties(5)
+              ib2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1)
+              i2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(2)-1
+              j2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(3)-1
+              k2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(4)-1
+              if2 = blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(5)
             endif
 
             x11 = blk(ib2)%node(i2+di11(if2),j2+dj11(if2),k2+dk11(if2))%c(1)
@@ -657,8 +641,6 @@ contains
             y00 = blk(ib2)%node(i2+di00(if2),j2+dj00(if2),k2+dk00(if2))%c(2)
             z00 = blk(ib2)%node(i2+di00(if2),j2+dj00(if2),k2+dk00(if2))%c(3)
 
-            ! calcola base covariante associata alla faccia connessa
-
             eix2do= 0.5*(x11+x10)-0.5*(x01+x00)
             eiy2do= 0.5*(y11+y10)-0.5*(y01+y00)
             eiz2do= 0.5*(z11+z10)-0.5*(z01+z00)
@@ -669,13 +651,10 @@ contains
 
             aa(1,1)=eix2do; aa(1,2)=eiy2do; aa(1,3)=eiz2do
             aa(2,1)=ejx2do; aa(2,2)=ejy2do; aa(2,3)=ejz2do
-            ! aggiunge alla base definita sulla faccia il vettore perpr.
-            ! ai due vettori della base (ottenuto tramite il prodotto vettore)
             aa(3,1)=  aa(1,2)*aa(2,3)-aa(1,3)*aa(2,2)
             aa(3,2)=-(aa(1,1)*aa(2,3)-aa(1,3)*aa(2,1))
             aa(3,3)=  aa(1,1)*aa(2,2)-aa(1,2)*aa(2,1)
 
-            ! calcolo base controvariante associata alla faccia connessa
             nn=3
             call invmat(aa,bb,nn)
 
@@ -687,20 +666,16 @@ contains
             ejy2up=bb(2,2)
             ejz2up=bb(3,2)
 
-            ! calcolo prodotti scalari tra i vettori della base covariante della
-            ! faccia di contorno e la base controvariante della faccia connessa.
-
             dumii=eix1do*eix2up+eiy1do*eiy2up+eiz1do*eiz2up
             dumij=eix1do*ejx2up+eiy1do*ejy2up+eiz1do*ejz2up
             dumji=ejx1do*eix2up+ejy1do*eiy2up+ejz1do*eiz2up
             dumjj=ejx1do*ejx2up+ejy1do*ejy2up+ejz1do*ejz2up
 
-            this%bc%connection(1) = NINT(dumii)
-            this%bc%connection(2) = NINT(dumij)
-            this%bc%connection(3) = NINT(dumji)
-            this%bc%connection(4) = NINT(dumjj)
+            blk(b1)%face(f1)%center(m1,n1)%bc%connection(1) = NINT(dumii)
+            blk(b1)%face(f1)%center(m1,n1)%bc%connection(2) = NINT(dumij)
+            blk(b1)%face(f1)%center(m1,n1)%bc%connection(3) = NINT(dumji)
+            blk(b1)%face(f1)%center(m1,n1)%bc%connection(4) = NINT(dumjj)
 
-            endassociate
           endif
         enddo
       enddo
@@ -735,11 +710,6 @@ contains
 
   end subroutine find_connect
 
-
-!    subroutine di inversione di matrice
-!    a     : matrice r*r da invertire  reale
-!    b     : matrice r*r invertita
-!    r     : dimensione (max 20)      intero
 subroutine invmat(a,b,r)
   implicit none
   integer :: r,j,i,k,l

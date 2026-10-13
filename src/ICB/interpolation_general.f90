@@ -876,10 +876,10 @@ contains
           trueb = 1
           if (oldid == 0) then
             do bb = 1, size(oldblocks)
-              associate(ob => oldblocks(bb), d1 => oldblocks(bb)%dim(1), d2 => oldblocks(bb)%dim(2), d3 => oldblocks(bb)%dim(3))
-              dx(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(1) - ob%center(1:d1,1:d2,1:d3)%c(1))**2
-              dy(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(2) - ob%center(1:d1,1:d2,1:d3)%c(2))**2
-              dz(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(3) - ob%center(1:d1,1:d2,1:d3)%c(3))**2
+              associate(d1 => oldblocks(bb)%dim(1), d2 => oldblocks(bb)%dim(2), d3 => oldblocks(bb)%dim(3))
+              dx(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(1) - oldblocks(bb)%center(1:d1,1:d2,1:d3)%c(1))**2
+              dy(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(2) - oldblocks(bb)%center(1:d1,1:d2,1:d3)%c(2))**2
+              dz(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(3) - oldblocks(bb)%center(1:d1,1:d2,1:d3)%c(3))**2
               dist(1:d1,1:d2,1:d3) = sqrt(dx(1:d1,1:d2,1:d3) + dy(1:d1,1:d2,1:d3) + dz(1:d1,1:d2,1:d3))
               indold = minloc( &
                 dist(1:d1,1:d2,1:d3), MASK=.true.)
@@ -892,10 +892,10 @@ contains
               end associate
             enddo
           else
-            associate(ob => oldblocks(oldid), d1 => oldblocks(oldid)%dim(1), d2 => oldblocks(oldid)%dim(2), d3 => oldblocks(oldid)%dim(3))
-            dx(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(1) - ob%center(1:d1,1:d2,1:d3)%c(1))**2
-            dy(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(2) - ob%center(1:d1,1:d2,1:d3)%c(2))**2
-            dz(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(3) - ob%center(1:d1,1:d2,1:d3)%c(3))**2
+            associate(d1 => oldblocks(oldid)%dim(1), d2 => oldblocks(oldid)%dim(2), d3 => oldblocks(oldid)%dim(3))
+            dx(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(1) - oldblocks(oldid)%center(1:d1,1:d2,1:d3)%c(1))**2
+            dy(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(2) - oldblocks(oldid)%center(1:d1,1:d2,1:d3)%c(2))**2
+            dz(1:d1,1:d2,1:d3) = (tgt%center(i,j,k)%c(3) - oldblocks(oldid)%center(1:d1,1:d2,1:d3)%c(3))**2
             dist(1:d1,1:d2,1:d3) = sqrt(dx(1:d1,1:d2,1:d3) + dy(1:d1,1:d2,1:d3) + dz(1:d1,1:d2,1:d3))
             indold = minloc( &
               dist(1:d1,1:d2,1:d3), MASK=.true.)
@@ -1120,6 +1120,7 @@ contains
       maxdim(3) = max(maxdim(3), source_blocks(b)%dim(3))
     enddo
 
+    ! no associate on a source block inside the region (see build_distance_map)
     !$omp parallel private(i,j,k,b,dx,dy,dz,dist, &
     !$omp&                 truedist,mindist,indold,ind,bestb)
     allocate(dx(1:maxdim(1), 1:maxdim(2), 1:maxdim(3)))
@@ -1133,33 +1134,12 @@ contains
           truedist = huge(1.0_R8)
           bestb    = 1
           do b = 1, size(source_blocks)
-            associate(sb => source_blocks(b))
-              dx(1:sb%dim(1),1:sb%dim(2),1:sb%dim(3)) = &
-                (blk%center(i,j,k)%c(1) &
-                 - sb%center(1:sb%dim(1), &
-                             1:sb%dim(2), &
-                             1:sb%dim(3))%c(1))**2
-              dy(1:sb%dim(1),1:sb%dim(2),1:sb%dim(3)) = &
-                (blk%center(i,j,k)%c(2) &
-                 - sb%center(1:sb%dim(1), &
-                             1:sb%dim(2), &
-                             1:sb%dim(3))%c(2))**2
-              dz(1:sb%dim(1),1:sb%dim(2),1:sb%dim(3)) = &
-                (blk%center(i,j,k)%c(3) &
-                 - sb%center(1:sb%dim(1), &
-                             1:sb%dim(2), &
-                             1:sb%dim(3))%c(3))**2
-              dist(1:sb%dim(1),1:sb%dim(2),1:sb%dim(3)) = &
-                sqrt( dx(1:sb%dim(1), &
-                         1:sb%dim(2), &
-                         1:sb%dim(3)) &
-                    + dy(1:sb%dim(1), &
-                         1:sb%dim(2), &
-                         1:sb%dim(3)) &
-                    + dz(1:sb%dim(1), &
-                         1:sb%dim(2), &
-                         1:sb%dim(3)) )
-              indold = minloc( dist(1:sb%dim(1), 1:sb%dim(2), 1:sb%dim(3)), MASK=.true.)
+            associate(d1 => source_blocks(b)%dim(1), d2 => source_blocks(b)%dim(2), d3 => source_blocks(b)%dim(3))
+              dx(1:d1,1:d2,1:d3) = (blk%center(i,j,k)%c(1) - source_blocks(b)%center(1:d1,1:d2,1:d3)%c(1))**2
+              dy(1:d1,1:d2,1:d3) = (blk%center(i,j,k)%c(2) - source_blocks(b)%center(1:d1,1:d2,1:d3)%c(2))**2
+              dz(1:d1,1:d2,1:d3) = (blk%center(i,j,k)%c(3) - source_blocks(b)%center(1:d1,1:d2,1:d3)%c(3))**2
+              dist(1:d1,1:d2,1:d3) = sqrt(dx(1:d1,1:d2,1:d3) + dy(1:d1,1:d2,1:d3) + dz(1:d1,1:d2,1:d3))
+              indold = minloc( dist(1:d1,1:d2,1:d3), MASK=.true.)
               mindist = dist(indold(1), indold(2), indold(3))
               if (mindist < truedist) then
                 truedist = mindist
