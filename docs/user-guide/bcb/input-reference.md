@@ -1,6 +1,6 @@
 # BCB Input Parameters
 
-Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file` series (BC 402) is in bar, as the solvers read it.
+Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s).
 
 
 ## ATLAS-Parameters
@@ -82,7 +82,7 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exce
 | T | 0.0 |  |  no | Ideal-gas static temperature. |
 | g | 0.0 |  |  no | Mass flux for inlet boundaries. |
 | p | 0.0 |  |  no | Static pressure for outlet or far-field boundaries. |
-| p0-time-file | none |  |  no | Time-series file for total pressure. |
+| p0-time-file | none |  |  no | Time-series file for total pressure (two columns: time [s], p0 [Pa]). |
 | p-time-file | none |  |  no | Time-series file for static pressure. |
 | time-file | none |  |  no | Time-series file of full boundary state. |
 | periodic | F |  |  no | Treat a time-file series as periodic. |

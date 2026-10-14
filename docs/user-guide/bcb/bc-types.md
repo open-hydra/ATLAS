@@ -37,9 +37,8 @@ This page covers the full BC roster with reference tables and INI syntax for eve
 
 ## INI Syntax
 
-Units: every value is SI (Pa, K, J/kg, kg m⁻² s⁻¹ for `g`, m/s). The one exception is the
-`p0-time-file` series of BC `402`, whose values are in **bar**, as the solvers read them (`p0` in the
-same section is in Pa).
+Units: every value is SI (Pa, K, J/kg, kg m⁻² s⁻¹ for `g`, m/s), including the `p0-time-file` series
+of BC `402` (time in s, `p0` in Pa).
 
 Every BC below is selected by the `type` key of a named section, except the
 keyword BCs, which are written straight onto the face line. Where a type has
@@ -346,7 +345,7 @@ never clamped in silence.
 | `Ae_At` | Nozzle exit-to-throat area ratio (must be ≥ 1) |
 | `psub`, `psup` | Subsonic / supersonic injector exit pressures |
 | `a1-a3` | Borda injector throat-to-face area ratio A1/A3, in (0, 1] |
-| `time-file`, `p0-time-file` | Time series replacing the scalars; the `p0-time-file` values are in **bar** (the solvers read them so), `p0` itself in Pa |
+| `time-file`, `p0-time-file` | Time series replacing the scalars; the `p0-time-file` has two columns, time [s] and `p0` [Pa] |
 | `periodic` | Loop a `time-file` series instead of holding the last value |
 | `line-file` | Unwrapped (2D) time series to be mapped onto the 3D face; the `time-file` is then *written* by BCB (see below) |
 | `center` | Cylinder axis point `x y z` for the `line-file` mapping (required with `line-file`) |
@@ -448,7 +447,7 @@ time-file = inlet_transient.dat
 
 [inlet_p0_timevarying]
 type         = inlet
-p0-time-file = p0_transient.dat   ; values in bar, as the solvers read them (p0 is in Pa)
+p0-time-file = p0_transient.dat   ; two columns: time [s], p0 [Pa]
 T0           = 300.0
 ```
 
