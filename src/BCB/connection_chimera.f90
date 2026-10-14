@@ -270,7 +270,9 @@ contains
     end associate
   end function is_chimera_face
 
-  subroutine chimera_wrapper(block,force_chimera)
+  !> chimera.log lists the closure of every receiver of the level (chimera<level>.log
+  !> above level 1, like bc<level>.txt).
+  subroutine chimera_wrapper(block,force_chimera,level)
     use intersection_mod
     use bc_block_mod
     use grid_mod, only: mesh_cfg
@@ -279,7 +281,9 @@ contains
     implicit none
     type(BC_block), intent(inout) :: block(:)
     logical, intent(in), optional :: force_chimera
+    integer, intent(in), optional :: level
     logical                 :: force
+    character(len=32)       :: logname
     integer                 :: ir,jr,kr,br,fr,ni
     integer                 :: unitlog
     integer                 :: gc(3)
@@ -307,7 +311,11 @@ contains
     !$ nthreads = omp_get_max_threads()
     allocate(tbuf(0:nthreads-1))
 
-    open(newunit=unitlog,file='chimera.log',status='replace',action='write')
+    logname = 'chimera.log'
+    if (present(level)) then
+      if (level > 1) write(logname,'(A,I0,A)') 'chimera', level, '.log'
+    endif
+    open(newunit=unitlog,file=trim(logname),status='replace',action='write')
 
     ! Loop over the receiver block cells
     do br = 1, size(block)
