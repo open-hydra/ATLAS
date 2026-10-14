@@ -236,6 +236,11 @@ module bc_chimera_mod
     integer :: n = 0
   end type rec_buffer
 
+  !> BC ids of the facelets of one face, as they were before the chimera search.
+  type :: face_ids
+    integer, allocatable :: id(:,:)
+  end type face_ids
+
 contains
 
   !> Receivers claimed by the overset search: the faces declared 'chimera', plus
@@ -275,7 +280,7 @@ contains
     type(BC_block), intent(inout) :: block(:)
     logical, intent(in), optional :: force_chimera
     logical                 :: force
-    integer                 :: ir,jr,kr,br,ni
+    integer                 :: ir,jr,kr,br,fr,ni
     integer                 :: unitlog
     integer                 :: gc(3)
     integer                 :: procStart(3)
@@ -285,6 +290,7 @@ contains
     logical, allocatable                 :: processed(:,:,:)
     type(donor_grid_t)                   :: grid
     type(rec_buffer), allocatable        :: tbuf(:)
+    type(face_ids), allocatable          :: gp0(:,:)
 
     gc = mesh_cfg%gc
     procStart = [1-gc(1),1-gc(2),1-gc(3)]
@@ -413,6 +419,14 @@ contains
       off = off + tbuf(t)%n
     end do
 
+    ! BC ids before VolumeFractions turns the receivers into 102/104
+    allocate(gp0(size(block),6))
+    do br = 1, size(block)
+      do fr = 1, block(br)%nfaces
+        gp0(br,fr)%id = block(br)%face(fr)%center(1:block(br)%face(fr)%Nm,1:block(br)%face(fr)%Nn)%bc%gp_id
+      enddo
+    enddo
+
     !% Check volume division for receivers
     do br = 1, size(block)
       ! Face 1
@@ -460,6 +474,8 @@ contains
       enddo
 
       close(unitlog)
+
+      call CompleteReceivers(block,gp0)
 
   end subroutine chimera_wrapper
 
@@ -611,6 +627,69 @@ contains
     end subroutine donor_nodes
 
   end subroutine LoopOverDonors
+
+  !> A facelet is a chimera receiver when both of its ghost layers found donors. One
+  !> that reaches the donor block with a single layer, a sliver at the rim of an
+  !> overlap thinner than the sampling resolution in the other layer, would be written
+  !> with a donor count of 0, which MOSE refuses at read time. A facelet claimed by
+  !> BC-force-chimera alone (declared neither chimera nor connection) then keeps its own
+  !> BC, as when it finds no donor at all. A declared one keeps what it found and is
+  !> reported, as are the declared facelets left without any donor: these keep ID 100,
+  !> on which MOSE applies no boundary flux.
+  subroutine CompleteReceivers(block,gp0)
+    use bc_block_mod, only: BC_block
+    use bc_names_mod, only: MARKER_Chim, MARKER_CONN
+    use grid_mod,     only: mesh_cfg, fmn2ijk
+    implicit none
+    type(BC_block), intent(inout) :: block(:)
+    type(face_ids), intent(in)    :: gp0(:,:)
+    integer :: br, fr, nf, m, n, g, Ai, Aj, Ak, gi(2), gj(2), gk(2), n100, none
+    logical :: has(2), declared
+
+    do br = 1, size(block)
+      nf = block(br)%nfaces
+      if (mesh_cfg%meshType /= 3) nf = min(nf, 4)   ! k faces are searched on a full 3-D mesh only
+      do fr = 1, nf
+        n100 = 0
+        none = 0
+        do n = 1, block(br)%face(fr)%Nn
+          do m = 1, block(br)%face(fr)%Nm
+            call fmn2ijk(fr,m,n,block(br)%dim(1),block(br)%dim(2),block(br)%dim(3),Ai,Aj,Ak)
+            do g = 1, 2
+              gi(g) = Ai; gj(g) = Aj; gk(g) = Ak
+              select case(fr)
+                case(1); gi(g) = Ai-g
+                case(2); gi(g) = Ai+g
+                case(3); gj(g) = Aj-g
+                case(4); gj(g) = Aj+g
+                case(5); gk(g) = Ak-g
+                case(6); gk(g) = Ak+g
+              end select
+              has(g) = allocated(block(br)%face(fr)%cell(gi(g),gj(g),gk(g))%chimerainfo)
+            enddo
+            declared = trim(block(br)%face(fr)%center(m,n)%bc%definition)==trim(MARKER_Chim) .or. &
+                       trim(block(br)%face(fr)%center(m,n)%bc%definition)==trim(MARKER_CONN)
+            if (has(1) .neqv. has(2)) then
+              if (declared) then
+                none = none + 1
+              else
+                do g = 1, 2
+                  if (has(g)) deallocate(block(br)%face(fr)%cell(gi(g),gj(g),gk(g))%chimerainfo)
+                enddo
+                block(br)%face(fr)%center(m,n)%bc%gp_id = gp0(br,fr)%id(m,n)
+              endif
+            endif
+            if (block(br)%face(fr)%center(m,n)%bc%gp_id == 100) n100 = n100 + 1
+          enddo
+        enddo
+        if (none > 0) write(*,'(A,I0,A,I0,A,I0,A)') '[WARNING] chimera: block ', br, ' face ', fr, ': ', none, &
+          ' facelet(s) found donors for one ghost layer only; the other is written with 0 donors, which MOSE refuses'
+        if (n100 > 0) write(*,'(A,I0,A,I0,A,I0,A)') '[WARNING] chimera: block ', br, ' face ', fr, ': ', n100, &
+          ' facelet(s) found no donor and keep ID 100, on which MOSE applies no boundary flux'
+      enddo
+    enddo
+
+  end subroutine CompleteReceivers
 
   !> Append one intersection record to a buffer, doubling capacity as needed.
   subroutine append_record(buf, rid, did, nin, vol, clipped)
