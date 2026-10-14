@@ -169,7 +169,7 @@ module bcb_config_mod
     real(R8), allocatable :: betap(:)
     real(R8), allocatable :: rRes(:)
     real(R8), allocatable :: Tsat(:)
-    character(len=32), allocatable :: distribution(:)
+    character(len=llen), allocatable :: distribution(:)
   end type bcb_dp_material_config_t
 
   type, public :: bcb_dp_boundary_config_t
@@ -779,10 +779,18 @@ contains
       call get_population_words(sourceini, section, trim(pn)//'distribution', off, nall, cfg%materials(m)%distribution, error)
 
       ! Resolve the size-distribution law for each population (string written to
-      ! the BC file, interpreted by the solver). sigmap==0 is a Dirac delta and
-      ! overrides any entry; otherwise default to LogNormal when unset.
+      ! the BC file, interpreted by the solver). sigmap==0 turns a law name (or an
+      ! unset entry) into a Dirac delta; otherwise default to LogNormal when unset.
+      ! Any other entry is a size-distribution file, kept whatever sigmap is.
       do p = 1, npcp
-        if (cfg%materials(m)%sigmap(p) == 0.0_R8) then
+        if (len_trim(cfg%materials(m)%distribution(p)) == len(cfg%materials(m)%distribution(p))) then
+          write(*,'(A)') '[ERROR] invalid "distribution" in section ['//trim(section)//']: "'// &
+                         trim(cfg%materials(m)%distribution(p))//'"'
+          write(*,'(A,I0,A,I0,A)') '        population ', p, ' - a path of ', &
+                         len(cfg%materials(m)%distribution(p)), ' characters or more (the solver reads at most 255).'
+          error stop
+        endif
+        if (cfg%materials(m)%sigmap(p) == 0.0_R8 .and. is_size_law(cfg%materials(m)%distribution(p))) then
           cfg%materials(m)%distribution(p) = 'Dirac'
         elseif (len_trim(cfg%materials(m)%distribution(p)) == 0) then
           cfg%materials(m)%distribution(p) = 'LogNormal'
@@ -810,6 +818,19 @@ contains
       off = off + npcp
     enddo
   end subroutine load_bcb_dp_boundary_config
+
+  ! True for an unset "distribution" or one of the law names; any other entry is a file.
+  logical function is_size_law(word) result(law)
+    implicit none
+    character(*), intent(in) :: word
+
+    select case (lowercase(trim(adjustl(word))))
+    case ('', 'dirac', 'normal', 'lognormal', 'rosinrammler')
+      law = .true.
+    case default
+      law = .false.
+    end select
+  end function is_size_law
 
   ! Returns .true. iff `path` exists and every non-blank, non-comment line parses
   ! as exactly two real numbers (>=1 data row). Reading line-by-line enforces two
