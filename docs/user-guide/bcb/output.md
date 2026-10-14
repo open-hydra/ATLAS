@@ -260,13 +260,25 @@ Turbulence suffix:
 | `402` | `gp, velocity_magnitude, alphap, betap, Tp, rp, sigmap, distribution, ds` |
 | `403` | `gp, kV, alphap, betap, Tp, rp, sigmap, distribution, ds` |
 
-Field key: `krho`/`kV`/`kT` = scaling coefficients for mass/velocity/temperature wrt the gaseous phase; `gp` = mass flux; `alphap`/`betap` = direction angles; `Tp` = particle temperature; `rp` = particle radius; `sigmap` = variance coefficient; `distribution` = size-distribution law (a string); `ds` = injection-point spacing (last token, meters).
+Field key: `krho`/`kV`/`kT` = scaling coefficients for mass/velocity/temperature wrt the gaseous phase; `gp` = mass flux; `alphap`/`betap` = direction angles; `Tp` = particle temperature; `rp` = particle radius; `sigmap` = width of the size law (standard deviation of the diameter [m] for `Normal` and `LogNormal`, spread exponent for `RosinRammler`); `distribution` = size-distribution law (a string); `ds` = injection-point spacing (last token, meters).
 
 !!! note "Direction angles"
     For normal injection, write `normal,` in place of numeric `alphap` and `betap`.
 
 !!! note "Distribution (8th field)"
-    A string the solver maps to its size-distribution model: one of `Dirac`, `Normal`, `LogNormal`, `RosinRammler`, or a path to a two-column numeric file (any extension) tabulating the distribution by points. Resolved by BCB from the inlet's `distribution` option: `sigmap = 0` always yields `Dirac` (a zero-width delta, overriding any entry); a non-zero `sigmap` with no `distribution` set defaults to `LogNormal`.
+    A string the solver maps to its size-distribution model: one of `Dirac`, `Normal`, `LogNormal`, `RosinRammler`, or the path of a size-distribution file (any extension). Resolved by BCB from the inlet's `distribution` option: with `sigmap = 0` a law name, or no `distribution`, yields `Dirac` (a zero-width delta); a non-zero `sigmap` with no `distribution` set defaults to `LogNormal`; any other value is a file path, written as given (at most 255 characters) whatever `sigmap` is. BCB opens the path from its working directory, the solver from its own.
+
+    The file holds one size class per line: two numbers, the particle **radius** [m] and the **mass fraction** of the class. The radii are positive and strictly increasing; the mass fractions are non-negative, of any scale (the solver normalises them to sum 1) and not all zero. Numbers are separated by blanks, tabs or a comma; blank lines and lines starting with `#`, `!` or `;` are comments. The solver reads the table as a histogram: a class carries its mass spread uniformly in radius between the mid-points to its neighbours, the first and last classes extended by half the adjacent spacing (the first class starts at half its radius if that extension would reach zero); a single data line is one size. With a file the solver ignores `rp` and `sigmap`. BCB refuses a file that breaks these rules and names the rule and the line.
+
+    ```
+    # particle radius [m]   mass fraction
+    1.0e-6    0.05
+    5.0e-6    0.20
+    1.0e-5    0.30
+    2.0e-5    0.25
+    5.0e-5    0.15
+    1.0e-4    0.05
+    ```
 
 !!! note "Injection spacing `ds` (9th field)"
     Per-population injection-point spacing in **meters** (the BCB `ds` input option is in cm and converted on write). `0.00000E+00` (option unset) tells the solver to fall back to its global `[IGLOO-BC] ds`; a positive value activates per-cell spacing for this population.

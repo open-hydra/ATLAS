@@ -1147,7 +1147,11 @@ contains
       call bcb_registry%add('bc-section', 'rp', dp_scalar, '0.0', 'Particle radii per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'dp', dp_scalar, '0.0', 'Particle diameters per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'sigmap', dp_scalar, '0.0', 'Particle dispersion widths.', '', .false.)
-      call bcb_registry%add('bc-section', 'distribution', patch_name, '', 'Size-distribution file of a dispersed population (prefixed by the phase name: <phase>-distribution).', '', .false.)
+      call bcb_registry%add('bc-section', 'distribution', patch_name, '', 'Size-distribution law of a dispersed '// &
+                            'population (prefixed by the phase name: <phase>-distribution): Dirac, Normal, LogNormal, '// &
+                            'RosinRammler, or the path of a file of size classes, one per line: particle radius [m] and '// &
+                            'mass fraction (the solver normalises the fractions and reads the table as a histogram). '// &
+                            'With sigmap = 0 a law name gives Dirac; a file is kept whatever sigmap is.', '', .false.)
       call bcb_registry%add('bc-section', 'ds', dp_scalar, '0.0', 'Injection-point spacing per dispersed population (cm; converted to m).', '', .false.)
       call bcb_registry%add('bc-section', 'alphap', dp_scalar, '0.0', 'Primary injection angle per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'betap', dp_scalar, '0.0', 'Secondary injection angle per dispersed population.', '', .false.)
