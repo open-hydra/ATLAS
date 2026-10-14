@@ -135,6 +135,8 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `DP-bad-name` | BCB | `BCB/DP-bad-name` | A phase file name with two dashes is refused. |
 | `DP-substring-names` | BCB | `BCB/DP-substring-names` | Phase names nested in each other (`part`, `partL`) are refused before any BC file is built. |
 | `DP-two-phases` | BCB | `BCB/DP-two-phases` | Two dispersed phases on the same faces: each `<name>-bc.txt` carries the ids and payloads of its own phase. |
+| `DP-distribution-missing` | BCB | `BCB/DP-distribution-missing` | A `distribution` file that does not exist stops BCB naming it, also with `sigmap = 0` (which turns only a law name into `Dirac`); nothing is written. |
+| `DP-distribution-long-path` | BCB | `BCB/DP-distribution-long-path` | A 40-character `distribution` path with `sigmap = 0` is written whole in column 8 of the `401` records: the `drop-bc.txt` of `DP-basic` with that path and `sigmap = 0`. |
 | `DP-axis-override` | BCB | `BCB/DP-axis-override` | `<phase>-type = outlet` on an axisymmetric face: the dispersed-phase file carries 400 on the axis, the gas file keeps 200. |
 | `DP-axis-symmetry` | BCB | `BCB/DP-axis-symmetry` | `<phase>-type = symmetry` on an axisymmetric face: the dispersed-phase file carries 300 on the axis, the gas file keeps 200. |
 | `DP-axis-refused` | BCB | `BCB/DP-axis-refused` | Any other `<phase>-type` word on an axisymmetric face stops BCB naming the two accepted ones. |

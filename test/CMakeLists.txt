@@ -1056,6 +1056,38 @@ set_tests_properties(DP-two-phases PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-distribution-missing (a size-distribution file that does not exist) ----
+# DP-basic with drop-sigmap = 0.0 and drop-distribution = ./missing-dist.txt on injCH4 (mesh.tec
+# and drop-phase.txt are symlinks to DP-basic's). sigmap = 0 turns only a law name into Dirac, so
+# the file is checked and BCB stops naming it and the reason; nothing is written. Same
+# expect-failure form as DP-bad-name.
+add_test(
+    NAME    DP-distribution-missing
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 | tee bcb.log && grep -q -F '[ERROR] invalid \"distribution\"' bcb.log && grep -q -F '\"./missing-dist.txt\"' bcb.log && grep -q -F 'no such file' bcb.log && test ! -e fromATLAStoSolver/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-distribution-missing"
+)
+set_tests_properties(DP-distribution-missing PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-distribution-long-path (a 40-character path, kept with sigmap = 0) ----
+# DP-basic with drop-sigmap = 0.0 and drop-distribution = INPUT/size-dist-radius-mass-fraction.txt
+# (40 characters) on injCH4: the BC file is DP-basic's with 0 in column 7 and that path in column 8
+# of the 401 records. A path longer than 32 characters used to be cut, and sigmap = 0 replaced a
+# file by Dirac.
+add_test(
+    NAME    DP-distribution-long-path
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && sed 's#5[.]0000000000000000E-01 [.]/size-dist[.]txt#0.0000000000000000E+00 INPUT/size-dist-radius-mass-fraction.txt#' ../DP-basic/reference/drop-bc.txt | diff - fromATLAStoSolver/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-distribution-long-path"
+)
+set_tests_properties(DP-distribution-long-path PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-axis-override (dispersed phase let out through the axis) -------------
 # 2Daxi nozzle (IG+CD's mesh). [ax] type = axisymmetric + partL-type = outlet:
 # gas-bc.txt keeps 200 on the axis face 3, partL-bc.txt carries 400 there; the
