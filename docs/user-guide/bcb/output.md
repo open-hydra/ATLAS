@@ -231,7 +231,7 @@ Example (`id = 302`, prescribed wall temperature):
 !!! note "Direction angles"
     For normal injection, write `normal,` in place of numeric `alpha` and `beta`.
 
-For turbulence-specified inlets, the payload line is extended with additional fields depending on the turbulence model and (see [input reference](./input-reference.md) for details).
+For turbulence-specified inlets, the payload line is extended with additional fields depending on the turbulence model and (see [input reference](./input-reference.md) for details). Every value is written as given and is **specific**: the solver multiplies it by the density of the boundary state.
 
 Turbulence suffix:
 
@@ -239,7 +239,7 @@ Turbulence suffix:
 |-------|-----------------|
 | `nrans = 1` | `nuTilde` |
 | `nrans = 2` | `k, omega` |
-| `nrans = 7` | `rhoRij, rhoRij, rhoRij, 1e-8, 1e-8, 1e-8, omega` |
+| `nrans = 7` | `Rij, Rij, Rij, 1e-8, 1e-8, 1e-8, omega` |
 
 ---
 

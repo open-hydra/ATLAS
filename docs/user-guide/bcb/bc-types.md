@@ -553,13 +553,13 @@ T0    = 300.0
 
 #### Inlet turbulence keys
 
-Turbulence keys (`nuTilde`, `k`, `omega`, `rhoRij`, `nrans`) may be added to any inlet and
-are appended to the payload after the mass fractions, as given. `nuTilde` (the
-variable the Spalart-Allmaras model transports, $\tilde\nu$, not the eddy viscosity) [m²/s], `k` [m²/s²] and `omega` [1/s]
-are **specific**. A band left at zero under a model (`nrans = 1` without `nuTilde`,
-`nrans = 2` without `k` or `omega`, `nrans = 7` without `rhoRij` or `omega`) is written
-with a `[WARNING]` naming the keys: the inlet carries no turbulence (ICB refuses the
-same initial field under an omega model).
+Turbulence keys (`nuTilde`, `k`, `omega`, `Rij`, `nrans`) may be added to any inlet and
+are appended to the payload after the mass fractions, as given. They are all
+**specific** — `nuTilde` (the variable the Spalart-Allmaras model transports, $\tilde\nu$, not the
+eddy viscosity) [m²/s], `k` [m²/s²], `omega` [1/s] and the normal Reynolds stresses `Rij`
+[m²/s²] — and the solver multiplies each by the density of the boundary state it builds. The
+density-weighted keys (`rhoNuTilde`, `rhoK`, `rhoOmega`, `rhoRij`) belong to an `[ICB-*]` zone
+only, and a boundary section carrying one is refused with a hint.
 On a pure-2D (`x,y`) mesh a Reynolds-stress inlet (`nrans = 7`) carries the 5-band tail
 that Q2D reads (`R11, R22, R33, R12, omega`; `R13`, `R23` are not part of its 2-D state);
 the 7-band tail (`R11 R22 R33 R12 R13 R23 omega`) is written on 3-D meshes only.

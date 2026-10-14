@@ -188,20 +188,11 @@ given, or from `nrans`.
 - **Real-fluid zone:** only the density-weighted keys. The real-fluid table
   ($p$, $h$ → $T$) carries no density, so a specific key stops ICB.
 - **Interpolation source:** the turbulence bands are recognised by name. A
-  density-weighted band (`rhoNuTilde`, `rhoK`, `rhoOmega`, or the earlier `mi_t`, `mi_tilde`,
-  `kappa` with its `omega`) is interpolated as it is. A specific band (`nuTilde`, `k` with
+  density-weighted band (`rhoNuTilde`, `rhoK`, `rhoOmega`) is interpolated as it is. A specific band (`nuTilde`, `k` with
   its `omega`) is first multiplied by the density of the source; a real-fluid source
-  with specific bands stops ICB. A band named `mut`, `mu_t`, `nut` or `nu_t` is the
-  eddy viscosity, the auxiliary band of the solvers: it is ignored with a notice, not
-  read as the Spalart-Allmaras variable.
+  with specific bands stops ICB.
 
-The keys `mit` and `kappa` of earlier decks are retired and stop ICB with a hint, as
-an unknown key. ICB wrote them as given, so they held the density-weighted values:
-`mit` becomes `rhoNuTilde`, `kappa` becomes `rhoK`, and **`omega` becomes `rhoOmega`**: the
-key `omega` keeps its name but is now specific. `rhoRij` is unchanged. Alternatively,
-divide each by the density and give the specific keys.
-
-The boundary records written by BCB take the specific `nuTilde`, `k` and `omega`
+The boundary records written by BCB take the specific `nuTilde`, `k`, `omega` and `Rij`
 ([inlet turbulence keys](../bcb/bc-types.md#inlet-turbulence-keys)).
 
 ## Next

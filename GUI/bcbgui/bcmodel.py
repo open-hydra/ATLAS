@@ -46,7 +46,7 @@ TYPED_BCS = OrderedDict([
                   "eq-CEA-file", "eq-CEA-section",
                   "yN2", "yO2", "yH2", "yH2O", "yCO2",
                   "a", "n", "pRef", "rhoGrain", "T0", "krho", "SF",
-                  "nuTilde", "k", "omega", "rhoRij", "nrans",
+                  "nuTilde", "k", "omega", "Rij", "nrans",
                   "direction", "a-file", "n-file", "pRef-file", "rhoGrain-file",
                   "Taf-file", "krho-file", "SF-file", "SFgeo-file",
                   "qrad-file", "eps-file", "T-file"]),

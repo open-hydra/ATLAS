@@ -67,7 +67,7 @@ module input_keys_mod
   ! (ERROR, or WARNING with strict-keys = false), whose hint names the current key.
   integer, parameter :: NHINTS = 10
   character(len=KLEN), parameter :: hint_key(NHINTS) = [character(len=KLEN) :: 'rt', 'force-connect', &
-    'mit', 'kappa', 'nut', 'mut', 'rhoNuTilde', 'rhoK', 'rhoOmega', 'Rij']
+    'mit', 'kappa', 'nut', 'mut', 'rhoNuTilde', 'rhoK', 'rhoOmega', 'rhoRij']
   character(len=120), parameter :: hint_text(NHINTS) = [character(len=120) :: &
     "key 'rt' was renamed 'g' (nozzle mass flux, kg m-2 s-1)", &
     "the option is BC-force-connect in [ATLAS-Parameters]", &
@@ -78,7 +78,7 @@ module input_keys_mod
     "a boundary takes the specific nuTilde: the solver multiplies it by the density of the boundary state", &
     "a boundary takes the specific k: the solver multiplies it by the density of the boundary state", &
     "a boundary takes the specific omega: the solver multiplies it by the density of the boundary state", &
-    "a boundary takes the density-weighted rhoRij (the band the Q2D Reynolds-stress inlet reads)"]
+    "a boundary takes the specific Rij: the solver multiplies it by the density of the boundary state"]
 
 contains
 
