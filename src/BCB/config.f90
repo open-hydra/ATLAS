@@ -1003,8 +1003,7 @@ contains
     endif
 
     call bcb_registry%generate_markdown(trim(fileout), 'BCB Input Parameters', preamble= &
-      'Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file`'// &
-      ' series (BC 402) is in bar, as the solvers read it.')
+      'Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s).')
 
   contains
 
@@ -1016,7 +1015,7 @@ contains
       call bcb_registry%add('bc-section', 'T', ig_cfg%T, '0.0', 'Ideal-gas static temperature.', '', .false.)
       call bcb_registry%add('bc-section', 'g', ig_cfg%g, '0.0', 'Mass flux for inlet boundaries.', '', .false.)
       call bcb_registry%add('bc-section', 'p', ig_cfg%p, '0.0', 'Static pressure for outlet or far-field boundaries.', '', .false.)
-      call bcb_registry%add('bc-section', 'p0-time-file', ig_cfg%p0_time_file, 'none', 'Time-series file for total pressure.', '', .false.)
+      call bcb_registry%add('bc-section', 'p0-time-file', ig_cfg%p0_time_file, 'none', 'Time-series file for total pressure (two columns: time [s], p0 [Pa]).', '', .false.)
       call bcb_registry%add('bc-section', 'p-time-file', ig_cfg%p_time_file, 'none', 'Time-series file for static pressure.', '', .false.)
       call bcb_registry%add('bc-section', 'time-file', time_file, 'none', 'Time-series file of full boundary state.', '', .false.)
       call bcb_registry%add('bc-section', 'periodic', periodic, 'F', 'Treat a time-file series as periodic.', '', .false.)

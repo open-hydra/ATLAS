@@ -195,8 +195,8 @@ contains
     if (error /= 0) cfg%w = 0.0_R8
   end subroutine load_shared_velocity_config
 
-  !> The turbulence keys of a section. boundary = .true. (BCB): nuTilde, k, omega and rhoRij only
-  !> (the keys of a boundary record; input_keys reports the others as unknown, with a hint).
+  !> The turbulence keys of a section. boundary = .true. (BCB): nuTilde, k, omega and Rij only, the
+  !> specific keys of a boundary record (input_keys reports the density-weighted ones as unknown, with a hint).
   subroutine load_shared_turbulence_config(zoneini, cfg, section_name, boundary)
     implicit none
     type(file_ini), intent(in)             :: zoneini
@@ -222,12 +222,12 @@ contains
     call get_key('nuTilde', cfg%nuTilde)
     call get_key('k', cfg%k)
     call get_key('omega', cfg%omega)
-    call get_key('rhoRij', cfg%rhoRij)
+    call get_key('Rij', cfg%Rij)
     if (read_all) then
-      call get_key('Rij', cfg%Rij)
       call get_key('rhoNuTilde', cfg%rhoNuTilde)
       call get_key('rhoK', cfg%rhoK)
       call get_key('rhoOmega', cfg%rhoOmega)
+      call get_key('rhoRij', cfg%rhoRij)
     endif
     call refuse_both('nuTilde', 'rhoNuTilde', cfg%nuTilde, cfg%rhoNuTilde)
     call refuse_both('k', 'rhoK', cfg%k, cfg%rhoK)
@@ -351,7 +351,7 @@ contains
   end subroutine add_velocity_registry_entries
 
   !> The turbulence keys. boundary = .true. (BCB): the keys of a boundary record, nuTilde, k, omega
-  !> (specific) and rhoRij.
+  !> and Rij, all specific.
   subroutine add_turbulence_registry_entries(registry, section, turbulence_cfg, boundary)
     implicit none
     class(registry_t), intent(inout)       :: registry
@@ -375,10 +375,10 @@ contains
       'Turbulent kinetic energy k [m2/s2], specific.'//use_specific('rhoK'), '', .false.)
     call registry%add(section, 'omega', turbulence_cfg%omega, '0.0', &
       'Specific dissipation rate omega [1/s], specific.'//use_specific('rhoOmega'), '', .false.)
+    call registry%add(section, 'Rij', turbulence_cfg%Rij, '0.0', &
+      'Normal Reynolds stresses R11 = R22 = R33 [m2/s2], specific, one value for the three (the shear'// &
+      ' stresses are set to 1e-8).'//use_specific('rhoRij'), '', .false.)
     if (.not. bc) then
-      call registry%add(section, 'Rij', turbulence_cfg%Rij, '0.0', &
-        'Normal Reynolds stresses R11 = R22 = R33 [m2/s2], specific (the shear stresses are set to 1e-8).'// &
-        use_specific('rhoRij'), '', .false.)
       call registry%add(section, 'rhoNuTilde', turbulence_cfg%rhoNuTilde, '0.0', &
         'Density-weighted Spalart-Allmaras working variable rho*nu_tilde [kg/(m s)].'//ICB_WEIGHTED//'nuTilde.', '', .false.)
       call registry%add(section, 'rhoK', turbulence_cfg%rhoK, '0.0', &
@@ -388,10 +388,6 @@ contains
       call registry%add(section, 'rhoRij', turbulence_cfg%rhoRij, '0.0', &
         'Density-weighted normal Reynolds stresses rho*Rij [kg/(m s2)], one value for the three (the shear stresses'// &
         ' are set to 1e-8).'//ICB_WEIGHTED//'Rij.', '', .false.)
-    else
-      call registry%add(section, 'rhoRij', turbulence_cfg%rhoRij, '0.0', &
-        'Density-weighted normal Reynolds stresses [kg/(m s2)], written as given (the band the Q2D'// &
-        ' Reynolds-stress inlet reads; the shear stresses are set to 1e-8).', '', .false.)
     endif
     call registry%add(section, 'nrans', turbulence_cfg%nrans, '0', &
                       'Explicit turbulence model size override.', '>=0', .false.)

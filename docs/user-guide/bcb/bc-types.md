@@ -37,9 +37,8 @@ This page covers the full BC roster with reference tables and INI syntax for eve
 
 ## INI Syntax
 
-Units: every value is SI (Pa, K, J/kg, kg m⁻² s⁻¹ for `g`, m/s). The one exception is the
-`p0-time-file` series of BC `402`, whose values are in **bar**, as the solvers read them (`p0` in the
-same section is in Pa).
+Units: every value is SI (Pa, K, J/kg, kg m⁻² s⁻¹ for `g`, m/s), including the `p0-time-file` series
+of BC `402` (time in s, `p0` in Pa).
 
 Every BC below is selected by the `type` key of a named section, except the
 keyword BCs, which are written straight onto the face line. Where a type has
@@ -346,7 +345,7 @@ never clamped in silence.
 | `Ae_At` | Nozzle exit-to-throat area ratio (must be ≥ 1) |
 | `psub`, `psup` | Subsonic / supersonic injector exit pressures |
 | `a1-a3` | Borda injector throat-to-face area ratio A1/A3, in (0, 1] |
-| `time-file`, `p0-time-file` | Time series replacing the scalars; the `p0-time-file` values are in **bar** (the solvers read them so), `p0` itself in Pa |
+| `time-file`, `p0-time-file` | Time series replacing the scalars; the `p0-time-file` has two columns, time [s] and `p0` [Pa] |
 | `periodic` | Loop a `time-file` series instead of holding the last value |
 | `line-file` | Unwrapped (2D) time series to be mapped onto the 3D face; the `time-file` is then *written* by BCB (see below) |
 | `center` | Cylinder axis point `x y z` for the `line-file` mapping (required with `line-file`) |
@@ -448,7 +447,7 @@ time-file = inlet_transient.dat
 
 [inlet_p0_timevarying]
 type         = inlet
-p0-time-file = p0_transient.dat   ; values in bar, as the solvers read them (p0 is in Pa)
+p0-time-file = p0_transient.dat   ; two columns: time [s], p0 [Pa]
 T0           = 300.0
 ```
 
@@ -553,13 +552,13 @@ T0    = 300.0
 
 #### Inlet turbulence keys
 
-Turbulence keys (`nuTilde`, `k`, `omega`, `rhoRij`, `nrans`) may be added to any inlet and
-are appended to the payload after the mass fractions, as given. `nuTilde` (the
-variable the Spalart-Allmaras model transports, $\tilde\nu$, not the eddy viscosity) [m²/s], `k` [m²/s²] and `omega` [1/s]
-are **specific**. A band left at zero under a model (`nrans = 1` without `nuTilde`,
-`nrans = 2` without `k` or `omega`, `nrans = 7` without `rhoRij` or `omega`) is written
-with a `[WARNING]` naming the keys: the inlet carries no turbulence (ICB refuses the
-same initial field under an omega model).
+Turbulence keys (`nuTilde`, `k`, `omega`, `Rij`, `nrans`) may be added to any inlet and
+are appended to the payload after the mass fractions, as given. They are all
+**specific** — `nuTilde` (the variable the Spalart-Allmaras model transports, $\tilde\nu$, not the
+eddy viscosity) [m²/s], `k` [m²/s²], `omega` [1/s] and the normal Reynolds stresses `Rij`
+[m²/s²] — and the solver multiplies each by the density of the boundary state it builds. The
+density-weighted keys (`rhoNuTilde`, `rhoK`, `rhoOmega`, `rhoRij`) belong to an `[ICB-*]` zone
+only, and a boundary section carrying one is refused with a hint.
 On a pure-2D (`x,y`) mesh a Reynolds-stress inlet (`nrans = 7`) carries the 5-band tail
 that Q2D reads (`R11, R22, R33, R12, omega`; `R13`, `R23` are not part of its 2-D state);
 the 7-band tail (`R11 R22 R33 R12 R13 R23 omega`) is written on 3-D meshes only.

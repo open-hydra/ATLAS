@@ -29,7 +29,7 @@ contains
     type(bcb_ig_boundary_config_t) :: cfg
     real(R8) :: p0, T0, h0, mach, T, g, un, alpha, beta, p, rel_fac, Ae_At, rt, psup, psub
     real(R8) :: a1_a3
-    real(R8) :: nuTilde, k, omega, rhoRij
+    real(R8) :: nuTilde, k, omega, Rij
     integer  :: dim, start, nrans, tlo, thi
     logical  :: no_angles_rec
     real(R8) :: ceah0, ceaT0, ceap0
@@ -64,10 +64,10 @@ contains
     nuTilde          = cfg%turbulence%nuTilde
     k            = cfg%turbulence%k
     omega        = cfg%turbulence%omega
-    rhoRij       = cfg%turbulence%rhoRij
+    Rij          = cfg%turbulence%Rij
     nrans        = cfg%turbulence%nrans
     ! A Reynolds-stress inlet (nrans = 7) on a pure-2D (x,y) mesh is read by Q2D only, whose Reynolds-stress
-    ! inlet reads 5 bands (rho*R11, R22, R33, R12, omega; R13 = R23 = 0 in the plane): the 7-band 3-D
+    ! inlet reads 5 bands (R11, R22, R33, R12, omega; R13 = R23 = 0 in the plane): the 7-band 3-D
     ! layout would leave omega := R13 and two tokens unread. Same meshType gate as BC 408/410/421.
     if (nrans == 7 .and. mesh_cfg%meshType == MESH_PURE_2D) nrans = 5
 
@@ -160,11 +160,11 @@ contains
           call warn_turbulence_zero('k or omega', 'k-omega (nrans = 2)', 'k and omega')
       elseif (nrans==7 .or. nrans==5) then
         ! 7 bands (3-D solvers): R11 R22 R33 R12 R13 R23 omega; 5 bands (Q2D, pure-2D mesh): R11 R22 R33 R12 omega
-        self%ig_properties(start+1:start+3) = rhoRij
+        self%ig_properties(start+1:start+3) = Rij
         self%ig_properties(start+4:start+nrans-1) = 1d-8
         self%ig_properties(start+nrans) = omega
-        if (rhoRij <= 0._R8 .or. omega <= 0._R8) &
-          call warn_turbulence_zero('rhoRij or omega', 'Reynolds-stress (nrans = 7)', 'rhoRij and omega')
+        if (Rij <= 0._R8 .or. omega <= 0._R8) &
+          call warn_turbulence_zero('Rij or omega', 'Reynolds-stress (nrans = 7)', 'Rij and omega')
       endif
 
     elseif (self % definition=='outlet') then
@@ -457,7 +457,7 @@ contains
       case ('a1-a3');         ok = id == 421
       case ('alpha', 'beta'); ok = tail .and. id < 420; selector = .false.
       case ('rf');            ok = id /= 410; selector = .false.
-      case ('nuTilde', 'k', 'omega', 'rhoRij', 'nrans', 'eq-OG', 'eq-CEA-file', 'eq-CEA-section')
+      case ('nuTilde', 'k', 'omega', 'Rij', 'nrans', 'eq-OG', 'eq-CEA-file', 'eq-CEA-section')
         ok = tail; selector = .false.
       case ('u', 'v', 'w', 'p-time-file')
         ok = .false.; selector = .false.
