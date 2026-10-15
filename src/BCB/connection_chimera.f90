@@ -222,6 +222,11 @@ module bc_chimera_mod
   private
   public:: chimera_wrapper
 
+  !> Sub-cells per direction of a receiver ghost cell in the overlap-volume sampling
+  !> (NSAMPLE**3 points per candidate donor; the weights of a cell cut by the donor
+  !> boundary are accurate to ~1/NSAMPLE).
+  integer, parameter :: NSAMPLE = 6
+
   !> Growable, thread-local buffer of intersection records.
   type :: rec_buffer
     type(intersection_type), allocatable :: rec(:)
@@ -466,13 +471,10 @@ contains
     logical, intent(inout) :: nodeinside(:,startingIndexes(1):,startingIndexes(2):,startingIndexes(3):)
     logical, intent(inout) :: processed(procStart(1):,procStart(2):,procStart(3):)
 
-    integer                :: bd,id,jd,kd,d,m,ncand,np,tid
+    integer                :: bd,id,jd,kd,d,m,ncand,tid
     logical                :: next
-    real(8)                :: receiver(3,8), donor(3,8), vol
-    real(8), allocatable   :: hull_points(:)
+    real(8)                :: receiver(3,8), donor(3,8), vol, frac
     integer, allocatable   :: cb(:), ci(:), cj(:), ck(:)
-    character(len=64)          :: fmtbuf
-    character(len=:), allocatable :: sbuf
 
     if (.not.is_chimera_face(block,br,fr,ir,jr,kr,force)) return
     if (processed(ir,jr,kr)) return
@@ -500,8 +502,13 @@ contains
       enddo
       if (next) cycle
 
-      ! Exact hexahedron-hexahedron intersection (IV level)
-      if (allocated(hull_points)) deallocate(hull_points)
+      ! Overlap volume by sub-cell sampling of the receiver (IV level): Jacobian-weighted
+      ! fraction of the receiver's trilinear sub-cell centres inside the donor, times
+      ! the receiver volume, so that the volumes of one receiver sum to its real volume
+      ! when it is fully covered (chimera.log closure = coverage). The exact face-face
+      ! intersection (HexahedronIntesectingPoints + convex hull) is ill-conditioned on
+      ! warped cells and on nearly parallel faces (every k-face pair of a layered mesh)
+      ! and produced spurious, sometimes donor-sized, volumes.
       receiver(:,1) = block(br)%node(ir-1,jr-1,kr-1)%c(1:3)*fs
       receiver(:,2) = block(br)%node(ir-1, jr ,kr-1)%c(1:3)*fs
       receiver(:,3) = block(br)%node(ir-1,jr-1, kr )%c(1:3)*fs
@@ -519,24 +526,11 @@ contains
       donor(:,7)    = block(bd)%node( id ,jd-1, kd )%c(1:3)*fs
       donor(:,8)    = block(bd)%node( id , jd , kd )%c(1:3)*fs
 
-      call HexahedronIntesectingPoints( receiver, donor, hull_points, nodeinside(:,ir,jr,kr) )
+      call sampledOverlapFraction( receiver, donor, NSAMPLE, frac, nodeinside(:,ir,jr,kr) )
 
-      ! On a real overlap, evaluate the intersection volume in place and record it
-      if (allocated(hull_points) .and. size(hull_points)>0) then
-        np  = size(hull_points)/3
-        vol = 0.d0
-        if (np >= 4) then
-          ! Reproduce the historical E20.10 point precision (a mild, deterministic
-          ! regularization of ill-conditioned sliver contacts) so the result is
-          ! reproducible and independent of thread count.
-          write(fmtbuf,'(A,I0,A)') '(', 3*np, 'E20.10)'
-          if (allocated(sbuf)) deallocate(sbuf)
-          allocate(character(len=3*np*20+16) :: sbuf)
-          write(sbuf,fmtbuf) hull_points(1:3*np)
-          read(sbuf,*)       hull_points(1:3*np)
-          call convexHullVolume(reshape(hull_points,[3,np]), np, vol)
-          vol = vol/(fs**3)
-        endif
+      ! On a real overlap, record the overlap volume
+      if (frac > 0.d0) then
+        vol = frac*block(br)%vol(ir,jr,kr)
         call append_record(tbuf(tid), [br,ir,jr,kr], [bd,id,jd,kd], nodeinside(:,ir,jr,kr), vol)
       endif
     enddo

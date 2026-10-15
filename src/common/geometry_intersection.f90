@@ -6,6 +6,7 @@ module intersection_mod
   private
   public :: convexHullVolume
   public :: intersection_type, HexahedronIntesectingPoints, pointInsideHexahedron, &
+    sampledOverlapFraction, &
     intersectQuadrangles, clipLineToQuadrangle, intersectLines3D, isPointInQuadrangle, &
     linePlaneIntersection, FaceSelection, HexahedronVolume, TetrahedronVolume, &
     cross_product, norm, round
@@ -271,23 +272,18 @@ contains
     real(8), dimension(3,8), intent(in)      :: vertices
     logical, intent(out)                     :: inside
 
-    real(8)                   :: volHex, V, vol1, vol2
-    real(8), dimension(3,4)   :: T
-    real(8), dimension(3)     :: A, B, C, D
-    integer                   :: i
+    real(8)                   :: volHex, V
+    real(8), dimension(3)     :: centroid
 
-    call HexahedronVolume(vertices, volHex)
-    V = 0.0
-    do i = 1, 6
-      call FaceSelection(vertices, i, T)
-      A = T(:,1)
-      B = T(:,2)
-      C = T(:,3)
-      D = T(:,4)
-      call TetrahedronVolume(A, B, C, P, vol1)
-      call TetrahedronVolume(A, D, C, P, vol2)
-      V = V + vol1 + vol2
-    end do
+    ! Reference volume with the SAME face-pyramid decomposition used for P, evaluated
+    ! at the centroid. The 6-tetrahedron HexahedronVolume differs from it by the
+    ! volume swept by the non-planar (bilinear) faces: on the cells of a curved mesh
+    ! that difference exceeds the tolerance below by orders of magnitude (1e-6..1e-2
+    ! relative on an aerospike grid), and every point, the cell centre included,
+    ! tested as outside, leaving chimera facelets without donors.
+    centroid = sum(vertices, dim=2)/8.d0
+    volHex = facePyramidVolume(centroid, vertices)
+    V      = facePyramidVolume(P, vertices)
 
     ! Relative test: the coordinates reach this routine pre-scaled by fs, so an
     ! absolute tolerance on a volume is mesh-size dependent and drops below the
@@ -295,6 +291,98 @@ contains
     inside = abs(volHex - V) .le. max(toll1, 1.d-8*volHex)
 
   end subroutine pointInsideHexahedron
+
+  ! facePyramidVolume
+  ! Sum of the 12 tetrahedra between P and the two triangles (A,B,C), (A,D,C) of
+  ! each face. For every P inside the hexahedron bounded by those triangles it
+  ! equals the enclosed volume, whether the faces are planar or not; outside, it
+  ! exceeds it.
+  function facePyramidVolume(P, vertices) result(V)
+    implicit none
+    real(8), dimension(3), intent(in)        :: P
+    real(8), dimension(3,8), intent(in)      :: vertices
+    real(8)                                  :: V
+
+    real(8)                   :: vol1, vol2
+    real(8), dimension(3,4)   :: T
+    integer                   :: i
+
+    V = 0.d0
+    do i = 1, 6
+      call FaceSelection(vertices, i, T)
+      call TetrahedronVolume(T(:,1), T(:,2), T(:,3), P, vol1)
+      call TetrahedronVolume(T(:,1), T(:,4), T(:,3), P, vol2)
+      V = V + vol1 + vol2
+    end do
+
+  end function facePyramidVolume
+
+  ! sampledOverlapFraction
+  ! Fraction of the volume of hexahedron1 lying inside hexahedron2, from the centres
+  ! of the n^3 sub-cells of its trilinear map, each weighted by the local Jacobian.
+  ! Robust on warped cells and on nearly parallel faces, where the exact face-face
+  ! intersection (HexahedronIntesectingPoints + convex hull) is ill-conditioned:
+  ! the accuracy is that of the sampling (~1/n on a cell cut by the donor boundary).
+  ! Node order as in the chimera search: 1 + 4*di + dj + 2*dk for the (i,j,k) corner.
+  ! nodeinside(m) is set when node m of hexahedron1 is inside hexahedron2.
+  subroutine sampledOverlapFraction(hexahedron1, hexahedron2, n, frac, nodeinside)
+    implicit none
+    real(8), dimension(3,8), intent(in)  :: hexahedron1, hexahedron2
+    integer, intent(in)                  :: n
+    real(8), intent(out)                 :: frac
+    logical, optional, intent(inout)     :: nodeinside(8)
+
+    integer               :: i, j, k, di, dj, dk, m
+    real(8)               :: u, v, w, wu(0:1), wv(0:1), ww(0:1), jac, sum_in, sum_all
+    real(8), dimension(3) :: P, Pu, Pv, Pw
+    logical               :: inside
+
+    sum_in  = 0.d0
+    sum_all = 0.d0
+    do k = 1, n
+      w = (k - 0.5d0)/n
+      ww = [1.d0 - w, w]
+      do j = 1, n
+        v = (j - 0.5d0)/n
+        wv = [1.d0 - v, v]
+        do i = 1, n
+          u = (i - 0.5d0)/n
+          wu = [1.d0 - u, u]
+          P  = 0.d0
+          Pu = 0.d0
+          Pv = 0.d0
+          Pw = 0.d0
+          do dk = 0, 1
+            do dj = 0, 1
+              do di = 0, 1
+                m  = 1 + 4*di + dj + 2*dk
+                P  = P  + wu(di)*wv(dj)*ww(dk)*hexahedron1(:,m)
+                Pu = Pu + (2*di - 1)*wv(dj)*ww(dk)*hexahedron1(:,m)
+                Pv = Pv + wu(di)*(2*dj - 1)*ww(dk)*hexahedron1(:,m)
+                Pw = Pw + wu(di)*wv(dj)*(2*dk - 1)*hexahedron1(:,m)
+              end do
+            end do
+          end do
+          jac = abs(dot_product(Pu, cross_product(Pv, Pw)))
+          sum_all = sum_all + jac
+          call pointInsideHexahedron(P, hexahedron2, inside)
+          if (inside) sum_in = sum_in + jac
+        end do
+      end do
+    end do
+    frac = 0.d0
+    if (sum_all > 0.d0) frac = sum_in/sum_all
+
+    if (present(nodeinside)) then
+      do m = 1, 8
+        if (.not. nodeinside(m)) then
+          call pointInsideHexahedron(hexahedron1(:,m), hexahedron2, inside)
+          nodeinside(m) = inside
+        end if
+      end do
+    end if
+
+  end subroutine sampledOverlapFraction
 
   ! intersectQuadrangles
   ! Compute intersection points between two planar quadrangles (T1, T2).
