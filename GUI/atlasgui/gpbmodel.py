@@ -411,7 +411,13 @@ class GPBDocument:
         return index
 
     def names(self):
+        """Display names: an unnamed phase shows as ``Phase<N>``."""
         return [p.display_name(i) for i, p in enumerate(self.phases)]
+
+    def phase_names(self):
+        """The names a BCB block can list: BCB matches the phase's ``name``,
+        so an unnamed phase has none and is left out."""
+        return [p.name for p in self.phases if p.name]
 
     # -- parsing ---------------------------------------------------------
     @classmethod

@@ -461,6 +461,8 @@ class AtlasMainWindow(QWidget):
         self.current_stage = key
         if key == "gpb":
             self.gpb_panel.refresh()
+        elif key == "bcb":
+            self.bcb_panel.refresh_block_phases()
         elif key == "review":
             self.refresh_review()
 
@@ -525,7 +527,8 @@ class AtlasMainWindow(QWidget):
         if not self.ini_path:
             return self.save_ini_as()
         missing = self.doc.bcb.unassigned_faces()
-        if missing and not self._confirm_missing(missing):
+        undefined = self.doc.bcb.undefined_faces()
+        if (missing or undefined) and not self._confirm_missing(missing, undefined):
             return
         try:
             with open(self.ini_path, "w") as handle:
@@ -546,14 +549,23 @@ class AtlasMainWindow(QWidget):
             self.set_case_dir(os.path.dirname(os.path.abspath(path)))
             self.save_ini()
 
-    def _confirm_missing(self, missing):
-        preview = ", ".join(f"Block{b + 1}.face{f}" for b, f in missing[:8])
-        if len(missing) > 8:
-            preview += ", ..."
+    def _confirm_missing(self, missing, undefined=()):
+        parts = []
+        if missing:
+            preview = ", ".join(f"Block{b + 1}.face{f}" for b, f in missing[:8])
+            if len(missing) > 8:
+                preview += ", ..."
+            parts.append(f"{len(missing)} face(s) have no BC assigned:\n{preview}")
+        if undefined:
+            preview = ", ".join(f"Block{b + 1}.face{f} = {val}"
+                                for b, f, val in undefined[:8])
+            if len(undefined) > 8:
+                preview += ", ..."
+            parts.append(f"{len(undefined)} face(s) name a BC that is not "
+                         f"defined:\n{preview}")
         reply = QMessageBox.question(
             self, "Unassigned faces",
-            f"{len(missing)} face(s) have no BC assigned "
-            f"(BCB will error on these):\n{preview}\n\nSave anyway?",
+            "\n\n".join(parts) + "\n\nBCB will error on these. Save anyway?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         return reply == QMessageBox.StandardButton.Yes
 
@@ -620,6 +632,26 @@ class AtlasMainWindow(QWidget):
                 preview += ", …"
             issues.append(("error", ("bcb", None), (
                 f"{len(missing)} face(s) have no boundary condition: {preview}")))
+        undefined = self.doc.bcb.undefined_faces()
+        if undefined:
+            preview = ", ".join(f"Block{b + 1}.face{f} = {val}"
+                                for b, f, val in undefined[:4])
+            if len(undefined) > 4:
+                preview += ", …"
+            issues.append(("error", ("bcb", None), (
+                f"{len(undefined)} face(s) name a BC that is not defined: "
+                f"{preview}")))
+        # A deck without GPB sections takes its phases from *phase.txt files
+        # the GUI does not read, so the names can only be checked against GPB.
+        if self.doc.gpb.phases:
+            stale = {}
+            for b, name in self.doc.bcb.unknown_block_phases(
+                    self.doc.gpb.phase_names()):
+                stale.setdefault(name, []).append(f"Block{b + 1}")
+            for name, blocks in stale.items():
+                issues.append(("warning", ("bcb", None), (
+                    f"{', '.join(blocks)} list(s) phase '{name}', but no GPB "
+                    f"phase of the case has that name")))
         for name, section in self.doc.bcb.sections.items():
             if not section.type:
                 issues.append(("warning", ("bcb", None), (
@@ -797,6 +829,11 @@ class AtlasMainWindow(QWidget):
                 return
             if reply == QMessageBox.StandardButton.Save:
                 self.save_ini()
+                # Save As cancelled, unassigned faces declined, or the write
+                # failed: the edits are still only in memory, so stay open.
+                if self._dirty:
+                    event.ignore()
+                    return
         self.bcb_panel.close_viewport()
         super().closeEvent(event)
 

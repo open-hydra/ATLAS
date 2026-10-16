@@ -261,6 +261,18 @@ class BCBDocument:
                     missing.append((b, f))
         return missing
 
+    def undefined_faces(self):
+        """``(block_idx, face, value)`` naming neither a keyword nor a section.
+
+        BCB reads such a value as the name of a ``[section]`` that is not in
+        the file, so it is as much an error as an empty face.
+        """
+        names = set(self.available_names())
+        return [(b, f, val)
+                for b, faces in enumerate(self.block_faces)
+                for f, val in sorted(faces.items())
+                if val and val not in names]
+
     # -- serialisation ---------------------------------------------------
     def to_ini_blocks(self):
         """The BCB part of the file: one string per section, no parameters."""
@@ -396,6 +408,49 @@ class BCBDocument:
             self.block_extras[block_idx].pop(key, None)
         else:
             self.block_extras[block_idx][key] = str(value).strip()
+
+    # -- block phases ----------------------------------------------------
+    # The ``phase`` key of a block names GPB phases (BCB matches them against
+    # the ``name`` of each phase); no key means every phase.  The wildcard
+    # block may carry one too, until it is expanded.
+    def _phase_holders(self):
+        holders = list(self.block_extras)
+        if self.wildcard and not self.wildcard_applied:
+            holders.append(self.wildcard)
+        return holders
+
+    def block_phases(self, block_idx):
+        return self.block_key(block_idx, "phase").split()
+
+    def blocks_listing_phase(self, name):
+        return [b for b in range(len(self.block_extras))
+                if name in self.block_phases(b)]
+
+    def rename_phase(self, old, new):
+        """Follow a GPB phase rename in every ``phase`` key."""
+        for extras in self._phase_holders():
+            names = extras.get("phase", "").split()
+            if old in names:
+                names = [new if n == old else n for n in names]
+                extras["phase"] = " ".join(dict.fromkeys(names))
+
+    def drop_phase(self, name):
+        """Remove a deleted GPB phase from every ``phase`` key.  A block left
+        with no phase loses the key, which BCB reads as every phase."""
+        for extras in self._phase_holders():
+            names = extras.get("phase", "").split()
+            if name in names:
+                kept = [n for n in names if n != name]
+                if kept:
+                    extras["phase"] = " ".join(kept)
+                else:
+                    extras.pop("phase", None)
+
+    def unknown_block_phases(self, known):
+        """``(block_idx, name)`` for every listed phase not in *known*."""
+        known = set(known)
+        return [(b, n) for b in range(len(self.block_extras))
+                for n in self.block_phases(b) if n not in known]
 
 
 def _parse_ini(text):

@@ -567,6 +567,14 @@ class BCBPanel(QWidget):
         elif data and data[0] == "block":
             self._update_block_panel(data[1])
 
+    def refresh_block_phases(self):
+        """Rebuild the phase chips of the selected block, if one is selected:
+        the GPB phases may have been renamed, added or removed meanwhile."""
+        current = self.tree.currentItem()
+        data = current.data(0, Qt.ItemDataRole.UserRole) if current else None
+        if data and data[0] == "block":
+            self._update_block_panel(data[1])
+
     def _update_block_panel(self, b):
         """Block selected: show which GPB phases it carries."""
         from .widgets import clear_layout
@@ -579,8 +587,8 @@ class BCBPanel(QWidget):
         self.sel_bc.style().polish(self.sel_bc)
 
         clear_layout(self.phase_chips)
-        names = self.shell.doc.gpb.names()
-        selected = self.doc.block_key(b, "phase").split()
+        names = self.shell.doc.gpb.phase_names()
+        selected = self.doc.block_phases(b)
         if names:
             for name in names:
                 chip = self.kit.toggle(name, None, "check", name in selected,
@@ -604,13 +612,13 @@ class BCBPanel(QWidget):
         self._set_face_controls(False)
 
     def _toggle_block_phase(self, b, name, on):
-        selected = self.doc.block_key(b, "phase").split()
+        selected = self.doc.block_phases(b)
         if on and name not in selected:
             selected.append(name)
         elif not on and name in selected:
             selected.remove(name)
         # Every phase selected is the same as none: keep the file compact.
-        if len(selected) == len(self.shell.doc.gpb.names()):
+        if set(selected) == set(self.shell.doc.gpb.phase_names()):
             selected = []
         self.doc.set_block_key(b, "phase", " ".join(selected))
         self.block_hint.setText(
@@ -864,7 +872,7 @@ class BCBPanel(QWidget):
     def doc_phases(self):
         """GPB phase names, for the per-phase keys of a dispersed boundary."""
         try:
-            return self.shell.doc.gpb.names()
+            return self.shell.doc.gpb.phase_names()
         except AttributeError:
             return []
 

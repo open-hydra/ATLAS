@@ -17,7 +17,7 @@ from collections import OrderedDict
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QHBoxLayout, QHeaderView, QLineEdit,
-    QListWidget, QListWidgetItem, QTableWidget, QTableWidgetItem,
+    QListWidget, QListWidgetItem, QMessageBox, QTableWidget, QTableWidgetItem,
 )
 
 from . import database, gpbmodel
@@ -149,7 +149,8 @@ class MixtureDialog(_Dialog):
     def _pick(self):
         chosen = SpeciesPicker.choose(
             self, self.kit, "Add species to the mixture",
-            database.species_of_database(self.phase.get("thermo") or "NASA9"))
+            database.species_of_database(self.phase.get("thermo") or "NASA9",
+                                         self.phase.family))
         for name in chosen:
             self._append(name, "")
 
@@ -283,6 +284,11 @@ class SpeciesPicker(_Dialog):
     @staticmethod
     def choose(parent, kit, title, names, explanation=""):
         if not names:
+            QMessageBox.information(
+                parent, title,
+                "There is nothing to pick from: the database file was not "
+                "found. NASA7 comes with Cantera, so it is found only where "
+                "GPB's conda environment is installed.")
             return []
         dialog = SpeciesPicker(parent, kit, title, names, explanation)
         if dialog.exec() == QDialog.DialogCode.Accepted:

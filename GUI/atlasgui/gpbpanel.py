@@ -13,12 +13,14 @@ is reachable through "All keys…".
 
 from __future__ import annotations
 
+import weakref
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QFormLayout, QGridLayout,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QMenu, QSplitter, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QMenu, QMessageBox, QSplitter, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QWidget,
 )
 
 from . import database, filekeys, gpbmodel, icons
@@ -38,6 +40,10 @@ FAMILY_COLORS = {
 }
 FAMILY_ICONS = {
     "gas": "mesh", "condensed": "layers", "solid": "cube", "real-fluid": "palette",
+}
+# Name given to a new phase of each family (made unique by a suffix).
+DEFAULT_PHASE_NAMES = {
+    "gas": "gas", "condensed": "particles", "solid": "wall", "real-fluid": "fluid",
 }
 
 
@@ -81,6 +87,8 @@ class GPBPanel(QWidget):
         self.kit = shell.kit
         self._loading = False
         self._editor_widgets = []
+        # phase -> the name the BCB blocks list it under (see _follow_rename)
+        self._block_names = weakref.WeakKeyDictionary()
         self._build_ui()
 
     # -- document access -------------------------------------------------
@@ -220,18 +228,21 @@ class GPBPanel(QWidget):
         self.changed.emit()
 
     # ---------------------------------------------------------- list actions
+    def _unique_name(self, base):
+        """*base*, or *base* with the first free numeric suffix: the name is
+        the prefix of the phase's output files, so two phases must not share it."""
+        existing = {p.name for p in self.gpb.phases}
+        name = base
+        suffix = 2
+        while name in existing:
+            name = f"{base}{suffix}"
+            suffix += 1
+        return name
+
     def _add_phase(self, phase_type):
         phase = GPBPhase([("type", phase_type)])
-        default_name = {"gas": "gas", "condensed": "particles",
-                        "solid": "wall", "real-fluid": "fluid"}[
-            gpbmodel.family_of(phase_type)]
-        name = default_name
-        suffix = 2
-        existing = {p.name for p in self.gpb.phases}
-        while name in existing:
-            name = f"{default_name}{suffix}"
-            suffix += 1
-        phase.set("name", name)
+        phase.set("name", self._unique_name(
+            DEFAULT_PHASE_NAMES[gpbmodel.family_of(phase_type)]))
         if gpbmodel.family_of(phase_type) in ("condensed", "solid"):
             phase.set("material", "material1")
         self.gpb.add_phase(phase)
@@ -244,8 +255,8 @@ class GPBPanel(QWidget):
         if phase is None:
             return
         clone = phase.clone()
-        if clone.name:
-            clone.set("name", clone.name + "_copy")
+        base = phase.name or DEFAULT_PHASE_NAMES[phase.family]
+        clone.set("name", self._unique_name(base + "_copy"))
         self.gpb.add_phase(clone, self.current_index() + 1)
         self._refresh_list()
         self.phase_list.setCurrentRow(self.current_index() + 1)
@@ -254,6 +265,8 @@ class GPBPanel(QWidget):
     def _remove_phase(self):
         index = self.current_index()
         if index < 0:
+            return
+        if not self._release_block_phase(self.gpb.phases[index]):
             return
         self.gpb.remove_phase(index)
         self._refresh_list()
@@ -274,8 +287,59 @@ class GPBPanel(QWidget):
         phase = self.current_phase()
         if phase is None or self._loading:
             return
+        if key == "name":
+            self._follow_rename(phase, str(value).strip())
         phase.set(key, value)
         self._edited(relist)
+
+    # ------------------------------------------------- phases of the blocks
+    # A [BCB-BlockN] lists the phases present in it by name (phase = ...), and
+    # BCB matches them against the names of the phases: a rename or a removal
+    # here has to reach those lists, or the block names a phase that is gone.
+    def _follow_rename(self, phase, new):
+        """Carry a rename into the ``phase`` key of the blocks.
+
+        The name field commits on every keystroke, so the name the blocks
+        hold is tracked per phase: an empty name, or one another phase already
+        has, is not carried over (the blocks keep the last unique name) and
+        the next valid one is.
+        """
+        held = self._block_names.get(phase, phase.name)
+        others = {p.name for p in self.gpb.phases if p is not phase}
+        if not new or new == held or new in others:
+            return
+        if held:
+            self.shell.doc.bcb.rename_phase(held, new)
+        self._block_names[phase] = new
+
+    def _release_block_phase(self, phase):
+        """Before removing *phase*: take it out of the blocks that list it,
+        once the user agrees.  False when the removal is cancelled."""
+        name = self._block_names.get(phase, phase.name)
+        if name in {p.name for p in self.gpb.phases if p is not phase}:
+            return True     # another phase still answers to the name
+        bcb = self.shell.doc.bcb
+        blocks = bcb.blocks_listing_phase(name) if name else []
+        if not blocks:
+            if name:
+                bcb.drop_phase(name)    # the wildcard block, if not expanded
+            return True
+        listing = ", ".join(f"Block{b + 1}" for b in blocks[:8])
+        if len(blocks) > 8:
+            listing += ", ..."
+        text = (f"Phase '{name}' is listed in the phase key of {listing}; "
+                f"removing the phase removes it from those blocks too.")
+        alone = sum(1 for b in blocks if bcb.block_phases(b) == [name])
+        if alone:
+            text += (f"\n\n{alone} of them list no other phase: without a "
+                     f"phase key, BCB gives a block every phase of the deck.")
+        reply = QMessageBox.question(
+            self, "Remove phase", text + "\n\nRemove the phase?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
+        if reply != QMessageBox.StandardButton.Yes:
+            return False
+        bcb.drop_phase(name)
+        return True
 
     def _line(self, key, placeholder=None, width=None, relist=True):
         phase = self.current_phase()
@@ -639,7 +703,7 @@ class GPBPanel(QWidget):
     def _pick_species(self):
         phase = self.current_phase()
         source = phase.get("thermo") or "NASA9"
-        names = database.species_of_database(source)
+        names = database.species_of_database(source, phase.family)
         mechanism = phase.get("reactions")
         if mechanism:
             from_mech = database.species_of_mechanism(mechanism, self.case_dir)
@@ -774,7 +838,7 @@ class GPBPanel(QWidget):
         source = phase.get("thermo") or "NASA9"
         if source == "SP-database":
             source = "NASA9"
-        names = database.species_of_database(source)
+        names = database.species_of_database(source, phase.family)
         chosen = SpeciesPicker.choose(
             self, self.kit, "Add material", names,
             f"Materials of the {source} database. Liquid entries end in (L), "
@@ -795,8 +859,9 @@ class GPBPanel(QWidget):
         materials = phase.entries()
         if row < 0 or row >= len(materials):
             return
-        columns = self._material_columns(phase) + \
-            [(k, k) for k, _l in MODEL_COLUMNS]
+        # Every per-material key, not only the displayed ones: a solid phase
+        # hides groups and psat-*, but a loaded deck may still carry them.
+        columns = list(gpbmodel.MATERIAL_COLUMNS) + list(MODEL_COLUMNS)
         for key, _label in columns:
             if phase.has(key):
                 values = phase.column(key, len(materials))
