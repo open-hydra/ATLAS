@@ -389,14 +389,14 @@ contains
     integer      :: i, j, k, im, jm, km
     real(kind=8) :: vx(8), vy(8), vz(8)
 
-    if (mesh_cfg%meshType==-2) return
-
     ! Peliminary operations
     im = self%dim(1)
     jm = self%dim(2)
     km = self%dim(3)
 
     allocate(self%vol(1-gc(1):im+gc(1),1-gc(2):jm+gc(2),1-gc(3):km+gc(3)))
+    ! a cell skipped below holds 0, not an undefined value
+    self%vol = 0d0
 
     ! cell volume computation
     !$omp parallel private(vx,vy,vz,vol,i,j,k)

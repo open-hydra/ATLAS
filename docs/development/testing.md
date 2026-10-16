@@ -110,6 +110,7 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `DP-distribution-missing` | BCB | `BCB/DP-distribution-missing` | A `distribution` file that does not exist stops BCB naming it, also with `sigmap = 0` (which turns only a law name into `Dirac`); nothing is written. |
 | `DP-distribution-long-path` | BCB | `BCB/DP-distribution-long-path` | A 40-character `distribution` path with `sigmap = 0` is written whole in column 8 of the `401` records: the `drop-bc.txt` of `DP-basic` with that path and `sigmap = 0`. |
 | `DP-chimera` | BCB | `BCB/DP-chimera` | Two blocks that overlap through one face each: the dispersed-phase file carries the 102 records with their donors and volume fractions (tolerance 1e-6, as `IG-chimera`). |
+| `DP-chimera-pure2D` | BCB | `BCB/DP-chimera-pure2D` | The mesh of `DP-chimera` as one node plane (pure 2D): five-integer headers on four faces, and on every 102 facelet the donors and volume fractions of `DP-chimera` (the depth cancels in a volume fraction). |
 | `DP-axis-override` | BCB | `BCB/DP-axis-override` | `<phase>-type = outlet` on an axisymmetric face: the dispersed-phase file carries 400 on the axis, the gas file keeps 200. |
 | `DP-axis-symmetry` | BCB | `BCB/DP-axis-symmetry` | `<phase>-type = symmetry` on an axisymmetric face: the dispersed-phase file carries 300 on the axis, the gas file keeps 200. |
 | `DP-axis-refused` | BCB | `BCB/DP-axis-refused` | Any other `<phase>-type` word on an axisymmetric face stops BCB naming the two accepted ones. |

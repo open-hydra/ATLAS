@@ -1226,6 +1226,22 @@ set_tests_properties(DP-chimera PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-chimera-pure2D (the chimera search on a pure-2D mesh) ---------------
+# DP-chimera's mesh as one node plane (make_mesh.py; pure 2D, a layer of unit depth inside ATLAS): five-integer
+# headers, four faces, and on every 102 facelet the donors and volume fractions of the single-layer deck, an
+# independent oracle (a volume fraction is a ratio of volumes of one receiver: the depth cancels). The search
+# reads the receiver's cell volume, which a pure-2D block must therefore have.
+add_test(
+    NAME    DP-chimera-pure2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_pure2d.py fromATLAStoSolver/bc.txt ../DP-chimera/reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-chimera-pure2D"
+)
+set_tests_properties(DP-chimera-pure2D PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-axis-override (dispersed phase let out through the axis) -------------
 # 2Daxi nozzle (IG+CD's mesh). [ax] type = axisymmetric + partL-type = outlet:
 # gas-bc.txt keeps 200 on the axis face 3, partL-bc.txt carries 400 there; the
