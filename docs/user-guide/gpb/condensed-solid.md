@@ -189,7 +189,7 @@ H2O(L) 1 evaporation=ASM interface=LK alpha-e=1
 | `interface` | word | `VLE`, `LK` | Interface model: equilibrium or Langmuir-Knudsen (`VLE`) |
 | `boiling` | word | `clamp`, `ZGR` | Boiling branch (`clamp`) |
 | `combustion` | word | `Beckstead` | Metal combustion model; presence switches the material to the metal track |
-| `solidification` | word | `on`, `off` | Solidification with supercooling/recalescence (`off`) |
+| `solidification` | word | `on`, `off` | Solidification with supercooling and recalescence, and melting at `T-melt`, in IGLOO and ICE (`off`) |
 | `alpha-e` | real | | Langmuir-Knudsen accommodation coefficient, `interface = LK` (1.0) |
 | `k-liq` | real | | Liquid thermal conductivity [W/m/K], required with `liquid-conduction = P2T` (0) |
 | `mu-liq` | real | | Liquid viscosity [Pa s], `liquid-conduction = P2T` (0) |
