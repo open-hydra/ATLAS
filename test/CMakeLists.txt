@@ -1210,6 +1210,22 @@ set_tests_properties(DP-distribution-long-path PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-chimera (the chimera payload in a dispersed-phase file) -------------
+# Two blocks of a planar half-annulus overlap through block 1's face 4 and block 2's face 3; the other faces of
+# the input are symmetries (the k faces are written 200: the slab's first node column lies on y = 0, and BCB
+# reads it as an axisymmetric wedge). The reference is BCB's own product, a regression witness; volume
+# fractions of sliver contacts: the numeric tolerance of IG-chimera.
+add_test(
+    NAME    DP-chimera
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-chimera"
+)
+set_tests_properties(DP-chimera PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-axis-override (dispersed phase let out through the axis) -------------
 # 2Daxi nozzle (IG+CD's mesh). [ax] type = axisymmetric + partL-type = outlet:
 # gas-bc.txt keeps 200 on the axis face 3, partL-bc.txt carries 400 there; the
