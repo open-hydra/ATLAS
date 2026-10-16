@@ -50,7 +50,15 @@ A dispersed material can carry its saturation pressure `p_sat(T)` in `<name>prop
 p_sat(T) = p_ref · exp(−(g_vap(T) − g_liq(T)) / (R·T)),     g = h − T·s (molar),   p_ref = 1 bar
 ```
 
-inside the temperature range the two fits share, and continues it outside that range along the Clausius–Clapeyron line through its nearer end (with `h_vap − h_liq` taken there). `p_ref` is the standard-state pressure of the NASA and Burcat polynomials. The curve is written as a fifth column `Psat` [Pa] after the enthalpy column (see [Output Files](./output.md)); an unpaired material gets zeros, and without `psat-vapour` the table keeps its four columns. The solvers read the column by name (IGLOO and ICE); a column of zeros leaves a material on the solver's own Clausius–Clapeyron model. The phase file `<name>phase.txt` is unchanged: the two keys are not material-line tokens.
+inside the temperature range the two fits share, and continues it outside that range along the Clausius–Clapeyron line through its nearer end (with `h_vap − h_liq` taken there). `p_ref` is the standard-state pressure of the NASA and Burcat polynomials. The same pair gives the latent heat, the molar mass and the specific heat of the vapour:
+
+```text
+Lv(T)  = (h_vap(T_e) − h_liq(T_e)) / Mv,   T_e = T within the range the two fits share     [J/kg]
+Mv     = molar mass of the vapour species                                                 [kg/kmol]
+Cpv(T) = cp_vap(T_v) / Mv,                 T_v = T within the range of the vapour's fit    [J/(kg·K)]
+```
+
+`Lv` takes on every row the `h_vap − h_liq` that `Psat` takes there, so `d ln p_sat/dT = Lv·Mv/(R·T²)` holds on every row: Gibbs–Helmholtz inside the common range, the Clausius–Clapeyron line outside it. The four columns `Psat` [Pa], `Lv`, `Mv` and `Cpv` follow the enthalpy column (see [Output Files](./output.md)); an unpaired material gets zeros in all four, and without `psat-vapour` the table keeps its four columns. The solvers read the columns by name; a column of zeros leaves a material on the solver's own data (its Clausius–Clapeyron model, its latent heat and vapour constants). The phase file `<name>phase.txt` is unchanged: the two keys are not material-line tokens.
 
 ```ini
 [GPB-Phase1]
@@ -62,10 +70,10 @@ h0          = -15865000
 psat-vapour = H2O
 ```
 
-For each paired material GPB prints the common range of the two fits, the implied normal boiling point (where `p_sat` = 1 atm) and `h_vap − h_liq` there:
+For each paired material GPB prints the common range of the two fits, the implied normal boiling point (where `p_sat` = 1 atm), `h_vap − h_liq` there (`Lv` at that point) and `Mv`:
 
 ```text
- -- Psat of H2O(L): H2O(L)/H2O, common range 273.15-600 K, normal boiling point 373.57 K, h_vap - h_liq there 2268.1 kJ/kg
+ -- Psat of H2O(L): H2O(L)/H2O, common range 273.15-600 K, normal boiling point 373.57 K, h_vap - h_liq there 2268.1 kJ/kg, Mv 18.015 kg/kmol
 ```
 
 Read that boiling point: it is the only symptom of a wrong isomer, which passes every check below. In Burcat, `C7H16` is iso-heptane and `C6H14` is 2-methylpentane: paired with the n-heptane liquid `C7H16(L)`, `C7H16` gives a boiling point of 324.7 K instead of 371.6 K (`C7H16,n-heptane` gives 373.0 K), and `C6H14` with `C6H14(L)` gives 271 K (use `C6H14,n-hexane`).

@@ -2235,10 +2235,12 @@ set_tests_properties(IG-mixture-cantera PROPERTIES
 # ---- GPB : CP-psat-water (psat-vapour -> Psat column from the database's liquid/vapour pair) -------
 # CP-fixmat-h0's water on 280..380 K plus `psat-vapour = H2O`: the table gains "Psat" [Pa] after
 # "Enthalpy_abs", p_sat = 1e5*exp(-(g_H2O - g_H2O(L))/(R T)) from nasa9.yaml. check_psat.sh holds it to
-# IAPWS at 300 and 350 K; the phase file stays CP-fixmat-h0's (the keys are not material-line tokens).
+# IAPWS at 300 and 350 K; the phase file stays CP-fixmat-h0's (the keys are not material-line tokens). The same pair
+# gives "Lv" [J/kg], "Mv" [kg/kmol] and "Cpv" [J/(kg K)] after "Psat": check_vapour.py holds Lv to the slope of the
+# Psat column (Clausius-Clapeyron on every 1-K interval), Mv to the atomic weights, Cpv and Lv to NIST-JANAF.
 add_test(
     NAME    CP-psat-water
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt ../CP-fixmat-h0/reference/part-phase.txt && bash check_psat.sh fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt ../CP-fixmat-h0/reference/part-phase.txt && bash check_psat.sh fromATLAStoSolver/part-properties.dat && python3 -B check_vapour.py fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-psat-water"
 )
 set_tests_properties(CP-psat-water PROPERTIES

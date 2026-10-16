@@ -48,7 +48,7 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `CP-Tvar-fallback` | GPB | `GPB/CP-Tvar-fallback` | A material missing from the database (`thermo = Burcat`) takes the `cp`, `rho`, `h0` of the INI, the others keep their tables, and `groups` reach the phase file in order. |
 | `CP-Tvar-missing` | GPB | `GPB/CP-Tvar-missing` | A material the database lacks, given no constants, stops GPB. |
 | `CP-Tvar-fallback-h0` | GPB | `GPB/CP-Tvar-fallback-h0` | A fallback material next to a database one without `h0` stops GPB: the phase would mix two enthalpy datums. |
-| `CP-psat-water` | GPB | `GPB/CP-psat-water` | `psat-vapour = H2O` adds the `Psat` column from the liquid/vapour pair of `nasa9.yaml`, held to IAPWS at 300 and 350 K. |
+| `CP-psat-water` | GPB | `GPB/CP-psat-water` | `psat-vapour = H2O` adds the columns `Psat`, `Lv`, `Mv`, `Cpv` from the liquid/vapour pair of `nasa9.yaml`: `Psat` held to the IAPWS saturation line at 300 and 350 K, `Lv` to the slope of `Psat` (Clausius–Clapeyron), `Mv` to the atomic weights, `Cpv` and `Lv` to NIST-JANAF; the phase file is that of `CP-fixmat-h0`. |
 | `CP-psat-water-eulerian` | GPB | `GPB/CP-psat-water-eulerian` | The same with `modeling = eulerian`: the `Psat` column does not change. |
 | `CP-psat-refuse` | GPB | `GPB/CP-psat-refuse` | `psat-vapour` naming a species of another composition (`O2` for water) stops GPB. |
 | `IG-fixgas` | GPB | `GPB/IG-fixgas` | Two species given by `gamma`, `mw`, `mil` and `kl` ([Fixed-Gas Mixture](../tutorials/gpb/fixed-gas.md)): the phase and composition files as in the reference, the thermo and transport tables on a sample. |

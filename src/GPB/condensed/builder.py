@@ -141,9 +141,9 @@ def build(type,inifile,section,modeling=None):
     # ---------------------------------------------------
 
     # ---------------------------------------------------
-    # Optional saturation pressure: per material, a liquid/vapour
-    # species pair of the loaded database (psat-vapour, psat-liquid);
-    # compute_properties tabulates it as the Psat column
+    # Optional vapour data: per material, a liquid/vapour species pair
+    # of the loaded database (psat-vapour, psat-liquid); compute_properties
+    # tabulates it as the Psat, Lv, Mv and Cpv columns
     # ---------------------------------------------------
     psat_pairs = CP_read_psat_pairs(inifile, section, [m.name for m in material_group])
     if psat_pairs is not None:

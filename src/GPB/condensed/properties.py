@@ -16,7 +16,7 @@ P_REF_DB = 1.0e5 # [Pa] standard state of the NASA Glenn and Burcat polynomials 
 def resolve_psat_pair(section, material, pair, species, thermo_file):
     """(liquid, vapour) Species of a material's p_sat pair, looked up in the loaded database only. Refused
     unless both names are in it, both are NASA7/NASA9 fits and both have the same elemental composition
-    (which cannot tell isomers apart: psat_from_pair prints the implied boiling point for that)."""
+    (which cannot tell isomers apart: vapour_from_pair prints the implied boiling point for that)."""
     liquid, vapour = pair
     what = f"[ERROR] [{section}] material {material}, psat-liquid '{liquid}' / psat-vapour '{vapour}'"
     for sp_name in (liquid, vapour):
@@ -33,11 +33,13 @@ def resolve_psat_pair(section, material, pair, species, thermo_file):
     return liq, vap
 
 
-def psat_from_pair(liq, vap, temperatures, material):
-    """p_sat(T) [Pa] on the table nodes from the Gibbs-energy difference of a liquid/vapour pair,
-    ln p_sat = ln P_REF_DB - (g_vap - g_liq)/(R T), inside the temperature range the two fits share; outside it
-    the Clausius-Clapeyron line through the nearer end of that range, with dh = h_vap - h_liq taken there."""
-    R = ct.gas_constant   # [J/kmol/K]: sp.thermo.h is in J/kmol, sp.thermo.s in J/kmol/K
+def vapour_from_pair(liq, vap, temperatures, material):
+    """Vapour data on the table nodes from a liquid/vapour pair, {'psat', 'Lv', 'Mv', 'Cpv'}: p_sat(T) [Pa] from the
+    Gibbs-energy difference, ln p_sat = ln P_REF_DB - (g_vap - g_liq)/(R T), inside the temperature range the two fits
+    share, outside it the Clausius-Clapeyron line through the nearer end of that range, with dh = h_vap - h_liq taken
+    there; Lv = dh/Mv [J/kg] with the dh of the same node, so that d ln p_sat/dT = Lv Mv/(R T^2) on every node; Mv
+    [kg/kmol] the vapour's molar mass; Cpv = cp_vap/Mv [J/(kg K)] at T clipped to the vapour's own fit range."""
+    R = ct.gas_constant   # [J/kmol/K]: sp.thermo.h is in J/kmol, sp.thermo.s and sp.thermo.cp in J/kmol/K
     T_lo = max(liq.thermo.min_temp, vap.thermo.min_temp)
     T_hi = min(liq.thermo.max_temp, vap.thermo.max_temp)
     what = f"[ERROR] material {material}, psat pair {liq.name}/{vap.name}"
@@ -51,11 +53,16 @@ def psat_from_pair(liq, vap, temperatures, material):
         return np.log(P_REF_DB) - dg / (R * Te) - dh / R * (1.0 / T - 1.0 / Te), dh, Te
 
     ln_p = np.empty(len(temperatures))
+    Lv = np.empty(len(temperatures))
     for i, T in enumerate(temperatures):
         ln_p[i], dh, Te = ln_psat(T)
         if not dh > 0.0:
             raise SystemExit(f"{what}: h_vap - h_liq = {dh / vap.molecular_weight / 1e3:.6g} kJ/kg at {Te:g} K, "
                              "not a vaporisation enthalpy")
+        Lv[i] = dh / vap.molecular_weight
+    Mv = np.full(len(temperatures), vap.molecular_weight)
+    Cpv = np.array([vap.thermo.cp(min(max(T, vap.thermo.min_temp), vap.thermo.max_temp)) for T in temperatures]) \
+        / vap.molecular_weight
 
     # implied normal boiling point: printed, the one symptom of a wrong isomer
     lo, hi = min(temperatures[0], T_lo), max(temperatures[-1], T_hi)
@@ -71,8 +78,9 @@ def psat_from_pair(liq, vap, temperatures, material):
                    f"{ln_psat(T_nb)[1] / vap.molecular_weight / 1e3:.1f} kJ/kg")
     outside = int(np.count_nonzero((temperatures < T_lo) | (temperatures > T_hi)))
     print(f' -- Psat of {material}: {liq.name}/{vap.name}, common range {T_lo:g}-{T_hi:g} K'
-          + (f' ({outside} nodes outside it follow Clausius-Clapeyron)' if outside else '') + f', {boiling}')
-    return np.exp(ln_p)
+          + (f' ({outside} nodes outside it follow Clausius-Clapeyron)' if outside else '') + f', {boiling}'
+          + f', Mv {vap.molecular_weight:g} kg/kmol')
+    return {'psat': np.exp(ln_p), 'Lv': Lv, 'Mv': Mv, 'Cpv': Cpv}
 
 
 def compute_properties(type, name, T_low, T_max, all_materials):
@@ -87,7 +95,7 @@ def compute_properties(type, name, T_low, T_max, all_materials):
     density = {}
     conductivity = {}
     energy = {}
-    psat = {}        # only the paired materials; the others get zeros once one is paired
+    vapour = {}      # psat, Lv, Mv, Cpv of the paired materials; the others get zeros once one is paired
     materials = []
     datum = set()   # 'absolute' | 'relative' per material; the file carries ONE datum (io.py names the column)
 
@@ -156,14 +164,15 @@ def compute_properties(type, name, T_low, T_max, all_materials):
             datum.add('relative')
 
         if mat.psat_pair is not None:
-            psat[materials[-1]] = psat_from_pair(*mat.psat_pair, temperatures, materials[-1])
+            vapour[materials[-1]] = vapour_from_pair(*mat.psat_pair, temperatures, materials[-1])
 
     if len(datum) > 1:
         raise SystemExit("[ERROR] condensed materials mix absolute and relative enthalpy data in one phase: "
                          "give h0 for every fixed-cp material or for none")
     enthalpy_absolute = (datum == {'absolute'})
     print(' -- Enthalpy column datum:', 'absolute (Enthalpy_abs)' if enthalpy_absolute else 'relative cp*T (Enthalpy)')
-    if psat:
-        psat = {m: psat.get(m, np.zeros(len(temperatures))) for m in materials}
+    if vapour:
+        zeros = {key: np.zeros(len(temperatures)) for key in ('psat', 'Lv', 'Mv', 'Cpv')}
+        vapour = {m: vapour.get(m, zeros) for m in materials}
     CP_IO.write_properties(type, name, T_low, T_max, materials, mass_cp, density, enthalpy, conductivity, energy,
-                           enthalpy_absolute=enthalpy_absolute, psat=psat or None)
+                           enthalpy_absolute=enthalpy_absolute, vapour=vapour or None)

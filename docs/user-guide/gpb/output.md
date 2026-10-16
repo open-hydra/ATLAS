@@ -137,9 +137,14 @@ If type contains `dispersed`, variables are:
 2. `Cp`
 3. `Density`
 4. `Enthalpy` or `Enthalpy_abs`
-5. `Psat`, only when `psat-vapour` pairs at least one material
+5. `Psat`
+6. `Lv`
+7. `Mv`
+8. `Cpv`
 
-The fourth name tags the enthalpy datum; columns 2–4 keep this order, which ATLAS's own readers rely on. `Enthalpy` is relative (`cp·T` for constant-`cp` materials, the `SP-database` integral from `Tmin`); `Enthalpy_abs` is absolute, i.e. it includes the enthalpy of formation (every `thermo` table, and constant-`cp` materials given `h0`, see [Condensed & Solid Phases](./condensed-solid.md)). `Psat` is the saturation pressure [Pa, written `%.6e`] from the database's liquid/vapour pair, zeros for a material that is not paired; the solvers find it by name.
+columns 5–8 only when `psat-vapour` pairs at least one material.
+
+The fourth name tags the enthalpy datum; columns 2–4 keep this order, which ATLAS's own readers rely on. `Enthalpy` is relative (`cp·T` for constant-`cp` materials, the `SP-database` integral from `Tmin`); `Enthalpy_abs` is absolute, i.e. it includes the enthalpy of formation (every `thermo` table, and constant-`cp` materials given `h0`, see [Condensed & Solid Phases](./condensed-solid.md)). `Psat` is the saturation pressure [Pa, written `%.6e`], `Lv` the latent heat [J/kg], `Mv` the molar mass of the vapour [kg/kmol] and `Cpv` its specific heat [J/(kg·K)], all four from the database's liquid/vapour pair (see [Condensed & Solid Phases](./condensed-solid.md)) and zeros for a material that is not paired; the solvers find them by name.
 
 Otherwise variables are:
 
