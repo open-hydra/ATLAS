@@ -21,7 +21,8 @@ from PyQt6.QtWidgets import (
     QMenu, QSplitter, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from . import database, gpbmodel, icons
+from . import database, filekeys, gpbmodel, icons
+from .filewidgets import STATE_ICON, STATE_TOKEN, pick_value
 from .gpbdialogs import (AdvancedKeysDialog, ColumnTableDialog, MixtureDialog,
                          SpeciesPicker)
 from .gpbmodel import (FIXED_GAS_COLUMNS, GAS_SOURCES, GPBPhase,
@@ -319,6 +320,56 @@ class GPBPanel(QWidget):
             combo.editTextChanged.connect(lambda _t: commit())
         return combo
 
+    def _with_browse(self, key, combo):
+        """A database picker plus *Browse…*, for a key that names a file.
+
+        The combo offers what the ATLAS database and the case directory hold;
+        the button reaches any other file, and the mark says whether the value
+        resolves where GPB will look for it (``filekeys``).
+        """
+        role = filekeys.role_of(key, "gpb-phase")
+        if role is None:
+            return combo
+        box = QWidget()
+        row = QHBoxLayout(box)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(7)
+        mark = QLabel()
+        mark.setFixedWidth(18)
+
+        def repaint():
+            phase = self.current_phase()
+            value = phase.get(key) if phase else ""
+            state, _path, why = filekeys.status(value, self.case_dir, role)
+            mark.setPixmap(self.kit.pixmap(
+                STATE_ICON[state], STATE_TOKEN[state], 15))
+            mark.setToolTip(why or "")
+
+        def browse():
+            phase = self.current_phase()
+            if phase is None:
+                return
+            value = pick_value(self, role, phase.get(key), self.case_dir)
+            if value is None:
+                return
+            if combo.findText(value) < 0:
+                combo.insertItem(0, value, value)
+            combo.setCurrentText(value)      # the combo commits the value
+            self._set(key, value)
+            repaint()
+
+        if combo.isEditable():
+            combo.editTextChanged.connect(lambda _text: repaint())
+        combo.currentIndexChanged.connect(lambda _index: repaint())
+        row.addWidget(combo, 1)
+        row.addWidget(mark)
+        row.addWidget(self.kit.button(
+            "Browse…", browse, "open",
+            tip=role.hint or f"Choose the {role.label}"))
+        self.kit.register_repaint(repaint)
+        repaint()
+        return box
+
     def _bool_toggle(self, key, label):
         phase = self.current_phase()
         button = self.kit.toggle(
@@ -487,7 +538,8 @@ class GPBPanel(QWidget):
             stems, local = database.mechanism_files(self.case_dir)
             combo = self._combo("reactions", local + stems, editable=True,
                                 empty=None)
-            form.addRow(self._labelled("reactions", "mechanism"), combo)
+            form.addRow(self._labelled("reactions", "mechanism"),
+                        self._with_browse("reactions", combo))
             layout.addLayout(form)
             species = database.species_of_mechanism(
                 phase.get("reactions"), self.case_dir)
@@ -498,8 +550,8 @@ class GPBPanel(QWidget):
         elif name == "phase-file":
             stems, local = database.mechanism_files(self.case_dir)
             form.addRow(self._labelled("phase", "phase file"),
-                        self._combo("phase", local + stems, editable=True,
-                                    empty=None))
+                        self._with_browse("phase", self._combo(
+                            "phase", local + stems, editable=True, empty=None)))
             layout.addLayout(form)
             layout.addWidget(kit.hint(
                 "The file is imported as it is: thermo, transport and "
@@ -507,7 +559,8 @@ class GPBPanel(QWidget):
         elif name == "cea":
             files = database.cea_files(self.case_dir)
             form.addRow(self._labelled("CEA-file", "CEA input"),
-                        self._combo("CEA-file", files, editable=True, empty=None))
+                        self._with_browse("CEA-file", self._combo(
+                            "CEA-file", files, editable=True, empty=None)))
             form.addRow(self._labelled("CEA-section", "section"),
                         self._line("CEA-section", width=90))
             layout.addLayout(form)

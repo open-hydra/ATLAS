@@ -219,6 +219,20 @@ def _info(p, c):
     p.drawEllipse(QRectF(10.85, 6.6, 2.3, 2.3))
 
 
+def _file(p, c):
+    _stroke(p, c)
+    _poly(p, [(14, 3), (6, 3), (6, 21), (18, 21), (18, 7)], True)
+    _poly(p, [(14, 3), (14, 7), (18, 7)])
+
+
+def _alert(p, c):
+    _stroke(p, c)
+    _poly(p, [(12, 4), (21, 19.5), (3, 19.5)], True)
+    _poly(p, [(12, 9.5), (12, 14)])
+    _fill(p, c)
+    p.drawEllipse(QRectF(10.85, 15.6, 2.3, 2.3))
+
+
 DRAW = {
     "mesh": _mesh, "cube": _cube, "open": _open, "save": _save,
     "save-as": _save_as, "fit": _fit, "tag": _tag, "eye": _eye,
@@ -226,7 +240,7 @@ DRAW = {
     "pencil": _pencil, "trash": _trash, "check": _check, "target": _target,
     "layers": _layers, "sliders": _sliders, "code": _code, "info": _info,
     "chevron-down": _chevron_down, "chevron-right": _chevron_right,
-    "circle": _circle,
+    "circle": _circle, "file": _file, "alert": _alert,
 }
 
 

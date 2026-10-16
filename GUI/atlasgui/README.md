@@ -34,6 +34,19 @@ models, the constant properties of a calorically-perfect gas, a mixture
 composition and the raw key list each open in their own dialog
 (`gpbdialogs.py`).
 
+## Files a case names
+
+`filekeys.py` is the one place that knows which keys carry a path — BCB's
+`<var>-file` tables and `*-time-file` series, `line-file`, `range-file`,
+`eq-CEA-file`, a dispersed `<phase>-distribution`, GPB's `reactions`, `phase`
+and `CEA-file`, the `BCB-file` / `ICB-file` / `input-file` of
+`[ATLAS-Parameters]`, and the ICB, STB and MDB keys for when those stages
+arrive. Each one carries what it names (a file, a directory, or a *stem* a tool
+resolves on its own search path), the dialog filters, and the limits the tools
+impose — the 32-character cap on a BC series name, the search path of a GPB
+mechanism. Panels never test a path themselves: they call
+`filekeys.status()` for the mark and `filekeys.value_for()` for what to write.
+
 ## Running
 
 ```bash
@@ -55,18 +68,20 @@ python -m atlasgui ...
 | `gpbmodel.py` | GPB phases, the schema from `input_registry.py`, validation |
 | `bcmodel.py` | `BCBDocument`: blocks, faces, named BC sections, INI I/O |
 | `database.py` | what `database/` holds, for the pickers |
+| `filekeys.py` | which INI keys name a file, and how a value resolves |
 | `mesh_io.py` | multiblock Tecplot / Plot3D reader (numpy only) |
 | `faces.py` | BCB face numbering + node extraction (numpy only) |
 | `viewport.py` | PyVista `QtInteractor` viewport, picking, block toggling |
 | `widgets.py` | `UIKit`: themed widget factory shared by the panels |
 | `theme.py` | seed palettes, derived tokens, the Qt stylesheet |
 | `icons.py` | vector icons drawn with QPainter (no image assets) |
-| `gpbpanel.py`, `gpbdialogs.py`, `bcbpanel.py` | the stage panels |
+| `filewidgets.py` | the file field, the browse column, the files-of-a-section dialog |
+| `gpbpanel.py`, `gpbdialogs.py`, `bcbpanel.py`, `bcbdialogs.py` | the stage panels |
 | `mainwindow.py` | the shell: stages, file actions, status, Case and Review |
 | `__main__.py` | CLI entry point / dependency guards |
 
-`mesh_io.py`, `faces.py`, `bcmodel.py`, `gpbmodel.py` and `document.py` carry no
-GUI dependency and can be imported and tested headlessly.
+`mesh_io.py`, `faces.py`, `bcmodel.py`, `gpbmodel.py`, `document.py` and
+`filekeys.py` carry no GUI dependency and can be imported and tested headlessly.
 
 ## Face numbering (fixed by BCB)
 

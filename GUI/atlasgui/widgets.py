@@ -8,8 +8,10 @@ has handed out, wherever it lives.
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget,
+    QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QPushButton,
+    QScrollArea, QVBoxLayout, QWidget,
 )
 
 from . import icons
@@ -26,6 +28,49 @@ class Card(QFrame):
         self.body.setSpacing(spacing)
 
 
+class Dialog(QDialog):
+    """Shared chrome for every dialog of the GUI: title, explanation, buttons.
+
+    The dense parts of a setup are edited in their own window rather than in
+    the stage panel, so this chrome is used from several modules.
+    """
+
+    def __init__(self, parent, kit, title, explanation="", icon="sliders"):
+        super().__init__(parent)
+        self.kit = kit
+        self.setWindowTitle(title)
+        self.setObjectName("Root")
+        self.setModal(True)
+        self.layout_ = QVBoxLayout(self)
+        self.layout_.setContentsMargins(16, 14, 16, 14)
+        self.layout_.setSpacing(10)
+        header = QHBoxLayout()
+        header.setSpacing(8)
+        header.addWidget(kit.icon_label(icon, "accent", 18))
+        header.addWidget(kit.title(title))
+        header.addStretch(1)
+        self.layout_.addLayout(header)
+        if explanation:
+            self.layout_.addWidget(kit.hint(explanation))
+
+    def add_buttons(self, close_only=False):
+        """OK / Cancel, or a single Close for a dialog that commits live."""
+        standard = (QDialogButtonBox.StandardButton.Close if close_only else
+                    QDialogButtonBox.StandardButton.Ok
+                    | QDialogButtonBox.StandardButton.Cancel)
+        buttons = QDialogButtonBox(standard)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        primary = buttons.button(
+            QDialogButtonBox.StandardButton.Close if close_only
+            else QDialogButtonBox.StandardButton.Ok)
+        primary.setProperty("role", "primary")
+        if close_only:
+            primary.clicked.connect(self.accept)
+        self.layout_.addWidget(buttons)
+        return buttons
+
+
 class UIKit:
     """Builds themed widgets and keeps their icons in sync with the theme."""
 
@@ -33,6 +78,7 @@ class UIKit:
         self._provider = theme_provider      # anything with a .theme dict
         self._slots = []                     # (setter, icon-name, token, size)
         self._compactable = []               # (button, full text)
+        self._repaints = []                  # state-dependent artwork
         self._compact_labels = []
 
     @property
@@ -41,6 +87,9 @@ class UIKit:
 
     def color(self, token):
         return self.theme.get(token, self.theme["text"])
+
+    def color_brush(self, token):
+        return QBrush(QColor(self.color(token)))
 
     # -- icons -----------------------------------------------------------
     def icon(self, name, token="text_dim", size=18):
@@ -67,9 +116,38 @@ class UIKit:
             name, token, size))
         return label
 
+    def register_repaint(self, repaint):
+        """Call *repaint* on every theme change.
+
+        For artwork whose colour depends on state rather than on one token --
+        a toggle that ticks when checked, a path that marks a missing file.
+        """
+        self._repaints.append(repaint)
+
     def retint(self):
-        for setter, name, token, size in self._slots:
-            setter(self.icon(name, token, size))
+        """Re-tint every icon handed out, and forget the ones whose widget died.
+
+        The stage editors are rebuilt as the selection changes, so a slot
+        registered for a widget that no longer exists is normal: Qt raises
+        RuntimeError on it, and that is how a dead slot is dropped.
+        """
+        live = []
+        for slot in self._slots:
+            setter, name, token, size = slot
+            try:
+                setter(self.icon(name, token, size))
+            except RuntimeError:
+                continue
+            live.append(slot)
+        self._slots = live
+        alive = []
+        for repaint in self._repaints:
+            try:
+                repaint()
+            except RuntimeError:
+                continue
+            alive.append(repaint)
+        self._repaints = alive
 
     # -- buttons ---------------------------------------------------------
     def button(self, text, slot=None, icon=None, role=None, seg=None, tip=None,

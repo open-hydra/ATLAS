@@ -33,24 +33,61 @@ KEYWORD_BCS = [
 # may be added, so the catalogue does not need to be exhaustive.
 TYPED_BCS = OrderedDict([
     ("wall",     ["T", "q", "ks", "Tref", "hconv", "eps", "qrad", "alpha", "beta",
-                  "direction", "file-direction", "T-file", "q-file", "ks-file",
-                  "Tref-file", "hconv-file", "qrad-file", "eps-file"]),
-    ("inlet",    ["g", "T", "T0", "p", "p0", "pRef", "direction", "file-direction",
-                  "yN2", "yO2", "yH2", "yCH4", "yH2O", "yCO2", "g-file", "Taf-file",
-                  "pRef-file"]),
-    ("outlet",   ["p", "pRef", "pRef-file"]),
-    ("manifold", ["p0", "T0", "p", "T"]),
+                  "direction", "file-direction"]),
+    ("inlet",    ["g", "T", "T0", "p", "p0", "pRef", "mach", "un", "h0",
+                  "alpha", "beta", "rf", "periodic", "direction",
+                  "file-direction", "center", "axis", "n-repeat",
+                  "strip-j-face", "yN2", "yO2", "yH2", "yCH4", "yH2O", "yCO2"]),
+    ("outlet",   ["p", "rf", "pRef"]),
+    ("manifold", ["p0", "T0", "p", "T", "block"]),
     ("gsi",      ["surface-reactions", "pyrolysis-model", "qrad", "eps",
-                  "cp", "T", "Ti", "dh",
-                  "eq-CEA-file", "eq-CEA-section",
+                  "cp", "T", "Ti", "dh", "eq-CEA-section", "eq-OG",
                   "yN2", "yO2", "yH2", "yH2O", "yCO2",
                   "a", "n", "pRef", "rhoGrain", "T0", "krho", "SF",
-                  "nuTilde", "k", "omega", "Rij", "nrans",
-                  "direction", "a-file", "n-file", "pRef-file", "rhoGrain-file",
-                  "Taf-file", "krho-file", "SF-file", "SFgeo-file",
-                  "qrad-file", "eps-file", "T-file"]),
-    ("periodic", ["direction"]),
+                  "nuTilde", "k", "omega", "Rij", "nrans", "direction"]),
+    ("periodic", ["direction", "blocks", "faces"]),
 ])
+
+# Keys of each type whose value is a *file* (see :mod:`.filekeys` for what each
+# one holds).  They are split out of the lists above so the editor can offer a
+# file chooser for exactly the keys the resolved BC honours: BCB refuses a key
+# its record has no field for (``strict-keys``), so a wall is not offered the
+# inlet series and an outlet is not offered a wall table.
+BC_FILE_KEYS = OrderedDict([
+    ("wall",     ["T-file", "q-file", "ks-file", "eps-file", "Tref-file",
+                  "hconv-file", "qrad-file", "T-time-file", "q-time-file"]),
+    ("inlet",    ["g-file", "p-file", "T-file", "mach-file", "Taf-file",
+                  "p0-time-file", "time-file", "line-file", "eq-CEA-file"]),
+    ("outlet",   ["p-file", "pRef-file", "p-time-file"]),
+    ("manifold", []),
+    ("gsi",      ["a-file", "n-file", "pRef-file", "rhoGrain-file", "Taf-file",
+                  "krho-file", "SF-file", "SFgeo-file", "qrad-file", "eps-file",
+                  "T-file", "eq-CEA-file"]),
+    ("periodic", []),
+])
+
+# File keys any face section may carry, whatever its type: the injector plate
+# of a multipatch face.
+COMMON_FILE_KEYS = ["range-file"]
+
+
+def suggested_keys(bc_type):
+    """Suggested keys for *bc_type*: its own, then the files it can take."""
+    keys = list(TYPED_BCS.get(bc_type, []))
+    for key in BC_FILE_KEYS.get(bc_type, []) + COMMON_FILE_KEYS:
+        if key not in keys:
+            keys.append(key)
+    return keys
+
+
+def file_keys_of(bc_type):
+    """The file keys *bc_type* honours, then the ones any face may carry."""
+    keys = list(BC_FILE_KEYS.get(bc_type, []))
+    for key in COMMON_FILE_KEYS:
+        if key not in keys:
+            keys.append(key)
+    return keys
+
 
 # Keys whose value must be one of a fixed set of names. BCB stops with an error
 # on an unknown name, so the editor pre-fills the first entry and lists the rest.
@@ -65,7 +102,12 @@ ENUM_KEY_VALUES = {
 TYPE_ALIASES = {"srm": "gsi"}
 
 # Suggested keys for the [ATLAS-Parameters] section.
-ATLAS_PARAM_KEYS = ["MG-levels", "BC-force-connect", "BC-chimera", "BCB-file"]
+# [ATLAS-Parameters] is shared by every tool: the keys of all of them are
+# offered, whichever stage the user is on.
+ATLAS_PARAM_KEYS = [
+    "MG-levels", "BC-force-connect", "BC-chimera", "BC-force-chimera",
+    "strict-keys", "IC-format", "BCB-file", "ICB-file", "input-file",
+]
 
 # A BC is a section the user names freely, so BCB owns every section that is
 # not claimed by another ATLAS tool.  These prefixes are what "claimed" means;

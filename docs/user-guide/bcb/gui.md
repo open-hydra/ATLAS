@@ -90,6 +90,14 @@ Boundary conditions come in two kinds, matching the INI format:
     from per-type suggestions or typed freely (any `key = value` is allowed),
     which covers spatially-varying and `*-file` inputs.
 
+    **New** asks for the name, the type and the files that type reads, so a
+    boundary that is driven by a table or a time series is complete the moment
+    it exists. Afterwards, every key that names a file has a browse button on
+    its row, and **Files of this BC…** shows all of them at once — see
+    [Files](../gui.md#files) for what is written into the INI and for the two
+    limits the GUI enforces as you pick (a GPB mechanism outside the search
+    path, a series name over 32 characters).
+
     For `gsi` the suggestion list spans every variant, since BCB selects the
     model from the keys you set — see [BC Types](./bc-types.md#gsi). Setting
     `pyrolysis-model` or `surface-reactions` here is what picks the pyrolysis,

@@ -58,14 +58,23 @@ SCHEMA_FOUND = bool(REGISTRY)
 # an earlier definition of the same key (Tmin/Tmax appear more than once).
 KEY_INFO = OrderedDict()
 for _e in REGISTRY:
-    if _e.name in KEY_INFO:
-        continue
     # The registry's "allowed" column holds either a list of names or a
     # numeric constraint such as ">0" or ">=2"; only the first is a choice.
     _raw = (_e.allowed or "").strip()
     _is_constraint = _raw[:1] in ("<", ">", "=")
+    _choices = [] if _is_constraint else [a for a in _raw.split(",") if a]
+    if _e.name in KEY_INFO:
+        # The same key name under two sections (thermo of a gas and of a
+        # condensed phase, which take different databases): the editor is keyed
+        # by name, so it offers the union -- warning on a value no section
+        # accepts, never on one that this phase's section does.
+        _info = KEY_INFO[_e.name]
+        for _choice in _choices:
+            if _choice not in _info["allowed"]:
+                _info["allowed"].append(_choice)
+        continue
     KEY_INFO[_e.name] = {
-        "allowed": [] if _is_constraint else [a for a in _raw.split(",") if a],
+        "allowed": _choices,
         "constraint": _raw if _is_constraint else "",
         "default": _e.default,
         "description": _e.description,
@@ -486,11 +495,19 @@ class GPBDocument:
 
             for key, value in phase.params.items():
                 allowed = allowed_values(key)
-                if allowed and value and key not in MATERIAL_KEYS:
-                    if value.strip() not in allowed and key not in ("type",):
-                        issues.append(("warning", i, (
-                            f"{tag}: {key} = {value} is not one of "
-                            f"{', '.join(allowed)}")))
+                if not (allowed and value) or key in MATERIAL_KEYS or key == "type":
+                    continue
+                raw = value.strip()
+                if {a.lower() for a in allowed} == {"true", "false"}:
+                    # GPB reads these with get_bool: true/yes/on/1/t, either case
+                    if raw.lower() in BOOL_TRUE + BOOL_FALSE:
+                        continue
+                elif raw in allowed:
+                    continue
+                if raw not in allowed:
+                    issues.append(("warning", i, (
+                        f"{tag}: {key} = {value} is not one of "
+                        f"{', '.join(allowed)}")))
 
             if family == "real-fluid":
                 for key in ("fluid", "pmin", "pmax", "Tmin", "Tmax"):

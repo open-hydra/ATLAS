@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox,
-    QHBoxLayout, QHeaderView, QInputDialog, QLabel, QListWidget,
+    QAbstractItemView, QComboBox, QDialog, QFormLayout, QFrame, QGridLayout,
+    QGroupBox, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QListWidget,
     QListWidgetItem, QMessageBox, QPushButton, QSplitter, QTableWidget,
     QTableWidgetItem, QTabWidget, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
     QWidget,
@@ -19,8 +19,13 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QBrush, QColor, QFont, QIcon
 
 from . import faces as facemod
-from . import icons, mesh_io
-from .bcmodel import BCSection, ENUM_KEY_VALUES, KEYWORD_BCS, TYPED_BCS
+from . import filekeys, icons, mesh_io
+from .bcmodel import (
+    BCSection, ENUM_KEY_VALUES, KEYWORD_BCS, TYPED_BCS, file_keys_of,
+    suggested_keys,
+)
+from .bcbdialogs import NewBCDialog
+from .filewidgets import FileColumn, FilesDialog
 from .viewport import MeshViewport
 from .widgets import Card
 
@@ -85,7 +90,7 @@ class BCBPanel(QWidget):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([352, 880, 436])
+        splitter.setSizes([340, 800, 520])
         root.addWidget(splitter)
 
     def view_tools(self):
@@ -302,7 +307,8 @@ class BCBPanel(QWidget):
             ("Rename", self._rename_section, "pencil", None),
             ("Delete", self._delete_section, "trash", "danger"),
         ]:
-            btn_row.addWidget(kit.button(text, slot, ico, role))
+            btn_row.addWidget(kit.button(text, slot, ico, role,
+                                         compactable=True))
         lay.addLayout(btn_row)
 
         editor = QGroupBox("BC DEFINITION")
@@ -327,6 +333,9 @@ class BCBPanel(QWidget):
         self.param_table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
         self.param_table.cellChanged.connect(lambda *_: self._commit_section_editor())
+        self.file_column = FileColumn(
+            self.param_table, kit, "bc-section",
+            lambda: self.shell.case_dir, self._commit_section_editor)
         eform.addWidget(self.param_table, 1)
 
         prow = QHBoxLayout()
@@ -336,13 +345,16 @@ class BCBPanel(QWidget):
         self.suggest_combo.setToolTip(
             "Pick a suggested key or type any key name, then Add key.")
         prow.addWidget(self.suggest_combo, 1)
-        prow.addWidget(kit.button("Add key", self._add_param_row, "plus"))
-        prow.addWidget(kit.button(
-            "Add blank", self._add_blank_param_row, None,
-            tip="Add an empty row to type a key and value freely."))
+        prow.addWidget(kit.button("Add key", self._add_param_row, "plus",
+                                  compactable=True))
         prow.addWidget(kit.button("Remove", self._remove_param_row, "trash",
-                                  "danger", tip="Remove the selected key"))
+                                  "danger", tip="Remove the selected key",
+                                  compactable=True))
         eform.addLayout(prow)
+        eform.addWidget(kit.button(
+            "Files of this BC…", self._open_files_dialog, "file",
+            tip="Every key of this boundary condition that takes a file: "
+                "tables, time series, CEA decks."))
         eform.addWidget(kit.button(
             "Assign this BC to selected face",
             lambda: self._assign_current(self._current_section_name()),
@@ -698,14 +710,17 @@ class BCBPanel(QWidget):
                 return
 
     def _new_section(self):
-        name, ok = QInputDialog.getText(self, "New BC", "BC name:")
-        name = name.strip()
-        if not ok or not name:
+        dialog = NewBCDialog(
+            self, self.kit, list(self.doc.sections) + KEYWORD_BCS,
+            self.shell.case_dir)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        if name in self.doc.sections or name in KEYWORD_BCS:
-            QMessageBox.warning(self, "Name in use", f"'{name}' is already used.")
+        name, bc_type, files = dialog.result_values()
+        if not name or name in self.doc.sections or name in KEYWORD_BCS:
             return
-        self.doc.add_section(BCSection(name, "wall"))
+        section = BCSection(name, bc_type or "wall")
+        section.params.update(files)
+        self.doc.add_section(section)
         self._refresh_sections_list()
         self._refresh_assign_combo()
         self._select_section_in_list(name)
@@ -778,6 +793,7 @@ class BCBPanel(QWidget):
                 self._table_append(self.param_table, k, v)
         self.param_table.blockSignals(False)
         self._refresh_suggestions()
+        self.file_column.refresh()
 
     def _on_section_type_changed(self, _text):
         self._commit_section_editor()
@@ -785,8 +801,15 @@ class BCBPanel(QWidget):
 
     def _refresh_suggestions(self):
         self.suggest_combo.clear()
-        self.suggest_combo.addItems(
-            TYPED_BCS.get(self.sec_type_combo.currentText(), []))
+        for key in suggested_keys(self.sec_type_combo.currentText()):
+            role = filekeys.role_of(key)
+            self.suggest_combo.addItem(key)
+            if role is not None:
+                index = self.suggest_combo.count() - 1
+                self.suggest_combo.setItemIcon(
+                    index, self.kit.icon("file", "muted", 15))
+                self.suggest_combo.setItemData(
+                    index, f"{key}: {role.hint}", Qt.ItemDataRole.ToolTipRole)
 
     def _commit_section_editor(self):
         name = self._editing_section
@@ -802,7 +825,51 @@ class BCBPanel(QWidget):
             if k:
                 params[k] = v
         sec.params = params
+        self.file_column.refresh()
         self._refresh_sections_list_label(name)
+        self.changed.emit()
+
+    def _open_files_dialog(self):
+        """Every file key of the selected BC, set or not, in one window."""
+        name = self._current_section_name()
+        if not name or name not in self.doc.sections:
+            QMessageBox.information(
+                self, "No BC selected",
+                "Select or create a boundary condition first.")
+            return
+        section = self.doc.sections[name]
+        rows, seen = [], set()
+        for key in list(section.params) + file_keys_of(section.type):
+            role = filekeys.role_of(key)
+            if role is not None and key not in seen:
+                rows.append((key, role))
+                seen.add(key)
+        extra = [(key, role) for key, role
+                 in filekeys.file_keys("bc-section") if key not in seen]
+        for phase in self.doc_phases():
+            for suffix in ("distribution", "krho-file"):
+                key = f"{phase}-{suffix}"
+                if key not in seen:
+                    extra.append((key, filekeys.role_of(key)))
+        dialog = FilesDialog(
+            self, self.kit, f"Files of [{name}]",
+            f"Keys of this {section.type or 'boundary'} that take a file. A "
+            "path is stored relative to the case directory, which is where "
+            "the tools run; a missing file is marked.",
+            section.params, rows, extra, lambda: self.shell.case_dir,
+            self._on_files_dialog_changed)
+        dialog.exec()
+        self._load_section_editor(name)
+
+    def doc_phases(self):
+        """GPB phase names, for the per-phase keys of a dispersed boundary."""
+        try:
+            return self.shell.doc.gpb.names()
+        except AttributeError:
+            return []
+
+    def _on_files_dialog_changed(self):
+        self._refresh_sections_list_label(self._editing_section or "")
         self.changed.emit()
 
     def _refresh_sections_list_label(self, name):
@@ -816,13 +883,15 @@ class BCBPanel(QWidget):
         key = self.suggest_combo.currentText().strip()
         allowed = ENUM_KEY_VALUES.get(key, [])
         self._table_append(self.param_table, key, allowed[0] if allowed else "")
+        row = self.param_table.rowCount() - 1
         if allowed:
-            item = self.param_table.item(self.param_table.rowCount() - 1, 1)
-            item.setToolTip("Accepted values: " + ", ".join(allowed))
+            self.param_table.item(row, 1).setToolTip(
+                "Accepted values: " + ", ".join(allowed))
         self._commit_section_editor()
-
-    def _add_blank_param_row(self):
-        self._table_append(self.param_table, "", "")
+        self.file_column.refresh()
+        if filekeys.role_of(key) is not None:
+            # the key names a file: ask for it now instead of leaving it blank
+            self.file_column.browse(row)
 
     def _remove_param_row(self):
         r = self.param_table.currentRow()

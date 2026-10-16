@@ -26,11 +26,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from . import icons
+from . import filekeys, icons
 from . import theme as thememod
 from .bcbpanel import BCBPanel
 from .bcmodel import ATLAS_PARAM_KEYS
 from .document import AtlasDocument
+from .filewidgets import FileColumn
 from .gpbpanel import GPBPanel
 from .widgets import Card, UIKit
 
@@ -304,6 +305,9 @@ class AtlasMainWindow(QWidget):
         self.param_global.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
         self.param_global.cellChanged.connect(lambda *_: self._commit_globals())
+        self.global_file_column = FileColumn(
+            self.param_global, kit, "atlas-parameters",
+            lambda: self.case_dir, self._commit_globals)
         params.body.addWidget(self.param_global, 1)
         prow = QHBoxLayout()
         prow.setSpacing(7)
@@ -623,6 +627,39 @@ class AtlasMainWindow(QWidget):
         if not self.doc.gpb.phases:
             issues.append(("info", ("gpb", None), (
                 "no phase defined: GPB has nothing to build")))
+        issues += self._file_issues()
+        return issues
+
+    def _file_issues(self):
+        """Every key of the case that names a file, checked against the disk.
+
+        A path is read by the tool that owns the key, in the case directory, so
+        a value that does not resolve there is reported here rather than at run
+        time.  A name too long for a BC record is an error: BCB refuses it.
+        """
+        issues = []
+
+        def check(value, key, context, where, stage, index=None):
+            role = filekeys.role_of(key, context)
+            if role is None:
+                return
+            state, _path, why = filekeys.status(value, self.case_dir, role)
+            if state == "missing":
+                issues.append(("warning", (stage, index),
+                               f"{where}: {key} — {why}"))
+            elif state == "too-long":
+                issues.append(("error", (stage, index),
+                               f"{where}: {key} — {why}"))
+
+        for key, value in self.doc.parameters.items():
+            check(value, key, "atlas-parameters", "[ATLAS-Parameters]", "case")
+        for name, section in self.doc.bcb.sections.items():
+            for key, value in section.params.items():
+                check(value, key, "bc-section", f"BC '{name}'", "bcb")
+        for index, phase in enumerate(self.doc.gpb.phases):
+            label = f"phase {phase.get('name') or index + 1}"
+            for key, value in phase.params.items():
+                check(value, key, "gpb-phase", label, "gpb", index)
         return issues
 
     def refresh_review(self):
@@ -686,6 +723,7 @@ class AtlasMainWindow(QWidget):
             self.param_global.setItem(row, 0, QTableWidgetItem(str(key)))
             self.param_global.setItem(row, 1, QTableWidgetItem(str(value)))
         self.param_global.blockSignals(False)
+        self.global_file_column.refresh()
 
     def _commit_globals(self):
         from collections import OrderedDict
@@ -698,15 +736,19 @@ class AtlasMainWindow(QWidget):
             if key:
                 params[key] = value
         self.doc.parameters = params
+        self.global_file_column.refresh()
         self.document_changed()
 
     def _add_global_row(self):
         row = self.param_global.rowCount()
+        key = self.global_suggest.currentText().strip()
         self.param_global.insertRow(row)
-        self.param_global.setItem(
-            row, 0, QTableWidgetItem(self.global_suggest.currentText()))
+        self.param_global.setItem(row, 0, QTableWidgetItem(key))
         self.param_global.setItem(row, 1, QTableWidgetItem(""))
         self._commit_globals()
+        self.global_file_column.refresh()
+        if filekeys.role_of(key, "atlas-parameters") is not None:
+            self.global_file_column.browse(row)
 
     def _remove_global_row(self):
         row = self.param_global.currentRow()

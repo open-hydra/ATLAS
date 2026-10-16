@@ -16,45 +16,12 @@ from collections import OrderedDict
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QDialogButtonBox, QHBoxLayout,
-    QHeaderView, QLineEdit, QListWidget, QListWidgetItem, QTableWidget,
-    QTableWidgetItem, QVBoxLayout,
+    QAbstractItemView, QComboBox, QDialog, QHBoxLayout, QHeaderView, QLineEdit,
+    QListWidget, QListWidgetItem, QTableWidget, QTableWidgetItem,
 )
 
 from . import database, gpbmodel
-
-
-class _Dialog(QDialog):
-    """Shared chrome: title, explanation, OK/Cancel."""
-
-    def __init__(self, parent, kit, title, explanation=""):
-        super().__init__(parent)
-        self.kit = kit
-        self.setWindowTitle(title)
-        self.setObjectName("Root")
-        self.setModal(True)
-        self.layout_ = QVBoxLayout(self)
-        self.layout_.setContentsMargins(16, 14, 16, 14)
-        self.layout_.setSpacing(10)
-        header = QHBoxLayout()
-        header.setSpacing(8)
-        header.addWidget(kit.icon_label("sliders", "accent", 18))
-        header.addWidget(kit.title(title))
-        header.addStretch(1)
-        self.layout_.addLayout(header)
-        if explanation:
-            self.layout_.addWidget(kit.hint(explanation))
-
-    def add_buttons(self):
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        ok = buttons.button(QDialogButtonBox.StandardButton.Ok)
-        ok.setProperty("role", "primary")
-        self.layout_.addWidget(buttons)
-        return buttons
+from .widgets import Dialog as _Dialog
 
 
 class ColumnTableDialog(_Dialog):

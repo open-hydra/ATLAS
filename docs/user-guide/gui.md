@@ -56,7 +56,8 @@ what that type uses.
     equilibrium, a prescribed mixture, an explicit species list. Switch on the
     ones the phase uses and fill in their fields; the mechanism and phase-file
     pickers list the yaml files of `database/chemistry/` and of the case
-    directory, and report how many species the chosen file holds.
+    directory, report how many species the chosen file holds, and take a file
+    from anywhere else through **Browse…**.
 
     **Constant properties…** turns the species list into a
     calorically-perfect gas (the `cp`, `cv`, `gamma`, `R`, `mw`, `mil`, `kl`,
@@ -86,6 +87,11 @@ what that type uses.
 
 See [BCB GUI](./bcb/gui.md) for the mesh view, face picking and BC assignment.
 
+**New** opens a small dialog: the name of the section, its type (with a line
+saying what that type is for), and the files that type reads — pick them there
+and the section is created with them. Everything it offers can also be set
+afterwards, from the BC editor.
+
 Selecting a **block** (rather than a face) shows which GPB phases live in it:
 the chips are the phases defined in the Phases stage, and they write the
 block's `phase` key. No chip selected means every phase, which is what BCB
@@ -93,11 +99,46 @@ assumes when the key is absent.
 
 ---
 
+## Files
+
+Many keys of a case name a file: a wall temperature table, an inlet time
+series, the CEA deck a composition comes from, the mechanism of a gas phase.
+Every one of them is chosen with a file browser rather than typed.
+
+* In the **BC editor**, a key that takes a file has a browse button at the end
+  of its row, and picking it from the key menu opens the chooser straight away.
+  **Files of this BC…** gathers them all in one window: every file key the
+  boundary's type reads, set or not, with any other one reachable below.
+* In **Phases**, the mechanism, phase-file and CEA-input pickers list what the
+  ATLAS database and the case directory hold, and **Browse…** reaches a file
+  anywhere else.
+* In **Case**, `BCB-file`, `ICB-file` and `input-file` are browsed the same way.
+
+What is written into the INI is the path the tool will look for, not the one
+the browser returned:
+
+| | |
+|---|---|
+| a file inside the case directory | its name, relative to that directory — the tools run there |
+| a file outside it | a relative path if that is shorter, otherwise the absolute one |
+| `reactions`, `phase` (GPB) | the file stem alone, which is what GPB resolves against the case directory and `database/chemistry/` |
+
+Two cases are caught as they happen rather than at run time. A **mechanism
+outside GPB's search path** cannot be found by its stem, and a **time-series
+name longer than 32 characters** is refused by BCB (the BC record keeps 32 of
+them, so the solver would look for a file that does not exist); both offer to
+copy the file into the case directory, which fixes the name and the path at
+once. A value that does not resolve is marked in the editor and listed in
+**Review**.
+
+---
+
 ## Review
 
 The left column lists what the GUI can check without running anything:
 required keys, allowed values, per-material value counts, temperature ranges,
-duplicate phase names, faces with no BC. Double-click an entry to jump to it.
+duplicate phase names, faces with no BC, files that are not where the key says
+they are. Double-click an entry to jump to it.
 The right column is the file itself, updated as you edit.
 
 GPB and BCB run their own, deeper checks when they build the case; the GUI's
