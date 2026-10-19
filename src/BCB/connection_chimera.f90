@@ -233,7 +233,23 @@ module bc_chimera_mod
     integer, allocatable :: id(:,:)
   end type face_ids
 
+  !> The records grouped by receiver cell after the search: those of the cell with
+  !> linear key k (rec_key) are intersection(rec_off(k):rec_off(k+1)-1).
+  integer, allocatable :: rec_off(:), rec_blkoff(:)
+  integer              :: rec_gc(3) = 0
+
 contains
+
+  !> Linear key of a receiver cell (block, i, j, k with the ghost layers) in rec_off
+  integer function rec_key(block, id)
+    use bc_block_mod, only: BC_block
+    type(BC_block), intent(in) :: block(:)
+    integer, intent(in)        :: id(4)
+    integer :: n1, n2
+    n1 = block(id(1))%dim(1) + 2*rec_gc(1)
+    n2 = block(id(1))%dim(2) + 2*rec_gc(2)
+    rec_key = rec_blkoff(id(1)) + ((id(4)-1+rec_gc(3))*n2 + (id(3)-1+rec_gc(2)))*n1 + (id(2)+rec_gc(1))
+  end function rec_key
 
   !> Receivers claimed by the overset search: the faces declared 'chimera', plus
   !> the faces declared 'connection' that find_connect could not match. With
@@ -401,8 +417,7 @@ contains
 
     ! Concatenate the per-thread record buffers into the global list. Records of
     ! any given receiver stay in their original (bd,kd,jd,id) order because each
-    ! receiver cell is handled entirely by one thread; the cross-receiver order
-    ! is irrelevant since VolumeFractions re-groups the records by receiver.
+    ! receiver cell is handled entirely by one thread.
     ni = 0
     do t = 0, nthreads-1
       ni = ni + tbuf(t)%n
@@ -413,6 +428,44 @@ contains
       if (tbuf(t)%n > 0) intersection(off+1:off+tbuf(t)%n) = tbuf(t)%rec(1:tbuf(t)%n)
       off = off + tbuf(t)%n
     end do
+
+    ! Group the records by receiver cell (stable counting sort on the linear cell
+    ! key), so that VolumeFractions reads only the records of its receiver instead
+    ! of scanning them all for every boundary ghost cell: that scan cost
+    ! O(N_ghost_cells x N_records), 574 s of the 657 s of a 48 000-receiver case at 1
+    ! thread. The records of a receiver keep their order, so its sums are the same.
+    block
+      integer :: b, r, lin, nkeys
+      integer, allocatable :: cnt(:)
+      type(intersection_type), allocatable :: sorted(:)
+      rec_gc = gc
+      if (allocated(rec_blkoff)) deallocate(rec_blkoff)
+      if (allocated(rec_off)) deallocate(rec_off)
+      allocate(rec_blkoff(size(block)+1))
+      rec_blkoff(1) = 0
+      do b = 1, size(block)
+        rec_blkoff(b+1) = rec_blkoff(b) + (block(b)%dim(1)+2*gc(1))*(block(b)%dim(2)+2*gc(2))*(block(b)%dim(3)+2*gc(3))
+      enddo
+      nkeys = rec_blkoff(size(block)+1)
+      allocate(cnt(nkeys), rec_off(nkeys+1))
+      cnt = 0
+      do r = 1, ni
+        lin = rec_key(block, intersection(r)%receiverID)
+        cnt(lin) = cnt(lin) + 1
+      enddo
+      rec_off(1) = 1
+      do lin = 1, nkeys
+        rec_off(lin+1) = rec_off(lin) + cnt(lin)
+      enddo
+      allocate(sorted(size(intersection)))
+      cnt = 0
+      do r = 1, ni
+        lin = rec_key(block, intersection(r)%receiverID)
+        sorted(rec_off(lin)+cnt(lin)) = intersection(r)
+        cnt(lin) = cnt(lin) + 1
+      enddo
+      call move_alloc(sorted, intersection)
+    end block
 
     ! BC ids before VolumeFractions turns the receivers into 102/104
     allocate(gp0(size(block),6))
@@ -471,6 +524,7 @@ contains
       close(unitlog)
 
       call CompleteReceivers(block,gp0)
+      deallocate(rec_off, rec_blkoff)
 
   end subroutine chimera_wrapper
 
@@ -688,14 +742,18 @@ contains
     integer                 :: ni_per_receiver
     logical                 :: nodeinside_local(8)
     integer                 :: p1, p2
+    integer                 :: i0, i1, key
 
     localID = [br,ir,jr,kr]
+    key = rec_key(block, localID)
+    i0  = rec_off(key)
+    i1  = rec_off(key+1) - 1
     volume = 0.d0
     ni_per_receiver = 0
     vol_tol = max(1d-18, 1d-6*block(br)%vol(ir,jr,kr))
     t = 0
     nodeinside_local = .false.
-    do i = 1, ni
+    do i = i0, i1
       if (all(intersection(i)%receiverID==localID)) then
         t = t + 1
         if (intersection(i)%inter_volume>vol_tol) then
@@ -710,7 +768,7 @@ contains
     if (volume==0.d0) return
     if (ni_per_receiver==0) return
 
-    do i = 1, ni
+    do i = i0, i1
       if (all(intersection(i)%receiverID==localID)) then
         if (intersection(i)%inter_volume>vol_tol) then
           intersection(i)%volume_fraction = intersection(i)%inter_volume/volume
@@ -727,7 +785,7 @@ contains
     ! written below count: a ghost cell that merely touches a block of its own phase
     ! (zero intersection volume, as the solid row along a corner block) stays 104
     block(br)%face(fr)%center(m,n)%bc%gp_id = 104
-    do i = 1, ni
+    do i = i0, i1
       if (all(intersection(i)%receiverID==localID) .and. intersection(i)%inter_volume>vol_tol) then
         do p1 = 1, size(block(br)%associated_phase)
           do p2 = 1, size(block(intersection(i)%donorID(1))%associated_phase)
@@ -740,7 +798,7 @@ contains
     enddo
 
     k = 0
-    do i = 1, ni
+    do i = i0, i1
       if (all(intersection(i)%receiverID==localID)) then
         if (intersection(i)%inter_volume>vol_tol) then
           k = k+1
