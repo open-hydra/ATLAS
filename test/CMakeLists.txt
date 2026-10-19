@@ -49,9 +49,11 @@ set_tests_properties(SP-fixmat PROPERTIES
 )
 
 # ---- ICB : SP-basic -------------
+# solid-ic.tec carries 17 significant digits since ORION b020c4c, and the last one differs between compilers
+# (gfortran and ifx round a few values ~1e-18 one ulp apart): compared with numdiff at 1e-12, not byte by byte.
 add_test(
     NAME    SP-basic
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff fromATLAStoSolver/solid-ic.tec reference/solid-ic.tec"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/solid-ic.tec fromATLAStoSolver/solid-ic.tec"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/SP-basic"
 )
 set_tests_properties(SP-basic PROPERTIES
@@ -1332,10 +1334,11 @@ set_tests_properties(IG-force-connect-plate PROPERTIES
 # ---- BCB : IG-time-file-long-name -------------
 # A time-file name longer than 32 characters. With line-file BCB writes the series itself: file and record take
 # the first 32 characters of the name (one LOG line), the mapping is unchanged. Without line-file (user-file.ini)
-# the file is the user's and the solver would look for the truncated name: BCB stops, no bc.txt.
+# the file is the user's and the solver would look for the truncated name: BCB stops, no bc.txt. The series
+# carries 17 significant digits since ORION b020c4c, the last one compiler-dependent: compared with numdiff at 1e-12.
 add_test(
     NAME    IG-time-file-long-name
-    COMMAND bash -c "rm -rf fromATLAStoSolver mapped_with_a_very_long_name_ove; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F ' [LOG] time-file mapped_with_a_very_long_name_over_32_chars.tec (written from line-file strip.tec) is named mapped_with_a_very_long_name_ove' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt && diff mapped_with_a_very_long_name_ove reference/mapped_with_a_very_long_name_ove && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input user-file.ini > user-file.log 2>&1 && grep -q -F '[ERROR] key time-file: file name longer than 32 characters' user-file.log && test ! -e fromATLAStoSolver/bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver mapped_with_a_very_long_name_ove; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F ' [LOG] time-file mapped_with_a_very_long_name_over_32_chars.tec (written from line-file strip.tec) is named mapped_with_a_very_long_name_ove' <<< \"$out\" && diff fromATLAStoSolver/bc.txt reference/bc.txt && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/mapped_with_a_very_long_name_ove mapped_with_a_very_long_name_ove && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input user-file.ini > user-file.log 2>&1 && grep -q -F '[ERROR] key time-file: file name longer than 32 characters' user-file.log && test ! -e fromATLAStoSolver/bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-time-file-long-name"
 )
 set_tests_properties(IG-time-file-long-name PROPERTIES
