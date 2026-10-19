@@ -58,6 +58,14 @@ Enabled with `BC-chimera = true`. For every receiver facelet BCB takes the
   intersection volume of that ghost cell, so the weights of one ghost layer
   **sum to 1**. Donors contributing less than `1e-6` of the receiver cell volume
   are dropped.
+- The intersection volumes come from an exact face-face intersection of the two
+  cells, which is ill-conditioned on warped cells (non-planar faces) and on
+  nearly parallel faces. BCB therefore also clips the two cells split into
+  tetrahedra through their centroid and face centres, which is exact for any cell
+  shape and for thin overlaps, and keeps the face-face volumes only where the two
+  agree to `1e-6` of the receiver volume. Elsewhere it uses the clipped volumes,
+  marks those receivers in `chimera.log` ("Volumes by clipping") and prints how
+  many there are.
 - The `i` and `j` faces are always searched; the `k` faces only on a full 3-D
   mesh.
 - `chimera.log` lists every receiver with its total intersected volume against

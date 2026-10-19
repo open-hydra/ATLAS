@@ -14,7 +14,7 @@ module bc_mod
     integer                    :: id = 0
     integer                    :: n  = 0
     real(8),       allocatable :: properties(:,:,:)     ! material x population x property
-    character(32), allocatable :: distribution(:,:)    ! material x population
+    character(llen), allocatable :: distribution(:,:)  ! material x population
     real(8),       allocatable :: ds(:,:)              ! material x population (meters)
   end type dp_slot_t
 
@@ -29,7 +29,7 @@ module bc_mod
     integer, allocatable       :: ci_properties(:)
     integer                    :: connection(4)=0
     logical                    :: adj_assigned=.false.
-    real(8)                    :: ci_ks=0.0d0      ! roughness seen by the fluid on a 103 interface
+    real(8)                    :: ci_ks=0.0d0      ! roughness seen by the fluid on a 103/104 interface
     ! Ideal gas
     integer                    :: ig_id=0
     integer                    :: ig_n=0
@@ -62,7 +62,7 @@ module bc_mod
   interface
     module subroutine build_inflow_outflow_ig(self, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
-      type(file_ini),       intent(in)    :: sourceini
+      type(file_ini),       intent(inout) :: sourceini
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
     end subroutine
@@ -77,7 +77,7 @@ module bc_mod
 
     module subroutine build_wall_fluid(self, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
-      type(file_ini),       intent(in)    :: sourceini
+      type(file_ini),       intent(inout) :: sourceini
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
     end subroutine
@@ -112,7 +112,7 @@ module bc_mod
 
     module subroutine build_gsi_ig(self, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
-      type(file_ini),       intent(in)    :: sourceini
+      type(file_ini),       intent(inout) :: sourceini
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
     end subroutine
@@ -142,7 +142,7 @@ contains
     implicit none
     class(bc_t),          intent(inout) :: self
     type(phase_t),        intent(in)    :: phase
-    type(file_ini),       intent(in)    :: sourceini
+    type(file_ini),       intent(inout) :: sourceini
     character(len=*),     intent(in)    :: section
     integer                             :: k
 
@@ -167,9 +167,9 @@ contains
 
     case(trim(MARKER_CONN), trim(MARKER_CHIM))
       self % gp_id = 100
-      ! Fluid phases only: the roughness ends up on the 103 records of their bc file
-      if (trim(self % definition)==trim(MARKER_CONN) .and. &
-          (phase % type=='IG' .or. phase % type=='RF')) &
+      ! Fluid phases only: the roughness ends up on the 103 records (connection) and on
+      ! the 104 records (chimera with the other phase) of their bc file
+      if (phase % type=='IG' .or. phase % type=='RF') &
         call build_connection(self, sourceini, section, phase)
       return
 

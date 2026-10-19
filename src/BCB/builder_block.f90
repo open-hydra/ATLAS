@@ -22,7 +22,7 @@ contains
     implicit none
     type(phase_t),  intent(in)    :: phase(:)
     type(BC_block), intent(inout) :: blocks(:)
-    type(file_ini), intent(in)    :: sini
+    type(file_ini), intent(inout) :: sini
     ! Local variables
     integer                       :: n_blocks_phase(size(phase))
     integer                       :: ff, n, m, p, b
@@ -202,63 +202,61 @@ contains
     type(obj_face), intent(inout) :: face
     integer :: m, n
 
+    ! the cell is spelled out: an associate opened inside a parallel region on a type with
+    ! allocatable components crashes under ifx (see compute_face_centers)
     !$omp parallel private(m,n)
     !$omp do collapse(2)
     do n = 1, face%Nn
       do m = 1, face%Nm
 
-        associate( this => face%center(m,n) )
-
         ! General
-        this%bc%name               = face%bc%name
-        this%bc%definition         = face%bc%definition
+        face%center(m,n)%bc%name               = face%bc%name
+        face%center(m,n)%bc%definition         = face%bc%definition
 
         ! Connection
-        this%bc%ci_n               = face%bc%ci_n
-        this%bc%gp_id              = face%bc%gp_id
-        this%bc%ci_properties      = face%bc%ci_properties
-        this%bc%adj_assigned       = .false.
-        this%bc%connection         = face%bc%connection
-        this%bc%ci_ks              = face%bc%ci_ks
+        face%center(m,n)%bc%ci_n               = face%bc%ci_n
+        face%center(m,n)%bc%gp_id              = face%bc%gp_id
+        face%center(m,n)%bc%ci_properties      = face%bc%ci_properties
+        face%center(m,n)%bc%adj_assigned       = .false.
+        face%center(m,n)%bc%connection         = face%bc%connection
+        face%center(m,n)%bc%ci_ks              = face%bc%ci_ks
 
         ! IG
-        this%bc%ig_id              = face%bc%ig_id
+        face%center(m,n)%bc%ig_id              = face%bc%ig_id
         if (face%bc%ig_n>0) then
-          this%bc%ig_n             = face%bc%ig_n
-          allocate(this%bc%ig_properties(1:face%bc%ig_n))
-          this%bc%ig_properties    = face%bc%ig_properties
+          face%center(m,n)%bc%ig_n             = face%bc%ig_n
+          allocate(face%center(m,n)%bc%ig_properties(1:face%bc%ig_n))
+          face%center(m,n)%bc%ig_properties    = face%bc%ig_properties
           if (allocated(face%bc%ig_time)) then
-            this%bc%ig_time        = face%bc%ig_time
+            face%center(m,n)%bc%ig_time        = face%bc%ig_time
             ! every builder now allocates ig_time_file next to ig_time; the guard keeps the copy
             ! defined for any record built elsewhere
-            if (allocated(face%bc%ig_time_file)) this%bc%ig_time_file = face%bc%ig_time_file
+            if (allocated(face%bc%ig_time_file)) face%center(m,n)%bc%ig_time_file = face%bc%ig_time_file
           endif
           if (face%bc%ig_species%n>0) then
-            this%bc%ig_species%n     = face%bc%ig_species%n
-            allocate(this%bc%ig_species%massf(1:face%bc%ig_species%n))
-            this%bc%ig_species%massf = face%bc%ig_species%massf
+            face%center(m,n)%bc%ig_species%n     = face%bc%ig_species%n
+            allocate(face%center(m,n)%bc%ig_species%massf(1:face%bc%ig_species%n))
+            face%center(m,n)%bc%ig_species%massf = face%bc%ig_species%massf
           endif
         endif
 
         ! SP
-        this%bc%sp_id              = face%bc%sp_id
+        face%center(m,n)%bc%sp_id              = face%bc%sp_id
         if (face%bc%sp_n>0) then
-          this%bc%sp_n             = face%bc%sp_n
-          allocate(this%bc%sp_properties(1:face%bc%sp_n))
-          this%bc%sp_properties    = face%bc%sp_properties
+          face%center(m,n)%bc%sp_n             = face%bc%sp_n
+          allocate(face%center(m,n)%bc%sp_properties(1:face%bc%sp_n))
+          face%center(m,n)%bc%sp_properties    = face%bc%sp_properties
           if (allocated(face%bc%sp_time)) then
-            this%bc%sp_time_file   = face%bc%sp_time_file
-            this%bc%sp_time        = face%bc%sp_time
+            face%center(m,n)%bc%sp_time_file   = face%bc%sp_time_file
+            face%center(m,n)%bc%sp_time        = face%bc%sp_time
           endif
         endif
 
         ! DP: one slot per dispersed phase; intrinsic assignment deep-copies every
         ! slot with its allocatable components (id, n, properties, distribution, ds)
         if (allocated(face%bc%dp)) then
-          this%bc%dp               = face%bc%dp
+          face%center(m,n)%bc%dp               = face%bc%dp
         endif
-
-        endassociate
 
       enddo
     enddo

@@ -68,6 +68,13 @@ SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}"
                          ${GNUNATIVE}    # GNU
                          "-ta=host"      # Portland Group
                 )
+# Value-safe floating point for the Intel compilers, whose default (-fp-model fast)
+# reassociates: with ifx 2026.1 it moved a chimera weight by 5e-4 (issue #17).
+# gfortran is value-safe by default and rejects both spellings.
+SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}"
+                 Fortran "-fp-model precise" # Intel
+                         "/fp:precise"       # Intel Windows
+                )
 # Add preprocessor flag
 SET_COMPILE_FLAG(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS}"
                  Fortran "-cpp"        # Intel or GNU

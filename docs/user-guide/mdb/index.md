@@ -51,7 +51,7 @@ MDB splits a multi-block structured grid — and its solution field if one is pr
 
     Declare `MDB-Phase1` and `MDB-Phase2` to split a coupled case. Two phases sharing one mesh (a gas and its Eulerian condensed phase) take one decomposition with `same-cut = true`; a fluid over a solid is decomposed phase by phase, the type-`103`/`104` interface records are remapped against the *other* phase's decomposition, and MDB reports how many interface cells face a partner on another rank.
 
-    **When to use:** any case with two phase files, i.e. anything run with `hydra-MF`, `hydra-AF` or `hydra-MI2`.
+    **When to use:** any case with two phase files.
 
 -   :material-chart-bar: **Sweep**
 
@@ -88,6 +88,8 @@ The split is **exact**: node planes on a cut are duplicated in both neighbours a
 3. For a coupled case, add one `MDB-Phase*` section per phase (see [Input Reference](input-reference.md)); set `same-cut = true` when the two phases share the mesh. MDB refuses to split a mesh containing type-`103` records without the two sections, because the interface cannot be remapped from one phase alone.
 4. Optionally add `MDB-BlockN` sections to restrict cut directions on specific blocks.
 5. Run MDB.
+   (`grid` may be left unset: see *Which mesh file is read* below.)
+
 
 ```ini
 [ATLAS-Parameters]

@@ -88,9 +88,8 @@ contains
         1-mesh_cfg%gc(2):self%dim(2)+mesh_cfg%gc(2)))
     endif
 
-    !$omp parallel private(m,n)
     associate( this => self%face(1) )
-    !$omp do collapse(2)
+    !$omp parallel do collapse(2) private(m,n)
     do n = 1, this%Nn
       do m = 1, this%Nm
         call compute_face_point( &
@@ -106,7 +105,7 @@ contains
     endassociate
 
     associate( this => self%face(2) )
-    !$omp do collapse(2)
+    !$omp parallel do collapse(2) private(m,n)
     do n = 1, this%Nn
       do m = 1, this%Nm
         call compute_face_point( &
@@ -120,13 +119,11 @@ contains
       enddo
     enddo
     endassociate
-    !$omp end parallel
 
     if (self%nfaces < 4) return
 
-    !$omp parallel private(m,n)
     associate( this => self%face(3) )
-    !$omp do collapse(2)
+    !$omp parallel do collapse(2) private(m,n)
     do n = 1, this%Nn
       do m = 1, this%Nm
         call compute_face_point( &
@@ -142,7 +139,7 @@ contains
     endassociate
 
     associate( this => self%face(4) )
-    !$omp do collapse(2)
+    !$omp parallel do collapse(2) private(m,n)
     do n = 1, this%Nn
       do m = 1, this%Nm
         call compute_face_point( &
@@ -156,13 +153,11 @@ contains
       enddo
     enddo
     endassociate
-    !$omp end parallel
 
     if (self%nfaces < 6) return
 
-    !$omp parallel private(m,n)
     associate( this => self%face(5) )
-    !$omp do collapse(2)
+    !$omp parallel do collapse(2) private(m,n)
     do n = 1, this%Nn
       do m = 1, this%Nm
         call compute_face_point( &
@@ -178,7 +173,7 @@ contains
     endassociate
 
     associate( this => self%face(6) )
-    !$omp do collapse(2)
+    !$omp parallel do collapse(2) private(m,n)
     do n = 1, this%Nn
       do m = 1, this%Nm
         call compute_face_point( &
@@ -192,7 +187,6 @@ contains
       enddo
     enddo
     endassociate
-    !$omp end parallel
 
   end subroutine compute_face_centers
 

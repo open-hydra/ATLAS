@@ -21,7 +21,7 @@ module ic_builder_mod
     implicit none
     type(phase_t), allocatable, intent(in)     :: phase(:)
     type(IC_block), intent(inout), target :: blocks(:)
-    type(file_ini), intent(in)       :: sini
+    type(file_ini), intent(inout)    :: sini
     ! Local
     character(len=30)             :: zonename, section_name
     character(len=:), allocatable :: option_pairs(:)
@@ -254,15 +254,16 @@ module ic_builder_mod
       select case (size(tmask, 1))
       case (1)
         n = count(.not. tmask(1,:,:,:))
-        if (n > 0) write(*,'(A,I0,A,I0,A,I0,A)') '[WARNING] build_IC block ', blk%id, ' ('//ptype//'): mi_t of ', n, &
-          ' of ', size(tmask(1,:,:,:)), ' cells is set by no zone (no key mit, no turbulent source there): it stays 0'
+        if (n > 0) write(*,'(A,I0,A,I0,A,I0,A)') '[WARNING] build_IC block ', blk%id, ' ('//ptype//'): '// &
+          'rhoNuTilde of ', n, ' of ', size(tmask(1,:,:,:)), &
+          ' cells is set by no zone (no key nuTilde or rhoNuTilde, no turbulent source there): it stays 0'
         return
       case (2)
         ok = tmask(1,:,:,:) .and. tmask(2,:,:,:)
-        model = 'k-omega (nrans = 2)'; keys = 'kappa and omega'
+        model = 'k-omega (nrans = 2)'; keys = 'k and omega (or rhoK and rhoOmega)'
       case (7)
         ok = tmask(1,:,:,:) .and. tmask(2,:,:,:) .and. tmask(3,:,:,:) .and. tmask(7,:,:,:)
-        model = 'Reynolds-stress (nrans = 7)'; keys = 'rhoRij and omega'
+        model = 'Reynolds-stress (nrans = 7)'; keys = 'Rij and omega (or rhoRij and rhoOmega)'
       case default
         return
       end select
@@ -355,7 +356,7 @@ module ic_builder_mod
   subroutine check_zone_numbering(sini, section_name, nread)
     use input_keys_mod, only: input_keys_strict
     use ir_precision,   only: str
-    type(file_ini),   intent(in) :: sini
+    type(file_ini),   intent(inout) :: sini
     character(len=*), intent(in) :: section_name
     integer,          intent(in) :: nread
     character(len=:), allocatable :: option_pairs(:), key
@@ -385,7 +386,7 @@ module ic_builder_mod
     use input_keys_mod, only: input_keys_strict
     use ir_precision,   only: str
     implicit none
-    type(file_ini), intent(in)    :: sini
+    type(file_ini), intent(inout) :: sini
     character(len=*), intent(in)  :: section_name
     character(len=:), allocatable :: option_pairs(:), key, zones, msg
     character(len=30)             :: zonename
@@ -441,7 +442,7 @@ module ic_builder_mod
                           load_rf_config, load_sp_config, load_dp_config
     implicit none
     type(IC_block), intent(inout) :: self
-    type(file_ini), intent(in)    :: zoneini
+    type(file_ini), intent(inout) :: zoneini
     ! Local
     character(len=2)              :: phase_type
     logical                       :: index_based

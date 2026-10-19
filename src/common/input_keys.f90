@@ -65,11 +65,20 @@ module input_keys_mod
   character(len=*), parameter :: ESCAPE = 'ignore-'
   ! keys of earlier decks that are not read any more: an unknown key like any other
   ! (ERROR, or WARNING with strict-keys = false), whose hint names the current key.
-  integer, parameter :: NHINTS = 2
-  character(len=KLEN), parameter :: hint_key(NHINTS) = [character(len=KLEN) :: 'rt', 'force-connect']
-  character(len=80), parameter :: hint_text(NHINTS) = [character(len=80) :: &
+  integer, parameter :: NHINTS = 10
+  character(len=KLEN), parameter :: hint_key(NHINTS) = [character(len=KLEN) :: 'rt', 'force-connect', &
+    'mit', 'kappa', 'nut', 'mut', 'rhoNuTilde', 'rhoK', 'rhoOmega', 'rhoRij']
+  character(len=120), parameter :: hint_text(NHINTS) = [character(len=120) :: &
     "key 'rt' was renamed 'g' (nozzle mass flux, kg m-2 s-1)", &
-    "the option is BC-force-connect in [ATLAS-Parameters]"]
+    "the option is BC-force-connect in [ATLAS-Parameters]", &
+    "key 'mit' was renamed: nuTilde (specific, m2/s) or, in ICB, rhoNuTilde (density-weighted, kg/(m s))", &
+    "key 'kappa' was renamed: k (specific, m2/s2) or, in ICB, rhoK (density-weighted, kg/(m s2))", &
+    "nut names the eddy viscosity, not an input: give the Spalart-Allmaras variable nuTilde (m2/s)", &
+    "mut names the eddy viscosity, not an input: give nuTilde (m2/s) or, in ICB, rhoNuTilde (kg/(m s))", &
+    "a boundary takes the specific nuTilde: the solver multiplies it by the density of the boundary state", &
+    "a boundary takes the specific k: the solver multiplies it by the density of the boundary state", &
+    "a boundary takes the specific omega: the solver multiplies it by the density of the boundary state", &
+    "a boundary takes the specific Rij: the solver multiplies it by the density of the boundary state"]
 
 contains
 
@@ -117,7 +126,7 @@ contains
   subroutine input_keys_check_duplicate_sections(filename, ini)
     implicit none
     character(len=*), intent(in) :: filename
-    type(file_ini), intent(in)   :: ini
+    type(file_ini), intent(inout) :: ini
     character(len=1024)              :: buf
     character(len=:), allocatable    :: src, line, head, msg
     character(len=KLEN), allocatable :: hname(:)
@@ -266,7 +275,7 @@ contains
   logical function section_is_read(name, ini)
     implicit none
     character(len=*), intent(in) :: name
-    type(file_ini), intent(in)   :: ini
+    type(file_ini), intent(inout) :: ini
     character(len=:), allocatable :: sections(:), option_pairs(:)
     character(len=KLEN) :: sec
     integer :: s
@@ -386,7 +395,7 @@ contains
   !> is not one, and on the first value outside the allowed set / range of its row.
   subroutine input_keys_check_section(ini, section_name, kind, extra)
     implicit none
-    type(file_ini), intent(in)             :: ini
+    type(file_ini), intent(inout)          :: ini
     character(len=*), intent(in)           :: section_name, kind
     character(len=*), intent(in), optional :: extra(:)
     character(len=:), allocatable :: option_pairs(:)
@@ -430,7 +439,7 @@ contains
   !> section may belong to another tool of a combined input.ini).
   subroutine input_keys_warn_unused(ini)
     implicit none
-    type(file_ini), intent(in) :: ini
+    type(file_ini), intent(inout) :: ini
     character(len=:), allocatable :: sections(:), option_pairs(:)
     character(len=KLEN) :: sec
     integer :: s
@@ -894,7 +903,8 @@ contains
           ! refuses and ifx's accepts: the refusal must not depend on the compiler)
           if (.not. token%is_integer(allow_spaces=.false.) .or. verify(value(i:j), '+-0123456789') /= 0) ios = 1
         else
-          if (.not. token%is_real(allow_spaces=.false.)) ios = 1
+          ! reals: is_number, as is_real refuses an integer-looking value (T = 2000) since StringiFor v1.3.0
+          if (.not. token%is_number(allow_spaces=.false.)) ios = 1
         endif
         if (ios == 0) then
           if (type_id == 1) then

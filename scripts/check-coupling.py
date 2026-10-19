@@ -35,7 +35,7 @@ def read_103(path):
                 d = lines[n+1].split()
                 recs[h] = tuple(int(x) for x in d[:5])
             elif int(p[5]) == 104:
-                n1, n2 = (int(x) for x in lines[n+1].split())
+                n1, n2 = (int(x) for x in lines[n+1].split()[:2])   # the line may end with ks
                 for c in range(n1 + n2):
                     d = lines[n+2+c].split()
                     xdon.append((h, tuple(int(x) for x in d[:4])))

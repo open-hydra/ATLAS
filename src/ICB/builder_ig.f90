@@ -17,10 +17,11 @@ contains
     use config_mod,                   only: config_ig_t, config_field_source_t, &
                                             config_interpolation, sync_interpolation_config
     use io_phase_mod,                 only: read_idealgas_properties
+    use config_shared_mod,            only: turbulence_weighted
   use composition_check_mod,        only: check_composition, COMPOSITION_TOL
     implicit none
     type(IC_block),   intent(inout)  :: blk
-    type(file_ini),   intent(in)     :: zoneini
+    type(file_ini),   intent(inout)  :: zoneini
     type(config_ig_t), intent(in)    :: ig_cfg
     character(len=*), intent(inout)  :: IC_type
     real(R8),         intent(in)     :: range(6)
@@ -40,7 +41,9 @@ contains
     real(R8)                      :: Rgas, gamma, vel, del, a, cp_
     real(R8)                      :: massf(1:sp%n)
     real(R8)                      :: M0, mach
-    real(R8)                      :: alpha, beta, ux, uy, uz, mit, kappa, omega, rhoRij
+    real(R8)                      :: alpha, beta, ux, uy, uz, rho_c
+    real(R8)                      :: tw(4)       ! rhoNuTilde, rhoK, rhoOmega, rhoRij of a cell
+    logical                       :: tgiven(4)   ! the zone gives nuTilde, k, omega, Rij (specific or density-weighted)
     real(R8)                      :: throat_area, dx, dy, dz, zeta, phi
     character(len=llen)           :: OFF, OSF
     integer                       :: oldid
@@ -97,10 +100,7 @@ contains
     uy = ig_cfg%velocity%v
     uz = ig_cfg%velocity%w
 
-    mit = ig_cfg%turbulence%mit
-    kappa = ig_cfg%turbulence%kappa
-    omega = ig_cfg%turbulence%omega
-    rhoRij = ig_cfg%turbulence%rhoRij
+    tgiven = turbulence_weighted(ig_cfg%turbulence, 1.0_R8) /= 0.0_R8
     ! Turbulence model of the block: a model already set on this block by an
     ! earlier zone (configured, or adopted from an interpolation source)
     ! persists; a later zone may only confirm it.
@@ -182,28 +182,34 @@ contains
     ! Turbulence free-stream constants of THIS zone: applied to the cells of the
     ! zone range only (exactly like p, T, u), never block-wide, so a patch zone
     ! cannot overwrite the field interpolated or assigned by another zone.
+    ! The IC file carries the density-weighted bands the solvers advance (rhoNuTilde, rhoK,
+    ! rhoOmega, ru'u' ..., named so by write_vtk_tec): a specific key (nuTilde, k, omega, Rij,
+    ! as NASA TMR and OpenFOAM give them) is multiplied by the density of the cell, a
+    ! density-weighted key (rhoNuTilde, rhoK, rhoOmega, rhoRij) is written as given (turbulence_weighted).
     if (blk%nrans > 0) then
       nset = 0
       do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
         if (.not.cell_in_range(i,j,k)) cycle
         nset = nset + 1
+        rho_c = sum(blk%ig%density(:,i,j,k))
+        tw = turbulence_weighted(ig_cfg%turbulence, rho_c)
         if (blk%nrans==1) then
-          if(mit/=0.0) blk%ig%turbprop(1,i,j,k) = mit
-          if(mit/=0.0) blk%set_turb_ig(1,i,j,k) = .true.
+          if(tgiven(1)) blk%ig%turbprop(1,i,j,k) = tw(1)
+          if(tgiven(1)) blk%set_turb_ig(1,i,j,k) = .true.
         elseif (blk%nrans==2) then
-          if(kappa/=0.0) blk%ig%turbprop(1,i,j,k) = kappa
-          if(omega/=0.0) blk%ig%turbprop(2,i,j,k) = omega
-          if(kappa/=0.0) blk%set_turb_ig(1,i,j,k) = .true.
-          if(omega/=0.0) blk%set_turb_ig(2,i,j,k) = .true.
+          if(tgiven(2)) blk%ig%turbprop(1,i,j,k) = tw(2)
+          if(tgiven(3)) blk%ig%turbprop(2,i,j,k) = tw(3)
+          if(tgiven(2)) blk%set_turb_ig(1,i,j,k) = .true.
+          if(tgiven(3)) blk%set_turb_ig(2,i,j,k) = .true.
         elseif (blk%nrans==7) then
-          if(rhoRij/=0.0) blk%ig%turbprop(1:3,i,j,k) = rhoRij
-          if(.not.interp_turb .and. rhoRij/=0.0) blk%ig%turbprop(4:6,i,j,k) = 1d-8   ! shear default only with an explicit rhoRij
-          if(omega/=0.0) blk%ig%turbprop(7,i,j,k) = omega
-          if(rhoRij/=0.0) blk%set_turb_ig(1:6,i,j,k) = .true.
-          if(omega/=0.0) blk%set_turb_ig(7,i,j,k) = .true.
+          if(tgiven(4)) blk%ig%turbprop(1:3,i,j,k) = tw(4)
+          if(.not.interp_turb .and. tgiven(4)) blk%ig%turbprop(4:6,i,j,k) = 1d-8   ! shear default only with explicit stresses
+          if(tgiven(3)) blk%ig%turbprop(7,i,j,k) = tw(3)
+          if(tgiven(4)) blk%set_turb_ig(1:6,i,j,k) = .true.
+          if(tgiven(3)) blk%set_turb_ig(7,i,j,k) = .true.
         endif
       enddo; enddo; enddo
-      if (nset < product(blk%dim) .and. (mit /= 0.0_R8 .or. kappa /= 0.0_R8 .or. omega /= 0.0_R8 .or. rhoRij /= 0.0_R8)) &
+      if (nset < product(blk%dim) .and. any(tgiven)) &
         write(*,*) ' - build_IG_field: turbulence constants of this zone applied to ', nset, ' of ', product(blk%dim), &
           ' cells (zone range); the other cells keep their current turbulence field'
     endif
@@ -212,13 +218,17 @@ contains
     ! under an omega model (k-omega, Wilcox 2006, SSG/LRR-omega: nrans 2 or 7) a
     ! zero omega, k or stress band divides in the solver kernels (Q2D, MOSE, ARES): the field is
     ! known to be wrong and is refused, naming the zone keys that fill a laminar source. Under
-    ! SA (nrans 1) nu_tilde = 0 is a fixed point: WARNING only.
+    ! SA (nrans 1) nuTilde = 0 is a fixed point: WARNING only.
     if (blk%nrans > 0 .and. .not.interp_turb .and. fresh_turb) then
-      if (blk%nrans == 1 .and. mit    == 0.0_R8) call warn_unset("mi_t (key mit)")
-      if (blk%nrans == 2 .and. kappa  == 0.0_R8) call refuse_unset("kappa (key kappa)", "k-omega (nrans = 2)", "kappa and omega")
-      if (blk%nrans == 2 .and. omega  == 0.0_R8) call refuse_unset("omega (key omega)", "k-omega (nrans = 2)", "kappa and omega")
-      if (blk%nrans == 7 .and. rhoRij == 0.0_R8) call refuse_unset("ru'u' rv'v' rw'w' (key rhoRij)", "Reynolds-stress (nrans = 7)", "rhoRij and omega")
-      if (blk%nrans == 7 .and. omega  == 0.0_R8) call refuse_unset("omega (key omega)", "Reynolds-stress (nrans = 7)", "rhoRij and omega")
+      if (blk%nrans == 1 .and. .not.tgiven(1)) call warn_unset("rhoNuTilde (key nuTilde or rhoNuTilde)")
+      if (blk%nrans == 2 .and. .not.tgiven(2)) call refuse_unset("rhoK (key k or rhoK)", "k-omega (nrans = 2)", &
+                                                                 "k and omega (or rhoK and rhoOmega)")
+      if (blk%nrans == 2 .and. .not.tgiven(3)) call refuse_unset("rhoOmega (key omega or rhoOmega)", "k-omega (nrans = 2)", &
+                                                                 "k and omega (or rhoK and rhoOmega)")
+      if (blk%nrans == 7 .and. .not.tgiven(4)) call refuse_unset("ru'u' rv'v' rw'w' (key Rij or rhoRij)", &
+                                                                 "Reynolds-stress (nrans = 7)", "Rij and omega (or rhoRij and rhoOmega)")
+      if (blk%nrans == 7 .and. .not.tgiven(3)) call refuse_unset("rhoOmega (key omega or rhoOmega)", &
+                                                                 "Reynolds-stress (nrans = 7)", "Rij and omega (or rhoRij and rhoOmega)")
     endif
     ! L5 (state-range check): the state this zone wrote must be physical
     call check_written_state()

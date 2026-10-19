@@ -169,7 +169,7 @@ module bcb_config_mod
     real(R8), allocatable :: betap(:)
     real(R8), allocatable :: rRes(:)
     real(R8), allocatable :: Tsat(:)
-    character(len=32), allocatable :: distribution(:)
+    character(len=llen), allocatable :: distribution(:)
   end type bcb_dp_material_config_t
 
   type, public :: bcb_dp_boundary_config_t
@@ -206,7 +206,7 @@ contains
   subroutine load_bcb_block_config(sini, section_name, nfaces, cfg)
     use input_keys_mod, only: input_keys_check_section
     implicit none
-    type(file_ini), intent(in)            :: sini
+    type(file_ini), intent(inout)         :: sini
     character(*), intent(in)              :: section_name
     integer, intent(in)                   :: nfaces
     type(bcb_block_config_t), intent(out) :: cfg
@@ -236,7 +236,7 @@ contains
   subroutine check_plate_keys(sini, section, has_range_file)
     use input_keys_mod, only: input_keys_refuse_or_warn
     implicit none
-    type(file_ini), intent(in)   :: sini
+    type(file_ini), intent(inout) :: sini
     character(*), intent(in)     :: section
     logical, intent(in)          :: has_range_file
     character(len=:), allocatable :: option_pairs(:), key
@@ -264,7 +264,7 @@ contains
   subroutine check_phase_type_keys(sini, section, label, definition)
     use input_keys_mod, only: input_keys_phase_key, input_keys_refuse_or_warn
     implicit none
-    type(file_ini), intent(in)   :: sini
+    type(file_ini), intent(inout) :: sini
     character(*), intent(in)     :: section, label, definition
     character(len=:), allocatable :: option_pairs(:), key, why
     character(len=llen) :: pname, ptype
@@ -295,7 +295,7 @@ contains
   subroutine load_bcb_face_setup(sini, bc_name, cfg)
     use input_keys_mod, only: input_keys_check_section
     implicit none
-    type(file_ini), intent(in)           :: sini
+    type(file_ini), intent(inout)        :: sini
     character(*), intent(in)             :: bc_name
     type(bcb_face_setup_t), intent(out)  :: cfg
 
@@ -429,7 +429,7 @@ contains
 
   subroutine load_bcb_face_runtime_config(sourceini, section, cfg)
     implicit none
-    type(file_ini), intent(in)               :: sourceini
+    type(file_ini), intent(inout)            :: sourceini
     character(*), intent(in)                 :: section
     type(bcb_face_runtime_config_t), intent(out) :: cfg
 
@@ -512,7 +512,7 @@ contains
 
     integer :: error
 
-    ! Optional: a connection without ks is a smooth interface
+    ! Optional: a connection or a chimera without ks is a smooth interface
     call sourceini%get(section_name=section, option_name='ks', val=cfg%ks, error=error)
     cfg%has_ks = error == 0
     if (.not. cfg%has_ks) cfg%ks = 0.0_R8
@@ -635,7 +635,7 @@ contains
     if (error /= 0) cfg%a1_a3 = 0.0_R8
 
     call load_shared_velocity_config(sourceini, cfg%velocity, section)
-    call load_shared_turbulence_config(sourceini, cfg%turbulence, section)
+    call load_shared_turbulence_config(sourceini, cfg%turbulence, section, boundary=.true.)
   end subroutine load_bcb_ig_boundary_config
 
   subroutine load_bcb_gsi_fluid_config(sourceini, section, cfg)
@@ -646,7 +646,7 @@ contains
 
     integer :: error
 
-    call load_shared_turbulence_config(sourceini, cfg%turbulence, section)
+    call load_shared_turbulence_config(sourceini, cfg%turbulence, section, boundary=.true.)
 
     call sourceini%get(section_name=section, option_name='a', val=cfg%a, error=error)
     if (error /= 0) cfg%a = 0.0_R8
@@ -699,6 +699,7 @@ contains
     type(bcb_dp_boundary_config_t), intent(out)  :: cfg
 
     character(len=129) :: pn
+    character(len=128) :: why
     integer :: error, m, npcp, p, i, off, nall
 
     pn = trim(adjustl(phase%name))
@@ -779,10 +780,18 @@ contains
       call get_population_words(sourceini, section, trim(pn)//'distribution', off, nall, cfg%materials(m)%distribution, error)
 
       ! Resolve the size-distribution law for each population (string written to
-      ! the BC file, interpreted by the solver). sigmap==0 is a Dirac delta and
-      ! overrides any entry; otherwise default to LogNormal when unset.
+      ! the BC file, interpreted by the solver). sigmap==0 turns a law name (or an
+      ! unset entry) into a Dirac delta; otherwise default to LogNormal when unset.
+      ! Any other entry is a size-distribution file, kept whatever sigmap is.
       do p = 1, npcp
-        if (cfg%materials(m)%sigmap(p) == 0.0_R8) then
+        if (len_trim(cfg%materials(m)%distribution(p)) == len(cfg%materials(m)%distribution(p))) then
+          write(*,'(A)') '[ERROR] invalid "distribution" in section ['//trim(section)//']: "'// &
+                         trim(cfg%materials(m)%distribution(p))//'"'
+          write(*,'(A,I0,A,I0,A)') '        population ', p, ' - a path of ', &
+                         len(cfg%materials(m)%distribution(p)), ' characters or more (the solver reads at most 255).'
+          error stop
+        endif
+        if (cfg%materials(m)%sigmap(p) == 0.0_R8 .and. is_size_law(cfg%materials(m)%distribution(p))) then
           cfg%materials(m)%distribution(p) = 'Dirac'
         elseif (len_trim(cfg%materials(m)%distribution(p)) == 0) then
           cfg%materials(m)%distribution(p) = 'LogNormal'
@@ -794,11 +803,12 @@ contains
           case ('rosinrammler'); cfg%materials(m)%distribution(p) = 'RosinRammler'
           case default
             ! Not a keyword: must be a path to an existing two-column numeric file.
-            if (.not. is_two_column_file(trim(adjustl(cfg%materials(m)%distribution(p))))) then
+            if (.not. is_two_column_file(trim(adjustl(cfg%materials(m)%distribution(p))), why)) then
               write(*,'(A)') '[ERROR] invalid "distribution" in section ['//trim(section)//']: "'// &
                              trim(cfg%materials(m)%distribution(p))//'"'
               write(*,'(A,I0,A)') '        population ', p, &
                              ' - expected Normal/LogNormal/RosinRammler/Dirac or a two-column numeric file.'
+              write(*,'(A)') '        '//trim(why)
               error stop
             endif
             cfg%materials(m)%distribution(p) = adjustl(cfg%materials(m)%distribution(p))
@@ -811,39 +821,115 @@ contains
     enddo
   end subroutine load_bcb_dp_boundary_config
 
-  ! Returns .true. iff `path` exists and every non-blank, non-comment line parses
-  ! as exactly two real numbers (>=1 data row). Reading line-by-line enforces two
-  ! columns per line rather than letting list-directed input span lines.
-  logical function is_two_column_file(path) result(ok)
+  ! True for an unset "distribution" or one of the law names; any other entry is a file.
+  logical function is_size_law(word) result(law)
     implicit none
-    character(*), intent(in) :: path
-    integer            :: u, ios, nrows
-    logical            :: exists
-    character(len=512) :: line
-    real(R8)           :: a, b
+    character(*), intent(in) :: word
+
+    select case (lowercase(trim(adjustl(word))))
+    case ('', 'dirac', 'normal', 'lognormal', 'rosinrammler')
+      law = .true.
+    case default
+      law = .false.
+    end select
+  end function is_size_law
+
+  ! Returns .true. iff `path` is a size-distribution table the solver accepts: every
+  ! non-blank, non-comment line holds exactly two finite numbers, the particle radius [m]
+  ! (positive, strictly increasing) and its mass fraction (>= 0, positive sum), >=1 data
+  ! row. Otherwise `why` says which rule failed.
+  logical function is_two_column_file(path, why) result(ok)
+    implicit none
+    character(*), intent(in)  :: path
+    character(*), intent(out) :: why
+    integer             :: u, ios, nline, nrows
+    logical             :: exists
+    character(len=1024) :: line
+    real(R8)            :: v(2), rprev, msum
 
     ok = .false.
+    why = ''
     inquire(file=path, exist=exists)
-    if (.not. exists) return
+    if (.not. exists) then
+      why = 'no such file'
+      return
+    endif
     open(newunit=u, file=path, status='old', action='read', iostat=ios)
-    if (ios /= 0) return
+    if (ios /= 0) then
+      why = 'the file cannot be opened'
+      return
+    endif
+    nline = 0
     nrows = 0
+    rprev = 0.0_R8
+    msum = 0.0_R8
     do
       read(u, '(A)', iostat=ios) line
-      if (ios /= 0) exit
+      if (is_iostat_end(ios)) exit
+      if (ios /= 0) then
+        why = 'the file cannot be read'
+        exit
+      endif
+      nline = nline + 1
       line = adjustl(line)
       if (len_trim(line) == 0) cycle
       if (scan(line(1:1), '#!;') /= 0) cycle
-      read(line, *, iostat=ios) a, b
-      if (ios /= 0) then
-        close(u)
-        return
+      if (.not. two_numbers(line, v)) then
+        write(why,'(A,I0,A)') 'line ', nline, ': not exactly two numbers (particle radius [m], mass fraction)'
+      elseif (nrows == 0 .and. .not. v(1) > 0.0_R8) then
+        write(why,'(A,I0,A)') 'line ', nline, ': the particle radius is not positive'
+      elseif (nrows > 0 .and. .not. v(1) > rprev) then
+        write(why,'(A,I0,A)') 'line ', nline, ': the particle radius does not increase'
+      elseif (v(2) < 0.0_R8) then
+        write(why,'(A,I0,A)') 'line ', nline, ': the mass fraction is negative'
       endif
+      if (len_trim(why) > 0) exit
       nrows = nrows + 1
+      rprev = v(1)
+      msum = msum + v(2)
     enddo
     close(u)
-    ok = nrows > 0
+    if (len_trim(why) > 0) return
+    if (nrows == 0) then
+      why = 'no data line'
+    elseif (.not. msum > 0.0_R8) then
+      why = 'the mass fractions sum to zero'
+    else
+      ok = .true.
+    endif
   end function is_two_column_file
+
+  ! True when `line` holds exactly two finite numbers separated by blanks, tabs or a comma.
+  logical function two_numbers(line, v) result(ok)
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
+    implicit none
+    character(*), intent(in)  :: line
+    real(R8),     intent(out) :: v(2)
+    integer :: i, n, a, ios, last
+
+    ok = .false.
+    v = 0.0_R8
+    n = 0
+    a = 0
+    last = len_trim(line)
+    do i = 1, last + 1
+      if (i <= last) then
+        if (index(' ,'//achar(9), line(i:i)) == 0) then
+          if (a == 0) a = i
+          cycle
+        endif
+      endif
+      if (a == 0) cycle
+      n = n + 1
+      if (n > 2) return
+      if (scan(line(a:i-1), '/*') > 0) return      ! list-directed end of input / repeat count
+      read(line(a:i-1), *, iostat=ios) v(n)
+      if (ios /= 0) return
+      if (.not. ieee_is_finite(v(n))) return
+      a = 0
+    enddo
+    ok = n == 2
+  end function two_numbers
 
   subroutine load_bcb_unwrapped_config(sourceini, section, cfg)
     implicit none
@@ -984,7 +1070,7 @@ contains
     call add_composition_registry_entries(bcb_registry, 'bc-section', composition_cfg)
 
     call add_velocity_registry_entries(bcb_registry, 'bc-section', velocity_cfg)
-    call add_turbulence_registry_entries(bcb_registry, 'bc-section', turbulence_cfg)
+    call add_turbulence_registry_entries(bcb_registry, 'bc-section', turbulence_cfg, boundary=.true.)
     call add_gsi_entries()
     call add_ig_entries()
     call add_wall_entries()
@@ -1003,8 +1089,7 @@ contains
     endif
 
     call bcb_registry%generate_markdown(trim(fileout), 'BCB Input Parameters', preamble= &
-      'Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file`'// &
-      ' series (BC 402) is in bar, as the solvers read it.')
+      'Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s).')
 
   contains
 
@@ -1016,7 +1101,7 @@ contains
       call bcb_registry%add('bc-section', 'T', ig_cfg%T, '0.0', 'Ideal-gas static temperature.', '', .false.)
       call bcb_registry%add('bc-section', 'g', ig_cfg%g, '0.0', 'Mass flux for inlet boundaries.', '', .false.)
       call bcb_registry%add('bc-section', 'p', ig_cfg%p, '0.0', 'Static pressure for outlet or far-field boundaries.', '', .false.)
-      call bcb_registry%add('bc-section', 'p0-time-file', ig_cfg%p0_time_file, 'none', 'Time-series file for total pressure.', '', .false.)
+      call bcb_registry%add('bc-section', 'p0-time-file', ig_cfg%p0_time_file, 'none', 'Time-series file for total pressure (two columns: time [s], p0 [Pa]).', '', .false.)
       call bcb_registry%add('bc-section', 'p-time-file', ig_cfg%p_time_file, 'none', 'Time-series file for static pressure.', '', .false.)
       call bcb_registry%add('bc-section', 'time-file', time_file, 'none', 'Time-series file of full boundary state.', '', .false.)
       call bcb_registry%add('bc-section', 'periodic', periodic, 'F', 'Treat a time-file series as periodic.', '', .false.)
@@ -1061,7 +1146,11 @@ contains
       call bcb_registry%add('bc-section', 'rp', dp_scalar, '0.0', 'Particle radii per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'dp', dp_scalar, '0.0', 'Particle diameters per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'sigmap', dp_scalar, '0.0', 'Particle dispersion widths.', '', .false.)
-      call bcb_registry%add('bc-section', 'distribution', patch_name, '', 'Size-distribution file of a dispersed population (prefixed by the phase name: <phase>-distribution).', '', .false.)
+      call bcb_registry%add('bc-section', 'distribution', patch_name, '', 'Size-distribution law of a dispersed '// &
+                            'population (prefixed by the phase name: <phase>-distribution): Dirac, Normal, LogNormal, '// &
+                            'RosinRammler, or the path of a file of size classes, one per line: particle radius [m] and '// &
+                            'mass fraction (the solver normalises the fractions and reads the table as a histogram). '// &
+                            'With sigmap = 0 a law name gives Dirac; a file is kept whatever sigmap is.', '', .false.)
       call bcb_registry%add('bc-section', 'ds', dp_scalar, '0.0', 'Injection-point spacing per dispersed population (cm; converted to m).', '', .false.)
       call bcb_registry%add('bc-section', 'alphap', dp_scalar, '0.0', 'Primary injection angle per dispersed population.', '', .false.)
       call bcb_registry%add('bc-section', 'betap', dp_scalar, '0.0', 'Secondary injection angle per dispersed population.', '', .false.)
@@ -1078,7 +1167,7 @@ contains
       call bcb_registry%add('bc-section', 'cp', gsi_cfg%cp, '0.0', 'GSI boundary specific heat.', '', .false.)
       call bcb_registry%add('bc-section', 'Ti', gsi_cfg%Ti, '0.0', 'GSI boundary ignition temperature.', '', .false.)
       call bcb_registry%add('bc-section', 'dh', gsi_cfg%dh, '0.0', 'GSI boundary heat of reaction.', '', .false.)
-      call add_turbulence_registry_entries(bcb_registry, 'bc-section', gsi_cfg%turbulence)
+      call add_turbulence_registry_entries(bcb_registry, 'bc-section', gsi_cfg%turbulence, boundary=.true.)
       call bcb_registry%add('bc-section', 'a', gsi_cfg%a, '0.0', 'Burn-rate pre-exponential coefficient.', '', .false.)
       call bcb_registry%add('bc-section', 'n', gsi_cfg%n, '0.0', 'Burn-rate pressure exponent.', '', .false.)
       call bcb_registry%add('bc-section', 'pRef', gsi_cfg%pRef, '1.0', 'Reference pressure for the burn law.', '', .false.)

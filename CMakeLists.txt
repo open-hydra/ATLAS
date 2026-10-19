@@ -61,6 +61,77 @@ macro(ensure_submodule_initialized SUBMOD_PATH)
   endif()
 endmacro()
 
+# -------- Helper: check out FiNeR's dependencies at the commits ATLAS pins --------
+# FiNeR tracks none of the five libraries its CMakeLists adds from src/third_party/: each is cloned from
+# https://github.com/szaghi/<dep> if absent and moved to its pin if checked out at another commit; a
+# directory that holds files but no repository of its own is an error. Only a FiNeR inside this tree is
+# managed: an external FINER_PATH (--include-finer) keeps the dependencies its owner gave it.
+set(ATLAS_FINER_DEPENDENCIES
+  "PENF=34e10af852f81822bac0df7c5f73936e0655f54f"
+  "StringiFor=77b75b1d7f7012d2984135b231008f751ab32dda"
+  "FACE=95226cd6135b9daeb8ff2c748d2065deee230358"
+  "FLAP=7f5ec8e1f26be5e2a263fdd2118501b340c0d461"
+  "BeFoR64=40d19c5f6127088126606b90448e99e02d8b641c")
+macro(ensure_finer_dependencies FINER_ROOT)
+  file(REAL_PATH "${FINER_ROOT}" _fd_root)
+  file(REAL_PATH "${CMAKE_SOURCE_DIR}" _fd_top)
+  file(RELATIVE_PATH _fd_rel "${_fd_top}" "${_fd_root}")
+  if ("${_fd_rel}" MATCHES "^\\.\\.")
+    message(STATUS "External FiNeR at ${_fd_root}: its dependencies are not managed by ATLAS")
+  else()
+    foreach(_fd_entry ${ATLAS_FINER_DEPENDENCIES})
+      string(REPLACE "=" ";" _fd_entry "${_fd_entry}")
+      list(GET _fd_entry 0 _fd_dep)
+      list(GET _fd_entry 1 _fd_pin)
+      set(_fd_dir "${_fd_root}/src/third_party/${_fd_dep}")
+      set(_fd_url "https://github.com/szaghi/${_fd_dep}")
+      set(_fd_files "")
+      if (EXISTS "${_fd_dir}")
+        file(GLOB _fd_files "${_fd_dir}/*" "${_fd_dir}/.*")
+      endif()
+      if (NOT _fd_files)
+        message(STATUS "FiNeR dependency ${_fd_dep} missing. Cloning ${_fd_url} at ${_fd_pin}...")
+        execute_process(COMMAND git clone "${_fd_url}" "${_fd_dir}" RESULT_VARIABLE _fd_result)
+        if (NOT _fd_result EQUAL 0)
+          message(FATAL_ERROR "Failed to clone FiNeR dependency ${_fd_dep} into ${_fd_dir}")
+        endif()
+      else()
+        execute_process(COMMAND git rev-parse --show-toplevel WORKING_DIRECTORY "${_fd_dir}"
+                        OUTPUT_VARIABLE _fd_git_root RESULT_VARIABLE _fd_result
+                        OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+        if (_fd_result EQUAL 0)
+          file(REAL_PATH "${_fd_git_root}" _fd_git_root)
+        endif()
+        if (NOT _fd_result EQUAL 0 OR NOT "${_fd_git_root}" STREQUAL "${_fd_dir}")
+          message(FATAL_ERROR "FiNeR dependency ${_fd_dir} exists but is not a git checkout: "
+                              "remove it to let ATLAS clone ${_fd_dep} at ${_fd_pin}.")
+        endif()
+      endif()
+      execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${_fd_dir}"
+                      OUTPUT_VARIABLE _fd_head OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+      if (NOT "${_fd_head}" STREQUAL "${_fd_pin}")
+        message(STATUS "FiNeR dependency ${_fd_dep} at '${_fd_head}', moving it to ${_fd_pin}...")
+        execute_process(COMMAND git cat-file -e "${_fd_pin}^{commit}" WORKING_DIRECTORY "${_fd_dir}"
+                        RESULT_VARIABLE _fd_result ERROR_QUIET)
+        if (NOT _fd_result EQUAL 0)
+          execute_process(COMMAND git fetch "${_fd_url}" "${_fd_pin}" WORKING_DIRECTORY "${_fd_dir}"
+                          RESULT_VARIABLE _fd_result)
+          if (NOT _fd_result EQUAL 0)
+            message(FATAL_ERROR "Failed to fetch ${_fd_pin} of FiNeR dependency ${_fd_dep} from ${_fd_url}")
+          endif()
+        endif()
+        execute_process(COMMAND git -c advice.detachedHead=false checkout --detach "${_fd_pin}"
+                        WORKING_DIRECTORY "${_fd_dir}" RESULT_VARIABLE _fd_result)
+        execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${_fd_dir}"
+                        OUTPUT_VARIABLE _fd_head OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+        if (NOT _fd_result EQUAL 0 OR NOT "${_fd_head}" STREQUAL "${_fd_pin}")
+          message(FATAL_ERROR "Failed to check out FiNeR dependency ${_fd_dep} at ${_fd_pin} in ${_fd_dir}")
+        endif()
+      endif()
+    endforeach()
+  endif()
+endmacro()
+
 # CEA
 set(ATLAS_CEA_TARGET "")
 set(ATLAS_CEA_SOURCE_DIR "")
@@ -127,6 +198,7 @@ endif()
 if (NOT TARGET FiNeR)
   if (DEFINED FINER_PATH AND NOT "${FINER_PATH}" STREQUAL "")
     ensure_submodule_initialized("${FINER_PATH}")
+    ensure_finer_dependencies("${FINER_PATH}")
     set(finerD "${FINER_PATH}" "${CMAKE_BINARY_DIR}/lib/third_party/FiNeR")
     add_subdirectory(${finerD})
   else()

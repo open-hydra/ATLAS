@@ -29,7 +29,7 @@ contains
 
   subroutine check_composition(sini, section, sp, label, report, required)
     implicit none
-    type(file_ini), intent(in)     :: sini
+    type(file_ini), intent(inout)  :: sini
     character(len=*), intent(in)   :: section, label
     type(species_t), intent(inout) :: sp
     logical, intent(in), optional  :: report   ! .false.: renormalise without the WARNING (a caller that

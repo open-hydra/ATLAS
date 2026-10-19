@@ -126,6 +126,26 @@ Example (3-D, `id = 102`, 1 donor for layer 1, 2 donors for layer 2):
 ### `103` — Multi-solver connection
 
 Written for block-to-block connections in multi-solver setups. Similar to `101` but with a different ID to allow separate handling in the solver.
+In the file of a fluid phase (ideal gas or real fluid) of a 3-D mesh the line ends with the wall roughness `ks`
+of the `connection` section (`ES24.16`, `0` when the section gives none); a solid phase writes no roughness.
+
+---
+
+### `104` — Multi-solver chimera
+
+Written instead of `102` when the receiver and its donors belong to different phases (a fluid–solid interface
+found by the overset search). Same payload as `102`, but the donors are cells of the other phase, their block
+numbered in that phase as in its own file (ATLAS block ids restart at 1 for each phase). In the
+file of a fluid phase of a 3-D mesh the counts line ends with the wall roughness `ks` of the `chimera` section,
+as on a `103` record. Example (3-D, gas side, `ks = 1.0e-5`, 2 donors for layer 1, 3 for layer 2):
+
+```
+       1       1       1       1       3     104
+       2       3  1.0000000000000001E-05
+       1       1       7       1  5.4466914445427561E-01
+       1       1       8       1  4.5533085554572433E-01
+       ...
+```
 
 ### `201` — Periodic
 
@@ -211,15 +231,15 @@ Example (`id = 302`, prescribed wall temperature):
 !!! note "Direction angles"
     For normal injection, write `normal,` in place of numeric `alpha` and `beta`.
 
-For turbulence-specified inlets, the payload line is extended with additional fields depending on the turbulence model and (see [input reference](./input-reference.md) for details).
+For turbulence-specified inlets, the payload line is extended with additional fields depending on the turbulence model and (see [input reference](./input-reference.md) for details). Every value is written as given and is **specific**: the solver multiplies it by the density of the boundary state.
 
 Turbulence suffix:
 
-| Appended fields |
-|----------------|
-| `mit` |
-| `kappa, omega` |
-| `rhoR11, rhoR22, rhoR33, 1e-8, 1e-8, 1e-8, omega` |
+| Model | Appended fields |
+|-------|-----------------|
+| `nrans = 1` | `nuTilde` |
+| `nrans = 2` | `k, omega` |
+| `nrans = 7` | `Rij, Rij, Rij, 1e-8, 1e-8, 1e-8, omega` |
 
 ---
 
@@ -240,13 +260,25 @@ Turbulence suffix:
 | `402` | `gp, velocity_magnitude, alphap, betap, Tp, rp, sigmap, distribution, ds` |
 | `403` | `gp, kV, alphap, betap, Tp, rp, sigmap, distribution, ds` |
 
-Field key: `krho`/`kV`/`kT` = scaling coefficients for mass/velocity/temperature wrt the gaseous phase; `gp` = mass flux; `alphap`/`betap` = direction angles; `Tp` = particle temperature; `rp` = particle radius; `sigmap` = variance coefficient; `distribution` = size-distribution law (a string); `ds` = injection-point spacing (last token, meters).
+Field key: `krho`/`kV`/`kT` = scaling coefficients for mass/velocity/temperature wrt the gaseous phase; `gp` = mass flux; `alphap`/`betap` = direction angles; `Tp` = particle temperature; `rp` = particle radius; `sigmap` = width of the size law (standard deviation of the diameter [m] for `Normal` and `LogNormal`, spread exponent for `RosinRammler`); `distribution` = size-distribution law (a string); `ds` = injection-point spacing (last token, meters).
 
 !!! note "Direction angles"
     For normal injection, write `normal,` in place of numeric `alphap` and `betap`.
 
 !!! note "Distribution (8th field)"
-    A string the solver maps to its size-distribution model: one of `Dirac`, `Normal`, `LogNormal`, `RosinRammler`, or a path to a two-column numeric file (any extension) tabulating the distribution by points. Resolved by BCB from the inlet's `distribution` option: `sigmap = 0` always yields `Dirac` (a zero-width delta, overriding any entry); a non-zero `sigmap` with no `distribution` set defaults to `LogNormal`.
+    A string the solver maps to its size-distribution model: one of `Dirac`, `Normal`, `LogNormal`, `RosinRammler`, or the path of a size-distribution file (any extension). Resolved by BCB from the inlet's `distribution` option: with `sigmap = 0` a law name, or no `distribution`, yields `Dirac` (a zero-width delta); a non-zero `sigmap` with no `distribution` set defaults to `LogNormal`; any other value is a file path, written as given (at most 255 characters) whatever `sigmap` is. BCB opens the path from its working directory, the solver from its own.
+
+    The file holds one size class per line: two numbers, the particle **radius** [m] and the **mass fraction** of the class. The radii are positive and strictly increasing; the mass fractions are non-negative, of any scale (the solver normalises them to sum 1) and not all zero. Numbers are separated by blanks, tabs or a comma; blank lines and lines starting with `#`, `!` or `;` are comments. The solver reads the table as a histogram: a class carries its mass spread uniformly in radius between the mid-points to its neighbours, the first and last classes extended by half the adjacent spacing (the first class starts at half its radius if that extension would reach zero); a single data line is one size. With a file the solver ignores `rp` and `sigmap`. BCB refuses a file that breaks these rules and names the rule and the line.
+
+    ```
+    # particle radius [m]   mass fraction
+    1.0e-6    0.05
+    5.0e-6    0.20
+    1.0e-5    0.30
+    2.0e-5    0.25
+    5.0e-5    0.15
+    1.0e-4    0.05
+    ```
 
 !!! note "Injection spacing `ds` (9th field)"
     Per-population injection-point spacing in **meters** (the BCB `ds` input option is in cm and converted on write). `0.00000E+00` (option unset) tells the solver to fall back to its global `[IGLOO-BC] ds`; a positive value activates per-cell spacing for this population.

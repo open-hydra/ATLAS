@@ -27,7 +27,8 @@ Usage:
 Hydra pre-processing tools:
    ATLAS GPB
    ATLAS BCB
-   ATLAS BCB-GUI
+   ATLAS GUI        (case setup: GPB phases + BCB boundary conditions)
+   ATLAS BCB-GUI    (the same GUI, opened on the boundaries stage)
    ATLAS ICB
    ATLAS STB
    ATLAS MDB
@@ -199,6 +200,17 @@ for program in "${TOOLS[@]}"; do
       for t in BCB ICB STB MDB; do
         "$ATLASDIR/bin/$t" --write-config-doc || status=$?
       done
+      ;;
+
+    GUI )
+      if activate_python_env; then
+        "$(python_bin)" -B "$ATLASDIR/GUI/ATLAS_GUI.py" \
+          ${INPUT:+--ini "$INPUT"} "${EXTRA[@]}"
+        status=$?
+        deactivate_python_env
+      else
+        status=1
+      fi
       ;;
 
     BCB-GUI )
