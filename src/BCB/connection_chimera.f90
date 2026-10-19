@@ -742,7 +742,10 @@ contains
     integer                 :: ni_per_receiver
     logical                 :: nodeinside_local(8)
     integer                 :: p1, p2
-    integer                 :: i0, i1, key
+    integer                 :: i0, i1, key, b, nbdon
+    real(8)                 :: vr, vmax
+    real(8), allocatable    :: volb(:)
+    logical                 :: closed
 
     localID = [br,ir,jr,kr]
     key = rec_key(block, localID)
@@ -753,11 +756,14 @@ contains
     vol_tol = max(1d-18, 1d-6*block(br)%vol(ir,jr,kr))
     t = 0
     nodeinside_local = .false.
+    allocate(volb(size(block)))
+    volb = 0.d0
     do i = i0, i1
       if (all(intersection(i)%receiverID==localID)) then
         t = t + 1
         if (intersection(i)%inter_volume>vol_tol) then
           volume = volume+intersection(i)%inter_volume
+          volb(intersection(i)%donorID(1)) = volb(intersection(i)%donorID(1)) + intersection(i)%inter_volume
           ni_per_receiver = ni_per_receiver+1
         endif
         nodeinside_local = intersection(i)%nodeinside
@@ -812,25 +818,33 @@ contains
       endif
     enddo
 
+    ! Closure: the donors of one block tile the receiver at most once, but two donor
+    ! blocks that overlap each other both cover it (RL36: block 1 face 6 under B2 and
+    ! B8), so their sum reaches 2 V_r while every weight is right. The receiver closes
+    ! when the sum, or with several donor blocks the largest per-block sum, is within
+    ! 1e-3 of its volume; the per-block sums are logged whenever more than one block donates.
+    vr     = block(br)%vol(ir,jr,kr)
+    vmax   = maxval(volb)
+    nbdon  = count(volb > 0.d0)
+    closed = abs(volume-vr) <= 1d-3*vr
+    if (nbdon > 1 .and. abs(vmax-vr) <= 1d-3*vr) closed = .true.
     !$omp critical(chimera_print)
-    if (abs((volume-block(br)%vol(ir,jr,kr))/block(br)%vol(ir,jr,kr))>1d-3) then
-      if (all(nodeinside_local)) then
-        write(unitlog,*) 'Chimera volume division failed'
-        write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
-        write(unitlog,*) ' - Receiver total volume = ', volume
-        write(unitlog,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
-        !stop
-      else
-        write(unitlog,*) 'Volume division succesful (not checkable)'
-        write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
-        write(unitlog,*) ' - Receiver total volume = ', volume
-        write(unitlog,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
-      endif
-    else
+    if (closed) then
       write(unitlog,*) 'Volume division succesful'
-      write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
-      write(unitlog,*) ' - Receiver total volume = ', volume
-      write(unitlog,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
+    elseif (all(nodeinside_local)) then
+      write(unitlog,*) 'Chimera volume division failed'
+    else
+      write(unitlog,*) 'Volume division succesful (not checkable)'
+    endif
+    write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
+    write(unitlog,*) ' - Receiver total volume = ', volume
+    write(unitlog,*) ' - Receiver real volume  = ', vr
+    if (nbdon > 1) then
+      write(unitlog,'(A)',advance='no') '  - Volume per donor block ='
+      do b = 1, size(block)
+        if (volb(b) > 0.d0) write(unitlog,'(A,I0,A,ES14.6)',advance='no') ' ', b, ':', volb(b)
+      enddo
+      write(unitlog,*)
     endif
     !$omp end critical(chimera_print)
 
