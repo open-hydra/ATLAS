@@ -1484,6 +1484,26 @@ set_tests_properties(qvol-direction-combined PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- STB : qvol-3D-conservative -------------
+# A qvol-file without direction is a 3D Tecplot field on another mesh, remapped conservatively: here two donor
+# cells of 1 m3 along x (power 10 W and 30 W) over a receiver block of 3 x 2 x 2 cells of 0.125 m3 that covers
+# half of the second donor cell. Every receiver cell takes the donor power in proportion to its overlap over the
+# donor volume the receivers cover, so the second donor cell gives all its 30 W to the third receiver column:
+# qvol 10, 10, 60 W/m3 and 40 W in all. The same field as a density (variable qvol, 10 and 30 W/m3 on 1 m3 cells)
+# gives the same st.tec. Under qvol-remap = fraction the second donor cell gives the third column only the half of
+# its power that the block covers (10, 10, 30 W/m3; 25 W). A two-column table without direction, a Tecplot field
+# with direction, and a qvol-remap outside covered/fraction are refused naming the cause, and nothing is written.
+add_test(
+    NAME    qvol-3D-conservative
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-density _run-fraction; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh STB --input table-refused.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F 'is not a Tecplot field' <<< \"$out\" && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh STB --input direction-refused.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F 'drop the direction key' <<< \"$out\" && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh STB --input remap-refused.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F 'qvol-remap' <<< \"$out\" && test ! -e fromATLAStoSolver/st.tec && ${CMAKE_SOURCE_DIR}/ATLAS.sh STB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/st.tec fromATLAStoSolver/st.tec && awk -v total=40 -v vcell=0.125 -f check_power.awk fromATLAStoSolver/st.tec && mkdir _run-density && cp mesh.tec qvol.tec density.ini _run-density/ && cd _run-density && ${CMAKE_SOURCE_DIR}/ATLAS.sh STB --input density.ini && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/st.tec fromATLAStoSolver/st.tec && cd .. && rm -rf _run-fraction && mkdir _run-fraction && cp mesh.tec power.tec fraction.ini _run-fraction/ && cd _run-fraction && ${CMAKE_SOURCE_DIR}/ATLAS.sh STB --input fraction.ini && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/st_fraction.tec fromATLAStoSolver/st.tec && awk -v total=25 -v vcell=0.125 -f ../check_power.awk fromATLAStoSolver/st.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/qvol-3D-conservative"
+)
+set_tests_properties(qvol-3D-conservative PROPERTIES
+    LABELS      "STB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---------------------------------------------------------------------------
 #  MDB : mesh decomposition
 # ---------------------------------------------------------------------------
