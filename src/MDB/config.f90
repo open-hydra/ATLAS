@@ -4,6 +4,7 @@ module config_mdb_mod
   use global_mod,      only: llen
   use registry_mod,    only: registry_t
   use config_shared_mod
+  use cost_mod,        only: cost_coef_t, read_cost_file, NCLASS, CLASS_NAME
 
   implicit none
   private
@@ -35,6 +36,18 @@ module config_mdb_mod
     real(R8)            :: halo_weight = 1.0_R8              !< cost of a ghost cell vs a real one
     integer             :: max_blocks = 0                    !< 0 -> 8*ranks
     integer             :: min_cells  = 0                    !< 0 -> 4*2**(mg_levels-1)
+    !> What the decomposition is chosen for. `balance` is the greedy walk of
+    !> build_decomposition, unchanged; `halo` and `cost` search every
+    !> factorisation of every part count for the best score (search_mod).
+    character(len=16)   :: objective  = 'balance'
+    integer             :: blocks_per_rank = 1              !< search starts at ranks x this many parts
+    real(R8)            :: balance_tol = 2.0_R8             !< % above the ideal load a block may keep whole
+    type(cost_coef_t)   :: cost                             !< [MDB-Cost] coefficients
+    character(len=llen) :: cost_file  = ''                  !< measured table overriding them
+    !> Coupled phases that share the mesh (a gas and its Eulerian condensed
+    !> phase) get one decomposition, phase 1's, so that every cell of one phase
+    !> sits on the rank of the same cell of the other by construction.
+    logical             :: same_cut   = .false.
     character(len=llen) :: grid       = ''                   !< '' -> autodetect
     character(len=llen) :: grid_out   = ''                   !< '' -> <grid>-split.<ext>
     character(len=llen) :: bc_in      = 'INPUT'
@@ -52,6 +65,7 @@ module config_mdb_mod
 
   character(len=*), parameter :: SEC  = 'MDB-Parameters'
   character(len=*), parameter :: PSEC = 'MDB-Phase*'
+  character(len=*), parameter :: CSEC = 'MDB-Cost'
 
   !> Upper bound on [MDB-Phase#] sections scanned. A type-103/104 record names only
   !> (block,i,j,k) in "the other phase", so a coupled mesh is meaningful for two
@@ -90,13 +104,58 @@ contains
     call fini%get(section_name=SEC, option_name='prefix',           val=cfg%prefix,     error=error)
     call fini%get(section_name=SEC, option_name='map-file',         val=cfg%map_file,   error=error)
     call fini%get(section_name=SEC, option_name='split-directions', val=cfg%directions, error=error)
+    call fini%get(section_name=SEC, option_name='objective',        val=cfg%objective,  error=error)
+    call fini%get(section_name=SEC, option_name='blocks-per-rank',  val=cfg%blocks_per_rank, error=error)
+    call fini%get(section_name=SEC, option_name='balance-tolerance',val=cfg%balance_tol,error=error)
+    call fini%get(section_name=SEC, option_name='same-cut',         val=cfg%same_cut,   error=error)
 
     if (cfg%min_cells  <= 0) cfg%min_cells  = 4 * 2**(cfg%mg_levels-1)
     if (cfg%max_blocks <= 0) cfg%max_blocks = max(8*cfg%ranks, 1)
 
+    select case (trim(cfg%objective))
+    case ('balance', 'halo', 'cost')
+    case default
+      write(*,'(A)') ' [ERROR] [MDB-Parameters] objective must be balance, halo or cost, not '// &
+        trim(cfg%objective)
+      stop 1
+    end select
+    call load_cost(fini, cfg)
+    if (cfg%blocks_per_rank < 1) then
+      write(*,'(A)') ' [ERROR] [MDB-Parameters] blocks-per-rank must be at least 1'
+      stop 1
+    endif
+    if (cfg%balance_tol < 0.0_R8) then
+      write(*,'(A)') ' [ERROR] [MDB-Parameters] balance-tolerance must not be negative'
+      stop 1
+    endif
+
     call load_phases(fini, cfg)
 
   end subroutine load_mdb_config
+
+
+  !> The [MDB-Cost] coefficients: the keys first, then cost-file over them.
+  subroutine load_cost(fini, cfg)
+    type(file_ini),     intent(in)    :: fini
+    type(mdb_config_t), intent(inout) :: cfg
+    integer :: error, c
+
+    call fini%get(section_name=CSEC, option_name='c-cell',         val=cfg%cost%c_cell,  error=error)
+    call fini%get(section_name=CSEC, option_name='c-ghost',        val=cfg%cost%c_ghost, error=error)
+    call fini%get(section_name=CSEC, option_name='c-msg',          val=cfg%cost%c_msg,   error=error)
+    call fini%get(section_name=CSEC, option_name='c-byte',         val=cfg%cost%c_byte,  error=error)
+    call fini%get(section_name=CSEC, option_name='bytes-per-cell', val=cfg%cost%bytes_per_cell, error=error)
+    do c = 1, NCLASS
+      call fini%get(section_name=CSEC, option_name='c-face-'//trim(CLASS_NAME(c)), val=cfg%cost%c_face(c), &
+                    error=error)
+    enddo
+    call fini%get(section_name=CSEC, option_name='cost-file', val=cfg%cost_file, error=error)
+    if (len_trim(cfg%cost_file) > 0) then
+      call read_cost_file(trim(cfg%cost_file), cfg%cost, error)
+      if (error /= 0) stop 1
+    endif
+
+  end subroutine load_cost
 
 
   !> Collect the [MDB-Phase1] .. [MDB-Phase#] sections, numbered consecutively
@@ -239,6 +298,9 @@ contains
     type(mdb_config_t),       target :: c
     character(len=llen)              :: fileout
     character(len=32), target        :: dirs
+    integer                          :: i
+    character(len=24), parameter     :: class_ids(NCLASS) = [character(len=24) :: &
+      '101, 201', '103', '102, 104', '300', '301-309 and unknown ids', '400-499', '500-599']
 
     atlas_cfg%input_file = 'input.ini'
     dirs = 'ijk'
@@ -258,6 +320,21 @@ contains
       'Smallest admissible sub-block extent along a cut direction (0 = 4 x 2^(MG-levels-1)).', '', .false.)
     call reg%add(SEC, 'split-directions', dirs, 'ijk', &
       'Directions that may be cut; can be overridden per block in [MDB-Block#].', 'any subset of ijk', .false.)
+    call reg%add(SEC, 'objective', c%objective, 'balance', &
+      'What the decomposition is chosen for. balance: the greedy walk (cut the heaviest block along &
+      &its longest axis until target-balance), scored by balance / (1 + halo-weight x ghost). halo: &
+      &search every factorisation Px x Py x Pz of every admissible part count for the best value of &
+      &that same score, judged after the solvers'' own LPT assignment. cost: the same search for the &
+      &smallest predicted rank time of the [MDB-Cost] model, judged the same way.', &
+      'balance, halo, cost', .false.)
+    call reg%add(SEC, 'blocks-per-rank', c%blocks_per_rank, '1', &
+      'Under objective = halo or cost the search starts at ranks x blocks-per-rank parts and goes up to &
+      &max-blocks. MOSE and ICE thread inside a block, so more blocks per rank buy no OpenMP; raise it &
+      &only to reach balance at an awkward rank count.', '>= 1', .false.)
+    call reg%add(SEC, 'balance-tolerance', c%balance_tol, '2.0', &
+      'Under objective = halo or cost, a block whose cells exceed the ideal load per part by at most this &
+      &percentage is left whole: a cut there buys no balance. Exact balance is impossible when the rank &
+      &count does not divide the cells, so a 98.5% cut is accepted, not refused.', '>= 0', .false.)
     call reg%add(SEC, 'grid', c%grid, '', &
       'Grid or grid+solution file to split (empty = autodetect INPUT/ic.* then mesh.*).', '', .false.)
     call reg%add(SEC, 'grid-out', c%grid_out, '', &
@@ -273,6 +350,13 @@ contains
       'MOSE phase prefix of the BC files (<prefix>bc.txt).', '', .false.)
     call reg%add(SEC, 'map-file', c%map_file, 'decomposition.map', &
       'File recording the new-block to parent-block mapping.', '', .false.)
+
+    call reg%add(SEC, 'same-cut', c%same_cut, 'false', &
+      'Coupled mode only. true applies the decomposition of [MDB-Phase1] to every other phase, which &
+      &must share its mesh block for block (a gas and its Eulerian condensed phase): every cell of one &
+      &phase then sits on the rank of the same cell of the other by construction. false decomposes each &
+      &phase on its own and reports how many type-103/104 interface cells face a partner on another rank &
+      &after the solvers'' LPT.', 'true, false', .false.)
 
     call reg%add(PSEC, 'grid', c%grid, '', &
       'Grid or grid+solution file of this phase. Declaring [MDB-Phase1] and &
@@ -291,6 +375,31 @@ contains
     call reg%add(PSEC, 'ranks', c%ranks, '0', &
       'Ranks to balance this phase for (0 = the [MDB-Parameters] value). Both &
       &phases run on every rank, so leaving this at 0 is almost always right.', '', .false.)
+
+    call reg%add(CSEC, 'c-cell', c%cost%c_cell, '1.0', &
+      'Time per interior cell (the flux and update work). The predicted time of a rank is the sum over &
+      &its blocks of c-cell x cells + c-face-<class> x boundary cells + c-ghost x ghost cells, plus &
+      &c-msg x messages and c-byte x bytes exchanged with other ranks, the ranks being the ones the &
+      &solvers'' own LPT on cell counts forms. All coefficients are 1 until calibrated from the solver''s &
+      &timers.', '>= 0', .false.)
+    do i = 1, NCLASS
+      call reg%add(CSEC, 'c-face-'//trim(CLASS_NAME(i)), c%cost%c_face(i), '1.0', &
+        'Time per boundary cell of a '//trim(CLASS_NAME(i))//' record ('//trim(class_ids(i))//').', &
+        '>= 0', .false.)
+    enddo
+    call reg%add(CSEC, 'c-ghost', c%cost%c_ghost, '1.0', &
+      'Time per ghost cell filled (two layers on every face of every block).', '>= 0', .false.)
+    call reg%add(CSEC, 'c-msg', c%cost%c_msg, '1.0', &
+      'Time per message: one per (block face, neighbouring block on another rank) pair.', '>= 0', .false.)
+    call reg%add(CSEC, 'c-byte', c%cost%c_byte, '1.0', &
+      'Time per byte exchanged with other ranks: the ghost cells of every face whose neighbour sits on &
+      &another rank, times bytes-per-cell.', '>= 0', .false.)
+    call reg%add(CSEC, 'bytes-per-cell', c%cost%bytes_per_cell, '1.0', &
+      'Bytes a ghost cell carries in the exchange. 1 makes the c-byte term count cells; the calibration &
+      &sets it to the solver''s variables x 8.', '> 0', .false.)
+    call reg%add(CSEC, 'cost-file', c%cost_file, '', &
+      'A measured table overriding the keys above: one `key value` per line, the same key names, &
+      &comments after # or ;.', '', .false.)
 
     if (present(filename)) then
       fileout = filename

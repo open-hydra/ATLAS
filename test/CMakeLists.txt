@@ -1513,7 +1513,7 @@ set_tests_properties(qvol-direction-combined PROPERTIES
 # each other, which is the only place a 103 record can be validated.
 add_test(
     NAME    coupled-phases
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map reference/plate-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/plate-bc.txt reference/plate-bc.txt"
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/plate-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-coupling.py fromATLAStoSolver/INPUT-split/gas-bc.txt fromATLAStoSolver/INPUT-split/plate-bc.txt && diff fromATLAStoSolver/gas-decomposition.map reference/gas-decomposition.map && diff fromATLAStoSolver/plate-decomposition.map reference/plate-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/plate-bc.txt reference/plate-bc.txt && grep -q 'Interface over MPI (phase 1 -> 2): 12 of 24' mdb.log"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-phases"
 )
 set_tests_properties(coupled-phases PROPERTIES
@@ -1619,6 +1619,172 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/grid-p3d-3D"
 )
 set_tests_properties(grid-p3d-3D PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : manifold-remap (a BC 501 payload survives the split) -------------
+# A manifold names a whole block face, not a cell (MOSE's BC_Manifold averages
+# the entire source face and scales the mass flux by the entire target face),
+# and MOSE aborts when the two blocks of a pair sit on different ranks.
+# check-manifold.py holds the split file against the original one and the map:
+# the payload renumbered to the piece that inherited the source face entire,
+# both faces whole, both pieces on one rank. Copying the payload raw, as MDB did
+# until 2026-09, leaves it pointing at a block whose face is now a cut.
+add_test(
+    NAME    manifold-remap
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-manifold.py fromATLAStoSolver/bc.txt fromATLAStoSolver/INPUT-split/bc.txt fromATLAStoSolver/decomposition.map && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-remap"
+)
+set_tests_properties(manifold-remap PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : manifold-split-ranks (a BC 501 pair LPT puts on two ranks) --------
+# The same mesh on 3 ranks: the solver's own LPT separates the two blocks of the
+# manifold, which MOSE refuses at start-up (abort_if_split). MDB has to say so
+# with the decomposition in front of the user instead of writing the files.
+# `!` inverts the status and the grep pins the reason (WILL_FAIL would accept
+# any crash).
+add_test(
+    NAME    manifold-split-ranks
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'MOSE aborts at start-up when the two blocks of a manifold' mdb.log && test ! -e fromATLAStoSolver/INPUT-split/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-split-ranks"
+)
+set_tests_properties(manifold-split-ranks PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : manifold-face-cut (a BC 501 source face cut tangentially) ---------
+# The same mesh with block 1 restricted to j cuts, so its face 2 -- the source
+# of the manifold -- is shared by two new blocks. A 501 payload cannot name half
+# a face: MDB refuses and names the direction that keeps it whole.
+add_test(
+    NAME    manifold-face-cut
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'draws from block 1 face 2, which is cut across new blocks' mdb.log && grep -q 'split-directions = i' mdb.log && test ! -e fromATLAStoSolver/INPUT-split/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-face-cut"
+)
+set_tests_properties(manifold-face-cut PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : gsi-melting (a BC 503 record and its property line) --------------
+# The 503-506 gas-surface records carry one property line, which MDB read as a
+# bare header until f433f27: the property line was then taken for the next
+# header and the file rejected. The reference pins one property line per 503
+# record after the cut, and check-bc.py counts the file complete with them.
+add_test(
+    NAME    gsi-melting
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/gsi-melting"
+)
+set_tests_properties(gsi-melting PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : objective = halo (the search against the greedy walk) ------------
+# Each case is run twice: input.ini under objective = halo, then greedy.ini,
+# the same deck under objective = balance, into fromATLAStoSolver/greedy/.
+# analyse_decomp.py --assert-better scores both maps with MDB's own objective
+# and fails unless the searched cut is strictly better: that is the gate, and
+# it is red when the search is stubbed back to the greedy path, where the byte
+# diff of the map is red on any change. The 48^3 cases pin the map only; their
+# boundary file is checked by check-bc.py, not stored.
+foreach(_case cube48-r12 cube48-r20)
+  add_test(
+      NAME    ${_case}
+      COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && mkdir -p fromATLAStoSolver/greedy && ${CMAKE_SOURCE_DIR}/ATLAS.sh -i greedy.ini MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/analyse_decomp.py --assert-better fromATLAStoSolver/greedy/decomposition.map fromATLAStoSolver/decomposition.map"
+      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/${_case}"
+  )
+  set_tests_properties(${_case} PROPERTIES
+      LABELS      "MDB;regression"
+      TIMEOUT     300
+      ENVIRONMENT "${_TEST_ENV}"
+  )
+endforeach()
+
+add_test(
+    NAME    three-parents
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt && mkdir -p fromATLAStoSolver/greedy && ${CMAKE_SOURCE_DIR}/ATLAS.sh -i greedy.ini MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/analyse_decomp.py --assert-better fromATLAStoSolver/greedy/decomposition.map fromATLAStoSolver/decomposition.map"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/three-parents"
+)
+set_tests_properties(three-parents PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : objective = cost (the predicted rank time against the greedy walk)
+# The same deck as three-parents under objective = cost with the coefficients
+# of cost.dat, then greedy.ini priced with the same file. Both logs carry the
+# `Predicted rank time (max)` of MDB's own model and check-predicted-time.py
+# fails unless the searched cut predicts strictly less: the gate, red when the
+# search is stubbed back to the greedy path.
+add_test(
+    NAME    three-parents-cost
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && mkdir -p fromATLAStoSolver/greedy && ${CMAKE_SOURCE_DIR}/ATLAS.sh -i greedy.ini MDB 2>&1 | tee greedy.log && python3 ${CMAKE_SOURCE_DIR}/scripts/check-predicted-time.py mdb.log greedy.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/three-parents-cost"
+)
+set_tests_properties(three-parents-cost PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : coupled-same-cut (one decomposition for two phases on one mesh) --
+# A gas and a dispersed phase on the same two blocks, the MOSE + ICE layout,
+# with same-cut = true: phase 2 takes the decomposition of phase 1, so the two
+# maps are identical byte for byte and every cell of one phase sits on the rank
+# of its twin. The dispersed file carries three copies of the boundary table,
+# all split the same way. (Two identical meshes are cut identically by either
+# walk today; the fixture pins the guarantee and the same-cut line, which a
+# binary ignoring the key does not print.)
+add_test(
+    NAME    coupled-same-cut
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'same-cut: decomposition of phase 1 applied' mdb.log && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py --dispersed fromATLAStoSolver/INPUT-split/drop-bc.txt && diff fromATLAStoSolver/gas-decomposition.map fromATLAStoSolver/drop-decomposition.map && diff fromATLAStoSolver/gas-decomposition.map reference/gas-decomposition.map && diff fromATLAStoSolver/drop-decomposition.map reference/drop-decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/INPUT-split/drop-bc.txt reference/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/coupled-same-cut"
+)
+set_tests_properties(coupled-same-cut PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : same-cut-mismatch (same-cut on phases that do not share the mesh)
+# The fluid-over-solid pair of coupled-phases with same-cut = true: one
+# decomposition cannot serve two meshes, and MDB refuses naming the block and
+# the two extents instead of cutting the solid at the fluid's indices.
+add_test(
+    NAME    same-cut-mismatch
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'same-cut needs the phases to share the mesh: block 1 of phase 2' mdb.log && test ! -e fromATLAStoSolver/INPUT-split/gas-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/same-cut-mismatch"
+)
+set_tests_properties(same-cut-mismatch PROPERTIES
+    LABELS      "MDB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : sweep (--sweep R1,R2,...: the best cut per rank count, tabulated)
+# The three-parents deck under `MDB --sweep 4,7,12`: the greedy walk and
+# objective = halo at every rank count of the list in one table, nothing
+# written. The table rows are pinned; the tool's own argument goes after
+# ATLAS.sh's `--`.
+add_test(
+    NAME    sweep
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && ${CMAKE_SOURCE_DIR}/ATLAS.sh MDB -- --sweep 4,7,12 2>&1 | tee sweep.log && sed -n '/ranks  objective/,/^ *$/p' sweep.log | sed '/^ *$/d' > fromATLAStoSolver/sweep.txt && diff fromATLAStoSolver/sweep.txt reference/sweep.txt && test ! -e fromATLAStoSolver/decomposition.map"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/sweep"
+)
+set_tests_properties(sweep PROPERTIES
     LABELS      "MDB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
