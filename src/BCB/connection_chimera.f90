@@ -222,14 +222,6 @@ module bc_chimera_mod
   private
   public:: chimera_wrapper
 
-  !> Largest difference, relative to the receiver volume, between the exact and the
-  !> clipped overlap volume of a donor for the exact ones to be kept. On regular
-  !> meshes the two agree to ~1e-8 (the E20.10 rounding of the exact points).
-  real(8), parameter :: XCHECK_TOL = 1.d-6
-
-  !> Receivers searched, and those whose volumes were recomputed by clipping
-  integer :: n_searched = 0, n_clipped = 0
-
   !> Growable, thread-local buffer of intersection records.
   type :: rec_buffer
     type(intersection_type), allocatable :: rec(:)
@@ -303,8 +295,6 @@ contains
 
     ! Broad-phase acceleration structure over all donor cells
     call build_donor_grid(block, grid)
-    n_searched = 0
-    n_clipped  = 0
 
     ! One record buffer per thread (detection appends lock-free into its own)
     nthreads = 1
@@ -409,9 +399,6 @@ contains
       
     enddo
 
-    if (n_clipped > 0) write(*,'(A,I0,A,I0,A)') ' [LOG] Chimera: ', n_clipped, ' of ', n_searched, &
-      ' receivers with volumes by clipping, where the exact intersection disagrees'
-
     ! Concatenate the per-thread record buffers into the global list. Records of
     ! any given receiver stay in their original (bd,kd,jd,id) order because each
     ! receiver cell is handled entirely by one thread; the cross-receiver order
@@ -503,16 +490,11 @@ contains
     logical, intent(inout) :: nodeinside(:,startingIndexes(1):,startingIndexes(2):,startingIndexes(3):)
     logical, intent(inout) :: processed(procStart(1):,procStart(2):,procStart(3):)
 
-    integer                :: bd,id,jd,kd,d,m,n,nd,ncand,np,tid
-    logical                :: next, exact_ok
-    real(8)                :: receiver(3,8), donor(3,8), vr, vr_tet, vtol, ve
-    real(8), allocatable   :: hull_points(:)
+    integer                :: bd,id,jd,kd,d,m,n,nd,ncand,tid
+    logical                :: next, inside
+    real(8)                :: receiver(3,8), donor(3,8), vr, vr_tet, vclip
     integer, allocatable   :: cb(:), ci(:), cj(:), ck(:)
     integer, allocatable   :: keep(:)
-    real(8), allocatable   :: vexact(:), vclip(:)
-    logical, allocatable   :: hit(:), nin(:,:)
-    character(len=64)          :: fmtbuf
-    character(len=:), allocatable :: sbuf
 
     if (.not.is_chimera_face(block,br,fr,ir,jr,kr,force)) return
     if (processed(ir,jr,kr)) return
@@ -544,8 +526,6 @@ contains
       keep(nd) = m
     enddo
     if (nd == 0) return
-    !$omp atomic
-    n_searched = n_searched + 1
 
     receiver(:,1) = block(br)%node(ir-1,jr-1,kr-1)%c(1:3)*fs
     receiver(:,2) = block(br)%node(ir-1, jr ,kr-1)%c(1:3)*fs
@@ -556,67 +536,34 @@ contains
     receiver(:,7) = block(br)%node( ir ,jr-1, kr )%c(1:3)*fs
     receiver(:,8) = block(br)%node( ir , jr , kr )%c(1:3)*fs
 
-    ! Exact hexahedron-hexahedron intersection (IV level), with every donor first
-    allocate(vexact(nd), hit(nd), nin(8,nd))
+    ! Receiver nodes inside any donor (IV level): a receiver with all eight nodes
+    ! covered must be closed by its donors, the others are only "not checkable"
     do n = 1, nd
       call donor_nodes(keep(n))
-      call HexahedronIntesectingPoints( receiver, donor, hull_points, nodeinside(:,ir,jr,kr) )
-      hit(n)    = size(hull_points) > 0
-      nin(:,n)  = nodeinside(:,ir,jr,kr)
-      vexact(n) = 0.d0
-      np = size(hull_points)/3
-      if (np >= 4) then
-        ! Reproduce the historical E20.10 point precision (a mild, deterministic
-        ! regularization of ill-conditioned sliver contacts) so the result is
-        ! reproducible and independent of thread count.
-        write(fmtbuf,'(A,I0,A)') '(', 3*np, 'E20.10)'
-        if (allocated(sbuf)) deallocate(sbuf)
-        allocate(character(len=3*np*20+16) :: sbuf)
-        write(sbuf,fmtbuf) hull_points(1:3*np)
-        read(sbuf,*)       hull_points(1:3*np)
-        call convexHullVolume(reshape(hull_points,[3,np]), np, vexact(n))
-        vexact(n) = vexact(n)/(fs**3)
-      endif
+      do d = 1, 8
+        if (nodeinside(d,ir,jr,kr)) cycle
+        call pointInsideHexahedron(receiver(:,d), donor, inside)
+        nodeinside(d,ir,jr,kr) = inside
+      enddo
     enddo
 
-    ! The same volumes by clipping the two cells split into tetrahedra, as the fraction
-    ! of the receiver each donor covers times its volume. The exact intersection is
-    ! ill-conditioned on warped cells and on nearly parallel faces (every k-face pair
-    ! of a layered mesh), where it gives spurious volumes, some as large as the donor;
-    ! clipping stays exact there and on thin overlaps. The exact volumes are kept
-    ! where the two agree, so the output of regular meshes does not change.
-    vr   = block(br)%vol(ir,jr,kr)
-    vtol = max(1d-18, 1d-6*vr)                 ! as VolumeFractions
-    allocate(vclip(nd))
-    exact_ok = .true.
+    ! Overlap volumes by clipping the two cells split into tetrahedra, as the fraction
+    ! of the receiver each donor covers times its volume (block%vol, the 5-tetrahedron
+    ! volume of the solver: the weights are ratios, so the factor cancels). Exact for
+    ! planar faces, a consistent planar model of warped ones, accurate on thin overlaps.
+    vr = block(br)%vol(ir,jr,kr)
     do n = 1, nd
-      call donor_nodes(keep(n))
-      call hexOverlapVolume(receiver, donor, vclip(n), vr_tet)
+      m = keep(n)
+      call donor_nodes(m)
+      call hexOverlapVolume(receiver, donor, vclip, vr_tet)
       if (vr > 0.d0 .and. vr_tet > 0.d0) then
-        vclip(n) = vclip(n)/vr_tet*vr
+        vclip = vclip/vr_tet*vr
       else
-        vclip(n) = vclip(n)/(fs**3)
+        vclip = vclip/(fs**3)
       endif
-      ve = 0.d0
-      if (hit(n) .and. vexact(n) > vtol) ve = vexact(n)
-      if (vr > 0.d0 .and. abs(ve - vclip(n)) > XCHECK_TOL*vr) exact_ok = .false.
+      if (vclip > 0.d0) call append_record(tbuf(tid), [br,ir,jr,kr], [cb(m),ci(m),cj(m),ck(m)], &
+                                           nodeinside(:,ir,jr,kr), vclip)
     enddo
-
-    if (exact_ok) then
-      do n = 1, nd
-        m = keep(n)
-        if (hit(n)) call append_record(tbuf(tid), [br,ir,jr,kr], [cb(m),ci(m),cj(m),ck(m)], &
-                                       nin(:,n), vexact(n), .false.)
-      enddo
-    else
-      !$omp atomic
-      n_clipped = n_clipped + 1
-      do n = 1, nd
-        m = keep(n)
-        if (vclip(n) > 0.d0) call append_record(tbuf(tid), [br,ir,jr,kr], [cb(m),ci(m),cj(m),ck(m)], &
-                                                nodeinside(:,ir,jr,kr), vclip(n), .true.)
-      enddo
-    endif
 
   contains
 
@@ -700,13 +647,12 @@ contains
   end subroutine CompleteReceivers
 
   !> Append one intersection record to a buffer, doubling capacity as needed.
-  subroutine append_record(buf, rid, did, nin, vol, clipped)
+  subroutine append_record(buf, rid, did, nin, vol)
     use intersection_mod, only: intersection_type
     type(rec_buffer), intent(inout) :: buf
     integer, intent(in) :: rid(4), did(4)
     logical, intent(in) :: nin(8)
     real(8), intent(in) :: vol
-    logical, intent(in) :: clipped
     type(intersection_type), allocatable :: tmp(:)
     integer :: cap
 
@@ -723,7 +669,6 @@ contains
     buf%rec(buf%n)%nodeinside      = nin
     buf%rec(buf%n)%inter_volume    = vol
     buf%rec(buf%n)%volume_fraction = 0.d0
-    buf%rec(buf%n)%clipped         = clipped
   end subroutine append_record
 
 
@@ -741,7 +686,7 @@ contains
     real(8)                 :: vol_tol
     integer                 :: k,i,m,n,t
     integer                 :: ni_per_receiver
-    logical                 :: nodeinside_local(8), clipped
+    logical                 :: nodeinside_local(8)
     integer                 :: p1, p2
 
     localID = [br,ir,jr,kr]
@@ -750,11 +695,9 @@ contains
     vol_tol = max(1d-18, 1d-6*block(br)%vol(ir,jr,kr))
     t = 0
     nodeinside_local = .false.
-    clipped = .false.
     do i = 1, ni
       if (all(intersection(i)%receiverID==localID)) then
         t = t + 1
-        clipped = clipped .or. intersection(i)%clipped
         if (intersection(i)%inter_volume>vol_tol) then
           volume = volume+intersection(i)%inter_volume
           ni_per_receiver = ni_per_receiver+1
@@ -812,7 +755,6 @@ contains
     enddo
 
     !$omp critical(chimera_print)
-    if (clipped) write(unitlog,*) 'Volumes by clipping (the exact intersection disagrees)'
     if (abs((volume-block(br)%vol(ir,jr,kr))/block(br)%vol(ir,jr,kr))>1d-3) then
       if (all(nodeinside_local)) then
         write(unitlog,*) 'Chimera volume division failed'
