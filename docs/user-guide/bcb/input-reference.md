@@ -1,6 +1,6 @@
 # BCB Input Parameters
 
-Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s).
+Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file` series (BC 402) is in bar, as the solvers read it.
 
 
 ## ATLAS-Parameters
@@ -120,7 +120,7 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s).
 | rp | 0.0 |  |  no | Particle radii per dispersed population. |
 | dp | 0.0 |  |  no | Particle diameters per dispersed population. |
 | sigmap | 0.0 |  |  no | Particle dispersion widths. |
-| distribution |  |  |  no | Size-distribution file of a dispersed population (prefixed by the phase name: <phase>-distribution). |
+| distribution |  |  |  no | Size-distribution law of a dispersed population (prefixed by the phase name: <phase>-distribution): Dirac, Normal, LogNormal, RosinRammler, or the path of a file of size classes, one per line: particle radius [m] and mass fraction (the solver normalises the fractions and reads the table as a histogram). With sigmap = 0 a law name gives Dirac; a file is kept whatever sigmap is. |
 | ds | 0.0 |  |  no | Injection-point spacing per dispersed population (cm; converted to m). |
 | alphap | 0.0 |  |  no | Primary injection angle per dispersed population. |
 | betap | 0.0 |  |  no | Secondary injection angle per dispersed population. |

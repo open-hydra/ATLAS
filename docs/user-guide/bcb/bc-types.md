@@ -579,7 +579,7 @@ the 7-band tail (`R11 R22 R33 R12 R13 R23 omega`) is written on 3-D meshes only.
 | `krho`, `kV`, `kT` | Density / velocity / temperature scaling wrt the gas phase (variant `401`) |
 | `alphap`, `betap` | Injection direction angles |
 | `dp`, `rp`, `sigmap` | Particle diameter, radius and distribution width |
-| `distribution` | Size-distribution law (`Dirac`, `Normal`, `LogNormal`, `RosinRammler`, or a file) |
+| `distribution` | Size-distribution law (`Dirac`, `Normal`, `LogNormal`, `RosinRammler`), or the path of a file of size classes, one per line: particle radius [m] and mass fraction, normalised by the solver and read as a histogram (format in [Output Files](./output.md#id-reference), records `401`–`403`). With `sigmap = 0` a law name gives `Dirac`; a file is kept whatever `sigmap` is |
 | `ds` | Injection-point spacing [cm] |
 
 ```ini
