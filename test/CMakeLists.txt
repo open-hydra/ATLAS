@@ -838,6 +838,23 @@ set_tests_properties(IG+SP-chimera-corner PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-chimera-warped (overlap volumes on warped cells) ---------------
+# Two overlapping blocks of a twisted sector (make_mesh.py): every cell is warped,
+# and the exact face-face intersection fails the closure of every fully covered
+# receiver. Every receiver must take the volumes of the tetrahedral clipping
+# (chimera.log), close (no "division failed"), and keep the thin donors that some
+# ghost cells reach by 0.6% of their thickness. Same numeric tolerance as IG-chimera.
+add_test(
+    NAME    IG-chimera-warped
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && grep -q 'Volumes by clipping' chimera.log && ! grep -q 'division failed' chimera.log && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/bc.txt && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-chimera-warped"
+)
+set_tests_properties(IG-chimera-warped PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-force-chimera (partial interface, BC-force-chimera) ------------
 # A small fine block overlaps only a strip of a large coarse block. The large
 # block's face and the small block's lateral faces are declared symmetry; with

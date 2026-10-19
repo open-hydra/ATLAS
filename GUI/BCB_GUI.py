@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Standalone launcher for the BCB boundary-condition setup GUI.
+"""Launcher kept for ``ATLAS BCB-GUI``: opens the ATLAS GUI on the boundaries stage.
 
-Usage:
-    python BCB_GUI.py [mesh] [--ini input.ini]
-
-This simply forwards to the ``bcbgui`` package next to this file.
+The boundary-condition editor is now one stage of the case-setup GUI
+(``ATLAS_GUI.py``), which also covers the GPB phases and the shared
+``[ATLAS-Parameters]`` of the same input.ini.
 """
 
 import os
@@ -12,7 +11,10 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from bcbgui.__main__ import main  # noqa: E402
+from atlasgui.__main__ import main  # noqa: E402
 
 if __name__ == "__main__":
-    main()
+    argv = sys.argv[1:]
+    if "--stage" not in argv:
+        argv += ["--stage", "bcb"]
+    main(argv)

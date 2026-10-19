@@ -58,7 +58,7 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exce
 | nuTilde | 0.0 |  |  no | Spalart-Allmaras working variable nu_tilde [m2/s] (not the eddy viscosity), specific. BCB writes it as given; the solver multiplies it by the density of the boundary state. |
 | k | 0.0 |  |  no | Turbulent kinetic energy k [m2/s2], specific. BCB writes it as given; the solver multiplies it by the density of the boundary state. |
 | omega | 0.0 |  |  no | Specific dissipation rate omega [1/s], specific. BCB writes it as given; the solver multiplies it by the density of the boundary state. |
-| rhoRij | 0.0 |  |  no | Density-weighted normal Reynolds stresses [kg/(m s2)], written as given (the band the Q2D Reynolds-stress inlet reads; the shear stresses are set to 1e-8). |
+| Rij | 0.0 |  |  no | Normal Reynolds stresses R11 = R22 = R33 [m2/s2], specific, one value for the three (the shear stresses are set to 1e-8). BCB writes it as given; the solver multiplies it by the density of the boundary state. |
 | nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
 | surface-reactions | none |  |  no | Surface-reactions model for GSI boundaries. |
 | pyrolysis-model | none |  |  no | Pyrolysis model for GSI boundaries. |
@@ -68,7 +68,7 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exce
 | nuTilde | 0.0 |  |  no | Spalart-Allmaras working variable nu_tilde [m2/s] (not the eddy viscosity), specific. BCB writes it as given; the solver multiplies it by the density of the boundary state. |
 | k | 0.0 |  |  no | Turbulent kinetic energy k [m2/s2], specific. BCB writes it as given; the solver multiplies it by the density of the boundary state. |
 | omega | 0.0 |  |  no | Specific dissipation rate omega [1/s], specific. BCB writes it as given; the solver multiplies it by the density of the boundary state. |
-| rhoRij | 0.0 |  |  no | Density-weighted normal Reynolds stresses [kg/(m s2)], written as given (the band the Q2D Reynolds-stress inlet reads; the shear stresses are set to 1e-8). |
+| Rij | 0.0 |  |  no | Normal Reynolds stresses R11 = R22 = R33 [m2/s2], specific, one value for the three (the shear stresses are set to 1e-8). BCB writes it as given; the solver multiplies it by the density of the boundary state. |
 | nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
 | a | 0.0 |  |  no | Burn-rate pre-exponential coefficient. |
 | n | 0.0 |  |  no | Burn-rate pressure exponent. |
@@ -82,7 +82,7 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exce
 | T | 0.0 |  |  no | Ideal-gas static temperature. |
 | g | 0.0 |  |  no | Mass flux for inlet boundaries. |
 | p | 0.0 |  |  no | Static pressure for outlet or far-field boundaries. |
-| p0-time-file | none |  |  no | Time-series file for total pressure. |
+| p0-time-file | none |  |  no | Time-series file for total pressure (two columns: time [s], p0 [Pa]). |
 | p-time-file | none |  |  no | Time-series file for static pressure. |
 | time-file | none |  |  no | Time-series file of full boundary state. |
 | periodic | F |  |  no | Treat a time-file series as periodic. |

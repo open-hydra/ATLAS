@@ -63,6 +63,14 @@ Run GPB from the command line in the simulation root folder:
 ATLAS GPB
 ```
 
+The phases can also be set up interactively, with pickers over the chemistry
+and thermo databases and a table per material, in the
+[case-setup GUI](../gui.md):
+
+```bash
+ATLAS GUI
+```
+
 ## Input
 
 The INI file can contain an arbitrary number of phase sections named `[GPB-Phase1]`, `[GPB-Phase2]`, etc. GPB reads them in order until a section is not found.

@@ -1,8 +1,10 @@
 # BCB GUI
 
-The **BCB GUI** is an interactive desktop tool for assigning boundary conditions
-to a multiblock structured mesh. Load a mesh, click a block face, assign a BC,
-and export a solver-ready `input.ini` — no hand-editing of face numbers required.
+Assigning boundary conditions is the **Boundaries** stage of the
+[ATLAS case-setup GUI](../gui.md): load a mesh, click a block face, assign a BC,
+and the shared `input.ini` is written for you — no hand-editing of face numbers
+required. The same window also holds the GPB phases and the global parameters
+of the case.
 
 ![The BCB GUI showing an 11-block 3-D scramjet mesh with per-face boundary conditions](images/bcb-gui.png)
 
@@ -19,13 +21,14 @@ The GUI runs in the `ct-env` conda environment (it needs `pyqt`, `pyvista` and
 `pyvistaqt`, which are listed in `ct-env.yaml`):
 
 ```bash
-ATLAS BCB-GUI
+ATLAS BCB-GUI      # opens the GUI on the Boundaries stage
+ATLAS GUI          # the whole case: phases, boundaries, review
 ```
 
 or directly:
 
 ```bash
-python utils/ATLAS/GUI/BCB_GUI.py [mesh] [--ini input.ini]
+python utils/ATLAS/GUI/ATLAS_GUI.py [mesh] [--ini input.ini] [--stage bcb]
 ```
 
 If the GUI dependencies are missing, refresh the environment with
@@ -58,8 +61,13 @@ only faces 1–4 are assignable; BCB fills faces 5/6 automatically.
 - **Auto-reveal** (on by default) makes surrounding geometry transparent while a
   face is selected, so a covered face stays visible.
 - **Colour** switches face colouring between *by BC* and *by block index*.
-- **Theme** selects the colour theme (Dark Blue, Graphite, Nord, Light); the
-  choice is remembered between sessions.
+- Selecting a **block** row shows which GPB phases it carries (its `phase`
+  key); the chips are the phases defined in the Phases stage.
+- **Theme** selects the colour theme (Dark Blue, Midnight, Graphite, Nord,
+  Light); the choice is remembered between sessions.
+- The status bar along the bottom tracks the case: mesh file, block count and a
+  **coverage** meter that fills as faces get assigned and turns green once every
+  face is mapped.
 
 ---
 
@@ -82,6 +90,14 @@ Boundary conditions come in two kinds, matching the INI format:
     from per-type suggestions or typed freely (any `key = value` is allowed),
     which covers spatially-varying and `*-file` inputs.
 
+    **New** asks for the name, the type and the files that type reads, so a
+    boundary that is driven by a table or a time series is complete the moment
+    it exists. Afterwards, every key that names a file has a browse button on
+    its row, and **Files of this BC…** shows all of them at once — see
+    [Files](../gui.md#files) for what is written into the INI and for the two
+    limits the GUI enforces as you pick (a GPB mechanism outside the search
+    path, a series name over 32 characters).
+
     For `gsi` the suggestion list spans every variant, since BCB selects the
     model from the keys you set — see [BC Types](./bc-types.md#gsi). Setting
     `pyrolysis-model` or `surface-reactions` here is what picks the pyrolysis,
@@ -96,7 +112,9 @@ Boundary conditions come in two kinds, matching the INI format:
 ![Building an inlet boundary condition with parameters; the selected inflow face is highlighted](images/bcb-gui-build.png)
 
 Assigned faces are coloured and labelled in the 3-D view, and shown next to each
-face in the tree.
+face in the tree. The **BCs in use** panel at the bottom of the Assign tab is
+the colour key for that view: every BC currently assigned, with the number of
+faces using it.
 
 ---
 

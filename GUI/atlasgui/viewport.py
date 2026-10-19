@@ -24,6 +24,10 @@ UNASSIGNED_COLOR = "#8a97a5"
 HIGHLIGHT_EDGE = "#ffd23f"
 CONTEXT_COLOR = "#c9d3dd"
 
+# Surface material: a little ambient light keeps unlit faces readable, a weak
+# specular adds just enough shading to tell neighbouring faces apart.
+MATERIAL = dict(ambient=0.42, diffuse=0.78, specular=0.10, specular_power=20)
+
 # Opacity used to "ghost" geometry that is not the current selection so a
 # covered face can still be seen.
 REVEAL_OPACITY = 0.12
@@ -53,12 +57,14 @@ class MeshViewport(QWidget):
         self.selected = None          # (b, f)
         self.auto_reveal = True
         self._labels_actor = None
+        self._placeholder = None
         self._show_labels = True
         self._face_by_addr = {}       # vtk actor address -> (b, f)
 
         # Themeable colours (overwritten by apply_theme).
         self.theme = {
-            "viewport_bg": "#0e141b", "edge": "#4b5a68",
+            "viewport_bg": "#0e141b", "viewport_bg2": "#1b2733",
+            "edge": "#4b5a68",
             "unassigned": UNASSIGNED_COLOR, "context": CONTEXT_COLOR,
             "highlight_edge": HIGHLIGHT_EDGE,
             "label_text": "white", "label_shape": "#1f3550",
@@ -69,15 +75,66 @@ class MeshViewport(QWidget):
         self._press_pos = None
         self._observers_set = False
 
-        self.plotter.set_background(self.theme["viewport_bg"])
-        self.plotter.add_axes()
+        self._apply_background()
+        self._add_axes()
+        self._show_placeholder()
+        # Smooth the jagged edges of the face outlines; harmless if the driver
+        # refuses the request.
+        try:
+            self.plotter.enable_anti_aliasing("fxaa")
+        except Exception:
+            pass
+
+    # -- theming ---------------------------------------------------------
+    def _apply_background(self):
+        """Vertical gradient background (flat if the renderer refuses it)."""
+        try:
+            self.plotter.set_background(self.theme["viewport_bg"],
+                                        top=self.theme["viewport_bg2"])
+        except Exception:
+            self.plotter.set_background(self.theme["viewport_bg"])
+
+    def _show_placeholder(self):
+        """Empty-state caption, shown until a mesh is loaded."""
+        if self.blocks:
+            return
+        try:
+            self._placeholder = self.plotter.add_text(
+                "No mesh loaded\nUse  Load Mesh  to open a Tecplot or Plot3D grid",
+                position=(0.5, 0.5), viewport=True, font_size=11,
+                color=self.theme["unassigned"], name="placeholder")
+            prop = self._placeholder.GetTextProperty()
+            prop.SetJustificationToCentered()
+            prop.SetVerticalJustificationToCentered()
+            prop.SetLineSpacing(1.6)
+        except Exception:
+            self._placeholder = None
+
+    def _clear_placeholder(self):
+        if self._placeholder is not None:
+            try:
+                self.plotter.remove_actor(self._placeholder)
+            except Exception:
+                pass
+            self._placeholder = None
+
+    def _add_axes(self):
+        """Orientation marker, tinted for the active theme."""
+        try:
+            self.plotter.add_axes(line_width=3, labels_off=False,
+                                  color=self.theme["label_text"],
+                                  x_color="#e05c5c", y_color="#5cb87a",
+                                  z_color="#4a90d9")
+        except Exception:
+            self.plotter.add_axes()
 
     def apply_theme(self, tokens):
-        for k in ("viewport_bg", "edge", "unassigned", "context",
+        for k in ("viewport_bg", "viewport_bg2", "edge", "unassigned", "context",
                   "highlight_edge", "label_text", "label_shape"):
             if k in tokens:
                 self.theme[k] = tokens[k]
-        self.plotter.set_background(self.theme["viewport_bg"])
+        self._apply_background()
+        self._add_axes()
         # Restyle existing actors: edges of non-selected faces and context planes.
         for key, actor in self.face_actors.items():
             if key != self.selected:
@@ -93,7 +150,8 @@ class MeshViewport(QWidget):
     # -- mesh setup ------------------------------------------------------
     def set_mesh(self, blocks):
         self.plotter.clear()
-        self.plotter.add_axes()
+        self._placeholder = None     # dropped by clear()
+        self._add_axes()
         self.face_actors.clear()
         self.face_base_color.clear()
         self.context_actors.clear()
@@ -115,6 +173,7 @@ class MeshViewport(QWidget):
                     mesh, color=self.theme["unassigned"], show_edges=True,
                     edge_color=self.theme["edge"], line_width=1, opacity=1.0,
                     pickable=True, name=f"face_{b}_{f}", reset_camera=False,
+                    **MATERIAL,
                 )
                 self.face_actors[(b, f)] = actor
                 self.face_base_color[(b, f)] = self.theme["unassigned"]
@@ -216,6 +275,9 @@ class MeshViewport(QWidget):
         else:
             prop.edge_color = self.theme["edge"]
             prop.line_width = 1
+        # Rounded outline for the selection; not every pyvista version has it.
+        if hasattr(prop, "render_lines_as_tubes"):
+            prop.render_lines_as_tubes = bool(highlighted)
 
     # -- appearance ------------------------------------------------------
     def set_face_color(self, block_idx, face, color):
@@ -285,12 +347,20 @@ class MeshViewport(QWidget):
             pts.append(facemod.face_centroid(self.blocks[b], f))
             texts.append(text)
         if pts:
-            self._labels_actor = self.plotter.add_point_labels(
-                np.array(pts), texts, font_size=12,
-                text_color=self.theme["label_text"],
-                shape_color=self.theme["label_shape"], shape_opacity=0.65,
+            kwargs = dict(
+                font_size=12, text_color=self.theme["label_text"],
+                shape="rounded_rect", shape_color=self.theme["label_shape"],
+                shape_opacity=0.82, margin=5, bold=False,
                 always_visible=True, name="face_labels", reset_camera=False,
             )
+            try:
+                self._labels_actor = self.plotter.add_point_labels(
+                    np.array(pts), texts, **kwargs)
+            except TypeError:        # older pyvista without shape/margin kwargs
+                for k in ("shape", "margin", "bold"):
+                    kwargs.pop(k, None)
+                self._labels_actor = self.plotter.add_point_labels(
+                    np.array(pts), texts, **kwargs)
         self.plotter.render()
 
     def set_labels_visible(self, visible, label_map=None):

@@ -39,7 +39,7 @@ ATLAS/
 │   └── scripts/            # Database maintenance scripts
 │
 ├── cmake/                  # CMake modules (compiler flags, OpenMP detection)
-├── GUI/                    # BCB GUI (PyQt)
+├── GUI/                    # ATLAS case-setup GUI (PyQt): GPB phases + BCB BCs
 ├── docs/                   # This documentation
 ├── scripts/                # Utility scripts
 └── build/                  # Build output (created by CMake, git-ignored)

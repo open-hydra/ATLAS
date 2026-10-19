@@ -104,6 +104,7 @@ nav:
 
   - User Guide:
     - Overview: user-guide/index.md
+    - Case Setup GUI: user-guide/gui.md
     - General Phase Builder:
       - Overview: user-guide/gpb/index.md
       - Ideal Gas: user-guide/gpb/ideal-gas.md
