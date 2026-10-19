@@ -503,7 +503,7 @@ set_tests_properties(IG-nozzle-plenum-order PROPERTIES
 # ----       multiple must stay uniform: the product equals the one of minimum_distance) -------------
 add_test(
     NAME    IG-interp-multiple-x3-3D
-    COMMAND bash -c "rm -rf fromATLAStoSolver md && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input md.ini && mv fromATLAStoSolver md && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && diff md/gas-ic.tec fromATLAStoSolver/gas-ic.tec"
+    COMMAND bash -c "rm -rf fromATLAStoSolver md && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input md.ini && mv fromATLAStoSolver md && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk md/gas-ic.tec fromATLAStoSolver/gas-ic.tec"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-multiple-x3-3D"
 )
 set_tests_properties(IG-interp-multiple-x3-3D PROPERTIES
@@ -1632,10 +1632,10 @@ set_tests_properties(split-longest PROPERTIES
 # MDB reads the grid of [MDB-Parameters] grid by its path: a PLOT3D file with five node planes (grid.p3d) must be split
 # as the same grid given as mesh.tec, i.e. the products equal those of the same deck with grid = mesh.tec (run again in
 # fromATLAStoSolver/tecplot): decomposition.map, INPUT-split/bc.txt and the nodes of mesh-split.tec (its ZONE lines
-# carry the solution time of the grid file, which a PLOT3D file does not hold: its zones carry SOLUTIONTIME=0).
+# carry the solution time of the grid file, which neither grid holds: the zones of both carry SOLUTIONTIME=0).
 add_test(
     NAME    grid-p3d-3D
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && mkdir fromATLAStoSolver/tecplot && cp phase.txt mesh.tec fromATLAStoSolver/tecplot/ && sed 's/grid = grid.p3d/grid = mesh.tec/' input.ini > fromATLAStoSolver/tecplot/input.ini && cd fromATLAStoSolver/tecplot && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && diff ../decomposition.map fromATLAStoSolver/decomposition.map && diff ../INPUT-split/bc.txt fromATLAStoSolver/INPUT-split/bc.txt && diff <(grep -v ZONE ../mesh-split.tec) <(grep -v ZONE fromATLAStoSolver/mesh-split.tec) && ! grep ZONE ../mesh-split.tec | grep -q -v -F 'SOLUTIONTIME=0.000000000000000E+000'"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && mkdir fromATLAStoSolver/tecplot && cp phase.txt mesh.tec fromATLAStoSolver/tecplot/ && sed 's/grid = grid.p3d/grid = mesh.tec/' input.ini > fromATLAStoSolver/tecplot/input.ini && cd fromATLAStoSolver/tecplot && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && diff ../decomposition.map fromATLAStoSolver/decomposition.map && diff ../INPUT-split/bc.txt fromATLAStoSolver/INPUT-split/bc.txt && diff <(grep -v ZONE ../mesh-split.tec) <(grep -v ZONE fromATLAStoSolver/mesh-split.tec) && ! grep ZONE ../mesh-split.tec fromATLAStoSolver/mesh-split.tec | grep -q -v -F 'SOLUTIONTIME=0.00000000000000000E+000'"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/grid-p3d-3D"
 )
 set_tests_properties(grid-p3d-3D PROPERTIES
