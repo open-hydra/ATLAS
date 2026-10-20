@@ -68,16 +68,18 @@ Enabled with `BC-chimera = true`. For every receiver facelet BCB takes the
   many there are.
 - The `i` and `j` faces are always searched; the `k` faces only on a full 3-D
   mesh.
-- `chimera.log` lists every receiver with its total intersected volume against
-  its real volume. A ratio below 1 means the ghost cell is only partly covered
-  — see [Limitations](#limitations).
+- `chimera.log` (`chimera<m>.log` on multigrid level `m > 1`, named like
+  `bc<m>.txt`) lists every receiver of that level with its total intersected
+  volume against its real volume. A ratio below 1 means the ghost cell is only
+  partly covered — see [Limitations](#limitations).
 
 `BC-force-chimera` (default `false`) extends the search to every unresolved
 facelet whatever its declared type, for partial interfaces — a block facing only
-a strip of a larger one. Facelets that find donors become `102`; those that do
-not keep their own BC. Leave it off when the overlap regions are declared
-explicitly: BCB then only searches the `chimera` faces, which is considerably
-faster.
+a strip of a larger one. Facelets whose two ghost layers both find donors become
+`102`; the others keep their own BC, among them a facelet that reaches the other
+block by a sliver with one ghost layer only. Leave it off when the overlap
+regions are declared explicitly: BCB then only searches the `chimera` faces,
+which is considerably faster.
 
 Ordering: `connection` is always resolved first, so with `BC-chimera = true` a
 face declared `connection` keeps its exact matching. Only the facelets matching
@@ -119,19 +121,23 @@ failed on are handed to the overset search.
 
 !!! danger "Both ghost layers must find donors"
     The overlap has to be deep enough to contain **two** ghost cells of the
-    receiver, measured against the donor block's *interior* cells. If the second
-    layer finds nothing BCB writes a donor count of `0` for it, and MOSE aborts
-    at read time (`... donor volume fractions summing to ~0 ...`).
+    receiver, measured against the donor block's *interior* cells. If one layer
+    of a facelet declared `chimera` or `connection` finds nothing, BCB writes a
+    donor count of `0` for it and prints a `[WARNING] chimera: ...` line for the
+    face, and MOSE aborts at read time (`... donor volume fractions summing to
+    ~0 ...`).
 
     Ghost cells are built by linear extrapolation of the boundary nodes, not
     from the donor mesh, so on a strongly curved or stretched boundary they
     drift away from the true geometry. Leave margin beyond the bare two cells.
 
-!!! danger "A `chimera` face that finds no donor at all is silently inert"
+!!! danger "A `chimera` face that finds no donor at all is inert in MOSE"
     Such a facelet keeps ID `100` (the unresolved connectivity marker). MOSE has
     no case for `100`: the line is read without error and no boundary flux is
-    ever applied to that facelet. Nothing warns you at run time. Check the ID
-    histogram of `bc.txt` for `100` entries before running.
+    ever applied to that facelet, and nothing warns you at run time. BCB prints
+    a `[WARNING] chimera: ...` line with the count of such facelets per face;
+    check for it, or for `100` entries in the ID histogram of `bc.txt`, before
+    running.
 
 !!! note "Overset coupling is not conservative"
     Even with full coverage, the two sides of a chimera interface solve
@@ -150,8 +156,9 @@ failed on are handed to the overset search.
   where the boundary is curved or stretched.
 - Ending an overlap part-way across a face? Align the rim with a cell boundary
   of the coarser block.
-- After running BCB: no `100` in `bc.txt`, no donor count of `0`, and
-  `chimera.log` closure at 1 for every receiver you care about.
+- After running BCB: no `[WARNING] chimera` line in its output (no `100` in
+  `bc.txt`, no donor count of `0`), and the `chimera.log` closure at 1 for every
+  receiver you care about, on every multigrid level.
 
 ## Next
 
