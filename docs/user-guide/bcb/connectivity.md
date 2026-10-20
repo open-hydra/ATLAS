@@ -58,20 +58,23 @@ Enabled with `BC-chimera = true`. For every receiver facelet BCB takes the
   intersection volume of that ghost cell, so the weights of one ghost layer
   **sum to 1**. Donors contributing less than `1e-6` of the receiver cell volume
   are dropped.
-- The intersection volumes come from an exact face-face intersection of the two
-  cells, which is ill-conditioned on warped cells (non-planar faces) and on
-  nearly parallel faces. BCB therefore also clips the two cells split into
-  tetrahedra through their centroid and face centres, which is exact for any cell
-  shape and for thin overlaps, and keeps the face-face volumes only where the two
-  agree to `1e-6` of the receiver volume. Elsewhere it uses the clipped volumes,
-  marks those receivers in `chimera.log` ("Volumes by clipping") and prints how
-  many there are.
+- The intersection volumes come from clipping the two cells split into 24
+  tetrahedra each, through their centroid and face centres: exact for planar
+  faces and for thin overlaps, and a consistent planar model of warped (bilinear)
+  faces, whose 24 tetrahedra have exactly the trilinear volume of the cell. The
+  weights are ratios of these volumes, so the 5-tetrahedron volume the solver uses
+  for the cell does not enter them.
 - The `i` and `j` faces are always searched; the `k` faces only on a full 3-D
   mesh.
 - `chimera.log` (`chimera<m>.log` on multigrid level `m > 1`, named like
   `bc<m>.txt`) lists every receiver of that level with its total intersected
-  volume against its real volume. A ratio below 1 means the ghost cell is only
-  partly covered — see [Limitations](#limitations).
+  volume against its real volume and, when more than one block donates to it,
+  the volume per donor block. A receiver closes ("Volume division succesful")
+  when the total, or the largest per-block sum where donor blocks overlap each
+  other, is within `1e-3` of its volume; "not checkable" means some of its nodes
+  lie outside every donor (a rim cell), "failed" that all nodes are covered but
+  the volumes do not close. A ratio below 1 means the ghost cell is only partly
+  covered — see [Limitations](#limitations).
 
 `BC-force-chimera` (default `false`) extends the search to every unresolved
 facelet whatever its declared type, for partial interfaces — a block facing only
