@@ -336,8 +336,8 @@ never clamped in silence.
 |---|---|
 | `p0`, `T0` | Total (stagnation) pressure and temperature |
 | `p`, `T` | Static pressure and temperature |
-| `g` | Mass flux [kg m⁻² s⁻¹] |
-| `un` | Normal velocity [m s⁻¹] |
+| `g` | Mass flux [kg m⁻² s⁻¹]; for MOSE into the domain, positive on every face (see below) |
+| `un` | Normal velocity [m s⁻¹]; for MOSE into the domain, positive on every face (see below) |
 | `mach` | Mach number |
 | `h0` | Total enthalpy; for a single-species phase `T0` is derived from it |
 | `alpha`, `beta` | Inflow direction angles |
@@ -352,6 +352,15 @@ never clamped in silence.
 | `strip-j-face` | Node row of the line-file zone used as the strip (default `1`) |
 | `axis` | Cylinder axis of the `line-file` mapping, `x`, `y` or `z`; default: from the face geometry (see below) |
 | `n-repeat` | Sector strips: the line-file covers `1/n-repeat` of the lap and is repeated `n-repeat` times around the face (default `1`) |
+
+**Sign of `g` and `un`.** BCB writes `g` (`403`, `404`, and `420` given with `g`) and `un` (`408`) as the section gives
+them, and for a `420` given with `Ae_At` computes a positive `g`; MOSE takes them as positive into the domain on every
+face, whatever the index of the face: for MOSE, give them positive. On a
+maximum-index face (2, 4, 6) MOSE takes a negative value as its magnitude. On a minimum-index face (1, 3, 5) a negative
+value, and a zero value written by hand on any face, stop MOSE at set-up with the line of `bc.txt`: an inlet only lets gas
+in, and a face where the gas leaves takes an `outlet` section. BCB writes no zero `g` or `un` (zero is the default of the
+key, the key left out), and refuses `g <= 0` for `420`.
+{ #sign-of-g-and-un }
 
 The names of the series files written into the record (`time-file`, `p0-time-file`, `p-time-file`, `q-time-file`,
 `T-time-file`) are limited to 32 characters: the record keeps 32 characters of the name (MOSE reads the `402` series
