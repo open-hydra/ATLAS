@@ -276,6 +276,14 @@ mass flux of the isentrope from the stagnation state) and `psup <= psub < p0`; a
 outside it has no root in the solver. When `thermo.dat` is loaded BCB checks the
 explicit trio against the isentrope and prints a `[WARNING]` when `g > G*` or when
 `psub`/`psup` differ by more than 5 % from the isentropic values (never a refusal).
+MOSE stops at set-up, with the line of `bc.txt`, on a `420` record whose `g` is above
+`G*` of its reservoir on the tables of the run by more than 1e-9 of it, whose thresholds
+are not in the order `0 < psup <= psub < p0`, whose `psub` or `psup` is missing, or
+whose sonic throat or supersonic exit state lies at or below the coldest state of the
+tables or `T0` above one grid step below their top, with a message that asks to extend
+the tables: every record that BCB writes satisfies them, except a `g` above `G*` or one
+of these states outside the tables given by hand in the trio, which BCB writes with a
+`[WARNING]` when `thermo.dat` is loaded (without it, BCB does not check the trio).
 Between `psup` and `psub` the kernels impose the mass flux `g` and the stagnation enthalpy
 and leave `p0` free: this is the exact closure while a normal shock stands inside the
 divergent part (subsonic exit, part of `p0` lost), and an approximation in the
