@@ -834,10 +834,6 @@ class ICBPanel(QWidget):
             return
         icmodel.set_gas_pair(state, name, pairs)
         self._remember(state, "gas-pair" if pairs is GAS_PAIRS else "fluid-pair", name)
-        if pairs is GAS_PAIRS and {"p0", "T0"} & keep:
-            # total conditions need the Mach number (see _velocity_card)
-            icmodel.set_velocity_mode(state, "speed", "IG")
-            self._remember(state, "velocity", "speed")
         self._edited(rebuild=True)
 
     def _real_fluid_card(self, state):
@@ -865,14 +861,9 @@ class ICBPanel(QWidget):
         kit = self.kit
         card.body.addLayout(kit.panel_header("target", "VELOCITY"))
         mode = self._velocity_of(state, kinds)
-        disabled = {}
-        if self._needs_mach(state, kinds):
-            disabled["components"] = (
-                "With total conditions ICB needs the Mach number: it computes the "
-                "static T before it would know the speed of u, v, w.")
         card.body.addWidget(self._segmented(
             [("speed", "Speed and direction"), ("components", "Components")],
-            mode, lambda m: self._set_velocity_mode(m, kinds), disabled))
+            mode, lambda m: self._set_velocity_mode(m, kinds)))
         if mode == "components":
             card.body.addLayout(self._fields(icmodel.COMPONENT_KEYS, columns=3))
             card.body.addWidget(kit.hint("Cartesian components; the angles are not read."))
@@ -887,16 +878,9 @@ class ICBPanel(QWidget):
                 "solvers' inflow BC. Without angles the flow is along x."))
         return card
 
-    def _needs_mach(self, state, kinds):
-        """A gas given by total conditions takes its speed as a Mach number."""
-        return "IG" in kinds and bool(
-            {"p0", "T0"} & set(GAS_PAIRS[self._pair_of(state, GAS_PAIRS)][1]))
-
     def _set_velocity_mode(self, mode, kinds):
         state = self.current_state()
         if state is None or mode == self._velocity_of(state, kinds):
-            return
-        if mode == "components" and self._needs_mach(state, kinds):
             return
         if mode == "components":
             keys = [icmodel.SPEED_KEY[k] for k in ("IG", "RF") if k in kinds]

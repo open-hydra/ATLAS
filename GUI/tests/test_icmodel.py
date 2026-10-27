@@ -321,7 +321,8 @@ REFUSED = ("ICB-type-refused/input.ini", "IG+DP/particles-only.ini",
            "IG+DP/phase-undeclared.ini", "IG-state-not-physical/input.ini",
            "IG-turbulence-specific/both.ini", "IG-turbulence-specific/eddy.ini",
            "IG-turbulence-specific/retired.ini", "IG-turbulence-zero-refused/input.ini",
-           "IG-interp-species/input.ini", "IG-interp-species-decomposition/input.ini")
+           "IG-interp-species/input.ini", "IG-interp-species-decomposition/input.ini",
+           "IG-total-conditions/both.ini")
 
 
 class Checks(unittest.TestCase):
@@ -358,6 +359,15 @@ class Checks(unittest.TestCase):
         issues = self.validate("[ICB-Block1]\np = 1e5\nT = 300\nyN2 = 1\n", nblocks=2)
         self.assertIn(("error", "Block 2 has no initial state: ICB stops on it. Give the "
                                 "block a state, or give All blocks one"), issues)
+
+    def test_speed_given_once(self):
+        def errors(keys):
+            return [m for level, m in self.validate(
+                "[ICB-Block*]\np0 = 5e5\nT0 = 1200\nyN2 = 1\n" + keys) if level == "error"]
+        self.assertEqual(errors("u = 855.8\nv = 585.5\n"), [])     # ICB expands T0 at that speed
+        self.assertEqual(errors("mach = 2\nalpha = 0.6\n"), [])
+        self.assertEqual(errors("mach = 2\nu = 0\n"), [])           # zero components are no speed
+        self.assertTrue(any("both give the speed" in m for m in errors("mach = 2\nu = 855.8\n")))
 
     def test_composition(self):
         def errors(keys):
@@ -398,11 +408,6 @@ class Checks(unittest.TestCase):
                             for level, m in self.validate(text)))
         self.assertTrue(any(level == "warning" and "law" in m
                             for level, m in self.validate(text, strict=False)))
-
-    def test_total_conditions_with_components(self):
-        text = "[ICB-Block*]\np0 = 2e5\nT0 = 400\nu = 50\nyN2 = 1\n"
-        self.assertTrue(any(level == "warning" and "T = T0" in m
-                            for level, m in self.validate(text)))
 
 
 class Schema(unittest.TestCase):

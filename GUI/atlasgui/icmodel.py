@@ -284,8 +284,12 @@ def set_gas_pair(state, name, pairs=GAS_PAIRS):
     _clear_with_profile(state, sorted(others))
 
 
-def uses_total_conditions(state):
-    return has_value_or_file(state, "p0") or has_value_or_file(state, "T0")
+def _nonzero(state, key):
+    """*key* gives a value other than 0 (a profile file counts as one)."""
+    if state.has(key + "-file"):
+        return True
+    value = to_float(state.get(key)) if state.has(key) else None
+    return value is not None and value != 0.0
 
 
 def velocity_mode(state):
@@ -998,11 +1002,10 @@ def _state_issues(state, block, phases, where, target, strict=True):
         if not (t_ok and p_ok):
             add("error", "the gas state needs a pair: p and T, p0 and T0, or a "
                          "density with p or T")
-        if uses_total_conditions(state) and velocity_mode(state) == "components" \
-                and not state.has("mach"):
-            add("warning", "total conditions with velocity components: ICB takes "
-                           "the static T at Mach 0 (T = T0) but expands p at the "
-                           "Mach number of u, v, w; give the speed as mach")
+    if "IG" in kinds and _nonzero(state, "mach") and \
+            any(_nonzero(state, k) for k in COMPONENT_KEYS):
+        add("error", "mach and u, v, w both give the speed: ICB stops on it. Give the "
+                     "speed by mach (with the angles) or by u, v, w")
     if "IG" in kinds and mode != "interpolate":
         _composition_issues(state, gas_species(block, phases), add)
 

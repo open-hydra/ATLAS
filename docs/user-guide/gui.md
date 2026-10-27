@@ -167,14 +167,16 @@ The species are those of the phase files ICB reads (`*phase.txt` in the case
 directory, then `fromATLAStoSolver/`, where GPB writes them), else the species
 list of the gas in the Phases stage. The angles `alpha` and `beta` are shown in
 degrees and written in radians, which is what ICB reads ([Velocity](./icb/ic-setup.md#velocity)).
-A gas given by total conditions takes its speed as a Mach number: ICB computes
-the static temperature before it would know the speed of `u`, `v`, `w`.
+A gas given by total conditions takes its speed either way: ICB expands `p0` and
+`T0` at the speed of `u`, `v`, `w` as at a Mach number
+([Total conditions](./icb/ic-setup.md#total-conditions)).
 
 The **Checks** card under the form lists what ICB would stop on, from the deck
-alone: a block with no state, a gas state without a pair, mass fractions that
-do not sum to 1, a key ICB does not read (with the name to use instead, for the
-keys of earlier decks), a turbulence model without its quantities, a value that
-is not physical. They are listed in **Review** too.
+alone: a block with no state, a gas state without a pair, a speed given twice
+(`mach` and `u`, `v`, `w`), mass fractions that do not sum to 1, a key ICB does
+not read (with the name to use instead, for the keys of earlier decks), a
+turbulence model without its quantities, a value that is not physical. They are
+listed in **Review** too.
 
 A block split into zones (`direction`, `zone<n>`, `range<n>`) is listed with
 its zones and kept as it is; the zone editor comes in a later version. Values
