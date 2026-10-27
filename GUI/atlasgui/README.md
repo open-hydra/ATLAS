@@ -13,9 +13,18 @@ reads.
 | Boundaries | `bcbpanel.py` | `[BCB-BlockN]` + the named BC sections, on the 3-D mesh |
 | Review | `mainwindow.py` | the INI as it will be written, and the checks on it |
 
-Sections of tools not edited here (`[ICB-*]`, `[STB-*]`, `[MDB-*]`, `[KAnT-*]`)
+Sections of tools not edited here (`[STB-*]`, `[MDB-*]`, `[KAnT-*]`)
 are preserved verbatim through a save, as is `[BCB-Block*]` until a mesh says
 how many blocks it applies to.
+
+The ICB sections are read by `icmodel.py`, which has no panel yet: the
+`[ICB-BlockN]` and `[ICB-Block*]` sections, and the zone sections an ICB block
+names in `zone<n>`. A zone section has no prefix, like a BC, so BCB takes
+every named section except those; a new BC cannot take the name of any section
+of the file (`AtlasDocument.section_names`). The ICB key schema is read from
+ICB's generated `docs/user-guide/icb/input-reference.md`.
+`GUI/tests/test_icmodel.py` (CTest `GUI-icmodel`) passes every deck of the test
+suite through the document and back.
 
 ## What the GPB panel knows
 

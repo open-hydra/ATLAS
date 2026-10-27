@@ -62,7 +62,9 @@ The rail on the left follows the order the tools run in.
 
 Sections belonging to tools the GUI does not edit yet (`[ICB-*]`, `[STB-*]`,
 `[MDB-*]`, `[KAnT-*]`) are carried through a save untouched, so a shared case
-file never loses another tool's setup.
+file never loses another tool's setup. This includes the zone sections of a
+multizone ICB block (`zone1 = plenum` names `[plenum]`): they are not listed as
+boundary conditions, and a new BC cannot take their name.
 
 ---
 

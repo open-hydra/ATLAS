@@ -717,14 +717,18 @@ class BCBPanel(QWidget):
                 self.sections_list.setCurrentRow(i)
                 return
 
+    def _taken_names(self):
+        """Names a BC cannot take: the keyword BCs and every section of the
+        case file, whichever tool owns it (an ICB zone has no prefix either)."""
+        return self.shell.doc.section_names() | set(KEYWORD_BCS)
+
     def _new_section(self):
-        dialog = NewBCDialog(
-            self, self.kit, list(self.doc.sections) + KEYWORD_BCS,
-            self.shell.case_dir)
+        taken = self._taken_names()
+        dialog = NewBCDialog(self, self.kit, taken, self.shell.case_dir)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         name, bc_type, files = dialog.result_values()
-        if not name or name in self.doc.sections or name in KEYWORD_BCS:
+        if not name or name in taken:
             return
         section = BCSection(name, bc_type or "wall")
         section.params.update(files)
@@ -738,9 +742,10 @@ class BCBPanel(QWidget):
         name = self._current_section_name()
         if not name:
             return
+        taken = self._taken_names()
         new = f"{name}_copy"
         i = 2
-        while new in self.doc.sections:
+        while new in taken:
             new = f"{name}_copy{i}"; i += 1
         self.doc.add_section(self.doc.sections[name].clone_as(new))
         self._refresh_sections_list()
@@ -756,7 +761,7 @@ class BCBPanel(QWidget):
         new = new.strip()
         if not ok or not new or new == old:
             return
-        if new in self.doc.sections or new in KEYWORD_BCS:
+        if new in self._taken_names():
             QMessageBox.warning(self, "Name in use", f"'{new}' is already used.")
             return
         self.doc.rename_section(old, new)

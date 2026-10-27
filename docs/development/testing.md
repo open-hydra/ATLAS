@@ -145,6 +145,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `DP-axis-symmetry` | BCB | `BCB/DP-axis-symmetry` | `<phase>-type = symmetry` on an axisymmetric face: the dispersed-phase file carries 300 on the axis, the gas file keeps 200. |
 | `DP-axis-refused` | BCB | `BCB/DP-axis-refused` | Any other `<phase>-type` word on an axisymmetric face stops BCB naming the two accepted ones. |
 | `IG+DP` | ICB | `ICB/IG+DP` | Gas and dispersed phase: the dispersed-phase IC file carries the population fields. |
+| `GUI-icmodel` | GUI | `GUI/tests` | The ICB model of the GUI: every deck of the suite goes through the case document and back with its ICB sections unchanged, an ICB zone section is never read as a BC, and the keys the GUI names are ICB's (standard library, no Qt). |
 
 ## Test Families And Their Intent
 

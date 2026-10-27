@@ -2081,3 +2081,17 @@ set_tests_properties(GPB-launcher-atlasdir PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GUI : GUI-icmodel (the ICB model of the GUI: every deck of the suite goes through the case document and back with
+# ----       its ICB sections unchanged, the zone sections of an ICB block are never read as BCs, and the keys the GUI
+# ----       names are those of ICB's input reference; standard library only, no Qt) -------------
+add_test(
+    NAME    GUI-icmodel
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_icmodel.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-icmodel PROPERTIES
+    LABELS      "GUI;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

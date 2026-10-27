@@ -7,7 +7,9 @@ A BCB ``input.ini`` has three kinds of sections:
 * named BC sections       -- ``[name]`` with ``type = ...`` plus parameters.
 
 A face value is either a *keyword* BC that needs no section (``symmetry``,
-``connection``, ``chimera``, ...) or the name of a defined section.
+``connection``, ``chimera``, ...) or the name of a defined section.  A named
+section that an ICB block lists as one of its zones is an initial state, not a
+BC (:func:`atlasgui.icmodel.zone_section_names`).
 
 This module is intentionally free of any GUI / Qt / VTK dependency so it can be
 unit-tested headlessly.
@@ -16,6 +18,8 @@ unit-tested headlessly.
 from __future__ import annotations
 
 from collections import OrderedDict
+
+from .icmodel import zone_section_names
 
 # BC keywords that are assigned directly on the face line and need no section.
 KEYWORD_BCS = [
@@ -333,7 +337,8 @@ class BCBDocument:
 
         Sections owned by another tool are left alone (see
         :func:`is_bc_section`): in a shared case file they belong to GPB or
-        ICB, not to a boundary condition.
+        ICB, not to a boundary condition.  So are the zone sections of the
+        ICB blocks, which carry no prefix.
         """
         doc = cls()
 
@@ -370,8 +375,9 @@ class BCBDocument:
             extras_map[idx] = extras
 
         # Named BC sections: everything this GUI does not route elsewhere.
+        icb_zones = set(zone_section_names(sections))
         for name, kv in sections:
-            if not is_bc_section(name):
+            if not is_bc_section(name) or name in icb_zones:
                 continue
             kv_dict = OrderedDict(kv)
             bc_type = kv_dict.pop("type", "wall")
