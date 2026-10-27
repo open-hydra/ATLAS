@@ -1146,6 +1146,13 @@ contains
       write(*,*) '[ERROR] interpolation_general: failed to read ', trim(filename)
       stop 1
     endif
+    ! the value is read cell by cell: a file without cell-centred variables (no VARLOCATION
+    ! ...=CELLCENTERED) gave 0 in every cell, and ICB stopped on a state "not physical" instead
+    if (IOfield%tec%node) then
+      write(*,'(A)') '[ERROR] field file '//trim(filename)//': its variables are nodal, and ICB reads the value of'// &
+        ' each cell: write the variable after the coordinates as cell-centred (VARLOCATION=([n]=CELLCENTERED))'
+      stop 1
+    endif
 
     allocate(source_blocks(size(IOfield%block)))
     ! Secondary mesh: classify locally, do not overwrite the global mesh_cfg
