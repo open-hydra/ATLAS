@@ -1,24 +1,31 @@
 """Vector icons for the BCB GUI, drawn at runtime with QPainter.
 
-The GUI ships no image files: every icon is a short stroked path drawn on a
-transparent pixmap in a 24x24 design grid and tinted with a colour token, so
-the whole icon set re-colours when the theme changes.
+Every interface icon is a short stroked path drawn on a transparent pixmap in
+a 24x24 design grid and tinted with a colour token, so the whole icon set
+re-colours when the theme changes.  The one image file is the application
+icon, ``assets/atlas-icon.png`` (rendered from ``atlas-icon.svg``), which is
+a placeholder until ATLAS has its logo: replace both files to change it.
 
 Public helpers
 --------------
 ``icon(name, color, size)``   -> :class:`QIcon` for buttons / tabs / tree items
 ``pixmap(name, color, size)`` -> the same artwork as a :class:`QPixmap`
 ``dot(color, size)``          -> filled colour swatch used for BC colours
-``app_icon(accent, bg)``      -> window icon
+``app_icon(accent, bg)``      -> window / Dock icon (the asset, else drawn)
 """
 
 from __future__ import annotations
+
+import math
+import os
 
 from PyQt6.QtCore import QPointF, QRectF, Qt
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap
 
 GRID = 24.0          # design grid every path is drawn in
 _SCALE = 2           # supersampling factor for crisp icons on any DPI
+APP_ICON_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "assets", "atlas-icon.png")
 
 
 # --------------------------------------------------------------- primitives
@@ -233,6 +240,33 @@ def _alert(p, c):
     p.drawEllipse(QRectF(10.85, 15.6, 2.3, 2.3))
 
 
+def _gear(p, c):
+    _stroke(p, c, 1.8)
+    p.drawEllipse(QRectF(9.2, 9.2, 5.6, 5.6))
+    p.drawEllipse(QRectF(5.6, 5.6, 12.8, 12.8))
+    _stroke(p, c, 2.6)
+    for i in range(8):
+        a = math.radians(i * 45 + 22.5)
+        _poly(p, [(12 + 6.6 * math.cos(a), 12 + 6.6 * math.sin(a)),
+                  (12 + 9.4 * math.cos(a), 12 + 9.4 * math.sin(a))])
+
+
+def _reset(p, c):
+    _stroke(p, c)
+    path = QPainterPath()
+    path.arcMoveTo(QRectF(4.5, 4.5, 15, 15), 135)
+    path.arcTo(QRectF(4.5, 4.5, 15, 15), 135, -290)
+    p.drawPath(path)
+    _poly(p, [(4.4, 4.6), (6.7, 6.7), (9.6, 5.8)])
+
+
+def _type(p, c):
+    _stroke(p, c)
+    _poly(p, [(9.5, 19), (14.5, 5), (19.5, 19)])
+    _poly(p, [(11.4, 14), (17.6, 14)])
+    _poly(p, [(3, 19), (6, 11), (9, 19)])
+
+
 DRAW = {
     "mesh": _mesh, "cube": _cube, "open": _open, "save": _save,
     "save-as": _save_as, "fit": _fit, "tag": _tag, "eye": _eye,
@@ -240,7 +274,8 @@ DRAW = {
     "pencil": _pencil, "trash": _trash, "check": _check, "target": _target,
     "layers": _layers, "sliders": _sliders, "code": _code, "info": _info,
     "chevron-down": _chevron_down, "chevron-right": _chevron_right,
-    "circle": _circle, "file": _file, "alert": _alert,
+    "circle": _circle, "file": _file, "alert": _alert, "gear": _gear,
+    "reset": _reset, "type": _type,
 }
 
 
@@ -293,6 +328,22 @@ def dot_pixmap(color, size=12, ring=None):
     return px
 
 
+def swatch_pixmap(color, width, height, border="#808080"):
+    """A rounded colour sample of *width* x *height*, outlined so a colour
+    close to its background still shows its edge."""
+    px = QPixmap(int(width * _SCALE), int(height * _SCALE))
+    px.setDevicePixelRatio(float(_SCALE))
+    px.fill(Qt.GlobalColor.transparent)
+    p = QPainter(px)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    p.setPen(QPen(QColor(border), 1.0))
+    p.setBrush(QColor(color))
+    radius = min(width, height) * 0.22
+    p.drawRoundedRect(QRectF(0.5, 0.5, width - 1, height - 1), radius, radius)
+    p.end()
+    return px
+
+
 def dot(color, size=12, ring=None):
     key = ("d", color, size, ring)
     if key not in _icon_cache:
@@ -301,7 +352,12 @@ def dot(color, size=12, ring=None):
 
 
 def app_icon(accent, bg="#0b1017", size=64):
-    """Window icon: an accent cube on a rounded dark tile."""
+    """The application icon: :data:`APP_ICON_FILE`, or -- when the file is
+    missing -- the mesh glyph in *accent* on a rounded *bg* tile."""
+    if os.path.isfile(APP_ICON_FILE):
+        icon = QIcon(APP_ICON_FILE)
+        if not icon.isNull():
+            return icon
     px = QPixmap(size * _SCALE, size * _SCALE)
     px.setDevicePixelRatio(float(_SCALE))
     px.fill(Qt.GlobalColor.transparent)

@@ -2,7 +2,9 @@
 
 Every panel builds its chrome through one :class:`UIKit`, so a theme change is
 a single call (:meth:`UIKit.retint`) that re-tints every icon the application
-has handed out, wherever it lives.
+has handed out, wherever it lives.  The same call follows the text size: sizes
+set in code (icons, table rows, fixed widths) are given at 100 % and go
+through :meth:`UIKit.px`, the way the stylesheet's lengths are scaled.
 """
 
 from __future__ import annotations
@@ -85,6 +87,15 @@ class UIKit:
     def theme(self):
         return self._provider.theme
 
+    @property
+    def scale(self):
+        """Size factor of the interface: the screen's, times the text size."""
+        return getattr(self._provider, "ui_scale", 1.0)
+
+    def px(self, value):
+        """*value* pixels of the 100 % design, at the current size."""
+        return int(round(value * self.scale))
+
     def color(self, token):
         return self.theme.get(token, self.theme["text"])
 
@@ -93,10 +104,10 @@ class UIKit:
 
     # -- icons -----------------------------------------------------------
     def icon(self, name, token="text_dim", size=18):
-        return icons.icon(name, self.color(token), size)
+        return icons.icon(name, self.color(token), self.px(size))
 
     def pixmap(self, name, token="muted", size=16):
-        return icons.pixmap(name, self.color(token), size)
+        return icons.pixmap(name, self.color(token), self.px(size))
 
     def register_icon(self, setter, name, token="text_dim", size=18):
         """Keep *setter* in sync with the theme; it is called with a QIcon."""
@@ -112,17 +123,29 @@ class UIKit:
         label = QLabel()
         label.setPixmap(self.pixmap(name, token, size))
         self._slots.append((
-            lambda ic, w=label, s=size: w.setPixmap(ic.pixmap(s, s)),
+            lambda ic, w=label, s=size: w.setPixmap(
+                ic.pixmap(self.px(s), self.px(s))),
             name, token, size))
         return label
 
     def register_repaint(self, repaint):
-        """Call *repaint* on every theme change.
+        """Call *repaint* on every theme or text-size change.
 
         For artwork whose colour depends on state rather than on one token --
-        a toggle that ticks when checked, a path that marks a missing file.
+        a toggle that ticks when checked, a path that marks a missing file --
+        and for the sizes set in code.
         """
         self._repaints.append(repaint)
+
+    def sized(self, setter, value):
+        """Call *setter* with :meth:`px` of *value*, now and whenever the
+        text size changes (a fixed width, a minimum height)."""
+        self.register_repaint(lambda: setter(self.px(value)))
+        setter(self.px(value))
+
+    def table_rows(self, table, height=28):
+        """Rows of *height* px (at 100 %) for *table*, following the text size."""
+        self.sized(table.verticalHeader().setDefaultSectionSize, height)
 
     def retint(self):
         """Re-tint every icon handed out, and forget the ones whose widget died.
@@ -238,7 +261,7 @@ class UIKit:
         line = QFrame()
         line.setObjectName("VDivider")
         line.setFixedWidth(1)
-        line.setFixedHeight(height)
+        self.sized(line.setFixedHeight, height)
         return line
 
     def hdivider(self):

@@ -17,7 +17,7 @@ from collections import OrderedDict
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QHBoxLayout, QHeaderView, QLineEdit,
-    QListWidget, QListWidgetItem, QMessageBox, QTableWidget, QTableWidgetItem,
+    QListWidget, QListWidgetItem, QTableWidget, QTableWidgetItem,
 )
 
 from . import database, gpbmodel
@@ -46,7 +46,7 @@ class ColumnTableDialog(_Dialog):
             QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.verticalHeader().setDefaultSectionSize(30)
+        kit.table_rows(self.table, 30)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
 
         self._editors = {}
@@ -73,7 +73,7 @@ class ColumnTableDialog(_Dialog):
                 self._editors[(key, col)] = editor
         self.layout_.addWidget(self.table, 1)
         self.add_buttons()
-        self.resize(760, min(680, 190 + 30 * len(self.columns)))
+        self.resize(kit.px(760), kit.px(min(680, 190 + 30 * len(self.columns))))
 
     def values(self):
         """``{key: [value per entry]}`` as typed."""
@@ -104,13 +104,14 @@ class MixtureDialog(_Dialog):
             "{species: amount} groups, in the units GPB expects (mass "
             "fractions or percentages, as in the docs).")
         self.phase = phase
+        self.thermo = None      # set when the species come from another database
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(["SPECIES", "AMOUNT"])
         self.table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
-        self.table.verticalHeader().setDefaultSectionSize(28)
+        kit.table_rows(self.table, 28)
         for name, amount in gpbmodel.parse_mixture(phase.get("mixture")):
             self._append(name, amount)
         if self.table.rowCount() == 0:
@@ -133,7 +134,7 @@ class MixtureDialog(_Dialog):
         name_row.addWidget(self.name_edit, 1)
         self.layout_.addLayout(name_row)
         self.add_buttons()
-        self.resize(520, 440)
+        self.resize(kit.px(520), kit.px(440))
 
     def _append(self, name, amount):
         row = self.table.rowCount()
@@ -147,10 +148,11 @@ class MixtureDialog(_Dialog):
             self.table.removeRow(row)
 
     def _pick(self):
-        chosen = SpeciesPicker.choose(
-            self, self.kit, "Add species to the mixture",
-            database.species_of_database(self.phase.get("thermo") or "NASA9",
-                                         self.phase.family))
+        chosen, thermo = pick_from_database(
+            self, self.kit, self.phase, "Add species to the mixture",
+            with_mechanism=False)
+        if thermo:
+            self.thermo = thermo
         for name in chosen:
             self._append(name, "")
 
@@ -169,6 +171,8 @@ class MixtureDialog(_Dialog):
         rows = self.rows()
         self.phase.set("mixture", gpbmodel.format_mixture(rows))
         self.phase.set("mixture-name", self.name_edit.text())
+        if self.thermo:
+            self.phase.set("thermo", self.thermo)
 
 
 class AdvancedKeysDialog(_Dialog):
@@ -186,7 +190,7 @@ class AdvancedKeysDialog(_Dialog):
             QHeaderView.ResizeMode.Stretch)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
-        self.table.verticalHeader().setDefaultSectionSize(28)
+        kit.table_rows(self.table, 28)
         for key, value in phase.params.items():
             self._append(key, value)
         self.layout_.addWidget(self.table, 1)
@@ -203,7 +207,7 @@ class AdvancedKeysDialog(_Dialog):
         row.addWidget(kit.button("Remove", self._remove, "trash", "danger"))
         self.layout_.addLayout(row)
         self.add_buttons()
-        self.resize(620, 520)
+        self.resize(kit.px(620), kit.px(520))
         self.table.cellChanged.connect(self._describe)
 
     def _append(self, key, value):
@@ -245,13 +249,37 @@ class AdvancedKeysDialog(_Dialog):
 
 
 class SpeciesPicker(_Dialog):
-    """Searchable multi-select over a species or material list."""
+    """Searchable multi-select over the names of one source at a time.
 
-    def __init__(self, parent, kit, title, names, explanation=""):
+    *sources* is an ordered ``{label: loader}``: the databases -- and, for a
+    gas with a mechanism, the mechanism -- the names can come from, each one
+    loaded when it is chosen.  *note*, given a label, says what picking from
+    that source does to the phase; *what* names the entries listed.
+    """
+
+    def __init__(self, parent, kit, title, sources, current=None,
+                 explanation="", note=None, what="entries"):
         super().__init__(parent, kit, title,
-                         explanation or f"{len(names)} entries in the database. "
-                                        "Type to filter, pick one or more.")
-        self.names = list(names)
+                         explanation or "Type to filter, pick one or more.")
+        self.sources = OrderedDict(sources)
+        self.note = note
+        self.what = what
+        self.names = []
+
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(kit.section_label("DATABASE"))
+        self.source_combo = QComboBox()
+        for label in self.sources:
+            self.source_combo.addItem(label, label)
+        self.source_combo.setCurrentIndex(
+            max(self.source_combo.findData(current), 0))
+        self.source_combo.setToolTip("Where the names come from.")
+        row.addWidget(self.source_combo, 1)
+        self.layout_.addLayout(row)
+        self.note_label = kit.hint("")
+        self.layout_.addWidget(self.note_label)
+
         self.search = QLineEdit()
         self.search.setPlaceholderText("Filter…")
         self.search.textChanged.connect(self._filter)
@@ -261,10 +289,24 @@ class SpeciesPicker(_Dialog):
             QAbstractItemView.SelectionMode.ExtendedSelection)
         self.list.itemDoubleClicked.connect(lambda _i: self.accept())
         self.layout_.addWidget(self.list, 1)
-        self._fill(self.names)
+        self.count_label = kit.hint("")
+        self.layout_.addWidget(self.count_label)
+        self.source_combo.currentIndexChanged.connect(lambda _i: self._load())
+        self._load()
         self.add_buttons()
-        self.resize(460, 560)
+        self.resize(kit.px(480), kit.px(620))
         self.search.setFocus()
+
+    def source(self):
+        return self.source_combo.currentData()
+
+    def _load(self):
+        label = self.source()
+        self.names = list(self.sources[label]()) if label else []
+        text = self.note(label) if (self.note and label) else ""
+        self.note_label.setText(text)
+        self.note_label.setVisible(bool(text))
+        self._filter(self.search.text())
 
     def _fill(self, names):
         self.list.clear()
@@ -273,24 +315,93 @@ class SpeciesPicker(_Dialog):
 
     def _filter(self, text):
         text = text.strip().lower()
-        if not text:
-            self._fill(self.names)
-            return
-        self._fill([n for n in self.names if text in n.lower()])
+        shown = [n for n in self.names if text in n.lower()] if text \
+            else self.names
+        self._fill(shown)
+        label = self.source()
+        if not self.names:
+            message = f"{label} holds no {self.what}."
+            if label == "NASA7":
+                message += (" Its files come with Cantera, so they are found "
+                            "only where GPB's conda environment is installed.")
+            self.count_label.setText(message)
+        elif text:
+            self.count_label.setText(
+                f"{len(shown)} of the {len(self.names)} {self.what} of {label}")
+        else:
+            self.count_label.setText(f"{len(self.names)} {self.what} in {label}")
 
     def chosen(self):
         return [item.text() for item in self.list.selectedItems()]
 
     @staticmethod
-    def choose(parent, kit, title, names, explanation=""):
-        if not names:
-            QMessageBox.information(
-                parent, title,
-                "There is nothing to pick from: the database file was not "
-                "found. NASA7 comes with Cantera, so it is found only where "
-                "GPB's conda environment is installed.")
-            return []
-        dialog = SpeciesPicker(parent, kit, title, names, explanation)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            return dialog.chosen()
-        return []
+    def choose(parent, kit, title, sources, current=None, explanation="",
+               note=None, what="entries"):
+        """``(source label, [names])`` picked, or ``(None, [])``."""
+        dialog = SpeciesPicker(parent, kit, title, sources, current,
+                               explanation, note, what)
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.chosen():
+            return dialog.source(), dialog.chosen()
+        return None, []
+
+
+def pick_from_database(parent, kit, phase, title, case_dir=None,
+                       with_mechanism=True):
+    """Pick names for *phase* out of the databases it can read.
+
+    The picker lists one database at a time, only the states the phase type
+    is made of (gases for a gas, solids for a wall), and opens on the one GPB
+    will look the names up in.  GPB reads every name of the phase from that
+    single database, so names taken from another one need ``thermo`` switched
+    to it.
+
+    Returns ``(names, thermo)``: *thermo* is the value the phase's ``thermo``
+    key needs for those names to be found, or None when it can stay.
+    """
+    gas = phase.family == "gas"
+    if gas and phase.has("CEA-file"):
+        databases = ["NASA9"]           # CEA-file makes GPB read NASA9 only
+    elif gas:
+        databases = list(gpbmodel.THERMO_DATABASES)
+    else:
+        databases = list(gpbmodel.CONDENSED_THERMO)
+    reading = phase.thermo_database()
+    noun = "species" if gas else "material"
+
+    sources = OrderedDict()
+    mechanism = phase.get("reactions") if (gas and with_mechanism) else ""
+    if mechanism:
+        sources[f"Mechanism {mechanism}"] = \
+            lambda: database.species_of_mechanism(mechanism, case_dir)
+    for name in databases:
+        sources[name] = \
+            lambda name=name: database.species_of_database(name, phase.type)
+    current = next(iter(sources)) if mechanism else (reading or "NASA9")
+
+    def note(label):
+        if label not in databases:
+            return "The species of the mechanism, with the thermo the file gives them."
+        if label == reading:
+            if phase.get("thermo"):
+                return f"GPB reads the {noun} names of this phase from {label}."
+            return (f"GPB reads the {noun} names of this phase from {label}, "
+                    f"its database when thermo is not set.")
+        text = (f"Picking from {label} sets thermo = {label}: GPB reads every "
+                f"{noun} of this phase from it.")
+        if gas and phase.has("reactions") and not phase.get("thermo"):
+            text += " That replaces the thermo records of the mechanism too."
+        elif not gas and not reading:
+            text += " Materials it does not hold keep the constants of the table."
+        return text
+
+    what = database.describe_states(phase.type)
+    kind = gpbmodel.TYPE_LABEL.get(phase.type, phase.type).lower()
+    article = "an" if kind[:1] in "aeiou" else "a"
+    source, names = SpeciesPicker.choose(
+        parent, kit, title, sources, current,
+        f"Only the {what} {article} {kind} phase can hold are listed. Type to "
+        f"filter, pick one or more.", note, what)
+    if not names:
+        return [], None
+    thermo = source if (source in databases and source != reading) else None
+    return names, thermo

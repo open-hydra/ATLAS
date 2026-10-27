@@ -89,7 +89,7 @@ class NewBCDialog(Dialog):
         self.buttons = self.add_buttons()
         self._on_type_changed(self.type_combo.currentText())
         self._validate()
-        self.resize(640, 0)
+        self.resize(self.kit.px(640), 0)
 
     # -- type -----------------------------------------------------------
     def _on_type_changed(self, text):
@@ -127,7 +127,7 @@ class NewBCDialog(Dialog):
             drop = self.kit.button(
                 "", lambda _checked=False, k=key: self._drop(k), "trash",
                 "ghost", tip=f"Do not set {key}")
-            drop.setFixedWidth(32)
+            drop.setFixedWidth(self.kit.px(32))
             line.addWidget(drop)
             self.file_list.addWidget(row)
         self.empty_hint.setVisible(not self.files)

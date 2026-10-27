@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import numpy as np
 import pyvista as pv
-import vtk
+# Not ``import vtk``: that loads every VTK module, including vtkGUISupportQt,
+# which on conda links its own Qt6 next to PyQt6's and aborts the QApplication.
+from vtkmodules.vtkRenderingCore import vtkCellPicker
 from pyvistaqt import QtInteractor
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from PyQt6.QtCore import pyqtSignal
@@ -70,7 +72,7 @@ class MeshViewport(QWidget):
             "label_text": "white", "label_shape": "#1f3550",
         }
 
-        self._picker = vtk.vtkCellPicker()
+        self._picker = vtkCellPicker()
         self._picker.SetTolerance(0.005)
         self._press_pos = None
         self._observers_set = False

@@ -90,7 +90,7 @@ class BCBPanel(QWidget):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([340, 800, 520])
+        splitter.setSizes([self.kit.px(340), self.kit.px(800), self.kit.px(520)])
         root.addWidget(splitter)
 
     def view_tools(self):
@@ -131,7 +131,7 @@ class BCBPanel(QWidget):
         self.color_combo.addItem("By BC", "bc")
         self.color_combo.addItem("By block index", "block")
         self.color_combo.setToolTip("How faces are coloured in the 3-D view.")
-        self.color_combo.setMinimumWidth(130)
+        kit.sized(self.color_combo.setMinimumWidth, 130)
         self.color_combo.currentIndexChanged.connect(self._on_color_mode_changed)
         group = QHBoxLayout()
         group.setSpacing(6)
@@ -291,7 +291,7 @@ class BCBPanel(QWidget):
         lay.addLayout(kit.panel_header("cube", "DEFINED BCS", self.sections_badge))
 
         self.sections_list = QListWidget()
-        self.sections_list.setMinimumHeight(120)
+        kit.sized(self.sections_list.setMinimumHeight, 120)
         self.sections_list.currentItemChanged.connect(self._on_section_selected)
         self.sections_list.itemDoubleClicked.connect(
             lambda _it: self._assign_current(self._current_section_name()))
@@ -328,7 +328,7 @@ class BCBPanel(QWidget):
         self.param_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch)
         self.param_table.verticalHeader().setVisible(False)
-        self.param_table.verticalHeader().setDefaultSectionSize(28)
+        kit.table_rows(self.param_table)
         self.param_table.setShowGrid(False)
         self.param_table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)

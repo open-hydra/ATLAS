@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 
@@ -38,6 +39,15 @@ def main(argv=None):
             "Install with:  pip install pyvista pyvistaqt")
 
     from .mainwindow import AtlasMainWindow
+
+    # A pip PyQt6 wheel bundles its own Qt, but inside a conda env the env's
+    # bin/qt.conf sends every Qt to the conda prefix for its plugins, where the
+    # wheel finds no platform plugin and aborts.  Search the wheel's own first.
+    import PyQt6
+    from PyQt6.QtCore import QCoreApplication
+    wheel_plugins = os.path.join(os.path.dirname(PyQt6.__file__), "Qt6", "plugins")
+    if os.path.isdir(wheel_plugins):
+        QCoreApplication.addLibraryPath(wheel_plugins)
 
     app = QApplication(sys.argv)
     # Fusion is the most predictable base for the stylesheet: the native

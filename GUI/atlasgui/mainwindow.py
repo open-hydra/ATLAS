@@ -15,18 +15,20 @@ document, in the order the tools run:
 from __future__ import annotations
 
 import os
+import sys
 
-from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QBrush, QColor, QFont, QSyntaxHighlighter, QTextCharFormat
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import (QActionGroup, QBrush, QColor, QFont, QKeySequence,
+                         QSyntaxHighlighter, QTextCharFormat)
 from PyQt6.QtWidgets import (
     QAbstractItemView, QApplication, QButtonGroup, QComboBox, QFileDialog,
     QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget,
-    QListWidgetItem, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
-    QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem, QVBoxLayout,
-    QWidget,
+    QListWidgetItem, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
+    QPushButton, QSizePolicy, QSplitter, QStackedWidget, QTableWidget,
+    QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from . import filekeys, icons
+from . import filekeys, icons, preferences
 from . import theme as thememod
 from .bcbpanel import BCBPanel
 from .bcmodel import ATLAS_PARAM_KEYS
@@ -86,29 +88,41 @@ class IniHighlighter(QSyntaxHighlighter):
 class AtlasMainWindow(QWidget):
     """The application window."""
 
-    COMPACT_WIDTH = 1420
-
     def __init__(self):
         super().__init__()
         self.doc = AtlasDocument()
         self.ini_path = None
         self.case_dir = os.getcwd()
+        self.current_stage = "case"
         self._dirty = False
         self._compact = False
+        self._header_widths = {}     # (stage, scale) -> width with labels
+        self._follows_screen = False
 
-        self.settings = QSettings("ATLAS", "ATLAS-GUI")
+        self.settings = preferences.settings()
+        themes, problems = preferences.load_themes()
+        for problem in problems:
+            print(f"[WARNING] ATLAS GUI: theme file skipped, {problem}",
+                  file=sys.stderr)
+        thememod.set_custom_themes(themes)
         self._theme_name = self.settings.value("theme", thememod.DEFAULT_THEME)
-        if self._theme_name not in thememod.THEMES:
+        if self._theme_name not in thememod.theme_names():
             self._theme_name = thememod.DEFAULT_THEME
         self._theme = thememod.get_theme(self._theme_name)
+        try:
+            self._text_size = float(self.settings.value("text-size", 1.0))
+        except (TypeError, ValueError):
+            self._text_size = 1.0
+        if self._text_size not in thememod.TEXT_SIZES:
+            self._text_size = 1.0
+        self._screen_scale = thememod.screen_scale(QApplication.primaryScreen())
         self.kit = UIKit(self)
 
         self.setObjectName("Root")
         self.setWindowTitle("ATLAS — case setup")
-        self.setGeometry(40, 30, 1760, 1000)
-        self.setMinimumSize(1080, 680)
         self._apply_stylesheet()
         self._build_ui()
+        self._fit_to_screen()
         self.kit.retint()
         self.bcb_panel.viewport.apply_theme(self._theme)
         self.set_stage("case")
@@ -118,22 +132,51 @@ class AtlasMainWindow(QWidget):
     def theme(self):
         return self._theme
 
+    @property
+    def ui_scale(self):
+        """Size factor of the whole interface: the screen's times the text size."""
+        return self._screen_scale * self._text_size
+
+    @property
+    def screen_scale(self):
+        """The part of :attr:`ui_scale` that comes from the screen."""
+        return self._screen_scale
+
     # ------------------------------------------------------------- chrome
     def _apply_stylesheet(self):
-        sheet = thememod.build_stylesheet(self._theme)
+        sheet = thememod.build_stylesheet(self._theme, self.ui_scale)
+        icon = icons.app_icon(self._theme["accent"], self._theme["bg"])
         app = QApplication.instance()
         if app is not None:
             app.setStyleSheet(sheet)
             app.setPalette(thememod.build_palette(self._theme))
+            app.setWindowIcon(icon)     # the Dock / taskbar icon
         else:                                            # pragma: no cover
             self.setStyleSheet(sheet)
-        self.setWindowIcon(icons.app_icon(self._theme["accent"], self._theme["bg"]))
+        self.setWindowIcon(icon)
+
+    def _fit_to_screen(self):
+        """Open at the design size, or as much of the screen as there is,
+        centred on it: a laptop has less room than the 1760 x 1000 design."""
+        screen = QApplication.primaryScreen()
+        width, height = self.kit.px(1760), self.kit.px(1000)
+        if screen is None:                               # pragma: no cover
+            self.resize(width, height)
+            return
+        avail = screen.availableGeometry()
+        width = min(width, avail.width() - 24)
+        height = min(height, avail.height() - 24)
+        self.setMinimumSize(min(1080, width), min(640, height))
+        self.resize(width, height)
+        self.move(avail.x() + (avail.width() - width) // 2,
+                  avail.y() + (avail.height() - height) // 2)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(9)
-        root.addWidget(self._build_header())
+        self.header = self._build_header()
+        root.addWidget(self.header)
 
         body = QHBoxLayout()
         body.setSpacing(9)
@@ -168,7 +211,10 @@ class AtlasMainWindow(QWidget):
         lay.setContentsMargins(12, 8, 12, 8)
         lay.setSpacing(8)
 
-        lay.addWidget(kit.icon_label("mesh", "accent", 26))
+        brand_icon = QLabel()
+        kit.sized(lambda size, w=brand_icon: w.setPixmap(
+            icons.app_icon(self._theme["accent"]).pixmap(size, size)), 30)
+        lay.addWidget(brand_icon)
         title_box = QVBoxLayout()
         title_box.setSpacing(0)
         brand = QLabel("ATLAS")
@@ -202,23 +248,77 @@ class AtlasMainWindow(QWidget):
         lay.addWidget(self.tool_stack)
         lay.addStretch(1)
 
-        self.theme_combo = QComboBox()
-        for name in thememod.THEMES:
-            self.theme_combo.addItem(name, name)
-        index = self.theme_combo.findData(self._theme_name)
-        if index >= 0:
-            self.theme_combo.setCurrentIndex(index)
-        self.theme_combo.setToolTip("Application colour theme (remembered).")
-        self.theme_combo.setMinimumWidth(115)
-        self.theme_combo.currentIndexChanged.connect(
-            lambda _i: self.apply_theme(self.theme_combo.currentData()))
-        group = QHBoxLayout()
-        group.setSpacing(6)
-        group.addWidget(kit.icon_label("contrast", "muted", 16))
-        group.addWidget(kit.section_label("Theme", compactable=True))
-        group.addWidget(self.theme_combo)
-        lay.addLayout(group)
+        lay.addWidget(self._build_display_button())
         return bar
+
+    def _build_display_button(self):
+        """One menu for the text size and the colour theme: two combos would
+        leave no room for the Boundaries view tools on a laptop screen."""
+        button = self.kit.button(
+            "Display", None, "contrast", compactable=True,
+            tip="Text size and colour theme (both remembered).")
+        menu = QMenu(button)
+
+        text_menu = menu.addMenu("Text size")
+        group = QActionGroup(self)
+        self._size_actions = {}
+        for size in thememod.TEXT_SIZES:
+            action = text_menu.addAction(f"{round(size * 100)} %")
+            action.setCheckable(True)
+            action.setChecked(size == self._text_size)
+            action.triggered.connect(
+                lambda _checked=False, s=size: self.set_text_size(s))
+            group.addAction(action)
+            self._size_actions[size] = action
+        text_menu.addSeparator()
+        bindings = QKeySequence.keyBindings
+        for label, keys, step in (
+                ("Larger", bindings(QKeySequence.StandardKey.ZoomIn)
+                 + [QKeySequence("Ctrl+=")], 1),
+                ("Smaller", bindings(QKeySequence.StandardKey.ZoomOut), -1),
+                ("Fitted to the screen (100 %)", [QKeySequence("Ctrl+0")], 0)):
+            action = text_menu.addAction(label)
+            # One action per step: a key bound twice is ambiguous to Qt and
+            # fires neither (some platforms' ZoomIn includes Ctrl+= already).
+            action.setShortcuts(list({k.toString(): k for k in keys}.values()))
+            action.triggered.connect(
+                lambda _checked=False, s=step: self.step_text_size(s))
+            self.addAction(action)      # the keys work anywhere in the window
+
+        self._theme_menu = menu.addMenu("Theme")
+        self._theme_group = None
+        self._fill_theme_menu()
+
+        menu.addSeparator()
+        settings = menu.addAction("Settings…")
+        keys = QKeySequence.keyBindings(QKeySequence.StandardKey.Preferences) \
+            or [QKeySequence("Ctrl+,")]     # Cmd+, on macOS; none elsewhere
+        settings.setShortcuts(keys)
+        settings.triggered.connect(lambda: self.open_settings())
+        self.addAction(settings)
+        button.setMenu(menu)
+        return button
+
+    def _fill_theme_menu(self):
+        """The Theme submenu: the built-in themes, then the user's."""
+        self._theme_menu.clear()
+        if self._theme_group is not None:
+            self._theme_group.deleteLater()
+        group = self._theme_group = QActionGroup(self._theme_menu)
+        self._theme_actions = {}
+        for index, name in enumerate(thememod.theme_names()):
+            if index == len(thememod.THEMES):
+                self._theme_menu.addSeparator()
+            action = self._theme_menu.addAction(name)
+            action.setCheckable(True)
+            action.setChecked(name == self._theme_name)
+            action.triggered.connect(
+                lambda _checked=False, n=name: self.apply_theme(n))
+            group.addAction(action)
+            self._theme_actions[name] = action
+        self._theme_menu.addSeparator()
+        self._theme_menu.addAction(
+            "Edit colours…", lambda: self.open_settings("colours"))
 
     def _build_stage_rail(self):
         rail = QFrame()
@@ -236,7 +336,7 @@ class AtlasMainWindow(QWidget):
             button.setProperty("role", "stage")
             button.setCheckable(True)
             button.setToolTip(tip)
-            button.setMinimumHeight(38)
+            self.kit.sized(button.setMinimumHeight, 38)
             self.kit.bind_icon(button, ico, "text_dim", 19)
             button.clicked.connect(lambda _c=False, k=key: self.set_stage(k))
             self._stage_group.addButton(button, index)
@@ -248,7 +348,7 @@ class AtlasMainWindow(QWidget):
         self.rail_notes.setSpacing(4)
         lay.addLayout(self.rail_notes)
         lay.addStretch(1)
-        rail.setFixedWidth(176)
+        self.kit.sized(rail.setFixedWidth, 176)
         return rail
 
     # ---------------------------------------------------------- case stage
@@ -300,7 +400,7 @@ class AtlasMainWindow(QWidget):
         self.param_global.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch)
         self.param_global.verticalHeader().setVisible(False)
-        self.param_global.verticalHeader().setDefaultSectionSize(28)
+        kit.table_rows(self.param_global)
         self.param_global.setShowGrid(False)
         self.param_global.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
@@ -396,7 +496,7 @@ class AtlasMainWindow(QWidget):
         self.highlighter = IniHighlighter(self.preview.document(), self._theme)
         preview.body.addWidget(self.preview, 1)
         splitter.addWidget(preview)
-        splitter.setSizes([420, 900])
+        splitter.setSizes([kit.px(420), kit.px(900)])
         lay.addWidget(splitter)
         return page
 
@@ -438,7 +538,7 @@ class AtlasMainWindow(QWidget):
         lay.addWidget(kit.section_label("COVERAGE"))
         self.progress = QProgressBar()
         self.progress.setTextVisible(False)
-        self.progress.setFixedWidth(150)
+        kit.sized(self.progress.setFixedWidth, 150)
         lay.addWidget(self.progress)
         self.faces_label = QLabel("0 / 0 faces")
         self.faces_label.setProperty("role", "muted")
@@ -455,10 +555,19 @@ class AtlasMainWindow(QWidget):
         index = [k for k, _l, _i, _t in STAGES].index(key)
         self.stack.setCurrentIndex(index)
         self.tool_stack.setCurrentIndex(index)
+        # A stacked widget is as wide as its widest page: only the stage's own
+        # view tools count, so the header is not held wide by Boundaries'.
+        for i in range(self.tool_stack.count()):
+            policy = (QSizePolicy.Policy.Preferred if i == index
+                      else QSizePolicy.Policy.Ignored)
+            self.tool_stack.widget(i).setSizePolicy(policy, policy)
+        # Now, not from the queued layout request: the header is measured below.
+        self.tool_stack.updateGeometry()
         button = self.stage_buttons[key]
         if not button.isChecked():
             button.setChecked(True)
         self.current_stage = key
+        self._update_compact()
         if key == "gpb":
             self.gpb_panel.refresh()
         elif key == "bcb":
@@ -789,32 +898,107 @@ class AtlasMainWindow(QWidget):
             self._commit_globals()
 
     # ---------------------------------------------------------------- theme
-    def apply_theme(self, name):
-        self._theme_name = name
-        self._theme = thememod.get_theme(name)
+    def _restyle(self):
+        """Re-apply the theme and the size to everything already built."""
         self._apply_stylesheet()
         self.kit.retint()
         self.highlighter.set_theme(self._theme)
         self.bcb_panel.restyle()
         self.gpb_panel.refresh()
         self.refresh_review()
-        index = self.theme_combo.findData(name)
-        if index >= 0 and index != self.theme_combo.currentIndex():
-            self.theme_combo.blockSignals(True)
-            self.theme_combo.setCurrentIndex(index)
-            self.theme_combo.blockSignals(False)
+        self._update_compact()
+
+    def apply_theme(self, name):
+        self.set_appearance(name, self._text_size)
+
+    def set_text_size(self, size):
+        """Scale the text and the controls by *size* (1.0 = fitted to the screen)."""
+        if size in thememod.TEXT_SIZES and size != self._text_size:
+            self.set_appearance(self._theme_name, size)
+
+    def set_appearance(self, name, size):
+        """Make theme *name* at text *size* the application's, and remember
+        them.  The Theme menu is rebuilt: the user's themes may have changed."""
+        if name not in thememod.theme_names():
+            name = thememod.DEFAULT_THEME
+        self._theme_name = name
+        self._theme = thememod.get_theme(name)
+        self._text_size = size
+        self._restyle()
+        self._fill_theme_menu()
+        self._size_actions[size].setChecked(True)
         self.settings.setValue("theme", name)
+        self.settings.setValue("text-size", size)
+
+    def preview_appearance(self, tokens, size):
+        """Show a theme (its tokens) at text *size* without remembering it:
+        the Settings window previews its changes through this."""
+        self._theme = tokens
+        self._text_size = size
+        self._restyle()
+
+    def open_settings(self, page="appearance"):
+        from .settingsdialog import SettingsDialog
+        dialog = SettingsDialog(self, page)
+        dialog.exec()
+        dialog.deleteLater()
+
+    def step_text_size(self, step):
+        """One text size up (+1) or down (-1), or back to 100 % (0)."""
+        sizes = thememod.TEXT_SIZES
+        if step == 0:
+            self.set_text_size(1.0)
+            return
+        index = sizes.index(self._text_size) + step
+        self.set_text_size(sizes[min(max(index, 0), len(sizes) - 1)])
 
     # ----------------------------------------------------------- responsive
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        width = event.size().width()
-        if width < self.COMPACT_WIDTH - 40 and not self._compact:
+    def _header_needs(self):
+        """Width the header takes with its button labels, measured for the
+        current stage (Boundaries adds its view tools) and size."""
+        key = (self.current_stage, self.ui_scale)
+        if key not in self._header_widths:
+            # Nothing is painted before the state is put back.
+            self.kit.set_compact(False)
+            margins = self.layout().contentsMargins()
+            self._header_widths[key] = (self.header.minimumSizeHint().width()
+                                        + margins.left() + margins.right())
+            self.kit.set_compact(self._compact)
+        return self._header_widths[key]
+
+    def _update_compact(self, width=None):
+        """Drop the header's button labels (keeping icons and tooltips) when
+        the window is narrower than the header needs with them."""
+        width = self.width() if width is None else width
+        limit = self._header_needs()
+        if width < limit and not self._compact:
             self._compact = True
             self.kit.set_compact(True)
-        elif width > self.COMPACT_WIDTH and self._compact:
+        elif width >= limit + 8 and self._compact:
             self._compact = False
             self.kit.set_compact(False)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_compact(event.size().width())
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        handle = self.windowHandle()
+        if handle is not None and not self._follows_screen:
+            handle.screenChanged.connect(self._on_screen_changed)
+            self._follows_screen = True
+            # Widgets take the stylesheet's fonts when first shown: a width
+            # measured before that is too small.
+            self._header_widths.clear()
+            self._update_compact()
+
+    def _on_screen_changed(self, screen):
+        """A window dragged to a larger or smaller screen takes its size."""
+        scale = thememod.screen_scale(screen)
+        if abs(scale - self._screen_scale) > 1e-3:
+            self._screen_scale = scale
+            self._restyle()
 
     def closeEvent(self, event):
         if self._dirty:
