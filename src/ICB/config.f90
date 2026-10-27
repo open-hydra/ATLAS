@@ -212,13 +212,16 @@ contains
     config_interpolation = cfg
   end subroutine sync_interpolation_config
 
+  !> <key>, or its profile <key>-file (with <key>-direction for a 1-D table), of a zone. A constant next to
+  !> its profile, and a direction without the profile, stop ICB as they do for y<species>: the profile, or
+  !> the direction, was dropped in silence before this form.
   subroutine load_field_source(zoneini, base_name, cfg)
     implicit none
     type(file_ini), intent(in)              :: zoneini
     character(len=*), intent(in)            :: base_name
     type(config_field_source_t), intent(out):: cfg
-    character(len=64) :: file_option, dir_option
-    integer :: error
+    character(len=64) :: file_option, dir_option, xsect
+    integer :: error, err_file, err_dir, err_x
 
     cfg%has_value = .false.
     cfg%has_file = .false.
@@ -227,20 +230,38 @@ contains
     cfg%file = ''
     cfg%direction = ''
 
+    file_option = trim(base_name) // '-file'
+    dir_option = trim(base_name) // '-direction'
     call zoneini%get(section_name='zone', option_name=trim(base_name), val=cfg%value, error=error)
-    if (error == 0) then
-      cfg%has_value = .true.
-      return
+    call zoneini%get(section_name='zone', option_name=trim(file_option), val=cfg%file, error=err_file)
+    call zoneini%get(section_name='zone', option_name=trim(dir_option), val=cfg%direction, error=err_dir)
+    if ((error == 0 .and. err_file == 0) .or. (err_dir == 0 .and. err_file /= 0)) then
+      call zoneini%get(section_name='zone', option_name='x-section', val=xsect, error=err_x)
+      if (err_x /= 0) xsect = 'zone'
+      if (err_file == 0) then
+        write(*,'(A)') '[ERROR] key '//trim(file_option)//' of section ['//trim(xsect)//']: the constant '// &
+          trim(base_name)//' is given too; give one of the two'
+      else
+        write(*,'(A)') '[ERROR] key '//trim(dir_option)//' of section ['//trim(xsect)//']: a direction without'// &
+          ' the profile file '//trim(file_option)
+      endif
+      stop 1
     endif
 
-    file_option = trim(base_name) // '-file'
-    call zoneini%get(section_name='zone', option_name=trim(file_option), val=cfg%file, error=error)
-    if (error /= 0) return
-
+    if (error == 0) then
+      cfg%has_value = .true.
+      cfg%file = ''
+      cfg%direction = ''
+      return
+    endif
+    if (err_file /= 0) then
+      cfg%file = ''
+      cfg%direction = ''
+      return
+    endif
     cfg%has_file = .true.
-    dir_option = trim(base_name) // '-direction'
-    call zoneini%get(section_name='zone', option_name=trim(dir_option), val=cfg%direction, error=error)
-    cfg%has_direction = error == 0
+    cfg%has_direction = err_dir == 0
+    if (.not. cfg%has_direction) cfg%direction = ''
   end subroutine load_field_source
 
   subroutine load_interpolation_config(zoneini, cfg)
@@ -409,8 +430,12 @@ contains
       dir_key = trim(base_name)//'-direction'
 
       call icb_registry%add(section, trim(base_name), field_cfg%value, '0.0', trim(description), '', .false.)
-      call icb_registry%add(section, trim(file_key), field_cfg%file, '', 'File-backed input for '//trim(base_name)//'.', '', .false.)
-      call icb_registry%add(section, trim(dir_key), field_cfg%direction, '', 'Direction for 1D '//trim(base_name)//' profiles.', 'x,y,z,r,t', .false.)
+      call icb_registry%add(section, trim(file_key), field_cfg%file, '', 'Profile of '//trim(base_name)// &
+        ' in place of the constant (not with it): a two-column table (coordinate, value) along '//trim(dir_key)// &
+        ', covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid,'// &
+        ' each cell taking the first variable of the nearest cell.', '', .false.)
+      call icb_registry%add(section, trim(dir_key), field_cfg%direction, '', 'Letter of the 1-D '//trim(file_key)// &
+        ' table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with '//trim(file_key)//'.', 'x,y,z,r,t', .false.)
     end subroutine add_field_source_entries
 
     subroutine add_interpolation_entries(section, interp_cfg, include_old_species)

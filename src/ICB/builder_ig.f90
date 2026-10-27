@@ -13,7 +13,7 @@ contains
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock, old_mesh_type
     use grid_mod,                     only: MESH_PURE_2D, mesh_cfg
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, interpolate_from_file, &
-                                            rotate_2d_to_3d
+                                            rotate_2d_to_3d, assign_from_1D_table
     use config_mod,                   only: config_ig_t, config_field_source_t, &
                                             config_interpolation, sync_interpolation_config
     use io_phase_mod,                 only: read_idealgas_properties
@@ -942,13 +942,24 @@ contains
 
       is_variable = .true.
       if (field_cfg%has_direction) then
-        call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field)
+        call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field, zone_cells())
       else
         call interpolate_from_file(field, blk, field_cfg%file)
       endif
       if (scale/=1.d0) field = field*scale
 
     end subroutine load_zone_field
+
+    ! the cells of the zone range (cell_in_range), those a 1-D profile must cover
+    function zone_cells() result(inside)
+      implicit none
+      logical, allocatable :: inside(:,:,:)
+      integer :: ic, jc, kc
+      allocate(inside(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+      do kc = 1, blk%dim(3); do jc = 1, blk%dim(2); do ic = 1, blk%dim(1)
+        inside(ic,jc,kc) = cell_in_range(ic,jc,kc)
+      enddo; enddo; enddo
+    end function zone_cells
 
     ! Check if the cell center is within the specified range for IG assignment
     logical function cell_in_range(i, j, k)
@@ -1141,53 +1152,5 @@ contains
   end subroutine build_IG_field
 
 
-  subroutine assign_from_1D_table (blk, varfile, vardirection, var)
-    use io_ascii_table_mod
-    use ic_block_mod
-    use math_utils_mod, only: interp_1d
-    implicit none
-    type(IC_block),   intent(in)  :: blk
-    character(len=*), intent(in)  :: varfile
-    character(len=*), intent(in)  :: vardirection
-    real(R8),         intent(out) :: var(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
-    ! Local
-    integer :: dir, ios, file_length, i, j, k
-    real(R8), dimension(:), allocatable :: file_dir, file_var
-    logical :: found
-
-    select case (trim(vardirection))
-    case ('x'); dir = 1
-    case ('y'); dir = 2
-    case ('z'); dir = 3
-    case ('r'); dir = 4
-    case ('t'); dir = 5
-    case default
-      write(*,*) '[ERROR] Unsupported direction in read_file_direction: ', trim(vardirection)
-      stop 1
-    end select
-
-    call read_ascii_table(varfile, file_dir, file_var, ios)
-    if (ios/=0) then
-      write(*,*) '[ERROR] Could not read file: ', trim(varfile)
-      stop 1
-    endif
-
-    file_length = size(file_dir)
-    if (dir == 5) file_dir(:) = file_dir(:) * acos(-1d0) / 180d0
-
-    !$omp parallel private(i,j,k,found)
-    !$omp do collapse(3)
-    do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
-      found = interp_1d(blk%center(i,j,k)%c(dir), file_dir, file_var, file_length, var(i,j,k))
-      if (.not.found) then
-        write(*,*) '[ERROR] interpolated point ', blk%center(i,j,k)%c(dir), ' is outside the file data range.'
-        write(*,*) '        File: ', trim(varfile)
-        write(*,*) '        File data range: ', file_dir(1), ' to ', file_dir(file_length)
-        stop 1
-      endif
-    enddo; enddo; enddo
-    !$omp end parallel
-
-  end subroutine assign_from_1D_table  
 
 end module ic_ig_mod

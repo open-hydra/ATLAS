@@ -36,23 +36,23 @@ Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile fi
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | mach | 0.0 |  |  no | Ideal-gas Mach number: the speed of the zone, along alpha and beta (not with u, v, w). |
-| mach-file |  |  |  no | File-backed input for mach. |
-| mach-direction |  | x,y,z,r,t |  no | Direction for 1D mach profiles. |
+| mach-file |  |  |  no | Profile of mach in place of the constant (not with it): a two-column table (coordinate, value) along mach-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| mach-direction |  | x,y,z,r,t |  no | Letter of the 1-D mach-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with mach-file. |
 | p0 | 0.0 |  |  no | Ideal-gas stagnation pressure: p lies on the isentrope from p0 down to T, as at the solvers' inlet. |
-| p0-file |  |  |  no | File-backed input for p0. |
-| p0-direction |  | x,y,z,r,t |  no | Direction for 1D p0 profiles. |
+| p0-file |  |  |  no | Profile of p0 in place of the constant (not with it): a two-column table (coordinate, value) along p0-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| p0-direction |  | x,y,z,r,t |  no | Letter of the 1-D p0-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with p0-file. |
 | T0 | 0.0 |  |  no | Ideal-gas stagnation temperature: T from h(T0) = h(T) + V^2/2, V given by mach or by u, v, w. |
-| T0-file |  |  |  no | File-backed input for T0. |
-| T0-direction |  | x,y,z,r,t |  no | Direction for 1D T0 profiles. |
+| T0-file |  |  |  no | Profile of T0 in place of the constant (not with it): a two-column table (coordinate, value) along T0-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| T0-direction |  | x,y,z,r,t |  no | Letter of the 1-D T0-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with T0-file. |
 | p | 0.0 |  |  no | Ideal-gas static pressure. |
-| p-file |  |  |  no | File-backed input for p. |
-| p-direction |  | x,y,z,r,t |  no | Direction for 1D p profiles. |
+| p-file |  |  |  no | Profile of p in place of the constant (not with it): a two-column table (coordinate, value) along p-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| p-direction |  | x,y,z,r,t |  no | Letter of the 1-D p-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with p-file. |
 | T | 0.0 |  |  no | Ideal-gas static temperature. |
-| T-file |  |  |  no | File-backed input for T. |
-| T-direction |  | x,y,z,r,t |  no | Direction for 1D T profiles. |
+| T-file |  |  |  no | Profile of T in place of the constant (not with it): a two-column table (coordinate, value) along T-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| T-direction |  | x,y,z,r,t |  no | Letter of the 1-D T-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with T-file. |
 | rho | 0.0 |  |  no | Ideal-gas density. |
-| rho-file |  |  |  no | File-backed input for rho. |
-| rho-direction |  | x,y,z,r,t |  no | Direction for 1D rho profiles. |
+| rho-file |  |  |  no | Profile of rho in place of the constant (not with it): a two-column table (coordinate, value) along rho-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| rho-direction |  | x,y,z,r,t |  no | Letter of the 1-D rho-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with rho-file. |
 | alpha | 0.0 |  |  no | Flow angle [rad] in the x-y plane, from x towards y: the direction is (cos alpha cos beta, sin alpha cos beta, sin beta). |
 | beta | 0.0 |  |  no | Flow angle [rad] out of the x-y plane, towards z. |
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
@@ -84,17 +84,17 @@ Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile fi
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | p | 0.0 |  |  no | Real-fluid pressure. |
-| p-file |  |  |  no | File-backed input for p. |
-| p-direction |  | x,y,z,r,t |  no | Direction for 1D p profiles. |
+| p-file |  |  |  no | Profile of p in place of the constant (not with it): a two-column table (coordinate, value) along p-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| p-direction |  | x,y,z,r,t |  no | Letter of the 1-D p-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with p-file. |
 | T | 0.0 |  |  no | Real-fluid temperature. |
-| T-file |  |  |  no | File-backed input for T. |
-| T-direction |  | x,y,z,r,t |  no | Direction for 1D T profiles. |
+| T-file |  |  |  no | Profile of T in place of the constant (not with it): a two-column table (coordinate, value) along T-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| T-direction |  | x,y,z,r,t |  no | Letter of the 1-D T-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with T-file. |
 | h | 0.0 |  |  no | Real-fluid enthalpy. |
-| h-file |  |  |  no | File-backed input for h. |
-| h-direction |  | x,y,z,r,t |  no | Direction for 1D h profiles. |
+| h-file |  |  |  no | Profile of h in place of the constant (not with it): a two-column table (coordinate, value) along h-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| h-direction |  | x,y,z,r,t |  no | Letter of the 1-D h-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with h-file. |
 | vel | 0.0 |  |  no | Real-fluid speed magnitude. |
-| vel-file |  |  |  no | File-backed input for vel. |
-| vel-direction |  | x,y,z,r,t |  no | Direction for 1D vel profiles. |
+| vel-file |  |  |  no | Profile of vel in place of the constant (not with it): a two-column table (coordinate, value) along vel-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| vel-direction |  | x,y,z,r,t |  no | Letter of the 1-D vel-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with vel-file. |
 | alpha | 0.0 |  |  no | Flow angle [rad] in the x-y plane, from x towards y: the direction is (cos alpha cos beta, sin alpha cos beta, sin beta). |
 | beta | 0.0 |  |  no | Flow angle [rad] out of the x-y plane, towards z. |
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
@@ -121,8 +121,8 @@ Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile fi
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | T | 0.0 |  |  no | Solid temperature. |
-| T-file |  |  |  no | File-backed input for T. |
-| T-direction |  | x,y,z,r,t |  no | Direction for 1D T profiles. |
+| T-file |  |  |  no | Profile of T in place of the constant (not with it): a two-column table (coordinate, value) along T-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
+| T-direction |  | x,y,z,r,t |  no | Letter of the 1-D T-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with T-file. |
 | material |  |  |  no | Solid material name from the phase database. |
 | old-solution |  |  |  no | Previous solution file used for interpolation. |
 | old-block-id | 0 | >=0 |  no | Source block index for interpolation. Zero means auto. |

@@ -127,7 +127,9 @@ p, whatever the variation of $c_p$ with temperature.
 
 ## Variable Initialization (file-driven)
 
-Use `<key>-file` with optional `<key>-direction` for 1-D mapped fields.
+A value can vary cell by cell: `<key>-file` gives it from a file, in place of the constant `<key>`
+(the zone is then built as `variable`). The keys that take a profile are `mach`, `p0`, `T0`, `p`, `T`,
+`rho` and `y<species>` for an ideal gas, `p`, `T`, `h`, `vel` for a real fluid, `T` for a solid.
 
 ```ini
 [ICB-Block1]
@@ -137,7 +139,23 @@ T-direction = x
 p = 101325.0
 ```
 
-This is available for IG/RF/SP fields and is useful for profile-based starts.
+The file is read in one of two ways:
+
+* **With `<key>-direction`** (`x`, `y`, `z`, `r` or `t`): a table of two columns, the coordinate and
+  the value, one row per point (`#` or `!` starts a comment). The coordinate must be monotone, and
+  `t` is in degrees. Each cell takes the value interpolated linearly at its centre, along the letter
+  ($r$ and $t$ about the x axis, as for the [zone ranges](#multizone-setup)). The table must hold the
+  centre of every cell of the zone: only the cells of the zone's own range, not the whole block.
+* **Without it**: a Tecplot field (`.tec`, or `.szplt` with a TecIO build) on a structured grid; each
+  cell takes the first variable of the nearest cell of the file.
+
+A constant next to its profile (`T` and `T-file`), and a direction without its profile, stop ICB:
+give one of the two.
+
+!!! note "Profiles read before this fix"
+    ICB read a 1-D table at every cell of the block, so a zone whose table covered only its own range
+    stopped ICB; a cell centre on the first point of a table stopped it too. A constant next to its
+    profile dropped the profile in silence, and a direction without a profile was ignored.
 
 ## Nozzle Initialization (IG)
 
