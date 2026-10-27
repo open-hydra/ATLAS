@@ -49,8 +49,8 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s).
 | eq-CEA-file |  |  |  no | CEA input file used to derive equilibrium composition. |
 | eq-CEA-section | 1 | >=1 |  no | CEA section index used when eq-CEA-file is provided. |
 | yspecies | 0.0 |  |  no | Mass fraction assigned to a species name suffix: one number in [0, 1]. |
-| alpha | 0.0 |  |  no | Velocity angle alpha. |
-| beta | 0.0 |  |  no | Velocity angle beta. |
+| alpha | 0.0 |  |  no | Flow angle [rad] in the x-y plane, from x towards y: the direction is (cos alpha cos beta, sin alpha cos beta, sin beta). |
+| beta | 0.0 |  |  no | Flow angle [rad] out of the x-y plane, towards z. |
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |

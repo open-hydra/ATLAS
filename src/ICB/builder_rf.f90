@@ -467,8 +467,9 @@ contains
         blk%rf%velocity(1,i,j,k) = ux
       endif
 
+      ! alpha, beta (radians) as in the IG writer and the solvers' inflow BC: a unit direction
       if (uy == 0.0_R8) then
-        blk%rf%velocity(2,i,j,k) = vel_mag*cos(alpha)*sin(beta)
+        blk%rf%velocity(2,i,j,k) = vel_mag*sin(alpha)*cos(beta)
       else
         blk%rf%velocity(2,i,j,k) = uy
       endif

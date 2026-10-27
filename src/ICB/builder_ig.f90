@@ -941,7 +941,10 @@ contains
 
     end function cell_in_range
 
-    ! Assign velocity components based on specified angles and magnitude, or user-defined values. 
+    ! Assign velocity components based on specified angles and magnitude, or user-defined values.
+    ! The angles (radians) are those of the solvers' inflow BC (MOSE Lib_BC_Fluxes_Inflow): alpha in
+    ! the x-y plane from x towards y, beta out of it towards z, so the direction is a unit vector and
+    ! the speed is vel_mag whatever the angles.
     subroutine assign_velocity_components(i, j, k, vel_mag)
       implicit none
       integer,  intent(in) :: i, j, k
@@ -950,7 +953,7 @@ contains
 
       if (ux==0.d0 .and. uy==0.d0 .and. uz==0.d0) then
         blk%ig%velocity(1,i,j,k) = vel_mag*cos(alpha)*cos(beta)
-        blk%ig%velocity(2,i,j,k) = vel_mag*cos(alpha)*sin(beta)
+        blk%ig%velocity(2,i,j,k) = vel_mag*sin(alpha)*cos(beta)
         blk%ig%velocity(3,i,j,k) = vel_mag*sin(beta)
       else
         blk%ig%velocity(1,i,j,k) = ux

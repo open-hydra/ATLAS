@@ -380,6 +380,18 @@ set_tests_properties(IG-turbulence-source-names-sa PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : velocity-angles (alpha, beta turn the speed of the zone into V (cos alpha cos beta, sin alpha cos beta, sin beta), the direction of the solvers' inflow BC: the speed is kept, in an ideal-gas zone given by mach and in a real-fluid zone given by vel) -------------
+add_test(
+    NAME    velocity-angles
+    COMMAND bash -c "for p in IG RF; do rm -rf _run-$p-angles _run-$p-zero && for d in angles zero; do mkdir _run-$p-$d && cp $p/* _run-$p-$d/ && (cd _run-$p-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_angles.py _run-$p-angles/fromATLAStoSolver/ic.tec _run-$p-zero/fromATLAStoSolver/ic.tec 0.6 0.25 || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/velocity-angles"
+)
+set_tests_properties(velocity-angles PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-state-not-physical (a zone with a negative pressure stops ICB naming the first cell and the state; nothing is written) -------------
 add_test(
     NAME    IG-state-not-physical

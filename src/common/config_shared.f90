@@ -337,9 +337,10 @@ contains
     type(config_velocity_t), target, intent(inout) :: velocity_cfg
 
     call registry%add(section, 'alpha', velocity_cfg%alpha, '0.0', &
-                      'Velocity angle alpha.', '', .false.)
+                      'Flow angle [rad] in the x-y plane, from x towards y: the direction is '// &
+                      '(cos alpha cos beta, sin alpha cos beta, sin beta).', '', .false.)
     call registry%add(section, 'beta', velocity_cfg%beta, '0.0', &
-                      'Velocity angle beta.', '', .false.)
+                      'Flow angle [rad] out of the x-y plane, towards z.', '', .false.)
     call registry%add(section, 'u', velocity_cfg%u, '0.0', &
                       'Prescribed x-velocity component.', '', .false.)
     call registry%add(section, 'v', velocity_cfg%v, '0.0', &

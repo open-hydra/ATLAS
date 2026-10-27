@@ -1,6 +1,13 @@
 # test
 test/BCB/IG-time-file-long-name/mapped_with_a_very_long_name_ove
 test/BCB/IG-linefile-sector-axis/mapped.tec
+# products of a first run that the test keeps to compare with the second
+test/BCB/IG-multipatch-410-linefile/mapped.tec
+test/BCB/IG-multipatch-410-linefile/single
+test/ICB/IG-interp-multiple-x3-3D/md
+test/ICB/IG-interp-spherical-3D/md
+test/ICB/IG-interp-src-3coord-plane/xy
+test/ICB/IG-nozzle-plenum-order/first
 fromATLAStoSolver
 .gpb-tmp-*
 test/**/_run-*

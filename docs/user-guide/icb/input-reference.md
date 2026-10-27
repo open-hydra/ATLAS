@@ -53,8 +53,8 @@ Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile fi
 | rho | 0.0 |  |  no | Ideal-gas density. |
 | rho-file |  |  |  no | File-backed input for rho. |
 | rho-direction |  | x,y,z,r,t |  no | Direction for 1D rho profiles. |
-| alpha | 0.0 |  |  no | Velocity angle alpha. |
-| beta | 0.0 |  |  no | Velocity angle beta. |
+| alpha | 0.0 |  |  no | Flow angle [rad] in the x-y plane, from x towards y: the direction is (cos alpha cos beta, sin alpha cos beta, sin beta). |
+| beta | 0.0 |  |  no | Flow angle [rad] out of the x-y plane, towards z. |
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |
@@ -95,8 +95,8 @@ Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile fi
 | vel | 0.0 |  |  no | Real-fluid speed magnitude. |
 | vel-file |  |  |  no | File-backed input for vel. |
 | vel-direction |  | x,y,z,r,t |  no | Direction for 1D vel profiles. |
-| alpha | 0.0 |  |  no | Velocity angle alpha. |
-| beta | 0.0 |  |  no | Velocity angle beta. |
+| alpha | 0.0 |  |  no | Flow angle [rad] in the x-y plane, from x towards y: the direction is (cos alpha cos beta, sin alpha cos beta, sin beta). |
+| beta | 0.0 |  |  no | Flow angle [rad] out of the x-y plane, towards z. |
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |

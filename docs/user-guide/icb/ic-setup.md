@@ -81,6 +81,25 @@ w = 0.0
 
 For ideal-gas blocks, `p0`/`T0` and `mach` are also supported.
 
+### Velocity
+
+The velocity of a zone is given by its components `u`, `v`, `w` [m/s], or by a speed $V$ and a
+direction. The speed is `mach` times the speed of sound (ideal gas) or `vel` (real fluid). The
+direction is set by the flow angles `alpha` and `beta`, in radians:
+
+$$\mathbf{u} = V\,(\cos\alpha\cos\beta,\ \sin\alpha\cos\beta,\ \sin\beta)$$
+
+`alpha` turns the flow in the x-y plane from x towards y, and `beta` lifts it out of that plane
+towards z; without angles the flow is along x. This is the direction the solvers give the `alpha`
+and `beta` of an inflow BC, so an inlet and an initial field written from the same keys agree. An
+ideal-gas zone that gives any of `u`, `v`, `w` takes the three components and ignores the angles;
+in a real-fluid zone each component given replaces its own term.
+
+!!! note "Initial fields written before this fix"
+    Earlier ICB versions wrote $v = V\cos\alpha\sin\beta$: with either angle non-zero the direction
+    was wrong, and so was the speed ($V\cos\alpha$ along x alone when `beta` is 0). Rebuild the
+    initial fields of cases that give `alpha` or `beta`.
+
 ## Variable Initialization (file-driven)
 
 Use `<key>-file` with optional `<key>-direction` for 1-D mapped fields.
