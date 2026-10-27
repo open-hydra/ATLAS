@@ -208,6 +208,21 @@ def _chevron_down(p, c):
     _poly(p, [(6, 9.5), (12, 15.5), (18, 9.5)])
 
 
+def _chevron_up(p, c):
+    _stroke(p, c, 2.1)
+    _poly(p, [(6, 14.5), (12, 8.5), (18, 14.5)])
+
+
+def _split(p, c):
+    """A block cut in two: the zones of a block."""
+    _stroke(p, c, 1.7)
+    _poly(p, [(3.5, 5), (10, 5), (10, 19), (3.5, 19)], True)
+    _poly(p, [(14, 5), (20.5, 5), (20.5, 19), (14, 19)], True)
+    _stroke(p, c, 1.3)
+    for y in (3, 8, 13, 18):
+        _poly(p, [(12, y), (12, y + 2.5)])
+
+
 def _chevron_right(p, c):
     _stroke(p, c, 2.1)
     _poly(p, [(9.5, 6), (15.5, 12), (9.5, 18)])
@@ -291,6 +306,7 @@ DRAW = {
     "pencil": _pencil, "trash": _trash, "check": _check, "target": _target,
     "layers": _layers, "sliders": _sliders, "code": _code, "info": _info,
     "chevron-down": _chevron_down, "chevron-right": _chevron_right,
+    "chevron-up": _chevron_up, "split": _split,
     "circle": _circle, "file": _file, "alert": _alert, "gear": _gear,
     "reset": _reset, "type": _type, "thermo": _thermo,
 }

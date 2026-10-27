@@ -178,10 +178,43 @@ not read (with the name to use instead, for the keys of earlier decks), a
 turbulence model without its quantities, a value that is not physical. They are
 listed in **Review** too.
 
-A block split into zones (`direction`, `zone<n>`, `range<n>`) is listed with
-its zones and kept as it is; the zone editor comes in a later version. Values
-given by a profile file (`<key>-file`) show the file and are edited with
+Values given by a profile file (`<key>-file`) show the file and are edited with
 **All keys…** for now.
+
+### Zones
+
+A block — or All blocks — can give parts of itself different states: **Split
+into zones…** cuts it along one letter at the values you give and shows the
+zones it would make, with the cells each takes on the mesh. Every zone starts
+from the state the block had; the block then keeps only its layout
+(`direction`, `zone<n>`, `range<n>`) and each zone becomes a section of its
+own.
+
+The zones are listed under their block, and selecting one edits its state with
+the same cards as a block. The block's page holds the layout:
+
+* **Ranges along** — the letters the ranges are given along, three at most:
+  `x`, `y`, `z` (the cell centre), `r` and `t` (the distance from the x axis
+  and the angle about it, in degrees from y towards z; on a 2-D mesh both are
+  taken in the x-y plane), `i`, `j`, `k` (the cell index, from 1). A letter
+  added gives every zone the full extent of the block along it.
+* **The zone table** — one row per zone in the order ICB writes them, with its
+  range per letter, the cells it takes on the mesh and its state. A cell in two
+  ranges takes the state of the later zone (the arrows change the order), and
+  the limits are included. Names and limits are edited in place; **Add zone**
+  copies the selected one; double-click a state to edit it.
+* **Coverage** — with the mesh loaded, whether every cell of the block is in a
+  zone. A cell in no zone stops ICB, so the line names how many there are and
+  the first of them, as ICB would. A nozzle zone also writes its plenum rows —
+  the whole cross-section upstream of `nozzle-threshold` — outside its range,
+  and the count takes them in.
+
+**Merge the zones…** gives the block one state again, that of the zone you
+pick. The checks also catch what ICB refuses in a layout: letters out of the
+order `x y z r t i j k`, a range without one pair per letter, a gap in the
+numbering of the zones (ICB stops reading at the first missing number), a zone
+whose range holds no cell, a zone every cell of which a later zone takes, and
+zones that set different turbulence models.
 
 ---
 

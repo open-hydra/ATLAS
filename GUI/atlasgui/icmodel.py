@@ -527,6 +527,33 @@ class ICBlock(ICState):
             if _ZONE_KEY.fullmatch(key) and value.strip() == old:
                 self.params[key] = new
 
+    def layout_keys(self):
+        """The keys a block keeps when split into zones or merged back:
+        ``phase``, the ``ignore-`` escapes; everything else is a state."""
+        return [k for k in self.params if k == "phase" or k.startswith("ignore-")]
+
+    def state_params(self):
+        """The keys of the block's own state (none once it is split), a
+        ``type`` of multizone left out."""
+        return OrderedDict((k, v) for k, v in self.params.items()
+                           if not is_structural(k) or
+                           (k == "type" and v.strip() != "multizone"))
+
+    def set_direction(self, direction, default_pair):
+        """Give the zones their ranges along *direction*: a letter kept keeps
+        its pair, a new letter takes ``default_pair(letter)``."""
+        old = self.direction
+        refs = []
+        for ref in self.zone_refs():
+            pairs = {}
+            if len(ref.range) == 2 * len(old):
+                pairs = {letter: ref.range[2 * n:2 * n + 2] for n, letter in enumerate(old)}
+            values = []
+            for letter in direction:
+                values += pairs.get(letter) or [str(v) for v in default_pair(letter)]
+            refs.append(ICZoneRef(ref.section, values))
+        self.set_zones(direction, refs)
+
 
 # -------------------------------------------------------------- the deck
 def _block_index(name):
@@ -673,6 +700,32 @@ class ICBDocument:
         for block in self.all_blocks():
             block.rename_zone(old, new)
 
+    def split_block(self, block, direction, ranges, names):
+        """Split *block* along *direction* into the zones *names*, zone n
+        taking the values ``ranges[n]``: each starts from the state the block
+        had, which leaves the block (a split block carries none)."""
+        state = block.state_params()
+        kept = OrderedDict((k, block.params[k]) for k in block.layout_keys())
+        for name in names:
+            self.add_zone(name, ICState(state))
+        block.params = kept
+        block.set_zones(direction, [ICZoneRef(name, values)
+                                    for name, values in zip(names, ranges)])
+
+    def merge_zones(self, block, section):
+        """Undo the split of *block*: it takes the state of zone *section*
+        (none when *section* is None) and names no zone any more."""
+        state = self.zones[section].params if section in self.zones else {}
+        kept = OrderedDict((k, block.params[k]) for k in block.layout_keys())
+        kept.update((k, v) for k, v in state.items() if k not in kept)
+        block.params = kept
+        self.drop_unused_zones()
+
+    def blocks_naming_zone(self, section):
+        """The block sections that list zone *section*."""
+        return [b for b in self.all_blocks()
+                if any(ref.section == section for ref in b.zone_refs())]
+
     def drop_unused_zones(self):
         """Remove the zone sections no block names any more."""
         used = set(self.referenced_zones())
@@ -720,6 +773,69 @@ class ICBDocument:
         return not (self.wildcard or self.blocks or self.zones or self.kept)
 
     # -- checks ----------------------------------------------------------
+    def _zone_layout_issues(self, block, where, strict):
+        """What ICB stops on in the layout of a split *block*: the letters,
+        the numbering of the zones, their sections and ranges, and zones
+        that set different turbulence models."""
+        issues = []
+        target = block.index
+
+        def add(level, text, zone=None):
+            issues.append((level, (target, zone) if zone else target, f"{where}: {text}"))
+
+        direction = block.direction
+        if not block.has("direction"):
+            add("error", "type = multizone needs the key direction (the letters "
+                         "along which the ranges of the zones are given)")
+        elif not direction:
+            add("error", "direction is empty")
+        else:
+            reason = direction_issue(direction)
+            if reason:
+                add("error", f"direction = {direction}: {reason}")
+        numbers = block.zone_numbers()
+        if 1 not in numbers:
+            add("error", "a block split into zones takes its state from zone1, "
+                         "zone2, ...: zone1 is missing")
+        read = 0
+        while read + 1 in numbers:
+            read += 1
+        unread = [n for n in numbers if n > read]
+        if unread and 1 in numbers:
+            add("error" if strict else "warning",
+                f"zone{unread[0]} is never read: zone{read + 1} is missing and ICB "
+                "reads the zones from zone1 up to the first missing number")
+        models = OrderedDict()
+        for n in range(1, read + 1):
+            section = block.get(f"zone{n}").strip()
+            if section not in self.zones:
+                hint = (": a section whose name holds 'Block' is read as a block, "
+                        "never as a zone (rename it)" if "Block" in section else "")
+                add("error", f"zone{n} = {section} names no section of the deck{hint}")
+                continue
+            if not block.has(f"range{n}"):
+                add("error", f"zone{n} [{section}] has no range{n} (one pair low "
+                             f"high per letter of direction = {direction})", section)
+            elif direction and not direction_issue(direction):
+                reason = zone_range_issue(block.get(f"range{n}"), direction)
+                if reason:
+                    add("error", f"range{n} of zone [{section}] {reason}", section)
+                else:
+                    values = [to_float(t) for t in block.get(f"range{n}").split()]
+                    if any(lo > hi for lo, hi in zip(values[::2], values[1::2])):
+                        add("warning", f"range{n} of zone [{section}] runs from a "
+                                       "higher to a lower value: it holds no cell", section)
+            model = turbulence_model(self.zones[section])
+            if model:
+                models.setdefault(model, section)
+        if len(models) > 1:
+            (first, a), (other, b) = list(models.items())[:2]
+            add("error", f"zones [{a}] and [{b}] set different turbulence models "
+                         f"({TURBULENCE_MODELS.get(first, first)}, "
+                         f"{TURBULENCE_MODELS.get(other, other)}): a block runs one "
+                         "model, set by its first zone")
+        return issues
+
     def validate(self, nblocks=0, phases=(), strict=True):
         """``[(level, target, message)]``: what ICB would stop on (``error``)
         or report (``warning``), checked from the deck alone.  *target* is a
@@ -750,17 +866,16 @@ class ICBDocument:
             if block.is_split:
                 stray = block.state_keys()
                 if stray:
-                    issues.append(("error", target, (
+                    issues.append(("error" if strict else "warning", target, (
                         f"{where}: a block split into zones takes its state from "
                         f"them, so {', '.join(stray[:4])} must move into a zone")))
+                issues += self._zone_layout_issues(block, where, strict)
                 for ref in block.zone_refs():
-                    if ref.section not in self.zones:
-                        issues.append(("error", target, (
-                            f"{where}: zone [{ref.section}] has no section")))
-                        continue
-                    issues += _state_issues(self.zones[ref.section], block, phases,
-                                            f"{where}, zone [{ref.section}]", target,
-                                            strict)
+                    if ref.section in self.zones:
+                        issues += _state_issues(
+                            self.zones[ref.section], block, phases,
+                            f"{where}, zone [{ref.section}]",
+                            (target, ref.section), strict)
             else:
                 issues += _state_issues(block, block, phases, where, target, strict)
         sections = self.all_blocks()
@@ -771,6 +886,46 @@ class ICBDocument:
                         f"phase '{phase.label}' is built by no block: ICB writes no "
                         "initial field for it")))
         return issues
+
+
+def unique_name(base, taken):
+    """*base* followed by the first number that makes a name not in *taken*."""
+    n = 1
+    while f"{base}{n}" in taken:
+        n += 1
+    return f"{base}{n}"
+
+
+def zone_range_issue(text, direction):
+    """Why ICB refuses *text* as the ``range<n>`` of a block split along
+    *direction*, or ``""``."""
+    text = str(text or "")
+    if "," in text.strip() or "\t" in text.strip():
+        return "separate the values with blanks (a comma or a TAB is not read as one)"
+    tokens = text.split()
+    if len(tokens) != 2 * len(direction):
+        return (f"holds {len(tokens)} value(s): direction = {direction} needs "
+                f"{2 * len(direction)} (one pair low high per letter)")
+    bad = [t for t in tokens if to_float(t) is None]
+    if bad:
+        return f"{bad[0]} is not a number"
+    return ""
+
+
+def direction_issue(direction):
+    """Why ICB refuses *direction*, or ``""``."""
+    last = -1
+    for letter in direction:
+        pos = DIRECTION_LETTERS.find(letter)
+        if pos < 0:
+            return f"'{letter}' is not a direction letter (x, y, z, r, t, i, j, k)"
+        if pos <= last:
+            return ("write the letters in the order x, y, z, r, t, i, j, k (the "
+                    "pairs of range<n> are read in that order)")
+        last = pos
+    if len(direction) > 3:
+        return "ICB compares three letters at most"
+    return ""
 
 
 def block_label(index):

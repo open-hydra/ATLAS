@@ -836,13 +836,13 @@ class AtlasMainWindow(QWidget):
             for key, value in phase.params.items():
                 check(value, key, "gpb-phase", label, "gpb", index)
         for block in self.doc.icb.all_blocks():
-            states = [(block_label(block.index), block)]
+            states = [(block_label(block.index), block, block.index)]
             states += [(f"{block_label(block.index)}, zone [{ref.section}]",
-                        self.doc.icb.zones[ref.section])
+                        self.doc.icb.zones[ref.section], (block.index, ref.section))
                        for ref in block.zone_refs() if ref.section in self.doc.icb.zones]
-            for where, state in states:
+            for where, state, target in states:
                 for key, value in state.params.items():
-                    check(value, key, "icb-section", where, "icb", block.index)
+                    check(value, key, "icb-section", where, "icb", target)
         return issues
 
     def refresh_review(self):

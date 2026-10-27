@@ -12,8 +12,13 @@ solution.
 Every widget writes straight into the deck (there is no Apply button to
 forget), anything the form does not model stays in the section and is
 reachable through "All keys…", and the checks under the form say what ICB would
-stop on before it runs.  A block split into zones is listed with its zones;
-editing them comes with the zone editor.
+stop on before it runs.
+
+A block can be split into zones: the block's page then holds the layout (the
+letters the ranges are given along, the zones in the order ICB writes them,
+their ranges and the cells each takes on the mesh), and each zone is listed
+under its block and edited like a block state.  With the mesh loaded the
+checks say which cells no zone writes, as ICB would (``icgeom``).
 """
 
 from __future__ import annotations
@@ -23,14 +28,16 @@ import weakref
 from collections import OrderedDict
 
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QButtonGroup, QComboBox, QDialog, QFormLayout,
+    QAbstractItemView, QButtonGroup, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
     QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMessageBox, QSizePolicy, QSplitter,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from . import database, filekeys, icmodel, icons
+from . import database, filekeys, icgeom, icmodel, icons
+from .bcmodel import KEYWORD_BCS
 from .filewidgets import STATE_ICON, STATE_TOKEN, pick_value
 from .gpbdialogs import AdvancedKeysDialog
 from .icmodel import (GAS_PAIRS, REAL_FLUID_PAIRS, TURBULENCE_MODELS,
@@ -79,16 +86,36 @@ LAW_LABELS = OrderedDict([
 STATUS_TOKENS = {"own": "accent", "inherited": "muted", "missing": "danger",
                  "error": "danger", "warning": "warning", "split": "accent"}
 
+# What a cell compares along each letter of a block's direction (ICB).
+LETTER_TIPS = OrderedDict([
+    ("x", "x of the cell centre"),
+    ("y", "y of the cell centre"),
+    ("z", "z of the cell centre"),
+    ("r", "distance of the cell centre from the x axis (from the origin, in "
+          "the x-y plane, on a 2-D mesh)"),
+    ("t", "angle of the cell centre about the x axis, in degrees from y "
+          "towards z (in the x-y plane from x towards y on a 2-D mesh)"),
+    ("i", "cell index along i, from 1"),
+    ("j", "cell index along j, from 1"),
+    ("k", "cell index along k, from 1"),
+])
+LETTER_UNITS = {"x": "m", "y": "m", "z": "m", "r": "m", "t": "deg"}
+
+# A range that holds every cell, for a letter added before the mesh is loaded.
+UNBOUNDED = {"x": (-1e9, 1e9), "y": (-1e9, 1e9), "z": (-1e9, 1e9),
+             "r": (0, 1e9), "t": (-180, 180), "i": (1, 999999), "j": (1, 999999),
+             "k": (1, 999999)}
+
 
 class BlockListItem(QWidget):
     """Two-line row of the block list: the block, then where its state comes
     from in one line."""
 
-    def __init__(self, kit, title, detail, token, tip):
+    def __init__(self, kit, title, detail, token, tip, indent=0):
         super().__init__()
         self.setObjectName("PhaseRow")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 7, 8, 7)
+        layout.setContentsMargins(8 + kit.px(indent), 7, 8, 7)
         layout.setSpacing(9)
         dot = QLabel()
         dot.setPixmap(icons.dot_pixmap(kit.color(token), kit.px(12)))
@@ -118,6 +145,128 @@ class BlockListItem(QWidget):
             self._detail, Qt.TextElideMode.ElideRight, max(self.line.width(), 0)))
 
 
+class SplitDialog(QDialog):
+    """Split a block into zones along one letter, cut at the values given.
+
+    *extent(letter)* gives the ``(low, high)`` the zones span; *count(direction,
+    values)* the cells of a range on the mesh (None without it); the zones are
+    named *base1*, *base2*, ... avoiding *taken*.
+    """
+
+    def __init__(self, parent, kit, title, extent, count, base, taken):
+        super().__init__(parent)
+        self.setWindowTitle(f"Split {title} into zones")
+        self.kit = kit
+        self._extent, self._count = extent, count
+        self._base, self._taken = base, set(taken)
+        self._plan = None
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+        layout.addWidget(kit.hint(
+            "Each zone takes the cells between two cuts and starts from the "
+            "present state of the block; give each its own state afterwards. "
+            "More letters, and ranges that are not slabs, are set in the zone "
+            "table."))
+        form = QFormLayout()
+        form.setSpacing(8)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        self.letter = QComboBox()
+        for letter, tip in LETTER_TIPS.items():
+            self.letter.addItem(f"{letter}  —  {tip}", letter)
+        self.cuts = QLineEdit()
+        self.cuts.setPlaceholderText("the values between the zones, e.g. 0.005 0.02")
+        self.span = kit.hint("")
+        form.addRow("Along:", self.letter)
+        form.addRow("Cut at:", self.cuts)
+        form.addRow("", self.span)
+        layout.addLayout(form)
+        self.preview = QTableWidget(0, 4)
+        self.preview.setHorizontalHeaderLabels(["Zone", "From", "To", "Cells"])
+        self.preview.verticalHeader().setVisible(False)
+        self.preview.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.preview.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch)
+        kit.table_rows(self.preview, 28)
+        layout.addWidget(self.preview, 1)
+        self.message = QLabel()
+        self.message.setWordWrap(True)
+        layout.addWidget(self.message)
+        self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
+                                        | QDialogButtonBox.StandardButton.Cancel)
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Split")
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
+        layout.addWidget(self.buttons)
+        self.letter.currentIndexChanged.connect(lambda _i: self._update())
+        self.cuts.textChanged.connect(lambda _t: self._update())
+        self.resize(kit.px(620), kit.px(460))
+        self._update()
+
+    def _make_plan(self):
+        letter = self.letter.currentData()
+        low, high = self._extent(letter)
+        lo, hi = icmodel.to_float(low), icmodel.to_float(high)
+        tokens = self.cuts.text().replace(",", " ").split()
+        values = [icmodel.to_float(t) for t in tokens]
+        if any(v is None for v in values):
+            return None, f"{tokens[values.index(None)]} is not a number."
+        index = letter in icgeom.INDEX_LETTERS
+        if index and any(v != int(v) for v in values):
+            return None, f"A cut along {letter} is a cell index: a whole number."
+        cuts = sorted(set(values))
+        outside = [v for v in cuts if not lo < v < hi]
+        if outside:
+            return None, (f"{outside[0]:g} is not inside the block: {letter} runs "
+                          f"from {low} to {high}.")
+        if index and cuts and cuts[-1] >= hi:
+            return None, f"The last cell along {letter} is {high}."
+        texts = {v: t for v, t in zip(values, tokens)}
+        bounds = [low] + [texts[v] if not index else str(int(v)) for v in cuts] + [high]
+        ranges = []
+        for n in range(len(bounds) - 1):
+            start = bounds[n] if n == 0 or not index else str(int(cuts[n - 1]) + 1)
+            ranges.append([start, bounds[n + 1]])
+        taken, names = set(self._taken), []
+        for _r in ranges:
+            name = icmodel.unique_name(self._base, taken)
+            taken.add(name)
+            names.append(name)
+        return (letter, ranges, names), ""
+
+    def _update(self):
+        letter = self.letter.currentData()
+        low, high = self._extent(letter)
+        self.span.setText(f"{letter} runs from {low} to {high} on this block"
+                          + (f" [{LETTER_UNITS[letter]}]" if letter in LETTER_UNITS else "")
+                          + ".")
+        self._plan, problem = self._make_plan()
+        ok = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+        self.preview.setRowCount(0)
+        if self._plan is None:
+            self.message.setText(problem)
+            self.message.setProperty("check", "fail")
+            ok.setEnabled(False)
+        else:
+            direction, ranges, names = self._plan
+            self.preview.setRowCount(len(ranges))
+            for r, (values, name) in enumerate(zip(ranges, names)):
+                cells = self._count(direction, [icmodel.to_float(v) for v in values])
+                for c, text in enumerate([name, values[0], values[1],
+                                          "—" if cells is None else f"{cells:,}"]):
+                    self.preview.setItem(r, c, QTableWidgetItem(text))
+            self.message.setText(
+                f"{len(ranges)} zone(s)." if len(ranges) > 1 else
+                "One zone, the whole block: give cut values to have more.")
+            self.message.setProperty("check", "pass" if len(ranges) > 1 else None)
+            ok.setEnabled(True)
+        self.message.style().unpolish(self.message)
+        self.message.style().polish(self.message)
+
+    def result_values(self):
+        """``(direction, ranges, names)`` of the split."""
+        return self._plan
+
+
 class ICBPanel(QWidget):
     """Editor for the initial state of the blocks."""
 
@@ -133,6 +282,7 @@ class ICBPanel(QWidget):
         self._targets = []
         self._shown = {}           # target -> what its list row shows
         self._choices = weakref.WeakKeyDictionary()   # state -> {what: choice}
+        self._cells = {}           # mesh block -> icgeom.BlockCells
         self._build_ui()
 
     # -- document access -------------------------------------------------
@@ -171,27 +321,82 @@ class ICBPanel(QWidget):
         value = str(self.shell.doc.parameters.get("strict-keys", "T")).strip()
         return value.upper() not in ("F", "FALSE", ".FALSE.", "NO", "0")
 
+    def mesh_blocks(self):
+        return getattr(self.shell.bcb_panel, "blocks", None) or []
+
     def validate(self):
-        """The ICB checks of the case, for the Review stage too."""
-        return self.icb.validate(self.block_count(), self._phases, self.strict_keys())
+        """The ICB checks of the case, for the Review stage too: those of the
+        deck, and with the mesh loaded the cells the zones leave unwritten."""
+        issues = self.icb.validate(self.block_count(), self._phases, self.strict_keys())
+        mesh = self.mesh_blocks()
+        if mesh:
+            issues += icgeom.coverage_issues(self.icb, mesh, self._phases, self._cells)
+        return issues
 
     def current_target(self):
         row = self.block_list.currentRow()
         return self._targets[row] if 0 <= row < len(self._targets) else None
 
     def current_state(self):
-        """The section the selected row edits: the wildcard, or the block's
-        own section; None when the block has none."""
+        """The section the selected row edits: the wildcard, a block's own
+        section, or a zone section; None when the block has none."""
         target = self.current_target()
+        if isinstance(target, tuple):
+            return self.icb.zones.get(target[1])
         if target == "*":
             return self.icb.wildcard
         return self.icb.blocks.get(target) if target is not None else None
 
+    def _owner_section(self, owner):
+        """The block section *owner* (an index or ``"*"``) edits."""
+        return self.icb.wildcard if owner == "*" else self.icb.blocks.get(owner)
+
+    def _phase_block(self, state):
+        """The block whose ``phase`` key applies to *state*: the state
+        itself, or for a zone the block that lists it."""
+        target = self.current_target()
+        if isinstance(target, tuple):
+            return self._owner_section(target[0]) or state
+        return state
+
     def _kinds(self, state):
-        return icmodel.block_kinds(state, self._phases)
+        return icmodel.block_kinds(self._phase_block(state), self._phases)
 
     def _kind_phases(self, state, kind):
-        return [p for p in icmodel.block_phases(state, self._phases) if p.kind == kind]
+        return [p for p in icmodel.block_phases(self._phase_block(state), self._phases)
+                if p.kind == kind]
+
+    def _cells_of(self, index):
+        """The :class:`icgeom.BlockCells` of mesh block *index*, or None."""
+        mesh = self.mesh_blocks()
+        if not isinstance(index, int) or not 0 < index <= len(mesh):
+            return None
+        block = mesh[index - 1]
+        cells = self._cells.get(id(block))
+        if cells is None or cells.mesh is not block:
+            cells = self._cells[id(block)] = icgeom.BlockCells(block)
+        return cells
+
+    def _users(self, owner):
+        """The mesh blocks the section *owner* gives a state to."""
+        if owner != "*":
+            return [owner]
+        return [b for b in range(1, self.block_count() + 1) if b not in self.icb.blocks]
+
+    def _coverages(self, owner):
+        """``[(block, BlockCoverage)]`` of the split section *owner* on the
+        mesh blocks it gives a state to (none without the mesh)."""
+        section = self._owner_section(owner)
+        if section is None or not section.is_split or \
+                icmodel.direction_issue(section.direction) or not section.direction:
+            return []
+        kinds = icmodel.block_kinds(section, self._phases)
+        result = []
+        for b in self._users(owner):
+            cells = self._cells_of(b)
+            if cells is not None:
+                result.append((b, icgeom.BlockCoverage(cells, section, self.icb.zones, kinds)))
+        return result
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self):
@@ -253,9 +458,51 @@ class ICBPanel(QWidget):
         if target in self._targets:
             self.block_list.setCurrentRow(self._targets.index(target))
 
+    def _levels(self, target):
+        """The levels of the issues of *target*; a block's include its zones'."""
+        return {level for level, t, _m in self._issues
+                if t == target or (isinstance(t, tuple) and t[0] == target)}
+
+    def _zone_ref(self, target):
+        """``(n, ICZoneRef)`` of zone target ``(owner, section)``, or None."""
+        owner, section = target
+        block = self._owner_section(owner)
+        if block is None:
+            return None
+        for n, ref in zip(block.zone_numbers(), block.zone_refs()):
+            if ref.section == section:
+                return n, ref
+        return None
+
+    @staticmethod
+    def _range_text(direction, values):
+        """``x 0 … 0.005,  r 0 … 0.1`` for a zone's range."""
+        if len(values) != 2 * len(direction):
+            return " ".join(values) or "no range"
+        return ",  ".join(f"{letter} {values[2 * n]} … {values[2 * n + 1]}"
+                          for n, letter in enumerate(direction))
+
+    def _zone_row(self, target):
+        owner, section = target
+        block = self._owner_section(owner)
+        found = self._zone_ref(target)
+        zone = self.icb.zones.get(section)
+        levels = {level for level, t, _m in self._issues if t == target}
+        if found is None or block is None:
+            return section, "not a zone of this block", "muted", section
+        n, ref = found
+        where = self._range_text(block.direction, ref.range)
+        detail = f"{where}  ·  {zone.summary()}" if zone else f"{where}  ·  no section"
+        token = ("danger" if "error" in levels or zone is None else
+                 "warning" if "warning" in levels else "accent")
+        tip = f"zone{n} of {block_label(owner)}: [{section}]"
+        return section, detail, token, tip
+
     def _row(self, target):
         """``(title, detail, token, tip)`` of the list row of *target*."""
-        levels = {level for level, t, _m in self._issues if t == target}
+        if isinstance(target, tuple):
+            return self._zone_row(target)
+        levels = self._levels(target)
         title = block_label(target)
         if target == "*":
             block = self.icb.wildcard
@@ -263,10 +510,11 @@ class ICBPanel(QWidget):
                 return title, "no default state", "muted", "No [ICB-Block*] section"
             users = [b for b in range(1, self.block_count() + 1)
                      if b not in self.icb.blocks]
-            detail = block.summary()
+            detail = (f"{len(block.zone_refs())} zone(s) along {block.direction or '?'}"
+                      if block.is_split else block.summary())
             tip = (f"[ICB-Block*]: the state of {len(users)} block(s)"
                    if users else "[ICB-Block*]: every block has its own section")
-            status = "own"
+            status = "split" if block.is_split else "own"
         else:
             own = self.icb.blocks.get(target)
             dims = self._dims(target)
@@ -296,11 +544,23 @@ class ICBPanel(QWidget):
             return "  ·  " + " × ".join(str(n) for n in mesh[target - 1].dims) + " nodes"
         return ""
 
+    def _zone_targets(self, owner):
+        section = self._owner_section(owner)
+        if section is None or not section.is_split:
+            return []
+        targets = []
+        for ref in section.zone_refs():
+            if (owner, ref.section) not in targets:
+                targets.append((owner, ref.section))
+        return targets
+
     def _refresh_list(self):
         current = self.current_target()
         count = self.block_count()
-        self._targets = ["*"] + list(range(1, count + 1))
-        self._targets += [b for b in self.icb.blocks if b > count]
+        blocks = list(range(1, count + 1)) + [b for b in self.icb.blocks if b > count]
+        self._targets = ["*"] + self._zone_targets("*")
+        for b in blocks:
+            self._targets += [b] + self._zone_targets(b)
         self._shown = {}
         self.block_list.blockSignals(True)
         self.block_list.clear()
@@ -322,7 +582,7 @@ class ICBPanel(QWidget):
             return
         self._shown[target] = info
         item = self.block_list.item(self._targets.index(target))
-        widget = BlockListItem(self.kit, *info)
+        widget = BlockListItem(self.kit, *info, indent=18 if isinstance(target, tuple) else 0)
         # the height only: the row takes the width of the list, its summary elided
         item.setSizeHint(QSize(0, widget.sizeHint().height()))
         self.block_list.setItemWidget(item, widget)
@@ -339,6 +599,7 @@ class ICBPanel(QWidget):
             for target in self._targets:
                 self._refresh_row(target)
             self._refresh_checks()
+            self._refresh_layout_stats()
         self.changed.emit()
 
     def _set(self, key, value):
@@ -406,25 +667,33 @@ class ICBPanel(QWidget):
         if target is None:
             return
         self._loading = True
+        self.zone_table = None
         try:
             state = self.current_state()
-            self.editor_layout.addWidget(self._identity_card(target, state))
+            if isinstance(target, tuple):
+                self.editor_layout.addWidget(self._zone_card(target, state))
+                cards = self._state_cards(state, zone=True) if state is not None else []
+            else:
+                self.editor_layout.addWidget(self._identity_card(target, state))
+                cards = []
+                if state is not None and state.is_split:
+                    cards = [self._phases_card(state), self._layout_card(target, state)]
+                elif state is not None:
+                    cards = self._state_cards(state)
+            for card in cards:
+                self.editor_layout.addWidget(card)
             if state is not None:
-                if state.is_split:
-                    self.editor_layout.addWidget(self._zones_card(state))
-                else:
-                    for card in self._state_cards(state):
-                        self.editor_layout.addWidget(card)
                 self.editor_layout.addWidget(self._checks_card())
                 self.editor_layout.addWidget(self._footer_card(state))
             self.editor_layout.addStretch(1)
         finally:
             self._loading = False
 
-    def _state_cards(self, state):
+    def _state_cards(self, state, zone=False):
         kinds = self._kinds(state)
         mode = state.mode
-        cards = [self._phases_card(state), self._mode_card(state, kinds)]
+        cards = [] if zone else [self._phases_card(state)]
+        cards.append(self._mode_card(state, kinds))
         if mode == "interpolate":
             cards.append(self._interpolation_card(state, kinds))
         elif mode == "nozzle":
@@ -670,6 +939,9 @@ class ICBPanel(QWidget):
                 text = (f"The state of {len(users)} block(s) without a section of "
                         "their own." if users else
                         "Every block has a section of its own: this state is not used.")
+                if state.is_split:
+                    text += self._split_text(state)
+                actions.addWidget(self._split_button("*", state))
                 actions.addWidget(kit.button("Remove", lambda: self._remove("*"),
                                              "trash", "danger"))
         elif state is None:
@@ -689,6 +961,9 @@ class ICBPanel(QWidget):
         else:
             text = ("Its own state, which overrides All blocks."
                     if self.icb.wildcard is not None else "Its own state.")
+            if state.is_split:
+                text += self._split_text(state)
+            actions.addWidget(self._split_button(target, state))
             actions.addWidget(kit.button(
                 "Use All blocks instead" if self.icb.wildcard is not None else "Remove",
                 lambda: self._remove(target), "trash", "danger"))
@@ -696,6 +971,22 @@ class ICBPanel(QWidget):
         card.body.addWidget(kit.hint(text))
         card.body.addLayout(actions)
         return card
+
+    @staticmethod
+    def _split_text(state):
+        return (f" It is split into {len(state.zone_refs())} zone(s) along "
+                f"{state.direction or '?'}: each takes the cells of its range, "
+                "a later zone over an earlier one.")
+
+    def _split_button(self, target, state):
+        if state.is_split:
+            return self.kit.button(
+                "Merge the zones…", lambda: self._merge(target), "layers",
+                tip="Give the block one state again: that of one of its zones.")
+        return self.kit.button(
+            "Split into zones…", lambda: self._split(target), "split",
+            tip="Give parts of the block different states, by coordinate, "
+                "radius, angle or cell index.")
 
     def _create(self, target, copy=False):
         block = self.icb.own_block(target)
@@ -816,8 +1107,9 @@ class ICBPanel(QWidget):
         card.body.addLayout(self._fields(GAS_PAIRS[pair][1], "IG"))
         if {"p0", "T0"} & set(GAS_PAIRS[pair][1]):
             card.body.addWidget(kit.hint(
-                "Total conditions are expanded to the static state at the Mach "
-                "number of the velocity below."))
+                "Total conditions are expanded to the static state at the speed "
+                "below, a Mach number or u, v, w: T from the enthalpy balance, p "
+                "on the isentrope, as at the solvers' inlet."))
         elif "rho" in GAS_PAIRS[pair][1]:
             card.body.addWidget(kit.hint(
                 "The third quantity follows from the ideal-gas law."))
@@ -901,7 +1193,7 @@ class ICBPanel(QWidget):
         card = Card()
         kit = self.kit
         card.body.addLayout(kit.panel_header("palette", "COMPOSITION"))
-        species = icmodel.gas_species(state, self._phases)
+        species = icmodel.gas_species(self._phase_block(state), self._phases)
         if species is not None and len(species) == 1:
             card.body.addWidget(kit.hint(
                 f"One species, {species[0]}: its mass fraction is 1."))
@@ -1223,23 +1515,491 @@ class ICBPanel(QWidget):
         card.body.addWidget(kit.hint(" ".join(hints)))
         return card
 
-    # -- zones (read-only until the zone editor) -----------------------------
-    def _zones_card(self, block):
+    # -- zones ---------------------------------------------------------------
+    def _taken_names(self):
+        """Names a new zone section cannot take: every section of the case,
+        and the keyword BCs (BCB would read a section of that name)."""
+        return self.shell.doc.section_names() | set(KEYWORD_BCS)
+
+    @staticmethod
+    def _zone_base(owner):
+        return "all-zone" if owner == "*" else f"block{owner}-zone"
+
+    def _default_pair(self, owner, letter):
+        """``(low, high)`` along *letter* holding every cell of the blocks
+        *owner* gives a state to: their extent on the mesh, else a range that
+        holds any cell."""
+        extents = [cells.extent(letter) for cells in
+                   (self._cells_of(b) for b in self._users(owner)) if cells is not None]
+        if not extents:
+            low, high = UNBOUNDED[letter]
+            return str(low), str(high)
+        low, high = min(e[0] for e in extents), max(e[1] for e in extents)
+        if letter in icgeom.INDEX_LETTERS or letter == "t":
+            return str(int(low)), str(int(high))
+        return icgeom.outward_limit(low, False), icgeom.outward_limit(high, True)
+
+    def _count_cells(self, owner, direction, values):
+        """The cells of the range *values* on the blocks of *owner*, or None
+        without the mesh."""
+        counts = [int(icgeom.range_mask(cells, direction, values).sum()) for cells in
+                  (self._cells_of(b) for b in self._users(owner)) if cells is not None]
+        return sum(counts) if counts else None
+
+    def _zone_stats(self, owner):
+        """``{section: (cells, kept)}`` of the zones of *owner* on the mesh."""
+        stats = {}
+        for _b, cover in self._coverages(owner):
+            for zone in cover.zones:
+                cells, kept = stats.get(zone.section, (0, 0))
+                stats[zone.section] = (cells + zone.cells, kept + zone.kept)
+        return stats
+
+    def _zone_card(self, target, state):
+        owner, section = target
+        block = self._owner_section(owner)
         card = Card()
         kit = self.kit
-        card.body.addLayout(kit.panel_header("layers", "ZONES"))
-        card.body.addWidget(kit.hint(
-            f"This block is split into zones along {block.direction or '?'}: each "
-            "takes the cells of its range. The zone editor comes next; until "
-            "then the zones are kept as they are and listed here."))
-        for n, ref in zip(block.zone_numbers(), block.zone_refs()):
-            zone = self.icb.zones.get(ref.section)
-            text = (f"zone{n}  [{ref.section}]   range {' '.join(ref.range) or '—'}"
-                    f"   ·   {zone.summary() if zone else 'no section'}")
-            label = QLabel(text)
-            label.setProperty("role", "value" if zone else "muted")
-            card.body.addWidget(label)
+        head = QHBoxLayout()
+        head.setSpacing(8)
+        head.addWidget(kit.icon_label("split", "accent", 16))
+        head.addWidget(kit.section_label(f"ZONE  ·  [{section}]"))
+        head.addStretch(1)
+        card.body.addLayout(head)
+        found = self._zone_ref(target)
+        if found is None or block is None:
+            card.body.addWidget(kit.hint("This zone is no longer listed by its block."))
+            return card
+        n, ref = found
+        text = (f"Zone {n} of {len(block.zone_refs())} of {block_label(owner)}: the "
+                f"cells with {self._range_text(block.direction, ref.range)}.")
+        stats = self._zone_stats(owner).get(section)
+        if stats:
+            cells, kept = stats
+            text += f" {cells:,} cells"
+            text += (f", {cells - kept:,} of them written again by later zones."
+                     if kept < cells else ".")
+        others = [b for b in self.icb.blocks_naming_zone(section) if b is not block]
+        if others:
+            text += (" The same section is a zone of "
+                     + ", ".join(block_label(b.index) for b in others)
+                     + " too: an edit here changes it there.")
+        if state is None:
+            text = (f"zone{n} of {block_label(owner)} names [{section}], which is "
+                    "not in the deck.")
+        card.body.addWidget(kit.hint(text))
+        actions = QHBoxLayout()
+        actions.setSpacing(7)
+        if state is None:
+            actions.addWidget(kit.button("Create the section",
+                                         lambda: self._create_zone_section(target),
+                                         "plus", "primary"))
+        else:
+            actions.addWidget(kit.button("Rename…", lambda: self._ask_rename(target),
+                                         "pencil"))
+        actions.addWidget(kit.button(f"{block_label(owner)} layout",
+                                     lambda: self.select_target(owner), "split",
+                                     tip="The letters, the ranges and the order of the zones."))
+        actions.addWidget(kit.button("Remove zone", lambda: self._remove_zone(owner, section),
+                                     "trash", "danger"))
+        actions.addStretch(1)
+        card.body.addLayout(actions)
         return card
+
+    def _layout_card(self, owner, block):
+        card = Card()
+        kit = self.kit
+        refs = block.zone_refs()
+        card.body.addLayout(kit.panel_header("split", "ZONES", kit.badge(str(len(refs)))))
+        direction = block.direction
+        letters = "".join(c for c in icgeom.LETTERS if c in direction)
+
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(QLabel("Ranges along:"))
+        box = QWidget()
+        chips = QHBoxLayout(box)
+        chips.setContentsMargins(0, 0, 0, 0)
+        chips.setSpacing(0)
+        for i, letter in enumerate(icgeom.LETTERS):
+            position = ("left" if i == 0 else
+                        "right" if i == len(icgeom.LETTERS) - 1 else "mid")
+            unit = LETTER_UNITS.get(letter)
+            tip = f"{letter}: {LETTER_TIPS[letter]}" + (f" [{unit}]" if unit else "")
+            button = kit.button(letter, None, None, seg=position, tip=tip)
+            button.setCheckable(True)
+            button.setChecked(letter in letters)
+            if len(letters) >= icgeom.MAX_LETTERS and letter not in letters:
+                button.setEnabled(False)
+                button.setToolTip(tip + "\nICB compares three letters at most.")
+            button.toggled.connect(
+                lambda on, c=letter: self._toggle_letter(owner, c, on))
+            chips.addWidget(button)
+        row.addWidget(box)
+        row.addStretch(1)
+        card.body.addLayout(row)
+
+        columns = ["Zone"]
+        for letter in direction:
+            unit = LETTER_UNITS.get(letter)
+            suffix = f" [{unit}]" if unit else ""
+            columns += [f"{letter} from{suffix}", f"{letter} to{suffix}"]
+        columns += ["Cells", "State"]
+        table = QTableWidget(len(refs), len(columns))
+        table.setHorizontalHeaderLabels(columns)
+        table.verticalHeader().setVisible(False)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        header = table.horizontalHeader()
+        for col in range(len(columns)):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(len(columns) - 1, QHeaderView.ResizeMode.Stretch)
+        kit.table_rows(table, 30)
+        readonly = Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEnabled
+        for r, ref in enumerate(refs):
+            zone = self.icb.zones.get(ref.section)
+            table.setItem(r, 0, QTableWidgetItem(ref.section))
+            values = list(ref.range) + [""] * max(0, 2 * len(direction) - len(ref.range))
+            for c in range(2 * len(direction)):
+                item = QTableWidgetItem(values[c])
+                item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                table.setItem(r, 1 + c, item)
+            cells = QTableWidgetItem("—")
+            cells.setFlags(readonly)
+            cells.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            table.setItem(r, len(columns) - 2, cells)
+            summary = QTableWidgetItem(zone.summary() if zone else "no section")
+            summary.setFlags(readonly)
+            summary.setToolTip("Double-click to edit the state of this zone.")
+            table.setItem(r, len(columns) - 1, summary)
+        table.itemChanged.connect(self._zone_item_changed)
+        table.cellDoubleClicked.connect(
+            lambda r, c: c >= len(columns) - 2 and self._open_zone(owner, r))
+        height = (table.horizontalHeader().sizeHint().height()
+                  + kit.px(30) * max(len(refs), 1) + 2 * table.frameWidth() + kit.px(14))
+        table.setFixedHeight(height)
+        if refs:
+            table.selectRow(0)
+        self.zone_table = table
+        self._zone_owner = owner
+        card.body.addWidget(table)
+
+        tools = QHBoxLayout()
+        tools.setSpacing(7)
+        tools.addWidget(kit.button(
+            "Add zone", lambda: self._add_zone(owner), "plus",
+            tip="A copy of the selected zone, after it: then change its range "
+                "and its state."))
+        tools.addWidget(kit.button(
+            "", lambda: self._move_zone(owner, -1), "chevron-up",
+            tip="Write the selected zone earlier: the zones after it win the "
+                "cells they share with it."))
+        tools.addWidget(kit.button(
+            "", lambda: self._move_zone(owner, 1), "chevron-down",
+            tip="Write the selected zone later: it wins the cells it shares "
+                "with the zones before it."))
+        tools.addWidget(kit.button(
+            "Remove", lambda: self._remove_zone(owner), "trash", "danger"))
+        tools.addStretch(1)
+        tools.addWidget(kit.button(
+            "Edit its state", lambda: self._open_zone(owner), "pencil", "primary"))
+        card.body.addLayout(tools)
+
+        self.coverage_label = QLabel()
+        self.coverage_label.setWordWrap(True)
+        card.body.addWidget(self.coverage_label)
+        self.extent_hint = kit.hint("")
+        card.body.addWidget(self.extent_hint)
+        card.body.addWidget(kit.hint(
+            "ICB writes the zones in this order: a cell in two ranges takes the "
+            "state of the later zone. The limits are included; x, y, z, r and t "
+            "compare the cell centre, i, j and k the cell index."))
+        self._refresh_layout_stats()
+        return card
+
+    def _refresh_layout_stats(self):
+        """The cells of every zone and the coverage line, after an edit."""
+        table = getattr(self, "zone_table", None)
+        if table is None:
+            return
+        owner = self._zone_owner
+        block = self._owner_section(owner)
+        if block is None or not block.is_split:
+            return
+        covers = self._coverages(owner)
+        stats = self._zone_stats(owner)
+        column = table.columnCount() - 2
+        self._loading = True
+        try:
+            for r, ref in enumerate(block.zone_refs()):
+                item = table.item(r, column)
+                if item is None:
+                    continue
+                zone = self.icb.zones.get(ref.section)
+                summary = table.item(r, column + 1)
+                if summary is not None:
+                    summary.setText(zone.summary() if zone else "no section")
+                cells, kept = stats.get(ref.section, (None, None))
+                if cells is None:
+                    item.setText("—")
+                    item.setToolTip("Load the mesh to count the cells of this zone."
+                                    if not self.mesh_blocks() else
+                                    "The range cannot be read.")
+                else:
+                    item.setText(f"{cells:,}" if kept == cells else f"{cells:,} ({kept:,})")
+                    item.setToolTip(f"{cells:,} cells in the range, {kept:,} of them "
+                                    "not written again by a later zone.")
+        finally:
+            self._loading = False
+        label = self.coverage_label
+        if not self.mesh_blocks():
+            label.setText("Load the mesh (Boundaries) to see which cells each zone "
+                          "takes and whether every cell has one.")
+            label.setProperty("check", None)
+            label.setProperty("role", "muted")
+        elif not covers:
+            label.setText("The letters cannot be read: the cells of the zones are "
+                          "counted once they are.")
+            label.setProperty("check", "fail")
+        else:
+            gaps = [(b, cover, kind, count, first) for b, cover in covers
+                    for kind, (count, first) in cover.unwritten.items()]
+            if gaps:
+                b, cover, _kind, count, first = gaps[0]
+                more = len({g[0] for g in gaps}) - 1
+                label.setText(
+                    f"✗  {count:,} of {cover.total:,} cells of Block {b} are in no "
+                    f"zone (the first is cell {first}): ICB stops on them."
+                    + (f" So do {more} more block(s)." if more > 0 else ""))
+                label.setProperty("check", "fail")
+            else:
+                total = sum(cover.total for _b, cover in covers)
+                where = (f"Block {covers[0][0]}" if len(covers) == 1
+                         else f"the {len(covers)} blocks")
+                label.setText(f"✓  Every cell of {where} ({total:,} cells) is in a zone.")
+                label.setProperty("check", "pass")
+        label.style().unpolish(label)
+        label.style().polish(label)
+        if covers:
+            cells = [self._cells_of(b) for b, _c in covers]
+            parts = []
+            for letter in block.direction:
+                low, high = self._default_pair(owner, letter)
+                unit = LETTER_UNITS.get(letter, "")
+                parts.append(f"{letter} {low} … {high}{' ' + unit if unit else ''}")
+            if len(cells) == 1:
+                shape = " × ".join(str(n) for n in cells[0].shape) + " cells"
+            else:
+                shape = f"{len(cells)} blocks, {sum(c.count for c in cells):,} cells"
+            flat = any(c.pure_2d for c in cells)
+            self.extent_hint.setText(
+                f"Extent: {',  '.join(parts)}  ·  {shape}"
+                + (" (2-D: r and t in the x-y plane)" if flat else ""))
+            self.extent_hint.show()
+        else:
+            self.extent_hint.hide()
+
+    def _selected_zone_row(self):
+        table = getattr(self, "zone_table", None)
+        if table is None:
+            return -1
+        rows = table.selectionModel().selectedRows()
+        return rows[0].row() if rows else table.currentRow()
+
+    def _zone_item_changed(self, item):
+        if self._loading:
+            return
+        owner = self._zone_owner
+        block = self._owner_section(owner)
+        refs, numbers = block.zone_refs(), block.zone_numbers()
+        row, col = item.row(), item.column()
+        if row >= len(refs):
+            return
+        ref, n = refs[row], numbers[row]
+        if col == 0:
+            if not self._rename_zone(ref.section, item.text().strip()):
+                self._loading = True
+                item.setText(ref.section)
+                self._loading = False
+            return
+        width = 2 * len(block.direction)
+        if 1 <= col <= width:
+            values = list(ref.range) + [""] * max(0, width - len(ref.range))
+            values[col - 1] = item.text().strip()
+            bad = bool(values[col - 1]) and icmodel.to_float(values[col - 1]) is None
+            item.setForeground(QBrush(QColor(self.kit.color("danger"))) if bad else
+                               self.zone_table.palette().text())
+            block.set(f"range{n}", " ".join(v for v in values if v))
+            self._edited()
+            self._refresh_row((owner, ref.section))
+
+    def _open_zone(self, owner, row=None):
+        block = self._owner_section(owner)
+        refs = block.zone_refs() if block is not None else []
+        row = self._selected_zone_row() if row is None else row
+        if 0 <= row < len(refs):
+            self.select_target((owner, refs[row].section))
+
+    def _valid_zone_name(self, name, old=None):
+        """``""`` when *name* can name a zone section, else why not."""
+        if not name:
+            return "A zone needs a name."
+        if any(c in name for c in " \t[]=;#,"):
+            return "A section name has no blanks and none of [ ] = ; # ,"
+        if "Block" in name:
+            return "ICB reads a section whose name holds 'Block' as a block, never as a zone."
+        if name != old and name in self._taken_names():
+            return f"[{name}] is already a section of the case."
+        return ""
+
+    def _rename_zone(self, old, new):
+        if new == old:
+            return True
+        reason = self._valid_zone_name(new, old)
+        if reason:
+            QMessageBox.information(self, "Rename the zone", reason)
+            return False
+        self.icb.rename_zone(old, new)
+        target = self.current_target()
+        self._edited(rebuild=True)
+        if isinstance(target, tuple) and target[1] == old:
+            self.select_target((target[0], new))
+        return True
+
+    def _ask_rename(self, target):
+        owner, section = target
+        name, ok = QInputDialog.getText(self, "Rename the zone",
+                                        f"New name of [{section}]:", text=section)
+        if ok and self._rename_zone(section, name.strip()):
+            self.select_target((owner, name.strip()))
+
+    def _create_zone_section(self, target):
+        self.icb.add_zone(target[1])
+        self._edited(rebuild=True)
+        self.select_target(target)
+
+    def _toggle_letter(self, owner, letter, on):
+        if self._loading:
+            return
+        block = self._owner_section(owner)
+        current = "".join(c for c in icgeom.LETTERS if c in block.direction)
+        new = "".join(c for c in icgeom.LETTERS
+                      if (c in current and c != letter) or (c == letter and on))
+        if not new:
+            QMessageBox.information(
+                self, "Zones", "The ranges of the zones are given along one letter "
+                "at least. To give the block one state, merge its zones.")
+            self._rebuild_editor()
+            return
+        if not on:
+            reply = QMessageBox.question(
+                self, "Zones", f"The ranges along {letter} are removed from every zone. "
+                "Continue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
+            if reply != QMessageBox.StandardButton.Yes:
+                self._rebuild_editor()
+                return
+        block.set_direction(new, lambda c: self._default_pair(owner, c))
+        self._edited(rebuild=True)
+
+    def _add_zone(self, owner):
+        block = self._owner_section(owner)
+        refs = block.zone_refs()
+        row = self._selected_zone_row()
+        row = row if 0 <= row < len(refs) else len(refs) - 1
+        source = refs[row] if refs else None
+        name = icmodel.unique_name(self._zone_base(owner), self._taken_names())
+        state = self.icb.zones.get(source.section) if source else None
+        self.icb.add_zone(name, icmodel.ICState(state.params if state else None))
+        values = list(source.range) if source else []
+        if not values:
+            for letter in block.direction:
+                values += list(self._default_pair(owner, letter))
+        refs.insert(row + 1, icmodel.ICZoneRef(name, values))
+        block.set_zones(block.direction, refs)
+        self._edited(rebuild=True)
+        if self.zone_table is not None:
+            self.zone_table.selectRow(row + 1)
+
+    def _move_zone(self, owner, step):
+        block = self._owner_section(owner)
+        refs = block.zone_refs()
+        row = self._selected_zone_row()
+        other = row + step
+        if not (0 <= row < len(refs) and 0 <= other < len(refs)):
+            return
+        refs[row], refs[other] = refs[other], refs[row]
+        block.set_zones(block.direction, refs)
+        self._edited(rebuild=True)
+        if self.zone_table is not None:
+            self.zone_table.selectRow(other)
+
+    def _remove_zone(self, owner, section=None):
+        block = self._owner_section(owner)
+        refs = block.zone_refs()
+        if section is None:
+            row = self._selected_zone_row()
+            if not 0 <= row < len(refs):
+                return
+            section = refs[row].section
+        if len(refs) <= 1:
+            QMessageBox.information(
+                self, "Remove the zone", "A split block keeps one zone at least. "
+                "To give the block one state, merge its zones.")
+            return
+        shared = len(self.icb.blocks_naming_zone(section)) > 1
+        reply = QMessageBox.question(
+            self, "Remove the zone",
+            f"Remove [{section}] from the zones of {block_label(owner)}? Its cells "
+            "are left to the other zones whose ranges hold them."
+            + ("" if shared else " Its section is removed with it."),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        block.set_zones(block.direction, [r for r in refs if r.section != section])
+        self.icb.drop_unused_zones()
+        if self.current_target() == (owner, section):
+            self.select_target(owner)
+        self._edited(rebuild=True)
+
+    def _split(self, target):
+        block = self._owner_section(target)
+        dialog = SplitDialog(
+            self, self.kit, block_label(target),
+            lambda c: self._default_pair(target, c),
+            lambda d, v: self._count_cells(target, d, v),
+            self._zone_base(target), self._taken_names())
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        direction, ranges, names = dialog.result_values()
+        self.icb.split_block(block, direction, ranges, names)
+        self._edited(rebuild=True)
+
+    def _merge(self, target):
+        block = self._owner_section(target)
+        refs = [r for r in block.zone_refs() if r.section in self.icb.zones]
+        section = None
+        if refs:
+            items = [f"[{r.section}]  {self.icb.zones[r.section].summary()}" for r in refs]
+            choice, ok = QInputDialog.getItem(
+                self, "Merge the zones",
+                f"{block_label(target)} takes one state again. Whose?", items, 0, False)
+            if not ok:
+                return
+            section = refs[items.index(choice)].section
+            lost = [r.section for r in refs if r.section != section
+                    and len(self.icb.blocks_naming_zone(r.section)) == 1]
+            if lost:
+                reply = QMessageBox.question(
+                    self, "Merge the zones",
+                    "The states of " + ", ".join(f"[{n}]" for n in lost)
+                    + " are removed with their sections. Continue?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+        self.icb.merge_zones(block, section)
+        self._edited(rebuild=True)
 
     # -- checks, footer -----------------------------------------------------
     def _checks_card(self):
@@ -1258,6 +2018,14 @@ class ICBPanel(QWidget):
         clear_layout(box)
         target = self.current_target()
         mine = [(level, message) for level, t, message in self._issues if t == target]
+        if not isinstance(target, tuple):
+            # a split block lists the issues of its zones too, named
+            mine = [(level, m.split(": ", 1)[-1]) for level, m in mine]
+            mine += [(level, f"[{t[1]}] " + m.split(": ", 1)[-1])
+                     for level, t, m in self._issues
+                     if isinstance(t, tuple) and t[0] == target]
+        else:
+            mine = [(level, m.split(": ", 1)[-1]) for level, m in mine]
         if not mine:
             label = QLabel("Nothing ICB would stop on in this state.")
             label.setProperty("check", "pass")
@@ -1272,7 +2040,7 @@ class ICBPanel(QWidget):
                 self.kit.color("danger" if level == "error" else "warning"),
                 self.kit.px(10)))
             row.addWidget(dot, 0, Qt.AlignmentFlag.AlignTop)
-            text = self.kit.hint(message.split(": ", 1)[-1])
+            text = self.kit.hint(message)
             text.setProperty("role", "value" if level == "error" else "hint")
             row.addWidget(text, 1)
             box.addLayout(row)

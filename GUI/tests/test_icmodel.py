@@ -322,7 +322,7 @@ REFUSED = ("ICB-type-refused/input.ini", "IG+DP/particles-only.ini",
            "IG-turbulence-specific/both.ini", "IG-turbulence-specific/eddy.ini",
            "IG-turbulence-specific/retired.ini", "IG-turbulence-zero-refused/input.ini",
            "IG-interp-species/input.ini", "IG-interp-species-decomposition/input.ini",
-           "IG-total-conditions/both.ini")
+           "IG-total-conditions/both.ini", "IG-multizone/range-tab.ini")
 
 
 class Checks(unittest.TestCase):
@@ -368,6 +368,44 @@ class Checks(unittest.TestCase):
         self.assertEqual(errors("mach = 2\nalpha = 0.6\n"), [])
         self.assertEqual(errors("mach = 2\nu = 0\n"), [])           # zero components are no speed
         self.assertTrue(any("both give the speed" in m for m in errors("mach = 2\nu = 855.8\n")))
+
+    def test_zone_layout(self):
+        zones = "\n[a]\np = 1e5\nT = 300\nyN2 = 1\n[b]\np = 2e5\nT = 300\nyN2 = 1\n"
+
+        def errors(block):
+            return [m for level, m in self.validate("[ICB-Block1]\n" + block + zones)
+                    if level == "error"]
+        good = "direction = x\nzone1 = a\nrange1 = 0 0.5\nzone2 = b\nrange2 = 0.5 1\n"
+        self.assertEqual(errors(good), [])
+        self.assertTrue(any("needs the key direction" in m for m in errors(
+            "type = multizone\nzone1 = a\nrange1 = 0 1\n")))
+        self.assertTrue(any("not a direction letter" in m for m in errors(
+            "direction = q\nzone1 = a\nrange1 = 0 1\n")))
+        self.assertTrue(any("in the order x, y, z" in m for m in errors(
+            "direction = yx\nzone1 = a\nrange1 = 0 1 0 1\n")))
+        self.assertTrue(any("needs 4" in m for m in errors(
+            "direction = xy\nzone1 = a\nrange1 = 0 1\n")))
+        self.assertTrue(any("comma" in m for m in errors(
+            "direction = x\nzone1 = a\nrange1 = 0, 1\n")))
+        self.assertTrue(any("zone3 is never read" in m for m in errors(
+            "direction = x\nzone1 = a\nrange1 = 0 1\nzone3 = b\nrange3 = 0 1\n")))
+        self.assertTrue(any("zone1 is missing" in m for m in errors(
+            "direction = x\nzone2 = a\nrange2 = 0 1\n")))
+        self.assertTrue(any("no range2" in m for m in errors(
+            "direction = x\nzone1 = a\nrange1 = 0 1\nzone2 = b\n")))
+        self.assertTrue(any("names no section" in m for m in errors(
+            "direction = x\nzone1 = nowhere\nrange1 = 0 1\n")))
+        turbulent = zones.replace("[b]\n", "[b]\nk = 1\nomega = 100\n").replace(
+            "[a]\n", "[a]\nnuTilde = 1e-5\n")
+        issues = [m for level, m in self.validate("[ICB-Block1]\n" + good + turbulent)
+                  if level == "error"]
+        self.assertTrue(any("different turbulence models" in m for m in issues))
+
+    def test_zone_issue_targets(self):
+        doc = AtlasDocument.from_ini(
+            "[ICB-Block1]\ndirection = x\nzone1 = a\nrange1 = 0 1\n[a]\np = 1e5\nyN2 = 1\n")
+        targets = {t for _l, t, _m in doc.icb.validate(1, [icmodel.PhaseInfo("", "IG", ["N2"])])}
+        self.assertIn((1, "a"), targets)          # the zone's own state: its pair
 
     def test_composition(self):
         def errors(keys):
