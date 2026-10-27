@@ -58,12 +58,13 @@ The rail on the left follows the order the tools run in.
 | **Case** | Where the case lives, the mesh, `[ATLAS-Parameters]`, and an overview of what is set up |
 | **Phases** | GPB: one card per `[GPB-PhaseN]`, with an editor that follows the phase type |
 | **Boundaries** | BCB: the mesh in 3-D, its blocks and faces, and the BCs assigned to them |
+| **Initial** | ICB: the initial state of every block, `[ICB-Block*]` and `[ICB-BlockN]` |
 | **Review** | The INI as it will be written, plus every check the GUI can make on it |
 
-Sections belonging to tools the GUI does not edit yet (`[ICB-*]`, `[STB-*]`,
-`[MDB-*]`, `[KAnT-*]`) are carried through a save untouched, so a shared case
-file never loses another tool's setup. This includes the zone sections of a
-multizone ICB block (`zone1 = plenum` names `[plenum]`): they are not listed as
+Sections belonging to tools the GUI does not edit yet (`[STB-*]`, `[MDB-*]`,
+`[KAnT-*]`) are carried through a save untouched, so a shared case file never
+loses another tool's setup. The zone sections of a multizone ICB block
+(`zone1 = plenum` names `[plenum]`) belong to ICB: they are not listed as
 boundary conditions, and a new BC cannot take their name.
 
 ---
@@ -136,6 +137,49 @@ Selecting a **block** (rather than a face) shows which GPB phases live in it:
 the chips are the phases defined in the Phases stage, and they write the
 block's `phase` key. No chip selected means every phase, which is what BCB
 assumes when the key is absent.
+
+---
+
+## Initial (ICB)
+
+The list holds **All blocks** — the `[ICB-Block*]` section, the state of every
+block without a section of its own — and one row per block of the mesh (of the
+BCB deck when no mesh is loaded). A row says where the block's state comes
+from: its own section, *same as All blocks*, or *no initial state* (red: ICB
+stops on it). Most cases give All blocks a state and override a few blocks with
+**Give it its own state**, which starts from a copy.
+
+One section gives the state of every phase the block builds, so the editor
+shows a card for each thing the state needs, for the phases of the block:
+
+| Card | What it writes |
+|------|----------------|
+| **Phases** | the block's `phase` key (none selected: every phase, as ICB assumes) |
+| **How the field is built** | *Uniform*, *Nozzle* (`type = nozzle`, ideal gas only) or *Interpolate* (`old-solution`) |
+| **Gas state** | two of `p`, `T`, `p0`, `T0`, `rho`, chosen as a pair; ICB derives the rest |
+| **Velocity** | the Mach number (`vel` for a real fluid) with the flow angles, or `u`, `v`, `w` |
+| **Composition** | the mass fractions `y<species>`, with their sum, or a CEA equilibrium (`eq-CEA-file`) |
+| **Turbulence** | the model and its quantities, specific (`k`, `omega`, …) or density-weighted (`rhoK`, …) |
+| **Solid**, **Dispersed phase**, **Real fluid** | `T` and `material`; `krho`, `kT`, `dp` or `rp`, `Pp`; `p` with `T` or `h` |
+| **Nozzle**, **Interpolation** | `p0`, `T0`, `nozzle-direction`, `nozzle-threshold`; the source, the law, `old-block-id`, `old-species` |
+
+The species are those of the phase files ICB reads (`*phase.txt` in the case
+directory, then `fromATLAStoSolver/`, where GPB writes them), else the species
+list of the gas in the Phases stage. The angles `alpha` and `beta` are shown in
+degrees and written in radians, which is what ICB reads ([Velocity](./icb/ic-setup.md#velocity)).
+A gas given by total conditions takes its speed as a Mach number: ICB computes
+the static temperature before it would know the speed of `u`, `v`, `w`.
+
+The **Checks** card under the form lists what ICB would stop on, from the deck
+alone: a block with no state, a gas state without a pair, mass fractions that
+do not sum to 1, a key ICB does not read (with the name to use instead, for the
+keys of earlier decks), a turbulence model without its quantities, a value that
+is not physical. They are listed in **Review** too.
+
+A block split into zones (`direction`, `zone<n>`, `range<n>`) is listed with
+its zones and kept as it is; the zone editor comes in a later version. Values
+given by a profile file (`<key>-file`) show the file and are edited with
+**All keys…** for now.
 
 ---
 

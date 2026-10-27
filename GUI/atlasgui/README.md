@@ -1,8 +1,8 @@
 # ATLAS case-setup GUI
 
-One window over one `input.ini`: the GPB phases, the BCB boundary conditions
-and the `[ATLAS-Parameters]` the tools share — the same file `ATLAS GPB BCB`
-reads.
+One window over one `input.ini`: the GPB phases, the BCB boundary conditions,
+the ICB initial state and the `[ATLAS-Parameters]` the tools share — the same
+file `ATLAS GPB BCB ICB` reads.
 
 ## Stages
 
@@ -11,20 +11,32 @@ reads.
 | Case | `mainwindow.py` | case directory, mesh, `[ATLAS-Parameters]`, overview |
 | Phases | `gpbpanel.py` | `[GPB-PhaseN]`: gas, condensed/solid, real fluid |
 | Boundaries | `bcbpanel.py` | `[BCB-BlockN]` + the named BC sections, on the 3-D mesh |
+| Initial | `icbpanel.py` | `[ICB-Block*]`, `[ICB-BlockN]`: the initial state of every block |
 | Review | `mainwindow.py` | the INI as it will be written, and the checks on it |
 
 Sections of tools not edited here (`[STB-*]`, `[MDB-*]`, `[KAnT-*]`)
 are preserved verbatim through a save, as is `[BCB-Block*]` until a mesh says
 how many blocks it applies to.
 
-The ICB sections are read by `icmodel.py`, which has no panel yet: the
-`[ICB-BlockN]` and `[ICB-Block*]` sections, and the zone sections an ICB block
-names in `zone<n>`. A zone section has no prefix, like a BC, so BCB takes
-every named section except those; a new BC cannot take the name of any section
-of the file (`AtlasDocument.section_names`). The ICB key schema is read from
-ICB's generated `docs/user-guide/icb/input-reference.md`.
-`GUI/tests/test_icmodel.py` (CTest `GUI-icmodel`) passes every deck of the test
-suite through the document and back.
+## What the ICB panel knows
+
+`icmodel.py` holds the ICB sections: `[ICB-BlockN]`, `[ICB-Block*]`, and the
+zone sections an ICB block names in `zone<n>`. A zone section has no prefix,
+like a BC, so BCB takes every named section except those; a new BC cannot take
+the name of any section of the file (`AtlasDocument.section_names`). The key
+schema is read from ICB's generated `docs/user-guide/icb/input-reference.md`
+(`ICB --write-config-doc`), so the forms cannot drift from the tool.
+
+The model also knows what a state means to ICB: the pair that fixes a gas
+state, the velocity input, the turbulence model the keys imply, and the phases
+a block builds (`case_phases`: the deck's GPB phases, then the `*phase.txt`
+files ICB reads). `ICBDocument.validate` gives the checks of the Initial stage
+and of Review. A choice the keys cannot show yet (total conditions picked
+before any value is typed) is remembered by the panel, per state.
+
+`GUI/tests/test_icmodel.py` (CTest `GUI-icmodel`, no Qt) passes every deck of
+the test suite through the document and back, and checks that `validate`
+flags no ICB deck the tool accepts while catching the ones it refuses.
 
 ## What the GPB panel knows
 

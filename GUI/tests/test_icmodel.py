@@ -221,6 +221,190 @@ type = inlet
         self.assertEqual(icmodel.zone_section_names(sections), ["ok"])
 
 
+class StateChoices(unittest.TestCase):
+
+    def test_numbers_as_icb_reads_them(self):
+        for text, value in (("101325", 101325.0), ("70d+5", 7e6), ("1.5D-3", 1.5e-3),
+                            ("0.20,", 0.2), ("2*20e-6", 20e-6), (" 300 ", 300.0)):
+            self.assertAlmostEqual(icmodel.to_float(text), value, msg=text)
+        for text in ("", "abc", "nan", "inf", "0*3", "x*2", "1e"):
+            self.assertIsNone(icmodel.to_float(text), text)
+
+    def test_gas_pairs(self):
+        state = ICState([("p0", "2e5"), ("T0", "400"), ("mach", "0.3")])
+        self.assertEqual(icmodel.gas_pair(state), "p0-T0")
+        self.assertEqual(icmodel.gas_pair(ICState([("p", "1"), ("T0", "2")])), "p-T0")
+        self.assertEqual(icmodel.gas_pair(ICState([("T-file", "T.dat"), ("rho", "1")])), "T-rho")
+        self.assertEqual(icmodel.gas_pair(ICState()), "p-T")
+        state = ICState([("p", "1"), ("T", "2"), ("T-file", "T.dat"),
+                         ("T-direction", "x"), ("yN2", "1")])
+        icmodel.set_gas_pair(state, "p-rho")
+        self.assertEqual(list(state.params), ["p", "yN2"])
+        state = ICState([("p", "7e6"), ("h", "1e5")])
+        self.assertEqual(icmodel.gas_pair(state, icmodel.REAL_FLUID_PAIRS), "p-h")
+
+    def test_velocity(self):
+        state = ICState([("mach", "0.3"), ("alpha", "0.5"), ("u", "10")])
+        self.assertEqual(icmodel.velocity_mode(state), "components")
+        icmodel.set_velocity_mode(state, "components")
+        self.assertEqual(list(state.params), ["u"])
+        state = ICState([("vel", "20"), ("v", "1")])
+        icmodel.set_velocity_mode(state, "speed", "RF")
+        self.assertEqual(list(state.params), ["vel"])
+
+    def test_turbulence(self):
+        self.assertEqual(icmodel.turbulence_model(ICState([("k", "1")])), 2)
+        self.assertEqual(icmodel.turbulence_model(ICState([("rhoRij", "1"), ("k", "1")])), 7)
+        self.assertEqual(icmodel.turbulence_model(ICState([("nuTilde", "1")])), 1)
+        self.assertEqual(icmodel.turbulence_model(ICState([("nrans", "2"), ("nuTilde", "1")])), 2)
+        self.assertEqual(icmodel.turbulence_model(ICState()), 0)
+        state = ICState([("k", "1"), ("omega", "100"), ("p", "1")])
+        self.assertFalse(icmodel.turbulence_weighted(state))
+        icmodel.set_turbulence(state, 2, True)
+        self.assertEqual(list(state.params.items()), [("p", "1"), ("nrans", "2")])
+        state = ICState([("Rij", "1"), ("omega", "100"), ("nrans", "7")])
+        icmodel.set_turbulence(state, 0, False)
+        self.assertEqual(list(state.params), [])
+
+    def test_summary(self):
+        self.assertEqual(ICState([("p", "1e5"), ("T", "300")]).summary(),
+                         "Uniform  ·  p 1e5  ·  T 300")
+        self.assertEqual(ICState([("type", "nozzle"), ("p0", "5e5"), ("T0", "450")]).summary(),
+                         "Nozzle  ·  p0 5e5  ·  T0 450")
+        self.assertEqual(ICState([("old-solution", "run/field.tec")]).summary(),
+                         "Interpolate  ·  field.tec")
+        self.assertEqual(ICState().summary(), "Uniform  ·  no state yet")
+
+
+class Phases(unittest.TestCase):
+
+    def test_phase_files(self):
+        root = os.path.join(TEST_ROOT, "ICB", "IG+DP")
+        self.assertEqual(icmodel.read_phase_file(os.path.join(root, "particles-phase.txt")),
+                         ("DP", ["AL2O3(L)"], [1]))
+        self.assertEqual(icmodel.phase_name_of_file("a/b/gas-phase.txt"), "gas")
+        self.assertEqual(icmodel.phase_name_of_file("phase.txt"), "")
+        phases = icmodel.case_phases(None, root)
+        self.assertEqual([(p.name, p.kind, p.entries) for p in phases],
+                         [("gas", "IG", ["N2"]), ("particles", "DP", ["AL2O3(L)"])])
+
+    def test_deck_phases_come_first_and_keep_their_kind(self):
+        doc = AtlasDocument.from_ini(
+            "[GPB-Phase1]\nname = air\ntype = ideal-gas\nspecies = O2 N2\n\n"
+            "[GPB-Phase2]\nname = wall\ntype = solid\nmaterial = steel copper\n")
+        root = os.path.join(TEST_ROOT, "ICB", "IG+SP")      # holds gas- and solid-phase.txt
+        phases = icmodel.case_phases(doc.gpb, root)
+        self.assertEqual([(p.name, p.kind) for p in phases][:2], [("air", "IG"), ("wall", "SP")])
+        self.assertEqual(phases[0].entries, ["O2", "N2"])
+        self.assertEqual(phases[1].entries, ["steel", "copper"])
+        self.assertEqual(phases[0].source, "deck")
+        self.assertEqual({p.name for p in phases[2:]}, {"gas", "solid"})
+        looked_up = icmodel.case_phases(
+            AtlasDocument.from_ini("[GPB-Phase1]\nname = g\nreactions = h2o2\n").gpb,
+            None, lambda phase: ["H2", "O2"])
+        self.assertEqual(looked_up[0].entries, ["H2", "O2"])
+
+    def test_phase_renames_reach_the_blocks(self):
+        doc = AtlasDocument.from_ini("[ICB-Block1]\nphase = gas particles\n\n"
+                                     "[ICB-Block*]\nphase = gas\n")
+        doc.icb.rename_phase("gas", "air")
+        self.assertEqual(doc.icb.blocks[1].phases, ["air", "particles"])
+        self.assertEqual(doc.icb.wildcard.phases, ["air"])
+        doc.icb.drop_phase("air")
+        self.assertEqual(doc.icb.blocks[1].phases, ["particles"])
+        self.assertFalse(doc.icb.wildcard.has("phase"))
+
+
+# Decks ICB stops on that the checks must catch from the deck alone (the
+# other refusal decks of the suite need the mesh or the source file).
+REFUSED = ("ICB-type-refused/input.ini", "IG+DP/particles-only.ini",
+           "IG+DP/phase-undeclared.ini", "IG-state-not-physical/input.ini",
+           "IG-turbulence-specific/both.ini", "IG-turbulence-specific/eddy.ini",
+           "IG-turbulence-specific/retired.ini", "IG-turbulence-zero-refused/input.ini",
+           "IG-interp-species/input.ini", "IG-interp-species-decomposition/input.ini")
+
+
+class Checks(unittest.TestCase):
+
+    def validate(self, text, nblocks=1, phases=None, strict=True):
+        doc = AtlasDocument.from_ini(text)
+        phases = phases if phases is not None else [
+            icmodel.PhaseInfo("", "IG", ["H2", "O2", "N2"])]
+        return [(level, message) for level, _t, message
+                in doc.icb.validate(nblocks, phases, strict)]
+
+    def test_icb_decks(self):
+        """No deck ICB accepts is flagged, and the refusals above are caught."""
+        root = os.path.join(TEST_ROOT, "ICB")
+        for path in decks():
+            name = os.path.relpath(path, root)
+            if name.startswith(".."):
+                continue
+            with self.subTest(deck=name):
+                with open(path, encoding="utf-8") as handle:
+                    doc = AtlasDocument.from_ini(handle.read())
+                if doc.icb.is_empty():
+                    continue
+                strict = doc.parameters.get("strict-keys", "T").strip().upper() != "F"
+                phases = icmodel.case_phases(doc.gpb, os.path.dirname(path))
+                errors = [m for level, _t, m in doc.icb.validate(0, phases, strict)
+                          if level == "error"]
+                if name in REFUSED:
+                    self.assertTrue(errors, "ICB refuses this deck")
+                else:
+                    self.assertEqual(errors, [])
+
+    def test_block_without_a_state(self):
+        issues = self.validate("[ICB-Block1]\np = 1e5\nT = 300\nyN2 = 1\n", nblocks=2)
+        self.assertIn(("error", "Block 2 has no initial state: ICB stops on it. Give the "
+                                "block a state, or give All blocks one"), issues)
+
+    def test_composition(self):
+        def errors(keys):
+            return [m for level, m in self.validate("[ICB-Block*]\np = 1e5\nT = 300\n" + keys)
+                    if level == "error"]
+        self.assertEqual(errors("yO2 = 0.233\nyN2 = 0.767\n"), [])
+        self.assertTrue(any("sum to 0.9" in m for m in errors("yO2 = 0.2\nyN2 = 0.7\n")))
+        self.assertTrue(any("no species Ar" in m for m in errors("yAr = 1\n")))
+        self.assertTrue(any("no composition" in m for m in errors("")))
+        self.assertEqual(errors("eq-CEA-file = air.inp\n"), [])
+        warnings = [m for level, m in self.validate(
+            "[ICB-Block*]\np = 1e5\nT = 300\nyO2 = 0.2335\nyN2 = 0.767\n") if level == "warning"]
+        self.assertTrue(any("renormalises" in m for m in warnings))
+
+    def test_modes_and_phases(self):
+        gas = icmodel.PhaseInfo("gas", "IG", ["N2"])
+        fluid = icmodel.PhaseInfo("fluid", "RF", ["Water"])
+        solid = icmodel.PhaseInfo("wall", "SP", ["steel"])
+        def errors(text, phases):
+            return [m for level, m in self.validate(text, 1, phases) if level == "error"]
+        self.assertTrue(errors("[ICB-Block1]\ntype = nozzle\np0 = 1e5\n", [gas]))
+        self.assertTrue(any("builds none" in m for m in errors(
+            "[ICB-Block1]\nphase = wall\ntype = nozzle\nT = 300\n", [gas, solid])))
+        self.assertTrue(any("needs p and T" in m for m in errors(
+            "[ICB-Block1]\nphase = fluid\np = 7e6\n", [fluid])))
+        self.assertTrue(any("carries no" in m for m in errors(
+            "[ICB-Block1]\nphase = fluid\np = 7e6\nT = 400\nk = 1\nomega = 10\n", [fluid])))
+        self.assertTrue(any("old-solution" in m for m in errors(
+            "[ICB-Block1]\ntype = interpolation\n", [gas])))
+        self.assertEqual(errors("[ICB-Block1]\nold-solution = f.tec\n", [gas]), [])
+        self.assertTrue(any("must move into a zone" in m for m in errors(
+            "[ICB-Block1]\ndirection = x\nzone1 = a\nrange1 = 0 1\np = 1\n\n[a]\n"
+            "p = 1e5\nT = 300\n", [gas])))
+
+    def test_unread_keys(self):
+        text = "[ICB-Block*]\np = 1e5\nT = 300\nyN2 = 1\nlaw = index\n"
+        self.assertTrue(any(level == "error" and "write interpolation-law" in m
+                            for level, m in self.validate(text)))
+        self.assertTrue(any(level == "warning" and "law" in m
+                            for level, m in self.validate(text, strict=False)))
+
+    def test_total_conditions_with_components(self):
+        text = "[ICB-Block*]\np0 = 2e5\nT0 = 400\nu = 50\nyN2 = 1\n"
+        self.assertTrue(any(level == "warning" and "T = T0" in m
+                            for level, m in self.validate(text)))
+
+
 class Schema(unittest.TestCase):
 
     def test_reference_found(self):

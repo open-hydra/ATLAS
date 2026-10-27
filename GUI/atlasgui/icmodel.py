@@ -28,6 +28,8 @@ No Qt here: the model can be built and serialised headlessly.
 
 from __future__ import annotations
 
+import glob
+import math
 import os
 import re
 from collections import OrderedDict
@@ -201,6 +203,138 @@ def split_values(value):
     return (value or "").split()
 
 
+def to_float(text):
+    """The value of one INI number as ICB reads it (a Fortran list-directed
+    read): ``70d+5``, ``0.20,`` (the comma ends the value) and ``2*20e-6`` (a
+    repeat count) are numbers.  None when *text* is not a finite number."""
+    token = str(text).strip()
+    for separator in (",", "/"):
+        token = token.split(separator, 1)[0].strip()
+    count, star, rest = token.partition("*")
+    if star:
+        if not count.isdigit() or int(count) < 1:
+            return None
+        token = rest
+    try:
+        value = float(token.replace("d", "e").replace("D", "e"))
+    except ValueError:
+        return None
+    return value if math.isfinite(value) else None
+
+
+# ------------------------------------------------------- what a state gives
+# The thermodynamic state of an ideal-gas zone is fixed by a pair; ICB fills
+# the rest (T from T, from T0 and the Mach number, or from p / (R rho); p
+# likewise).  A key given beyond the pair is not checked against it, so the
+# editor offers the pairs and nothing else.
+GAS_STATE_KEYS = ("p", "T", "p0", "T0", "rho")
+GAS_PAIRS = OrderedDict([
+    ("p-T", ("Static p and T", ("p", "T"))),
+    ("p0-T0", ("Total p0 and T0", ("p0", "T0"))),
+    ("p-T0", ("Static p, total T0", ("p", "T0"))),
+    ("p0-T", ("Total p0, static T", ("p0", "T"))),
+    ("p-rho", ("Static p and density", ("p", "rho"))),
+    ("T-rho", ("Static T and density", ("T", "rho"))),
+])
+REAL_FLUID_PAIRS = OrderedDict([
+    ("p-T", ("Pressure and temperature", ("p", "T"))),
+    ("p-h", ("Pressure and enthalpy", ("p", "h"))),
+])
+
+# The velocity: three components, or a speed (Mach number for a gas, vel for a
+# real fluid) along the flow angles alpha, beta.
+SPEED_KEY = {"IG": "mach", "RF": "vel"}
+COMPONENT_KEYS = ("u", "v", "w")
+ANGLE_KEYS = ("alpha", "beta")
+
+# Turbulence: the model follows from the keys given (src/common/config_shared.f90)
+# unless nrans names it; each quantity is given specific or density-weighted.
+TURBULENCE_MODELS = OrderedDict([(0, "Laminar"), (1, "Spalart-Allmaras"),
+                                 (2, "k-omega"), (7, "Reynolds stress")])
+TURBULENCE_SPECIFIC = {1: ("nuTilde",), 2: ("k", "omega"), 7: ("Rij", "omega")}
+WEIGHTED_KEY = {"nuTilde": "rhoNuTilde", "k": "rhoK", "omega": "rhoOmega",
+                "Rij": "rhoRij"}
+TURBULENCE_KEYS = tuple(WEIGHTED_KEY) + tuple(WEIGHTED_KEY.values()) + ("nrans",)
+
+
+def has_value_or_file(state, key):
+    return state.has(key) or state.has(f"{key}-file")
+
+
+def _clear_with_profile(state, keys):
+    for key in keys:
+        state.clear(key, f"{key}-file", f"{key}-direction")
+
+
+def gas_pair(state, pairs=GAS_PAIRS):
+    """The pair of *pairs* the state gives: the one its keys match exactly,
+    else the one they overlap most (the first when none is given)."""
+    keys = {k for k in GAS_STATE_KEYS + ("h",) if has_value_or_file(state, k)}
+    for name, (_label, pair) in pairs.items():
+        if set(pair) == keys:
+            return name
+    names = list(pairs)
+    return max(names, key=lambda n: (len(set(pairs[n][1]) & keys), -names.index(n)))
+
+
+def set_gas_pair(state, name, pairs=GAS_PAIRS):
+    """Keep the keys of pair *name*, drop the other state keys of *pairs*."""
+    keep = set(pairs[name][1])
+    others = {k for _label, pair in pairs.values() for k in pair} - keep
+    _clear_with_profile(state, sorted(others))
+
+
+def uses_total_conditions(state):
+    return has_value_or_file(state, "p0") or has_value_or_file(state, "T0")
+
+
+def velocity_mode(state):
+    """``components`` when u, v or w is given, else ``speed``."""
+    return "components" if any(state.has(k) for k in COMPONENT_KEYS) else "speed"
+
+
+def set_velocity_mode(state, mode, kind="IG"):
+    if mode == "components":
+        _clear_with_profile(state, (SPEED_KEY[kind],) + ANGLE_KEYS)
+    else:
+        state.clear(*COMPONENT_KEYS)
+
+
+def turbulence_model(state):
+    """The model ICB runs the state with: ``nrans`` when given, else the one
+    its keys imply (0 = laminar)."""
+    if state.has("nrans"):
+        value = to_float(state.get("nrans"))
+        return int(value) if value is not None else 0
+    if state.has("Rij") or state.has("rhoRij"):
+        return 7
+    if any(state.has(k) for k in ("k", "omega", "rhoK", "rhoOmega")):
+        return 2
+    if state.has("nuTilde") or state.has("rhoNuTilde"):
+        return 1
+    return 0
+
+
+def turbulence_weighted(state):
+    """True when the state gives its turbulence density-weighted."""
+    return any(state.has(k) for k in WEIGHTED_KEY.values())
+
+
+def turbulence_keys(model, weighted):
+    keys = TURBULENCE_SPECIFIC.get(model, ())
+    return tuple(WEIGHTED_KEY[k] for k in keys) if weighted else keys
+
+
+def set_turbulence(state, model, weighted):
+    """Model *model* given in the form *weighted*: its keys stay (the ones of
+    the other form are dropped, they mean another quantity), every other
+    turbulence key goes, and ``nrans`` names the model."""
+    keep = set(turbulence_keys(model, weighted))
+    state.clear(*[k for k in TURBULENCE_KEYS if k not in keep])
+    if model:
+        state.set("nrans", str(model))
+
+
 # ---------------------------------------------------------------- a state
 class ICState:
     """The keys of one state: a block section or a zone section."""
@@ -277,6 +411,22 @@ class ICState:
     def species_keys(self):
         """Every ``y<species>``, ``y<species>-file`` and ``-direction`` key."""
         return [k for k in self.params if species_key_pattern(k)]
+
+    def summary(self):
+        """One line for a list: the mode, then the values that define it."""
+        mode = self.mode
+        parts = [MODES[mode]]
+        if mode == "interpolate":
+            parts.append(os.path.basename(self.get("old-solution")) or "no source yet")
+        else:
+            for key in ("p0", "T0", "p", "T", "rho", "h", "mach", "vel"):
+                if self.has(key):
+                    parts.append(f"{key} {self.get(key)}")
+                elif self.has(f"{key}-file"):
+                    parts.append(f"{key} profile")
+            if len(parts) == 1:
+                parts.append("no state yet")
+        return "  ·  ".join(parts[:4])
 
 
 # ---------------------------------------------------------------- a block
@@ -525,6 +675,18 @@ class ICBDocument:
         for name in [n for n in self.zones if n not in used]:
             del self.zones[name]
 
+    # -- phases ----------------------------------------------------------
+    def blocks_listing_phase(self, name):
+        return [b for b in self.all_blocks() if name in b.phases]
+
+    def rename_phase(self, old, new):
+        for block in self.blocks_listing_phase(old):
+            block.phases = [new if n == old else n for n in block.phases]
+
+    def drop_phase(self, name):
+        for block in self.blocks_listing_phase(name):
+            block.phases = [n for n in block.phases if n != name]
+
     def section_names(self):
         """Every section name this document writes."""
         return ([b.section_name for b in self.all_blocks()] + list(self.zones)
@@ -552,3 +714,359 @@ class ICBDocument:
     # -- status ----------------------------------------------------------
     def is_empty(self):
         return not (self.wildcard or self.blocks or self.zones or self.kept)
+
+    # -- checks ----------------------------------------------------------
+    def validate(self, nblocks=0, phases=(), strict=True):
+        """``[(level, target, message)]``: what ICB would stop on (``error``)
+        or report (``warning``), checked from the deck alone.  *target* is a
+        block index or ``"*"``; *nblocks* the number of mesh blocks (0 when
+        unknown); *phases* the :class:`PhaseInfo` of the case; *strict* the
+        ``strict-keys`` of the case (F turns an unread key into a warning)."""
+        phases = list(phases)
+        issues = []
+        indices = list(range(1, nblocks + 1)) if nblocks else list(self.blocks)
+        for b in indices:
+            if self.block(b) is None:
+                issues.append(("error", b, (
+                    f"Block {b} has no initial state: ICB stops on it. Give the "
+                    "block a state, or give All blocks one")))
+        known = {p.name for p in phases}
+        for block in self.all_blocks():
+            where = block_label(block.index)
+            target = block.index
+            if not block.is_wildcard and nblocks and block.index > nblocks:
+                issues.append(("warning", target, (
+                    f"{where}: the mesh has {nblocks} block(s), so ICB never "
+                    "reads this section")))
+            if phases:
+                for name in block.phases:
+                    if name not in known:
+                        issues.append(("error", target, (
+                            f"{where}: phase '{name}' is not a phase of the case")))
+            if block.is_split:
+                stray = block.state_keys()
+                if stray:
+                    issues.append(("error", target, (
+                        f"{where}: a block split into zones takes its state from "
+                        f"them, so {', '.join(stray[:4])} must move into a zone")))
+                for ref in block.zone_refs():
+                    if ref.section not in self.zones:
+                        issues.append(("error", target, (
+                            f"{where}: zone [{ref.section}] has no section")))
+                        continue
+                    issues += _state_issues(self.zones[ref.section], block, phases,
+                                            f"{where}, zone [{ref.section}]", target,
+                                            strict)
+            else:
+                issues += _state_issues(block, block, phases, where, target, strict)
+        sections = self.all_blocks()
+        if phases and sections:
+            for phase in phases:
+                if not any(not s.phases or phase.name in s.phases for s in sections):
+                    issues.append(("warning", None, (
+                        f"phase '{phase.label}' is built by no block: ICB writes no "
+                        "initial field for it")))
+        return issues
+
+
+def block_label(index):
+    return "All blocks" if index == "*" else f"Block {index}"
+
+
+# -------------------------------------------------------------- the phases
+# Header of <name>phase.txt -> the kind ICB reads (src/common/read_phase.f90).
+PHASE_FILE_KINDS = (("condensed-dispersed", "DP"), ("liquid-dispersed", "DP"),
+                    ("solid-dispersed", "DP"), ("solid-bulk", "SP"),
+                    ("ideal-gas", "IG"), ("real-fluid", "RF"))
+OUTPUT_DIR = "fromATLAStoSolver"
+
+
+class PhaseInfo:
+    """A phase ICB can build.
+
+    * ``name``        -- what a block's ``phase`` key calls it: the prefix of
+      its ``<name>-phase.txt`` (``""`` for an unnamed ``phase.txt``);
+    * ``kind``        -- IG, RF, SP or DP;
+    * ``entries``     -- the species of a gas, the materials of a solid or a
+      dispersed phase, the fluid of a real fluid; empty when not known;
+    * ``populations`` -- per material of a dispersed phase, its number of
+      populations (the per-population keys count them);
+    * ``source``      -- the phase file the entries come from, or ``"deck"``.
+    """
+
+    def __init__(self, name, kind, entries=(), populations=(), source=""):
+        self.name = name
+        self.kind = kind
+        self.entries = list(entries)
+        self.populations = list(populations)
+        self.source = source
+
+    def __repr__(self):
+        return f"PhaseInfo({self.name!r}, {self.kind!r}, {self.entries!r})"
+
+    @property
+    def label(self):
+        return self.name or "(unnamed)"
+
+    def population_count(self):
+        return sum(self.populations) if self.populations else len(self.entries)
+
+
+def phase_name_of_file(path):
+    """``gas`` for ``gas-phase.txt``, ``""`` for ``phase.txt``."""
+    base = os.path.basename(path)
+    return base[:-len("phase.txt")].rstrip("-")
+
+
+def read_phase_file(path):
+    """``(kind, entries, populations)`` of a ``<name>phase.txt``, or None
+    when the file cannot be read or its header names no kind."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            lines = [line.strip() for line in handle if line.strip()]
+    except OSError:
+        return None
+    if not lines:
+        return None
+    header = lines[0].lower()
+    kind = next((k for word, k in PHASE_FILE_KINDS if word in header), None)
+    if kind is None:
+        return None
+    entries, populations = [], []
+    for line in lines[1:]:
+        tokens = line.split()
+        entries.append(tokens[0])
+        if kind == "DP":
+            count = to_float(tokens[1]) if len(tokens) > 1 else None
+            populations.append(int(count) if count and count >= 1 else 1)
+    return kind, entries, populations
+
+
+def _deck_entries(phase, kind, species_lookup=None):
+    """What a GPB phase of the deck says of its entries, before GPB runs."""
+    if kind == "IG":
+        names = split_values(phase.get("species")) + split_values(phase.get("add-species"))
+        if not names and species_lookup is not None:
+            names = list(species_lookup(phase) or [])
+        return names, []
+    if kind == "RF":
+        return split_values(phase.get("fluid"))[:1], []
+    entries = phase.entries()
+    populations = []
+    if kind == "DP":
+        for value in phase.column("groups", len(entries)):
+            count = to_float(value)
+            populations.append(int(count) if count and count >= 1 else 1)
+    return entries, populations
+
+
+def case_phases(gpb=None, case_dir=None, species_lookup=None):
+    """The phases ICB builds for the case, the deck's GPB phases first.
+
+    ICB reads the ``*phase.txt`` files of the case directory; GPB writes them
+    into ``fromATLAStoSolver/``, which is read next.  A GPB phase of the deck
+    takes its kind from the deck and its entries from its built file when
+    the file has the same kind (a mechanism's species are only known once
+    GPB has run), else from the deck's own lists -- or from
+    *species_lookup(phase)* for a gas without one.  A phase file the deck
+    does not describe follows.
+    """
+    files = OrderedDict()
+    if case_dir:
+        for directory in (case_dir, os.path.join(case_dir, OUTPUT_DIR)):
+            for path in sorted(glob.glob(os.path.join(directory, "*phase.txt"))):
+                name = phase_name_of_file(path)
+                parsed = None if name in files else read_phase_file(path)
+                if parsed:
+                    files[name] = (path,) + parsed
+    phases = OrderedDict()
+    for phase in (gpb.phases if gpb is not None else []):
+        name = phase.name
+        if name in phases:
+            continue
+        kind = kind_of(phase.type)
+        if name in files and files[name][1] == kind:
+            path, _kind, entries, populations = files[name]
+            phases[name] = PhaseInfo(name, kind, entries, populations, path)
+        else:
+            entries, populations = _deck_entries(phase, kind, species_lookup)
+            phases[name] = PhaseInfo(name, kind, entries, populations, "deck")
+    for name, (path, kind, entries, populations) in files.items():
+        if name not in phases:
+            phases[name] = PhaseInfo(name, kind, entries, populations, path)
+    return list(phases.values())
+
+
+def block_phases(block, phases):
+    """The phases *block* builds: those its ``phase`` key names, or all."""
+    names = block.phases if block is not None else []
+    return [p for p in phases if not names or p.name in names]
+
+
+def block_kinds(block, phases):
+    """The kinds *block* builds.  Without any phase file ICB assumes one
+    unnamed ideal-gas phase."""
+    if not phases:
+        return {"IG"}
+    return {p.kind for p in block_phases(block, phases)}
+
+
+def gas_species(block, phases):
+    """The species of the gases *block* builds, or None when one of them
+    has species the GUI does not know."""
+    gases = [p for p in block_phases(block, phases) if p.kind == "IG"]
+    if not gases or any(not p.entries for p in gases):
+        return None
+    species = []
+    for gas in gases:
+        species += [s for s in gas.entries if s not in species]
+    return species
+
+
+# --------------------------------------------------------- state checks
+# Keys whose value is a number (or, for the per-population keys, numbers).
+NUMERIC_KEYS = (("mach", "p0", "T0", "p", "T", "rho", "h", "vel")
+                + ANGLE_KEYS + COMPONENT_KEYS + ("un",) + TURBULENCE_KEYS
+                + ("old-block-id", "theta", "nz", "nozzle-threshold",
+                   "eq-CEA-section", "krho", "kT", "Pp", "dp", "rp", "neuler"))
+YSUM_TOL = 1.0e-3      # ICB renormalises a composition within this, refuses beyond
+YSUM_EPS = 1.0e-12     # rounding of decimal constants, renormalised in silence
+POSITIVE_KEYS = ("p", "T", "p0", "T0", "rho")    # ICB refuses a state that is not physical
+
+# Keys of earlier decks, or names that are not ICB's, with what to write
+# instead (docs/user-guide/icb/ic-strategies.md, "Keys of pre-2026 decks").
+RENAMED_KEYS = {
+    "oldsolution": "old-solution", "law": "interpolation-law",
+    "oldid": "old-block-id", "CEA-CEAfile": "eq-CEA-file", "CEA-of": "eq-CEA-file",
+    "CEA-section": "eq-CEA-section", "kappa": "k (or rhoK)",
+    "nut": "nuTilde (the Spalart-Allmaras variable; the eddy viscosity is not an input)",
+    "mut": "nuTilde (the Spalart-Allmaras variable; the eddy viscosity is not an input)",
+}
+
+
+def is_known_key(key):
+    """True when ICB reads *key* in a block or zone section."""
+    if is_structural(key) or species_key_pattern(key):
+        return True
+    tables = [BLOCK_TABLE, COMPOSITION_TABLE] + list(KIND_TABLES.values())
+    return any(key in REFERENCE.get(table, {}) for table in tables)
+
+
+def _state_issues(state, block, phases, where, target, strict=True):
+    issues = []
+
+    def add(level, text):
+        issues.append((level, target, f"{where}: {text}"))
+
+    def given(key):
+        return has_value_or_file(state, key)
+
+    kinds = block_kinds(block, phases)
+    mode = state.mode
+    icb_type = state.get("type").strip()
+    allowed = ICB_TYPES if state is block else ICB_TYPES[:4]
+    if icb_type and icb_type not in allowed:
+        add("error", f"type = {icb_type} is not an ICB type ({', '.join(allowed)})")
+    for key, value in state.params.items():
+        if SCHEMA_FOUND and not is_known_key(key):
+            hint = RENAMED_KEYS.get(key)
+            add("error" if strict else "warning",
+                f"ICB reads no key {key}" + (f": write {hint}" if hint else ""))
+        if key in NUMERIC_KEYS or species_key_pattern(key) == "yspecies":
+            tokens = split_values(value) or [""]
+            if any(to_float(t) is None for t in tokens):
+                add("error", f"{key} = {value} is not a number")
+            elif key in POSITIVE_KEYS and to_float(tokens[0]) <= 0:
+                add("error", f"{key} = {value}: the state is not physical")
+    for key in ("nozzle-direction", "interpolation-law"):
+        choices = allowed_values(key, "IG")
+        if state.has(key) and choices and state.get(key) not in choices:
+            add("error", f"{key} = {state.get(key)} is not one of {', '.join(choices)}")
+
+    if mode == "nozzle" and "IG" not in kinds:
+        add("error", "the nozzle law builds an ideal gas, and the block builds none")
+    if mode == "interpolate" and not state.get("old-solution"):
+        add("error", "an interpolation needs the old solution (old-solution)")
+
+    if "IG" in kinds and mode == "nozzle":
+        missing = [k for k in ("p0", "T0") if not given(k)]
+        if missing:
+            add("error", f"the nozzle law starts from the plenum: give {' and '.join(missing)}")
+    elif "IG" in kinds and mode == "uniform":
+        t_ok = given("T") or given("T0") or (given("p") and given("rho"))
+        p_ok = given("p") or given("p0") or (given("T") and given("rho"))
+        if not (t_ok and p_ok):
+            add("error", "the gas state needs a pair: p and T, p0 and T0, or a "
+                         "density with p or T")
+        if uses_total_conditions(state) and velocity_mode(state) == "components" \
+                and not state.has("mach"):
+            add("warning", "total conditions with velocity components: ICB takes "
+                           "the static T at Mach 0 (T = T0) but expands p at the "
+                           "Mach number of u, v, w; give the speed as mach")
+    if "IG" in kinds and mode != "interpolate":
+        _composition_issues(state, gas_species(block, phases), add)
+
+    if "RF" in kinds and mode != "interpolate":
+        if not (given("p") and (given("T") or given("h"))):
+            add("error", "the real-fluid state needs p and T, or p and h")
+    if "RF" in kinds:
+        specific = [k for k in WEIGHTED_KEY if state.has(k)]
+        if specific:
+            add("error", f"{', '.join(specific)}: a real-fluid table carries no "
+                         f"density, give {', '.join(WEIGHTED_KEY[k] for k in specific)}")
+    if "SP" in kinds and mode != "interpolate" and not given("T"):
+        add("error", "the solid needs its temperature T")
+    if "DP" in kinds and mode != "interpolate":
+        if not (state.has("dp") or state.has("rp")):
+            add("error", "the dispersed phase needs its particle size, dp or rp")
+        krho = [to_float(v) for v in split_values(state.get("krho"))]
+        if any(krho) and "IG" not in kinds:
+            add("error", "krho derives the dispersed state from the gas of the "
+                         "block, and the block builds none")
+
+    for specific, weighted in WEIGHTED_KEY.items():
+        if state.has(specific) and state.has(weighted):
+            add("error", f"{specific} and {weighted} give one quantity twice")
+    model = turbulence_model(state)
+    if mode != "interpolate" and model in TURBULENCE_SPECIFIC:
+        missing = [k for k in TURBULENCE_SPECIFIC[model]
+                   if not (state.has(k) or state.has(WEIGHTED_KEY[k]))]
+        if missing:
+            level = "warning" if model == 1 else "error"
+            add(level, f"the {TURBULENCE_MODELS[model]} model needs "
+                       f"{' and '.join(missing)} (or "
+                       f"{' and '.join(WEIGHTED_KEY[k] for k in missing)})")
+    return issues
+
+
+def _composition_issues(state, species, add):
+    """The mass fractions of a gas state; *species* None when not known."""
+    if state.get("eq-CEA-file"):
+        return
+    constants = state.mass_fractions()
+    profiles = [species_of_key(k) for k in state.species_keys() if k.endswith("-file")]
+    named = list(constants) + profiles
+    if species is not None:
+        unknown = [s for s in named if s not in species]
+        if unknown:
+            add("error", f"the gas declares no species {', '.join(unknown)}")
+        if len(species) <= 1:
+            return
+    if not named:
+        if species is not None:
+            add("error", "no composition: give the mass fractions (y<species>) "
+                         "or a CEA equilibrium")
+        return
+    if profiles:
+        return                       # ICB checks the sum cell by cell
+    values = [to_float(v) for v in constants.values()]
+    if any(v is None for v in values):
+        return                       # reported as not a number
+    if any(v < 0 or v > 1 for v in values):
+        add("error", "a mass fraction lies outside [0, 1]")
+    total = sum(values)
+    if abs(1 - total) > YSUM_TOL + YSUM_EPS:
+        add("error", f"the mass fractions sum to {total:.6g}: they must sum to "
+                     "1 within 1e-3")
+    elif abs(1 - total) > YSUM_EPS:
+        add("warning", f"the mass fractions sum to {total:.6g}: ICB renormalises them")

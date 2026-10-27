@@ -176,14 +176,23 @@ class MixtureDialog(_Dialog):
 
 
 class AdvancedKeysDialog(_Dialog):
-    """Every ``key = value`` line of the phase, as written to the INI."""
+    """Every ``key = value`` line of a section, as written to the INI.
 
-    def __init__(self, parent, kit, phase):
+    Written for a GPB phase; another section with ``params`` (an ICB state)
+    passes its own *title*, the *keys* to suggest and how to *describe* and
+    give the *default* of one.
+    """
+
+    def __init__(self, parent, kit, phase, title="All keys of this phase",
+                 keys=None, describe=None, default=None):
         super().__init__(
-            parent, kit, "All keys of this phase",
+            parent, kit, title,
             "The raw INI lines. Anything the form above does not cover can be "
             "set here; the form keeps whatever it does not know about.")
         self.phase = phase
+        self._describe_key = describe or gpbmodel.describe
+        self._default_of = default or gpbmodel.default_of
+        suggested = list(gpbmodel.KEY_INFO) if keys is None else list(keys)
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(["KEY", "VALUE"])
         self.table.horizontalHeader().setSectionResizeMode(
@@ -199,8 +208,7 @@ class AdvancedKeysDialog(_Dialog):
         row.setSpacing(7)
         self.key_combo = QComboBox()
         self.key_combo.setEditable(True)
-        self.key_combo.addItems([k for k in gpbmodel.KEY_INFO
-                                 if k not in phase.params])
+        self.key_combo.addItems([k for k in suggested if k not in phase.params])
         self.key_combo.setToolTip("Pick a documented key or type any key name.")
         row.addWidget(self.key_combo, 1)
         row.addWidget(kit.button("Add key", self._add, "plus"))
@@ -214,7 +222,7 @@ class AdvancedKeysDialog(_Dialog):
         row = self.table.rowCount()
         self.table.insertRow(row)
         item = QTableWidgetItem(str(key))
-        item.setToolTip(gpbmodel.describe(key) or "")
+        item.setToolTip(self._describe_key(key) or "")
         self.table.setItem(row, 0, item)
         self.table.setItem(row, 1, QTableWidgetItem(str(value)))
 
@@ -223,13 +231,13 @@ class AdvancedKeysDialog(_Dialog):
             return
         item = self.table.item(row, 0)
         if item is not None:
-            item.setToolTip(gpbmodel.describe(item.text().strip()) or "")
+            item.setToolTip(self._describe_key(item.text().strip()) or "")
 
     def _add(self):
         key = self.key_combo.currentText().strip()
         if not key:
             return
-        self._append(key, gpbmodel.default_of(key))
+        self._append(key, self._default_of(key))
 
     def _remove(self):
         row = self.table.currentRow()

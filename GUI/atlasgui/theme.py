@@ -586,6 +586,7 @@ QLineEdit, QComboBox, QAbstractSpinBox {
     selection-background-color: %(accent)s; selection-color: %(on_accent)s; }
 QLineEdit:hover, QComboBox:hover { border-color: %(border_strong)s; }
 QLineEdit:focus, QComboBox:focus, QComboBox:on { border-color: %(accent)s; }
+QLineEdit[invalid="true"] { border-color: %(danger)s; }
 QComboBox::drop-down { border: none; width: 24px; }
 QComboBox::down-arrow { image: url(%(arrow_down)s); width: 13px; height: 13px; }
 QComboBox QAbstractItemView {

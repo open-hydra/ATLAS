@@ -8,6 +8,7 @@ document, in the order the tools run:
   is set up so far;
 * **Phases** -- GPB: the property tables the solver will read;
 * **Boundaries** -- BCB: the mesh and its boundary conditions;
+* **Initial** -- ICB: the initial state of every block;
 * **Review** -- the INI as it will be written, with everything the GUI can
   check about it.
 """
@@ -35,12 +36,15 @@ from .bcmodel import ATLAS_PARAM_KEYS
 from .document import AtlasDocument
 from .filewidgets import FileColumn
 from .gpbpanel import GPBPanel
+from .icbpanel import ICBPanel
+from .icmodel import block_label
 from .widgets import Card, UIKit
 
 STAGES = [
     ("case", "Case", "sliders", "Where the case lives and what it contains"),
     ("gpb", "Phases", "layers", "GPB: the phases and their property tables"),
     ("bcb", "Boundaries", "cube", "BCB: boundary conditions on the mesh"),
+    ("icb", "Initial", "thermo", "ICB: the initial state of every block"),
     ("review", "Review", "code", "The INI file and what can be checked in it"),
 ]
 
@@ -186,20 +190,23 @@ class AtlasMainWindow(QWidget):
         self.case_page = self._build_case_stage()
         self.gpb_panel = GPBPanel(self)
         self.bcb_panel = BCBPanel(self)
+        self.icb_panel = ICBPanel(self)
         self.review_page = self._build_review_stage()
-        self.gpb_panel.changed.connect(self.document_changed)
-        self.bcb_panel.changed.connect(self.document_changed)
-        for widget in (self.case_page, self.gpb_panel, self.bcb_panel,
-                       self.review_page):
-            self.stack.addWidget(widget)
+        for panel in (self.gpb_panel, self.bcb_panel, self.icb_panel):
+            panel.changed.connect(self.document_changed)
+        pages = {"case": self.case_page, "gpb": self.gpb_panel,
+                 "bcb": self.bcb_panel, "icb": self.icb_panel,
+                 "review": self.review_page}
+        for key, _label, _icon, _tip in STAGES:
+            self.stack.addWidget(pages[key])
         body.addWidget(self.stack, 1)
         root.addLayout(body, 1)
 
-        # The view controls belong to the Boundaries stage only.
-        self.tool_stack.addWidget(QWidget())
-        self.tool_stack.addWidget(QWidget())
-        self.tool_stack.addWidget(self.bcb_panel.view_tools())
-        self.tool_stack.addWidget(QWidget())
+        # The view controls belong to the Boundaries stage only; the tool
+        # stack has one page per stage, in the order of STAGES.
+        for key, _label, _icon, _tip in STAGES:
+            self.tool_stack.addWidget(
+                self.bcb_panel.view_tools() if key == "bcb" else QWidget())
 
         root.addWidget(self._build_status_strip())
 
@@ -508,6 +515,8 @@ class AtlasMainWindow(QWidget):
         self.set_stage(stage)
         if stage == "gpb" and index is not None:
             self.gpb_panel.phase_list.setCurrentRow(index)
+        elif stage == "icb" and index is not None:
+            self.icb_panel.select_target(index)
 
     # -------------------------------------------------------- status strip
     def _build_status_strip(self):
@@ -572,8 +581,14 @@ class AtlasMainWindow(QWidget):
             self.gpb_panel.refresh()
         elif key == "bcb":
             self.bcb_panel.refresh_block_phases()
+        elif key == "icb":
+            self.icb_panel.refresh()      # the phases and the mesh may have changed
         elif key == "review":
+            self.icb_panel.reload_phases()
             self.refresh_review()
+        elif key == "case":
+            self.icb_panel.reload_phases()
+            self.refresh_case()
 
     # ------------------------------------------------------------ file ops
     def set_case_dir(self, path):
@@ -691,6 +706,7 @@ class AtlasMainWindow(QWidget):
     def refresh_all(self):
         self.bcb_panel.refresh()
         self.gpb_panel.refresh()
+        self.icb_panel.refresh()
         self._refresh_globals_table()
         self.refresh_case()
         self.refresh_review()
@@ -719,6 +735,17 @@ class AtlasMainWindow(QWidget):
             "cube", "BLOCKS", str(nblocks),
             f"{done} of {total} faces assigned" if total else "no mesh loaded",
             "bcb"))
+        count = self.icb_panel.block_count()
+        started = sum(1 for b in range(1, count + 1) if self.doc.icb.block(b))
+        if self.doc.icb.is_empty():
+            note = "not set up yet"
+        elif count:
+            note = "blocks with an initial state"
+        else:
+            note = "no block known yet"
+        self.overview_row.addWidget(self._overview_tile(
+            "thermo", "INITIAL STATE", f"{started} / {count}" if count else "—",
+            note, "icb"))
         self.overview_row.addWidget(self._overview_tile(
             "check", "CHECKS", str(errors),
             "error(s) to fix before running" if errors else "nothing blocking",
@@ -768,6 +795,13 @@ class AtlasMainWindow(QWidget):
         if not self.doc.gpb.phases:
             issues.append(("info", ("gpb", None), (
                 "no phase defined: GPB has nothing to build")))
+        # A case that does not use ICB yet gets one note, not an error per block.
+        if self.doc.icb.is_empty():
+            issues.append(("info", ("icb", None), (
+                "no initial state yet: ICB has nothing to build")))
+        else:
+            issues += [(level, ("icb", target), message)
+                       for level, target, message in self.icb_panel.validate()]
         issues += self._file_issues()
         return issues
 
@@ -801,6 +835,14 @@ class AtlasMainWindow(QWidget):
             label = f"phase {phase.get('name') or index + 1}"
             for key, value in phase.params.items():
                 check(value, key, "gpb-phase", label, "gpb", index)
+        for block in self.doc.icb.all_blocks():
+            states = [(block_label(block.index), block)]
+            states += [(f"{block_label(block.index)}, zone [{ref.section}]",
+                        self.doc.icb.zones[ref.section])
+                       for ref in block.zone_refs() if ref.section in self.doc.icb.zones]
+            for where, state in states:
+                for key, value in state.params.items():
+                    check(value, key, "icb-section", where, "icb", block.index)
         return issues
 
     def refresh_review(self):
@@ -905,6 +947,7 @@ class AtlasMainWindow(QWidget):
         self.highlighter.set_theme(self._theme)
         self.bcb_panel.restyle()
         self.gpb_panel.refresh()
+        self.icb_panel.refresh()
         self.refresh_review()
         self._update_compact()
 

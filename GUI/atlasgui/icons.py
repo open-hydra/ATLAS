@@ -267,6 +267,23 @@ def _type(p, c):
     _poly(p, [(3, 19), (6, 11), (9, 19)])
 
 
+def _thermo(p, c):
+    """A thermometer: the initial state of the flow."""
+    _stroke(p, c)
+    stem = QPainterPath()
+    stem.addRoundedRect(QRectF(9.6, 2.8, 4.8, 13.6), 2.4, 2.4)
+    bulb = QPainterPath()
+    bulb.addEllipse(QRectF(7.4, 13.2, 9.2, 9.2))
+    p.drawPath(stem.united(bulb))
+    _fill(p, c)
+    p.drawEllipse(QRectF(9.7, 15.5, 4.6, 4.6))
+    _stroke(p, c, 2.2)
+    _poly(p, [(12, 9), (12, 16)])
+    _stroke(p, c, 1.6)
+    for y in (6, 9, 12):
+        _poly(p, [(16.8, y), (19.2, y)])
+
+
 DRAW = {
     "mesh": _mesh, "cube": _cube, "open": _open, "save": _save,
     "save-as": _save_as, "fit": _fit, "tag": _tag, "eye": _eye,
@@ -275,7 +292,7 @@ DRAW = {
     "layers": _layers, "sliders": _sliders, "code": _code, "info": _info,
     "chevron-down": _chevron_down, "chevron-right": _chevron_right,
     "circle": _circle, "file": _file, "alert": _alert, "gear": _gear,
-    "reset": _reset, "type": _type,
+    "reset": _reset, "type": _type, "thermo": _thermo,
 }
 
 

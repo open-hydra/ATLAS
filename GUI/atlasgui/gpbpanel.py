@@ -339,6 +339,7 @@ class GPBPanel(QWidget):
             return
         if held:
             self.shell.doc.bcb.rename_phase(held, new)
+            self.shell.doc.icb.rename_phase(held, new)
         self._block_names[phase] = new
 
     def _release_block_phase(self, phase):
@@ -348,26 +349,30 @@ class GPBPanel(QWidget):
         if name in {p.name for p in self.gpb.phases if p is not phase}:
             return True     # another phase still answers to the name
         bcb = self.shell.doc.bcb
+        icb = self.shell.doc.icb
         blocks = bcb.blocks_listing_phase(name) if name else []
-        if not blocks:
+        initial = icb.blocks_listing_phase(name) if name else []
+        if not blocks and not initial:
             if name:
                 bcb.drop_phase(name)    # the wildcard block, if not expanded
             return True
-        listing = ", ".join(f"Block{b + 1}" for b in blocks[:8])
-        if len(blocks) > 8:
-            listing += ", ..."
+        sections = [f"[BCB-Block{b + 1}]" for b in blocks]
+        sections += [f"[{block.section_name}]" for block in initial]
+        listing = ", ".join(sections[:8]) + (", ..." if len(sections) > 8 else "")
         text = (f"Phase '{name}' is listed in the phase key of {listing}; "
-                f"removing the phase removes it from those blocks too.")
-        alone = sum(1 for b in blocks if bcb.block_phases(b) == [name])
+                f"removing the phase removes it from those sections too.")
+        alone = (sum(1 for b in blocks if bcb.block_phases(b) == [name])
+                 + sum(1 for block in initial if block.phases == [name]))
         if alone:
             text += (f"\n\n{alone} of them list no other phase: without a "
-                     f"phase key, BCB gives a block every phase of the deck.")
+                     f"phase key, a block gets every phase of the deck.")
         reply = QMessageBox.question(
             self, "Remove phase", text + "\n\nRemove the phase?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
         if reply != QMessageBox.StandardButton.Yes:
             return False
         bcb.drop_phase(name)
+        icb.drop_phase(name)
         return True
 
     def _line(self, key, placeholder=None, width=None, relist=True):
