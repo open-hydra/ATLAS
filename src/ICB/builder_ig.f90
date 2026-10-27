@@ -839,6 +839,10 @@ contains
         endif
       enddo
 
+      ! ib2 is the row after the first cell past nozzle-threshold: when that cell is the last one of the
+      ! block, ib2 = dim(1)+1 lies outside it and the loops below skip it (the plenum (dx) or the nozzle
+      ! law (sx) wrote that row, past the arrays: a Bus error on macOS, memory overwritten in silence
+      ! elsewhere)
       if (nozzle_dir=='dx') then
         ip = 1
         ib1 = 1
@@ -856,6 +860,7 @@ contains
       allocate(plenum_new(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)), source=.false.)
       nplenum_over = 0
       do i = ib1, ib2, ip
+        if (i > blk%dim(1)) cycle
         do k = 1, blk%dim(3)
           do j = 1, blk%dim(2)
             if (cell_in_range(i,j,k)) cycle
@@ -870,6 +875,7 @@ contains
         ' their state'
 
       do i = ib1, ib2, ip
+        if (i > blk%dim(1)) cycle
         do s = 1, sp%n
           blk%ig%density(s,i,:,:) = sp%massf(s)*p0c/(Rgas*T0c)
         enddo
@@ -881,6 +887,7 @@ contains
       enddo
 
       do i = ib2, ib3, ip
+        if (i > blk%dim(1)) cycle
         M0 = 0.001
         if (ip*i > ip*throat_cell) M0 = 1.30
         call legge_aree(area(i),M0,Mach,throat_area,gamma)

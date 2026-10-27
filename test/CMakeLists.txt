@@ -406,6 +406,20 @@ set_tests_properties(IG-total-conditions PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-nozzle-threshold-last (the first cell past nozzle-threshold is the last cell of the block: the row after
+# ----       it lies outside the block, and ICB wrote it past the arrays, a Bus error on macOS; with dx the whole block is
+# ----       plenum, with sx every row takes the nozzle law) -------------
+add_test(
+    NAME    IG-nozzle-threshold-last
+    COMMAND bash -c "for d in dx sx; do rm -rf _run-$d && mkdir _run-$d && cp mesh.tec gas-phase.txt gas-thermo.dat $d.ini _run-$d/ && (cd _run-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_rows.py _run-dx/fromATLAStoSolver/gas-ic.tec plenum && python3 check_rows.py _run-sx/fromATLAStoSolver/gas-ic.tec nozzle"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-threshold-last"
+)
+set_tests_properties(IG-nozzle-threshold-last PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-state-not-physical (a zone with a negative pressure stops ICB naming the first cell and the state; nothing is written) -------------
 add_test(
     NAME    IG-state-not-physical
