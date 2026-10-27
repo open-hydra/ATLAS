@@ -705,7 +705,9 @@ contains
       Tnew = TT-FT/DFT
     enddo
 
-    T = TT
+    ! the last correction is kept: TT, the iterate it corrects, was off by up to toll (1.1e-10 relative
+    ! on N2 at T0 = 1200 K, M = 2), so an initial state given by the speed of the same flow differed
+    T = Tnew
 
   end function T02T
 
@@ -789,6 +791,42 @@ contains
     enddo
 
   end function mix_h
+
+
+  !> Temperature [K] of the mixture enthalpy h [J/kg]: the exact inverse of
+  !> mix_h, which is linear between the 1 K nodes of the tables (h is
+  !> bracketed by bisection on the nodes). Past either end of the range mix_h
+  !> reads (tab_T) h is extended with the cp of the end row; the callers report
+  !> or refuse a temperature found there.
+  pure function mix_h2T(h, sp) result(T)
+    implicit none
+    real(R8), intent(in)        :: h
+    type(species_t), intent(in) :: sp
+    real(R8) :: T, hlo, hhi
+    integer  :: lo, hi, mid
+
+    lo  = lbound(sp%cp, dim=2)
+    hi  = ubound(sp%cp, dim=2) - 1
+    hlo = sum(sp%massf * sp%h(:,lo))
+    hhi = sum(sp%massf * sp%h(:,hi))
+    if (h <= hlo) then
+      T = real(lo, R8) + (h - hlo) / mix_cp(real(lo, R8), sp)
+    elseif (h >= hhi) then
+      T = real(hi, R8) + (h - hhi) / mix_cp(real(hi, R8), sp)
+    else
+      do while (hi - lo > 1)
+        mid = (lo + hi) / 2
+        if (sum(sp%massf * sp%h(:,mid)) <= h) then
+          lo = mid
+        else
+          hi = mid
+        endif
+      enddo
+      hlo = sum(sp%massf * sp%h(:,lo))
+      T   = real(lo, R8) + (h - hlo) / (sum(sp%massf * sp%h(:,hi)) - hlo)
+    endif
+
+  end function mix_h2T
 
 
   !> Isentrope integral int_T^T0 cp(T')/(Rgas T') dT', T <= T0: composite

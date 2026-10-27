@@ -79,7 +79,7 @@ v = 0.0
 w = 0.0
 ```
 
-For ideal-gas blocks, `p0`/`T0` and `mach` are also supported.
+For ideal-gas blocks, `p0`/`T0` and `mach` are also supported ([Total conditions](#total-conditions)).
 
 ### Velocity
 
@@ -99,6 +99,31 @@ in a real-fluid zone each component given replaces its own term.
     Earlier ICB versions wrote $v = V\cos\alpha\sin\beta$: with either angle non-zero the direction
     was wrong, and so was the speed ($V\cos\alpha$ along x alone when `beta` is 0). Rebuild the
     initial fields of cases that give `alpha` or `beta`.
+
+An ideal-gas zone gives its speed once: `mach` next to a non-zero `u`, `v` or `w` stops ICB.
+
+### Total conditions
+
+An ideal-gas zone can give its state by the stagnation pressure `p0` and temperature `T0`, alone or
+next to the static `p` or `T` (`p0` with `T`, `p` with `T0`). ICB derives the static state the way
+the solvers' supersonic inlet (BC 405) does, on the cp and h tables of `thermo.dat`:
+
+* the static $T$ follows from the energy balance $h(T_0) = h(T) + V^2/2$, the speed $V$ being given
+  by `mach` ($V = M a(T)$) or by `u`, `v`, `w`;
+* the static $p$ lies on the isentrope from $p_0$ down to $T$,
+  $\ln(p_0/p) = \int_T^{T_0} c_p(T')/(R\,T')\,dT'$; with a static `T` the stagnation temperature
+  is that of $T$ at the speed of the zone.
+
+A zone and an inlet given by the same `p0`, `T0` and `mach` therefore carry the same static T and
+p, whatever the variation of $c_p$ with temperature.
+
+!!! note "Initial fields written before this fix"
+    Earlier ICB versions took $T = T_0$ when the speed was given by `u`, `v`, `w` (the speed
+    entered the pressure only), and expanded $p_0$ with
+    $(1 + \frac{\gamma-1}{2}M^2)^{\gamma/(\gamma-1)}$ at the $\gamma$ of the static temperature,
+    1.5 % off the isentrope for N2 at $T_0$ = 1200 K, $M$ = 2. Rebuild the initial fields of
+    ideal-gas zones that give `p0` or `T0` with a speed; the fields of zones at rest move by
+    less than 1e-8.
 
 ## Variable Initialization (file-driven)
 

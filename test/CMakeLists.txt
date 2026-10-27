@@ -392,6 +392,20 @@ set_tests_properties(velocity-angles PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : IG-total-conditions (a zone given by p0 and T0 with mach carries the static T and p of the supersonic inlet
+# ----       (BC 405) given by the same keys, on a variable-cp N2 table; the zones that reach the same flow from T0 or T,
+# ----       by mach or by u, v, w, carry the same state to 1e-12; mach next to u, v, w stops ICB) -------------
+add_test(
+    NAME    IG-total-conditions
+    COMMAND bash -c "rm -rf _run-* && for d in mach components static static-components both; do mkdir _run-$d && cp mesh.tec phase.txt thermo.dat $d.ini _run-$d/ || exit 1; done && (cd _run-mach && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input mach.ini) || exit 1; for d in mach components static static-components; do (cd _run-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_totals.py _run-mach/fromATLAStoSolver/bc.txt _run-mach/fromATLAStoSolver/ic.tec _run-components/fromATLAStoSolver/ic.tec _run-static/fromATLAStoSolver/ic.tec _run-static-components/fromATLAStoSolver/ic.tec || exit 1; cd _run-both && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input both.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F '[ERROR] build_IG_field block 1 (section [ICB-Block1]): mach and the velocity components u, v, w are both given' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-total-conditions"
+)
+set_tests_properties(IG-total-conditions PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-state-not-physical (a zone with a negative pressure stops ICB naming the first cell and the state; nothing is written) -------------
 add_test(
     NAME    IG-state-not-physical

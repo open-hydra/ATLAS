@@ -35,13 +35,13 @@ Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile fi
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| mach | 0.0 |  |  no | Ideal-gas Mach number. |
+| mach | 0.0 |  |  no | Ideal-gas Mach number: the speed of the zone, along alpha and beta (not with u, v, w). |
 | mach-file |  |  |  no | File-backed input for mach. |
 | mach-direction |  | x,y,z,r,t |  no | Direction for 1D mach profiles. |
-| p0 | 0.0 |  |  no | Ideal-gas stagnation pressure. |
+| p0 | 0.0 |  |  no | Ideal-gas stagnation pressure: p lies on the isentrope from p0 down to T, as at the solvers' inlet. |
 | p0-file |  |  |  no | File-backed input for p0. |
 | p0-direction |  | x,y,z,r,t |  no | Direction for 1D p0 profiles. |
-| T0 | 0.0 |  |  no | Ideal-gas stagnation temperature. |
+| T0 | 0.0 |  |  no | Ideal-gas stagnation temperature: T from h(T0) = h(T) + V^2/2, V given by mach or by u, v, w. |
 | T0-file |  |  |  no | File-backed input for T0. |
 | T0-direction |  | x,y,z,r,t |  no | Direction for 1D T0 profiles. |
 | p | 0.0 |  |  no | Ideal-gas static pressure. |

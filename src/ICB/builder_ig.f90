@@ -8,7 +8,7 @@ contains
   subroutine build_IG_field(blk,zoneini,ig_cfg,IC_type,sp,range,dirSize,dir)
     use global_mod,                   only: verbose, llen
     use finer,                        only: file_ini
-    use phase_mod,                    only: species_t, define_composition, T02T, tab_T
+    use phase_mod,                    only: species_t, define_composition, T02T, p02p, tab_T, mix_cp, mix_h, mix_h2T
     use ic_block_mod
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock, old_mesh_type
     use grid_mod,                     only: MESH_PURE_2D, mesh_cfg
@@ -99,6 +99,12 @@ contains
     ux = ig_cfg%velocity%u
     uy = ig_cfg%velocity%v
     uz = ig_cfg%velocity%w
+    ! the speed is given once: with both, T and p followed mach while the velocity was u, v, w
+    if ((ux /= 0.d0 .or. uy /= 0.d0 .or. uz /= 0.d0) .and. any(M /= 0.d0)) then
+      write(*,'(A)') '[ERROR] build_IG_field block '//trim(blk_id_txt())//zsuffix//': mach and the velocity'// &
+        ' components u, v, w are both given: give the speed by mach (with alpha, beta) or by u, v, w'
+      stop 1
+    endif
 
     tgiven = turbulence_weighted(ig_cfg%turbulence, 1.0_R8) /= 0.0_R8
     ! Turbulence model of the block: a model already set on this block by an
@@ -630,6 +636,66 @@ contains
       endif
     end subroutine refuse_T0_outside_table
 
+    ! Static state of a homogeneous or variable cell from the keys of its zone (0: not given), the
+    ! rule of the solvers' inflow BC (BCB 405), so that an inlet and an initial field written from the
+    ! same keys agree:
+    ! - T from p and rho, or from T0 by the enthalpy balance at the Mach number (T02T) or, without one,
+    !   at the speed of u, v, w: h(T0) = h(T) + |u|^2/2;
+    ! - p from T and rho, or from p0 on the isentrope down to T (p02p); with a static T the stagnation
+    !   temperature is that of T and the speed;
+    ! - the Mach number of u, v, w when not given, gamma and the speed of sound a from the cp of the
+    !   solvers' table lookup (mix_cp). Before this form T0 with u, v, w gave T = T0 (the speed entered
+    !   p only), and p0 used p0/(1 + (gamma-1)/2 M^2)^(gamma/(gamma-1)) at the cp of the nearest node.
+    subroutine static_state(T0v, p0v, Tv, pv, rhov, Mv)
+      implicit none
+      real(R8), intent(in)    :: T0v, p0v
+      real(R8), intent(inout) :: Tv, pv, rhov, Mv
+      real(R8) :: speed, Ts
+      integer  :: lo, hi
+      logical  :: from_T0
+
+      speed = sqrt(ux*ux+uy*uy+uz*uz)
+      ! Temperature (a static T given next to T0 is the one taken, as before)
+      from_T0 = T0v/=0 .and. Tv==0
+      if (T0v==0 .and. Tv==0) Tv = pv/(Rgas*rhov)
+      if (from_T0) then
+        call refuse_T0_outside_table(T0v)
+        if (Mv==0 .and. speed>0) then
+          Tv = mix_h2T(mix_h(T0v, sp) - 0.5_R8*speed*speed, sp)
+        else
+          Tv = T02T(T0v,Mv,sp)
+        endif
+      endif
+      ! L5 (state-range check): a non-positive or non-finite T (T = -300 given, or p / rho of the wrong sign) is
+      ! refused here, before the lookup; a T outside the thermo table reads its end row (tab_T, as
+      ! the solvers clamp) and is reported by check_written_state, not refused
+      if (.not. (Tv > 0.0_R8) .or. Tv /= Tv) call refuse_state('T', Tv)   ! compared as reals: nint(1.5e22) overflows
+      ! Mach
+      cp_ = mix_cp(Tv, sp)
+      gamma = cp_/(cp_-Rgas)
+      a = sqrt(gamma*Rgas*Tv)
+      if (Mv==0) Mv = speed/a
+      ! Pressure
+      if (p0v==0 .and. pv==0) pv = Tv * (Rgas*rhov)
+      if (p0v/=0 .and. pv==0) then
+        Ts = T0v
+        if (.not. from_T0) then
+          Ts = mix_h2T(mix_h(Tv, sp) + 0.5_R8*(Mv*a)**2, sp)
+          lo = lbound(sp%cp, dim=2) + 1; hi = ubound(sp%cp, dim=2) - 1
+          if (Ts < real(lo, R8) .or. Ts > real(hi, R8)) then
+            write(*,'(A,ES12.5,A,ES12.5,A,I0,A,I0,A)') '[ERROR] build_IG_field block '//trim(blk_id_txt())// &
+              ': the stagnation temperature of T = ', Tv, ' K at its speed is ', Ts, &
+              ' K, outside the temperature range of thermo.dat [', lo, ', ', hi, &
+              '] K (p0 is expanded from it: extend the table, or give p)'
+            stop 1
+          endif
+        endif
+        pv = p02p(p0v, Ts, Tv, sp)
+      endif
+      ! Density
+      if (rhov==0) rhov = pv/(Rgas*Tv)
+    end subroutine static_state
+
     subroutine assign_homogeneous()
       implicit none
       associate( T0c => T0(1,1,1), p0c => p0(1,1,1), Tc => T(1,1,1), &
@@ -646,28 +712,8 @@ contains
 
       ! R
       Rgas = sum(Runi*sp%massf/sp%w)
-      ! Temperature
       if (T0c < 0.0_R8 .or. T0c /= T0c) call refuse_state('T0', T0c)
-      if (T0c==0 .and. Tc==0) Tc = pc/(Rgas*rhoc)
-      if (T0c/=0 .and. Tc==0) then
-        call refuse_T0_outside_table(T0c)   !
-        Tc = T02T(T0c,Mc,sp)
-      endif
-      ! L5 (state-range check): a non-positive or non-finite T (T = -300 given, or p / rho of the wrong sign) is
-      ! refused here, before the lookup; a T outside the thermo table reads its end row (tab_T, as
-      ! the solvers clamp) and is reported by check_written_state, not refused
-      if (.not. (Tc > 0.0_R8) .or. Tc /= Tc) call refuse_state('T', Tc)   ! compared as reals: nint(1.5e22) overflows
-      ! Mach
-      cp_ = sum(sp%massf*sp%cp(:,nint(tab_T(Tc, sp))))
-      gamma = cp_/(cp_-Rgas)
-      del = 0.5*(gamma-1)
-      a = sqrt(gamma*Rgas*Tc)
-      if (Mc==0) Mc = sqrt(ux*ux+uy*uy+uz*uz)/a
-      ! Pressure
-      if (p0c==0 .and. pc==0) pc = Tc * (Rgas*rhoc)
-      if (p0c/=0 .and. pc==0) pc = p0c/((1+del*Mc*Mc)**(gamma/(gamma-1)))
-      ! Density
-      if (rhoc==0) rhoc = pc/(Rgas*Tc)
+      call static_state(T0c, p0c, Tc, pc, rhoc, Mc)
       ! Velocity
       vel = Mc*a
 
@@ -719,26 +765,7 @@ contains
 
           ! R
           Rgas = sum(Runi*sp%massf/sp%w)
-
-          ! Temperature
-          if (T0(i,j,k)==0 .and. T(i,j,k)==0) T(i,j,k) = p(i,j,k)/(Rgas*rho(i,j,k))
-          if (T0(i,j,k)/=0 .and. T(i,j,k)==0) then
-            call refuse_T0_outside_table(T0(i,j,k))   !
-            T(i,j,k) = T02T(T0(i,j,k),M(i,j,k),sp)
-          endif
-          ! state-range check: non-positive / non-finite T refused before the lookup, T outside the
-          ! table reads its end row and is reported by check_written_state
-          if (.not. (T(i,j,k) > 0.0_R8) .or. T(i,j,k) /= T(i,j,k)) call refuse_state('T', T(i,j,k))
-          cp_ = sum(sp%massf*sp%cp(:,nint(tab_T(T(i,j,k), sp))))
-          gamma = cp_/(cp_-Rgas)
-          del = 0.5*(gamma-1)
-          ! Mach
-          if (M(i,j,k)==0) M(i,j,k) = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*T(i,j,k)))
-          ! Pressure
-          if (p0(i,j,k)==0 .and. p(i,j,k)==0) p(i,j,k) = T(i,j,k) * (Rgas*rho(i,j,k))
-          if (p0(i,j,k)/=0 .and. p(i,j,k)==0) p(i,j,k) = p0(i,j,k)/((1+del*M(i,j,k)*M(i,j,k))**(gamma/(gamma-1)))
-          ! Density
-          if (rho(i,j,k)==0) rho(i,j,k) = p(i,j,k)/(Rgas*T(i,j,k))
+          call static_state(T0(i,j,k), p0(i,j,k), T(i,j,k), p(i,j,k), rho(i,j,k), M(i,j,k))
 
             if (cell_in_range(i,j,k)) then
               do s = 1, sp%n
@@ -748,7 +775,6 @@ contains
                   stop 1
                 endif
               enddo
-              a = sqrt(gamma*Rgas*T(i,j,k))
               vel = M(i,j,k)*a
               blk%ig%temperature(i,j,k) = T(i,j,k)
               call assign_velocity_components(i, j, k, vel)
@@ -964,6 +990,7 @@ contains
       do l = 1, 3
         if (isnan(blk%ig%velocity(l,i,j,k))) then
           write(*,*) '[ERROR] NaN in velocity assignment'
+          stop 1
         endif
       enddo
 

@@ -336,9 +336,9 @@ contains
     call add_block_entries()
     call add_composition_registry_entries(icb_registry, 'ICB-Composition', composition_cfg)
 
-    call add_field_source_entries('ICB-IG', 'mach', ig_cfg%mach, 'Ideal-gas Mach number.')
-    call add_field_source_entries('ICB-IG', 'p0', ig_cfg%p0, 'Ideal-gas stagnation pressure.')
-    call add_field_source_entries('ICB-IG', 'T0', ig_cfg%T0, 'Ideal-gas stagnation temperature.')
+    call add_field_source_entries('ICB-IG', 'mach', ig_cfg%mach, 'Ideal-gas Mach number: the speed of the zone, along alpha and beta (not with u, v, w).')
+    call add_field_source_entries('ICB-IG', 'p0', ig_cfg%p0, 'Ideal-gas stagnation pressure: p lies on the isentrope from p0 down to T, as at the solvers'' inlet.')
+    call add_field_source_entries('ICB-IG', 'T0', ig_cfg%T0, 'Ideal-gas stagnation temperature: T from h(T0) = h(T) + V^2/2, V given by mach or by u, v, w.')
     call add_field_source_entries('ICB-IG', 'p', ig_cfg%p, 'Ideal-gas static pressure.')
     call add_field_source_entries('ICB-IG', 'T', ig_cfg%T, 'Ideal-gas static temperature.')
     call add_field_source_entries('ICB-IG', 'rho', ig_cfg%rho, 'Ideal-gas density.')
