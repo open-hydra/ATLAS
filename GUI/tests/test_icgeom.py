@@ -7,8 +7,9 @@ whose ranges leave gaps (and some that cover the block) on a pure 2-D, an
 extruded 2-D and a 3-D mesh, along every letter, runs ICB on each and checks
 that the GUI finds the cells ICB writes after each zone, the count of cells
 no zone writes and the first of them; and, on the nozzle decks of the suite,
-the plenum rows ICB reports writing over earlier zones.  It is skipped when
-ICB is not built.  Exit status 77 (skipped) without numpy.
+the plenum rows ICB reports writing over earlier zones; and that the cells of a
+zone a profile table misses (icprofile) are those ICB stops on.  It is skipped
+when ICB is not built.  Exit status 77 (skipped) without numpy.
 """
 
 import os
@@ -166,6 +167,54 @@ class AgainstICB(unittest.TestCase):
                                 r"after \[z\d+\]: gas \(IG\) (\d+) of", out)]
                             self.assertEqual(cover.written_after, after)
         self.assertEqual(compared, 72)
+
+    def test_profile_tables(self):
+        """The cells of a zone a T table misses: those ICB stops on."""
+        from atlasgui import icprofile
+        rng = random.Random(77)
+        compared = stopped = 0
+        with tempfile.TemporaryDirectory() as work:
+            for name, (mesh_path, _directions) in MESHES.items():
+                directory = os.path.join(work, name.replace(" ", ""))
+                os.makedirs(directory)
+                shutil.copy(mesh_path, os.path.join(directory, "mesh.tec"))
+                for f in GAS:
+                    shutil.copy(f, directory)
+                cells = icgeom.BlockCells(mesh_io.read_mesh(mesh_path)[0])
+                for letter in ("x", "y", "r", "t"):
+                    for trial in range(3):
+                        cut_lo, cut_hi = cells.extent("x")
+                        cut = round(rng.uniform(cut_lo, cut_hi), 6)
+                        low, high = cells.extent(letter)
+                        a, b = sorted(round(rng.uniform(low, high), 6) for _ in range(2))
+                        if trial == 2:
+                            a, b = low - 1.0, high + 1.0          # the whole extent
+                        with open(os.path.join(directory, "T.dat"), "w") as handle:
+                            handle.write(f"{a!r} 400.0\n{b!r} 500.0\n")
+                        deck = (f"[ICB-Block1]\ndirection = x\nzone1 = z1\nrange1 = {cut_lo!r} {cut!r}\n"
+                                f"zone2 = z2\nrange2 = {cut!r} {cut_hi!r}\n\n"
+                                f"[z1]\np = 1e5\nT-file = T.dat\nT-direction = {letter}\n\n"
+                                "[z2]\np = 1e5\nT = 300\n")
+                        rc, out = self.run_icb(directory, deck)
+                        doc = AtlasDocument.from_ini(deck).icb
+                        mask = icgeom.range_mask(cells, "x", [cut_lo, cut])
+                        table = icprofile.parse_table(f"{a!r} 400\n{b!r} 500\n")
+                        count, first = icprofile.table_outside(cells, mask, letter, table)
+                        compared += 1
+                        with self.subTest(mesh=name, letter=letter, table=(a, b), cut=cut):
+                            found = re.search(r"the centre of cell \((\d+),(\d+),(\d+)\), "
+                                              r"\w+ = +\S+, and (\d+) more cells", out)
+                            if rc == 0:
+                                self.assertEqual(count, 0)
+                            else:
+                                stopped += 1
+                                self.assertIsNotNone(found, out[-500:])
+                                self.assertEqual((count, first), (
+                                    int(found.group(4)) + 1,
+                                    tuple(int(found.group(i)) for i in (1, 2, 3))))
+                        self.assertIsNotNone(doc.zones.get("z1"))
+        self.assertEqual(compared, 36)
+        self.assertGreater(stopped, 12)          # the tables that miss cells are compared too
 
     def test_nozzle_plenum(self):
         source = os.path.join(ICB_TESTS, "IG-nozzle-plenum-order")

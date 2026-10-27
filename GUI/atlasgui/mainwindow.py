@@ -820,8 +820,9 @@ class AtlasMainWindow(QWidget):
                 return
             state, _path, why = filekeys.status(value, self.case_dir, role)
             if state == "missing":
-                issues.append(("warning", (stage, index),
-                               f"{where}: {key} — {why}"))
+                # ICB stops on every file it cannot open; the other tools vary
+                issues.append(("error" if context == "icb-section" else "warning",
+                               (stage, index), f"{where}: {key} — {why}"))
             elif state == "too-long":
                 issues.append(("error", (stage, index),
                                f"{where}: {key} — {why}"))

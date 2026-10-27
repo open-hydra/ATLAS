@@ -19,6 +19,10 @@ letters the ranges are given along, the zones in the order ICB writes them,
 their ranges and the cells each takes on the mesh), and each zone is listed
 under its block and edited like a block state.  With the mesh loaded the
 checks say which cells no zone writes, as ICB would (``icgeom``).
+
+A value ICB can read cell by cell has a profile button: the profile dialog
+(``icbdialogs``) gives it from a table along a letter or a Tecplot field, and
+the checks read those files as ICB does (``icprofile``).
 """
 
 from __future__ import annotations
@@ -27,19 +31,22 @@ import math
 import weakref
 from collections import OrderedDict
 
+import numpy as np
+
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QButtonGroup, QComboBox, QDialog, QDialogButtonBox, QFormLayout,
+    QAbstractItemView, QButtonGroup, QComboBox, QDialog, QFormLayout,
     QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMessageBox, QSizePolicy, QSplitter,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from . import database, filekeys, icgeom, icmodel, icons
+from . import database, filekeys, icgeom, icmodel, icons, icprofile
 from .bcmodel import KEYWORD_BCS
 from .filewidgets import STATE_ICON, STATE_TOKEN, pick_value
 from .gpbdialogs import AdvancedKeysDialog
+from .icbdialogs import LETTER_TIPS, LETTER_UNITS, ProfileDialog, SplitDialog
 from .icmodel import (GAS_PAIRS, REAL_FLUID_PAIRS, TURBULENCE_MODELS,
                       block_label)
 from .widgets import Card, clear_layout
@@ -62,9 +69,9 @@ PLACEHOLDERS = {
 }
 
 MODE_BLURBS = {
-    "uniform": "One state for every cell. A value can also come from a profile "
-               "file (edited with All keys… for now): the state is then "
-               "variable, cell by cell.",
+    "uniform": "One state for every cell. A value can also vary cell by cell, "
+               "from a profile file (the profile button by the value): the state "
+               "is then variable.",
     "nozzle": "A de Laval nozzle along x: the plenum upstream of the threshold "
               "keeps p0 and T0, downstream the quasi-1-D area law sets the "
               "Mach number of every row of cells. Ideal gas only.",
@@ -85,21 +92,6 @@ LAW_LABELS = OrderedDict([
 
 STATUS_TOKENS = {"own": "accent", "inherited": "muted", "missing": "danger",
                  "error": "danger", "warning": "warning", "split": "accent"}
-
-# What a cell compares along each letter of a block's direction (ICB).
-LETTER_TIPS = OrderedDict([
-    ("x", "x of the cell centre"),
-    ("y", "y of the cell centre"),
-    ("z", "z of the cell centre"),
-    ("r", "distance of the cell centre from the x axis (from the origin, in "
-          "the x-y plane, on a 2-D mesh)"),
-    ("t", "angle of the cell centre about the x axis, in degrees from y "
-          "towards z (in the x-y plane from x towards y on a 2-D mesh)"),
-    ("i", "cell index along i, from 1"),
-    ("j", "cell index along j, from 1"),
-    ("k", "cell index along k, from 1"),
-])
-LETTER_UNITS = {"x": "m", "y": "m", "z": "m", "r": "m", "t": "deg"}
 
 # A range that holds every cell, for a letter added before the mesh is loaded.
 UNBOUNDED = {"x": (-1e9, 1e9), "y": (-1e9, 1e9), "z": (-1e9, 1e9),
@@ -145,128 +137,6 @@ class BlockListItem(QWidget):
             self._detail, Qt.TextElideMode.ElideRight, max(self.line.width(), 0)))
 
 
-class SplitDialog(QDialog):
-    """Split a block into zones along one letter, cut at the values given.
-
-    *extent(letter)* gives the ``(low, high)`` the zones span; *count(direction,
-    values)* the cells of a range on the mesh (None without it); the zones are
-    named *base1*, *base2*, ... avoiding *taken*.
-    """
-
-    def __init__(self, parent, kit, title, extent, count, base, taken):
-        super().__init__(parent)
-        self.setWindowTitle(f"Split {title} into zones")
-        self.kit = kit
-        self._extent, self._count = extent, count
-        self._base, self._taken = base, set(taken)
-        self._plan = None
-        layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.addWidget(kit.hint(
-            "Each zone takes the cells between two cuts and starts from the "
-            "present state of the block; give each its own state afterwards. "
-            "More letters, and ranges that are not slabs, are set in the zone "
-            "table."))
-        form = QFormLayout()
-        form.setSpacing(8)
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        self.letter = QComboBox()
-        for letter, tip in LETTER_TIPS.items():
-            self.letter.addItem(f"{letter}  —  {tip}", letter)
-        self.cuts = QLineEdit()
-        self.cuts.setPlaceholderText("the values between the zones, e.g. 0.005 0.02")
-        self.span = kit.hint("")
-        form.addRow("Along:", self.letter)
-        form.addRow("Cut at:", self.cuts)
-        form.addRow("", self.span)
-        layout.addLayout(form)
-        self.preview = QTableWidget(0, 4)
-        self.preview.setHorizontalHeaderLabels(["Zone", "From", "To", "Cells"])
-        self.preview.verticalHeader().setVisible(False)
-        self.preview.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.preview.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeMode.Stretch)
-        kit.table_rows(self.preview, 28)
-        layout.addWidget(self.preview, 1)
-        self.message = QLabel()
-        self.message.setWordWrap(True)
-        layout.addWidget(self.message)
-        self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
-                                        | QDialogButtonBox.StandardButton.Cancel)
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Split")
-        self.buttons.accepted.connect(self.accept)
-        self.buttons.rejected.connect(self.reject)
-        layout.addWidget(self.buttons)
-        self.letter.currentIndexChanged.connect(lambda _i: self._update())
-        self.cuts.textChanged.connect(lambda _t: self._update())
-        self.resize(kit.px(620), kit.px(460))
-        self._update()
-
-    def _make_plan(self):
-        letter = self.letter.currentData()
-        low, high = self._extent(letter)
-        lo, hi = icmodel.to_float(low), icmodel.to_float(high)
-        tokens = self.cuts.text().replace(",", " ").split()
-        values = [icmodel.to_float(t) for t in tokens]
-        if any(v is None for v in values):
-            return None, f"{tokens[values.index(None)]} is not a number."
-        index = letter in icgeom.INDEX_LETTERS
-        if index and any(v != int(v) for v in values):
-            return None, f"A cut along {letter} is a cell index: a whole number."
-        cuts = sorted(set(values))
-        outside = [v for v in cuts if not lo < v < hi]
-        if outside:
-            return None, (f"{outside[0]:g} is not inside the block: {letter} runs "
-                          f"from {low} to {high}.")
-        if index and cuts and cuts[-1] >= hi:
-            return None, f"The last cell along {letter} is {high}."
-        texts = {v: t for v, t in zip(values, tokens)}
-        bounds = [low] + [texts[v] if not index else str(int(v)) for v in cuts] + [high]
-        ranges = []
-        for n in range(len(bounds) - 1):
-            start = bounds[n] if n == 0 or not index else str(int(cuts[n - 1]) + 1)
-            ranges.append([start, bounds[n + 1]])
-        taken, names = set(self._taken), []
-        for _r in ranges:
-            name = icmodel.unique_name(self._base, taken)
-            taken.add(name)
-            names.append(name)
-        return (letter, ranges, names), ""
-
-    def _update(self):
-        letter = self.letter.currentData()
-        low, high = self._extent(letter)
-        self.span.setText(f"{letter} runs from {low} to {high} on this block"
-                          + (f" [{LETTER_UNITS[letter]}]" if letter in LETTER_UNITS else "")
-                          + ".")
-        self._plan, problem = self._make_plan()
-        ok = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
-        self.preview.setRowCount(0)
-        if self._plan is None:
-            self.message.setText(problem)
-            self.message.setProperty("check", "fail")
-            ok.setEnabled(False)
-        else:
-            direction, ranges, names = self._plan
-            self.preview.setRowCount(len(ranges))
-            for r, (values, name) in enumerate(zip(ranges, names)):
-                cells = self._count(direction, [icmodel.to_float(v) for v in values])
-                for c, text in enumerate([name, values[0], values[1],
-                                          "—" if cells is None else f"{cells:,}"]):
-                    self.preview.setItem(r, c, QTableWidgetItem(text))
-            self.message.setText(
-                f"{len(ranges)} zone(s)." if len(ranges) > 1 else
-                "One zone, the whole block: give cut values to have more.")
-            self.message.setProperty("check", "pass" if len(ranges) > 1 else None)
-            ok.setEnabled(True)
-        self.message.style().unpolish(self.message)
-        self.message.style().polish(self.message)
-
-    def result_values(self):
-        """``(direction, ranges, names)`` of the split."""
-        return self._plan
-
-
 class ICBPanel(QWidget):
     """Editor for the initial state of the blocks."""
 
@@ -283,6 +153,7 @@ class ICBPanel(QWidget):
         self._shown = {}           # target -> what its list row shows
         self._choices = weakref.WeakKeyDictionary()   # state -> {what: choice}
         self._cells = {}           # mesh block -> icgeom.BlockCells
+        self._profiles = icprofile.Cache()
         self._build_ui()
 
     # -- document access -------------------------------------------------
@@ -331,7 +202,79 @@ class ICBPanel(QWidget):
         mesh = self.mesh_blocks()
         if mesh:
             issues += icgeom.coverage_issues(self.icb, mesh, self._phases, self._cells)
+        for block in self.icb.all_blocks():
+            owner = block.index
+            if block.is_split:
+                states = [(self.icb.zones.get(ref.section), (owner, ref.section),
+                           f"{block_label(owner)}, zone [{ref.section}]", ref)
+                          for ref in block.zone_refs()]
+            else:
+                states = [(block, owner, block_label(owner), None)]
+            for state, target, where, ref in states:
+                if state is None or not state.profile_keys():
+                    continue
+                cover = self._table_coverage(owner, block, ref) if mesh else None
+                issues += icprofile.profile_issues(state, where, target, self.case_dir,
+                                                   self._profiles, cover)
         return issues
+
+    # -- the cells of a state on the mesh --------------------------------------
+    def _state_cells(self, owner, block, ref):
+        """``[(BlockCells, mask)]``: the cells the state of *block* (or of its
+        zone *ref*) writes on each mesh block it is given to."""
+        pairs = []
+        values = None
+        if ref is not None:
+            if icmodel.direction_issue(block.direction) or not block.direction:
+                return []
+            values = icgeom.parse_range(" ".join(ref.range), block.direction)
+            if values is None:
+                return []
+        for b in self._users(owner):
+            cells = self._cells_of(b)
+            if cells is None:
+                continue
+            if values is None:
+                mask = np.ones(cells.shape, dtype=bool)
+            else:
+                mask = icgeom.range_mask(cells, block.direction, values)
+            pairs.append((cells, mask))
+        return pairs
+
+    def _table_coverage(self, owner, block, ref):
+        """``coverage(letter, table)`` of a profile of this state: the cells
+        it writes that the table misses, ``(count, first)``."""
+        pairs = self._state_cells(owner, block, ref)
+
+        def coverage(letter, table):
+            count, first = 0, None
+            for cells, mask in pairs:
+                n, where = icprofile.table_outside(cells, mask, letter, table)
+                count += n
+                first = first or where
+            return count, first
+        return coverage
+
+    def _span_of(self, owner, block, ref):
+        """``span(letter)``: the span of the cell centres this state writes
+        along a letter (t in degrees), or None without the mesh."""
+        pairs = self._state_cells(owner, block, ref)
+
+        def span(letter):
+            lows, highs = [], []
+            for cells, mask in pairs:
+                if not mask.any():
+                    continue
+                here = cells.coordinate(letter)[mask]
+                lows.append(float(here.min()))
+                highs.append(float(here.max()))
+            if not lows:
+                return None
+            low, high = min(lows), max(highs)
+            if letter == "t":
+                low, high = math.degrees(low), math.degrees(high)
+            return low, high
+        return span
 
     def current_target(self):
         row = self.block_list.currentRow()
@@ -735,10 +678,10 @@ class ICBPanel(QWidget):
         if profile:
             direction = state.get(f"{key}-direction")
             edit.setPlaceholderText(f"profile {profile}"
-                                    + (f" along {direction}" if direction else ""))
+                                    + (f" along {direction}" if direction else " (field)"))
             edit.setEnabled(False)
-            edit.setToolTip(f"{key} comes from {profile}. Profiles are edited "
-                            "with All keys… until the profile editor comes.")
+            edit.setToolTip(f"{key} comes from {profile}, cell by cell: the profile "
+                            "button edits it.")
         if numeric:
             self._mark(edit, edit.text())
 
@@ -773,10 +716,13 @@ class ICBPanel(QWidget):
 
     def _fields(self, entries, kind=None, columns=2):
         """A grid of ``label  [value]  unit`` for *entries*: ``(key, label)``
-        pairs, bare keys labelled by themselves, or None for an empty cell."""
+        pairs, bare keys labelled by themselves, or None for an empty cell.
+        A value ICB can read from a profile has the profile button."""
         grid = QGridLayout()
         grid.setHorizontalSpacing(8)
         grid.setVerticalSpacing(8)
+        state = self.current_state()
+        capable = icmodel.profile_capable(self._kinds(state)) if state is not None else []
         for i, entry in enumerate(entries):
             if entry is None:
                 continue
@@ -786,15 +732,51 @@ class ICBPanel(QWidget):
             name.setToolTip(icmodel.describe(key, kind) or key)
             edit = (self._angle_field(key) if key in icmodel.ANGLE_KEYS
                     else self._field(key, kind, PLACEHOLDERS.get(key, "")))
+            cell = QHBoxLayout()
+            cell.setSpacing(4)
+            cell.addWidget(edit, 1)
+            if key in capable:
+                cell.addWidget(self._profile_button(key, label))
             unit = QLabel(UNITS.get(key, ""))
             unit.setProperty("role", "muted")
             self.kit.sized(unit.setMinimumWidth, 64)
             grid.addWidget(name, row, col * 3, Qt.AlignmentFlag.AlignRight)
-            grid.addWidget(edit, row, col * 3 + 1)
+            grid.addLayout(cell, row, col * 3 + 1)
             grid.addWidget(unit, row, col * 3 + 2)
         for col in range(columns):
             grid.setColumnStretch(col * 3 + 1, 1)
         return grid
+
+    def _profile_button(self, key, label):
+        state = self.current_state()
+        given = icmodel.profile_of(state, key)
+        tip = (f"{label} varies cell by cell, from {given[0]}"
+               + (f" along {given[1]}" if given[1] else "") + ": edit the profile."
+               if given else f"Give {label} cell by cell, from a table or a field.")
+        button = self.kit.button("", lambda: self._edit_profile(key, label), "profile",
+                                 "primary" if given else None, tip=tip)
+        return button
+
+    def _edit_profile(self, key, label):
+        """The profile dialog of *key* in the state being edited."""
+        state = self.current_state()
+        target = self.current_target()
+        if isinstance(target, tuple):
+            owner, section = target
+            block = self._owner_section(owner)
+            ref = (self._zone_ref(target) or (None, None))[1]
+            where, stem = f"zone [{section}] of {block_label(owner)}", section
+        else:
+            owner, block, ref = target, state, None
+            where = block_label(owner)
+            stem = "all" if owner == "*" else f"block{owner}"
+        unit = UNITS.get(key, "")
+        name = "".join(c if c.isalnum() or c in "-_" else "_" for c in f"{stem}-{key}")
+        dialog = ProfileDialog(self, self.kit, key, label, unit, state, self.case_dir, where,
+                               self._span_of(owner, block, ref),
+                               self._table_coverage(owner, block, ref), f"{name}.dat")
+        if dialog.exec() == QDialog.DialogCode.Accepted and dialog.outcome:
+            self._edited(rebuild=True)
 
     def _form(self):
         form = QFormLayout()
@@ -1229,6 +1211,10 @@ class ICBPanel(QWidget):
         tools.addWidget(kit.button(
             "Fill to 1", self._fill_rest, "check",
             tip="Give the selected species what the others leave: 1 − Σ y."))
+        tools.addWidget(kit.button(
+            "Profile…", self._edit_species_profile, "profile",
+            tip="Give the mass fraction of the selected species cell by cell, "
+                "from a table or a field."))
         if species is None:
             tools.addWidget(kit.button(
                 "Add species…", self._add_species, "plus",
@@ -1275,6 +1261,9 @@ class ICBPanel(QWidget):
                 value = QTableWidgetItem(given.get(name, ""))
             table.setItem(row, 1, value)
         table.cellChanged.connect(self._commit_fraction)
+        table.cellDoubleClicked.connect(
+            lambda r, c: c == 1 and r < len(names) and names[r] in profiles
+            and self._edit_species_profile())
         height = self.kit.px(34 + 29 * max(len(names), 1) + 6)
         table.setMinimumHeight(min(height, self.kit.px(160)))
         table.setMaximumHeight(max(min(height, self.kit.px(330)), self.kit.px(90)))
@@ -1291,9 +1280,24 @@ class ICBPanel(QWidget):
         self._set(f"y{name}", item.text().strip())
         self._refresh_sum()
 
+    def _edit_species_profile(self):
+        row = self.species_table.currentRow()
+        if row < 0:
+            self.shell.warn("Profile", "Select the species whose mass fraction varies.")
+            return
+        name = self.species_table.item(row, 0).text()
+        self._edit_profile(f"y{name}", f"y{name}")
+
     def _refresh_sum(self):
         state = self.current_state()
         values = [icmodel.to_float(v) for v in state.mass_fractions().values()]
+        if any(k.endswith("-file") for k in state.species_keys()):
+            self.sum_label.setText("Σ y: ICB adds the profiles to the constants and "
+                                   "checks the sum cell by cell")
+            self.sum_label.setProperty("check", None)
+            self.sum_label.style().unpolish(self.sum_label)
+            self.sum_label.style().polish(self.sum_label)
+            return
         if not values:
             text, check = "Σ y = 0 (none given)", "fail"
         elif any(v is None for v in values):

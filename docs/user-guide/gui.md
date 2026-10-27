@@ -178,8 +178,29 @@ not read (with the name to use instead, for the keys of earlier decks), a
 turbulence model without its quantities, a value that is not physical. They are
 listed in **Review** too.
 
-Values given by a profile file (`<key>-file`) show the file and are edited with
-**All keys…** for now.
+### Profiles
+
+A value ICB can read cell by cell — `p`, `T`, `p0`, `T0`, `rho`, `mach` of a gas,
+`p`, `T`, `h`, `vel` of a real fluid, `T` of a solid, and the mass fraction of a
+species (**Profile…** under the species table) — has a profile button beside it.
+It opens the profile of that value, given one of two ways
+([Variable initialization](./icb/ic-setup.md#variable-initialization-file-driven)):
+
+* **Table along a direction** — two columns, the coordinate along `x`, `y`, `z`,
+  `r` or `t` and the value, edited in the dialog and written to the file named
+  (only when the rows changed; an existing file is overwritten only when you
+  agree). A plot shows the table against the span of the cell centres of the
+  block or zone: ICB stops on a cell the table does not reach, so the part of
+  the span outside the table is drawn red and counted.
+* **Tecplot field** — a structured field file; the dialog reads its header and
+  says which variable ICB takes (the first after the coordinates) and whether it
+  is cell-centred, as ICB needs.
+
+The profile replaces the constant (ICB refuses both), and **Use a constant**
+gives the value back as one number. A field shows its profile file in place of
+the value. The checks read the files too: a table that is not monotone or not two
+numbers per row, a table that misses cells of the zone on the mesh, a field that
+is not cell-centred.
 
 ### Zones
 

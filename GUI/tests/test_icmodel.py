@@ -322,7 +322,11 @@ REFUSED = ("ICB-type-refused/input.ini", "IG+DP/particles-only.ini",
            "IG-turbulence-specific/both.ini", "IG-turbulence-specific/eddy.ini",
            "IG-turbulence-specific/retired.ini", "IG-turbulence-zero-refused/input.ini",
            "IG-interp-species/input.ini", "IG-interp-species-decomposition/input.ini",
-           "IG-total-conditions/both.ini", "IG-multizone/range-tab.ini")
+           "IG-total-conditions/both.ini", "IG-multizone/range-tab.ini",
+           "IG-profile-zones/both.ini", "IG-profile-zones/dironly.ini")
+
+# Decks the suite runs with the phase files of another case.
+PHASES_FROM = {"IG-profile-zones/solid.ini": "IG+SP"}
 
 
 class Checks(unittest.TestCase):
@@ -347,7 +351,10 @@ class Checks(unittest.TestCase):
                 if doc.icb.is_empty():
                     continue
                 strict = doc.parameters.get("strict-keys", "T").strip().upper() != "F"
-                phases = icmodel.case_phases(doc.gpb, os.path.dirname(path))
+                case_dir = os.path.dirname(path)
+                if name in PHASES_FROM:
+                    case_dir = os.path.join(root, PHASES_FROM[name])
+                phases = icmodel.case_phases(doc.gpb, case_dir)
                 errors = [m for level, _t, m in doc.icb.validate(0, phases, strict)
                           if level == "error"]
                 if name in REFUSED:
@@ -446,6 +453,60 @@ class Checks(unittest.TestCase):
                             for level, m in self.validate(text)))
         self.assertTrue(any(level == "warning" and "law" in m
                             for level, m in self.validate(text, strict=False)))
+
+
+class Profiles(unittest.TestCase):
+
+    def test_table_as_icb_reads_it(self):
+        from atlasgui import icprofile
+        table = icprofile.parse_table("# x T\n\n0.0 400\n0.5, 450 ! comment\nx T\n1d0 500 7\n")
+        self.assertEqual(table.coords, [0.0, 0.5, 1.0])
+        self.assertEqual(table.values, [400.0, 450.0, 500.0])
+        levels = [level for level, _t in table.problems]
+        self.assertEqual(levels, ["warning", "warning"])     # three numbers; a word row
+        down = icprofile.parse_table("1 10\n0.5 5\n0 0\n")
+        self.assertEqual(down.coords, [0.0, 0.5, 1.0])       # reversed, as ICB does
+        bad = icprofile.parse_table("0 1\n1 2\n0.5 3\n")
+        self.assertFalse(bad.ok)
+        self.assertIn("not monotone at row 3", bad.problems[0][1])
+        self.assertFalse(icprofile.parse_table("# nothing\n").ok)
+        self.assertEqual(icprofile.parse_table("0 2*5\n1 1\n").values, [5.0, 1.0])
+
+    def test_field_header(self):
+        import tempfile
+        from atlasgui import icprofile
+        with tempfile.TemporaryDirectory() as tmp:
+            good = os.path.join(tmp, "f.tec")
+            with open(good, "w") as handle:
+                handle.write('VARIABLES = "x" "y" "p" "T"\nZONE I=3, J=2, K=1, '
+                             'DATAPACKING=BLOCK, VARLOCATION=([3-4]=CELLCENTERED)\n0\n')
+            field = icprofile.read_field(good)
+            self.assertEqual((field.coordinates, field.value, field.zones), (2, "p", [(3, 2, 1)]))
+            self.assertTrue(field.ok and field.cell_centred)
+            nodal = os.path.join(tmp, "n.tec")
+            with open(nodal, "w") as handle:
+                handle.write('VARIABLES = x y z p\nZONE I=2, J=2, K=2\n0\n')
+            self.assertFalse(icprofile.read_field(nodal).ok)
+            self.assertFalse(icprofile.read_field(os.path.join(tmp, "p.dat")).ok)
+
+    def test_deck_checks(self):
+        def issues(keys, mode=""):
+            doc = AtlasDocument.from_ini("[ICB-Block1]\np = 1e5\nyN2 = 1\n" + mode + keys)
+            return [(level, m) for level, _t, m in
+                    doc.icb.validate(1, [icmodel.PhaseInfo("", "IG", ["N2"])])]
+        self.assertEqual([i for i in issues("T-file = t.dat\nT-direction = x\n")
+                          if i[0] == "error"], [])
+        self.assertTrue(any("both given" in m for _l, m in issues("T = 300\nT-file = t.dat\n")))
+        self.assertTrue(any("without T-file" in m for _l, m in issues("T = 300\nT-direction = x\n")))
+        self.assertTrue(any("x, y, z, r or t" in m for _l, m in
+                            issues("T-file = t.dat\nT-direction = i\n")))
+        self.assertTrue(any(level == "warning" and "nozzle law" in m for level, m in
+                            issues("T0 = 300\np0 = 1e5\nT0-file = t.dat\n", "type = nozzle\n")))
+        state = ICState({"T": "300"})
+        icmodel.set_profile(state, "T", "t.dat", "x")
+        self.assertEqual(dict(state.params), {"T-file": "t.dat", "T-direction": "x"})
+        icmodel.clear_profile(state, "T", "310")
+        self.assertEqual(dict(state.params), {"T": "310"})
 
 
 class Schema(unittest.TestCase):

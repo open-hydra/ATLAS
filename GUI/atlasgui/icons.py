@@ -223,6 +223,14 @@ def _split(p, c):
         _poly(p, [(12, y), (12, y + 2.5)])
 
 
+def _profile(p, c):
+    """Axes and a curve: a value given cell by cell from a file."""
+    _stroke(p, c, 1.6)
+    _poly(p, [(4, 3.5), (4, 20), (20.5, 20)])
+    _stroke(p, c, 2.0)
+    _poly(p, [(6.5, 16.5), (9.5, 13), (12.5, 14.5), (15.5, 8.5), (19, 6)])
+
+
 def _chevron_right(p, c):
     _stroke(p, c, 2.1)
     _poly(p, [(9.5, 6), (15.5, 12), (9.5, 18)])
@@ -306,7 +314,7 @@ DRAW = {
     "pencil": _pencil, "trash": _trash, "check": _check, "target": _target,
     "layers": _layers, "sliders": _sliders, "code": _code, "info": _info,
     "chevron-down": _chevron_down, "chevron-right": _chevron_right,
-    "chevron-up": _chevron_up, "split": _split,
+    "chevron-up": _chevron_up, "split": _split, "profile": _profile,
     "circle": _circle, "file": _file, "alert": _alert, "gear": _gear,
     "reset": _reset, "type": _type, "thermo": _thermo,
 }

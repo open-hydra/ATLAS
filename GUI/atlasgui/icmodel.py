@@ -266,6 +266,70 @@ def _clear_with_profile(state, keys):
         state.clear(key, f"{key}-file", f"{key}-direction")
 
 
+# ---------------------------------------------------------------- profiles
+def profile_of(state, key):
+    """``(file, direction)`` of the profile of *key* in *state* (direction
+    ``""`` for a Tecplot field), or None when it has none."""
+    if not state.has(f"{key}-file"):
+        return None
+    return state.get(f"{key}-file").strip(), state.get(f"{key}-direction").strip()
+
+
+def set_profile(state, key, file, direction=""):
+    """Give *key* from *file*: a table along *direction*, or a Tecplot field
+    when *direction* is empty.  The constant goes (ICB refuses both)."""
+    state.clear(key)
+    state.set(f"{key}-file", file)
+    state.set(f"{key}-direction", direction)
+
+
+def clear_profile(state, key, value=""):
+    """Give *key* as the constant *value* again (none when empty)."""
+    state.clear(f"{key}-file", f"{key}-direction")
+    state.set(key, value)
+
+
+def profile_capable(kinds, species=()):
+    """The keys a profile can give, for the *kinds* of a block."""
+    keys = []
+    for kind in ("IG", "RF", "SP"):
+        if kind in kinds:
+            keys += [k for k in PROFILE_FIELDS[kind] if k not in keys]
+    if "IG" in kinds:
+        keys += [f"y{s}" for s in species]
+    return keys
+
+
+def _profile_issues(state, mode, add):
+    """What ICB refuses or reports in the profiles of *state*, from the deck."""
+    for key in list(state.params):
+        if key.endswith("-direction") and key not in ("nozzle-direction",):
+            base = key[:-len("-direction")]
+            if not state.has(f"{base}-file"):
+                add("error", f"{key} without {base}-file: ICB stops (a direction "
+                             "only goes with a profile)")
+            elif state.get(key).strip() not in PROFILE_DIRECTIONS:
+                add("error", f"{key} = {state.get(key)}: a 1-D profile runs along "
+                             "x, y, z, r or t")
+        if not key.endswith("-file") or key == "eq-CEA-file":
+            continue
+        base = key[:-len("-file")]
+        if state.has(base):
+            add("error", f"{base} and {key} are both given: ICB stops (give one "
+                         "of the two)")
+        species = species_key_pattern(key) == "yspecies-file"
+        if mode == "interpolate":
+            if species:
+                add("error", f"{key} in an interpolation: ICB refuses it, the "
+                             "composition comes from the old solution")
+            else:
+                add("warning", f"{key} is read, but the interpolation sets "
+                               f"{base} from the old solution")
+        elif mode == "nozzle":
+            add("warning", f"{key} makes the state variable: ICB does not apply "
+                           "the nozzle law")
+
+
 def gas_pair(state, pairs=GAS_PAIRS):
     """The pair of *pairs* the state gives: the one its keys match exactly,
     else the one they overlap most (the first when none is given)."""
@@ -1141,6 +1205,7 @@ def _state_issues(state, block, phases, where, target, strict=True):
         choices = allowed_values(key, "IG")
         if state.has(key) and choices and state.get(key) not in choices:
             add("error", f"{key} = {state.get(key)} is not one of {', '.join(choices)}")
+    _profile_issues(state, mode, add)
 
     if mode == "nozzle" and "IG" not in kinds:
         add("error", "the nozzle law builds an ideal gas, and the block builds none")

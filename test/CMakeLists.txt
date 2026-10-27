@@ -2100,7 +2100,7 @@ set_tests_properties(GUI-icmodel PROPERTIES
 # ---- GUI : GUI-icgeom (where the GUI puts the zones of an ICB block on the mesh: on random zone decks over a pure 2-D,
 # ----       an extruded 2-D and a 3-D mesh, along every letter, the cells written after each zone, the count of cells
 # ----       no zone writes and the first of them are those ICB reports; so are the plenum rows of the nozzle decks of
-# ----       the suite; numpy, no Qt; skipped (77) without numpy) -------------
+# ----       the suite and the cells of a zone a random profile table misses; numpy, no Qt; skipped (77) without numpy) ----
 add_test(
     NAME    GUI-icgeom
     COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_icgeom.py"
