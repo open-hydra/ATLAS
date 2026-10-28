@@ -196,7 +196,8 @@ gas-only block (the law sets them in every row); *Back to a uniform state*
 drops the nozzle keys.
 
 The **Nozzle flow** card takes `p0` and `T0`, the direction of the flow and
-the x where the plenum ends (empty: no plenum). A plot shows the
+the x where the plenum ends: the rows centred upstream of it — below it towards
++x, above it towards −x — stay at rest (empty: no plenum). A plot shows the
 cross-sections as the law reads them, A/A* against x: the throat, the plenum
 rows shaded, the subsonic and supersonic rows of the law. The line under it
 says whether the block is a nozzle and which rows are the plenum. On a block

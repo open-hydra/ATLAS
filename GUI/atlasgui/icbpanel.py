@@ -1855,9 +1855,10 @@ class ICBPanel(QWidget):
         card.body.addWidget(self.nozzle_check)
         card.body.addWidget(kit.hint(
             "Every row of cells i is a cross-section, between the walls j = 1 and "
-            "j = J; the throat is the smallest. The plenum is every row upstream of "
-            "the threshold, over the whole cross-section of the block (also outside "
-            "the range of a zone); without a threshold there is no plenum. The law "
+            "j = J; the throat is the smallest. The plenum is every row centred "
+            "upstream of the threshold (below it towards +x, above it towards -x), "
+            "over the whole cross-section of the block (also outside the range of a "
+            "zone); without a threshold there is no plenum. The law "
             "gives every other row the Mach number of its A/A*: subsonic upstream "
             "of the throat, sonic at it, supersonic downstream, the velocity along "
             "the i lines."))
@@ -1875,7 +1876,7 @@ class ICBPanel(QWidget):
         blocks = self._target_cells()
         label.setProperty("role", None)
         if not blocks:
-            plot.set_data(None, None, None, towards_minus)
+            plot.set_data(None, None, towards_minus)
             label.setText("Load the mesh (Boundaries) to see the cross-sections of "
                           "the block and check that it is a nozzle.")
             label.setProperty("check", None)
@@ -1883,8 +1884,9 @@ class ICBPanel(QWidget):
         else:
             b, cells = blocks[0]
             geometry = cells.nozzle()
-            plenum, law = icgeom.nozzle_rows(cells, state)
-            plot.set_data(geometry, plenum, law, towards_minus)
+            plenum = icgeom.plenum_rows(cells, state)
+            plot.set_data(geometry, plenum, towards_minus,
+                          icmodel.to_float(state.get("nozzle-threshold")))
             bad = [(n, c.nozzle()) for n, c in blocks if c.nozzle().problem]
             if bad:
                 n, wrong = bad[0]
@@ -1894,7 +1896,7 @@ class ICBPanel(QWidget):
                                  else ""))
                 label.setProperty("check", "fail")
             else:
-                label.setText(self._nozzle_verdict(b, geometry, plenum & ~law, len(blocks)))
+                label.setText(self._nozzle_verdict(b, geometry, plenum, len(blocks)))
                 label.setProperty("check", "pass")
         label.style().unpolish(label)
         label.style().polish(label)
@@ -1910,7 +1912,8 @@ class ICBPanel(QWidget):
         if not at_rest.any():
             text += " No plenum: the law takes every row."
         elif at_rest.all():
-            text += " Every row is plenum, at rest: no cell lies past the threshold."
+            text += (" Every row is plenum, at rest: the whole block lies upstream of "
+                     "the threshold.")
         else:
             first, last = (int(n) + 1 for n in np.flatnonzero(at_rest)[[0, -1]])
             text += (f" The plenum: row{'s' if last > first else ''} {first}"

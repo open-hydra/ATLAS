@@ -137,16 +137,18 @@ class Cells(unittest.TestCase):
 
         def rows(**keys):
             state = icmodel.ICState(list(keys.items()))
-            plenum, law = icgeom.nozzle_rows(cells, state)
-            return [int(n) + 1 for n in np.flatnonzero(plenum & ~law)], int(law.sum())
+            return [int(n) + 1 for n in np.flatnonzero(icgeom.plenum_rows(cells, state))]
 
-        # the plenum of IG-nozzle-area-law's decks (the cells at rest ICB writes)
-        self.assertEqual(rows(), ([], 12))
-        self.assertEqual(rows(**{"nozzle-direction": "sx"}), ([], 12))
-        self.assertEqual(rows(**{"nozzle-threshold": "0.12"}), ([1, 2], 10))
-        self.assertEqual(rows(**{"nozzle-threshold": "0.9", "nozzle-direction": "sx"}), ([12], 11))
-        self.assertEqual(rows(**{"nozzle-threshold": "5"}), (list(range(1, 13)), 0))
-        self.assertEqual(rows(**{"nozzle-threshold": "5", "nozzle-direction": "sx"}), ([], 12))
+        # the plenum of IG-nozzle-area-law's decks: the rows centred upstream of the threshold
+        # (centres at x = 0.05, 0.15, ... 1.15)
+        self.assertEqual(rows(), [])
+        self.assertEqual(rows(**{"nozzle-direction": "sx"}), [])
+        self.assertEqual(rows(**{"nozzle-threshold": "0.12"}), [1])
+        self.assertEqual(rows(**{"nozzle-threshold": "0.9", "nozzle-direction": "sx"}), [10, 11, 12])
+        self.assertEqual(rows(**{"nozzle-threshold": "5"}), list(range(1, 13)))
+        self.assertEqual(rows(**{"nozzle-threshold": "5", "nozzle-direction": "sx"}), [])
+        self.assertEqual(rows(**{"nozzle-threshold": "-1"}), [])
+        self.assertEqual(rows(**{"nozzle-threshold": "-1", "nozzle-direction": "sx"}), list(range(1, 13)))
 
     def test_nozzle_issues(self):
         box = mesh_io.read_mesh(NOZZLE_MESHES["box"][0])
@@ -182,7 +184,7 @@ class Cells(unittest.TestCase):
         law = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])[0])
         nozzle = AtlasDocument.from_ini(NOZZLE_DECK + "nozzle-threshold = 0.12\n").icb
         found = icgeom.state_map(nozzle, 1, law, [])
-        self.assertEqual(sorted({int(i) + 1 for i in np.argwhere(found.rest)[:, 0]}), [1, 2])
+        self.assertEqual(sorted({int(i) + 1 for i in np.argwhere(found.rest)[:, 0]}), [1])
         box = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["box"][0])[0])
         self.assertFalse(icgeom.state_map(nozzle, 1, box, []).rest.any())  # ICB stops on it
 
@@ -396,11 +398,12 @@ class AgainstICB(unittest.TestCase):
                         self.assertIn("the nozzle law needs a duct about the x axis", out)
 
     def test_nozzle_rows(self):
-        """The plenum rows ICB writes at rest, against icgeom.nozzle_rows."""
+        """The plenum rows ICB writes at rest, against icgeom.plenum_rows; a
+        threshold on a centre (0.05, 0.15, 0.45) gives that row to the law."""
         rng = random.Random(28)
         cells = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])[0])
-        thresholds = [None, -1.0, 5.0, 0.05, 0.15] + [round(rng.uniform(-0.1, 1.3), 4)
-                                                    for _ in range(5)]
+        thresholds = [None, -1.0, 5.0, 0.05, 0.15, 0.45] + [round(rng.uniform(-0.1, 1.3), 4)
+                                                          for _ in range(5)]
         with tempfile.TemporaryDirectory() as work:
             for f in ("mesh.tec", "phase.txt", "thermo.dat"):
                 shutil.copy(os.path.join(NOZZLE_LAW, f), work)
@@ -414,8 +417,8 @@ class AgainstICB(unittest.TestCase):
                         self.assertEqual(rc, 0, out[-400:])
                         rest = _rows_at_rest(os.path.join(work, "fromATLAStoSolver", "ic.tec"))
                         state = AtlasDocument.from_ini(deck).icb.block(1)
-                        plenum, law = icgeom.nozzle_rows(cells, state)
-                        self.assertEqual(rest, [int(n) + 1 for n in np.flatnonzero(plenum & ~law)])
+                        plenum = icgeom.plenum_rows(cells, state)
+                        self.assertEqual(rest, [int(n) + 1 for n in np.flatnonzero(plenum)])
 
     def test_nozzle_plenum(self):
         source = os.path.join(ICB_TESTS, "IG-nozzle-plenum-order")

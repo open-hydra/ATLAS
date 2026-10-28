@@ -249,14 +249,16 @@ class NozzlePlot(QWidget):
     def __init__(self, kit):
         super().__init__()
         self.kit = kit
-        self.geometry = self.plenum = self.law = None
+        self.geometry = self.plenum = self.law = self.threshold = None
         self.towards_minus = False
         self.setMinimumHeight(kit.px(180))
 
-    def set_data(self, geometry, plenum, law, towards_minus):
-        """*geometry* an :class:`icgeom.NozzleGeometry`, *plenum* and *law* the
-        rows each writes (:func:`icgeom.nozzle_rows`), or all None."""
-        self.geometry, self.plenum, self.law = geometry, plenum, law
+    def set_data(self, geometry, plenum, towards_minus, threshold=None):
+        """*geometry* an :class:`icgeom.NozzleGeometry`, *plenum* its rows at
+        rest (:func:`icgeom.plenum_rows`; the law takes the others), or both
+        None; *threshold* the x of ``nozzle-threshold``, drawn as a line."""
+        self.geometry, self.plenum, self.threshold = geometry, plenum, threshold
+        self.law = None if plenum is None else ~plenum
         self.towards_minus = towards_minus
         self.update()
 
@@ -301,16 +303,32 @@ class NozzlePlot(QWidget):
             return box.bottom() - (value - y0) / (y1 - y0) * box.height()
 
         metrics = painter.fontMetrics()
-        at_rest = None if self.plenum is None else self.plenum & ~self.law
-        if edges is not None and at_rest is not None and at_rest.any():
+        taken = []                          # (left, right) of the words at the top
+        if edges is not None and self.plenum is not None and self.plenum.any():
             shade = QColor(kit.color("muted"))
             shade.setAlpha(46)
-            rows = np.flatnonzero(at_rest)
+            rows = np.flatnonzero(self.plenum)
             left, right = px(edges[rows[0]]), px(edges[rows[-1] + 1])
             painter.fillRect(QRectF(left, box.top(), right - left, box.height()), shade)
             painter.setPen(QColor(kit.color("muted")))
-            painter.drawText(QRectF(left, box.top(), right - left, metrics.height() + 4),
-                             Qt.AlignmentFlag.AlignCenter, "plenum")
+            # centred on its rows, inside the box when they are narrower than the word
+            width = metrics.horizontalAdvance("plenum")
+            middle = 0.5 * (left + right)
+            tx = min(max(middle - width / 2, box.left() + kit.px(4)),
+                     box.right() - width - kit.px(4))
+            # at the top unless the curve climbs there: then at the bottom
+            under = np.interp([x0 + (x1 - x0) * (t - box.left()) / box.width()
+                               for t in (tx, tx + width)], x, ratio)
+            top = py(float(under.max())) > box.top() + 2 * metrics.height()
+            ty = box.top() + metrics.height() if top else box.bottom() - kit.px(6)
+            painter.drawText(QPointF(tx, ty), "plenum")
+            if top:
+                taken.append((tx, tx + width))
+        if self.threshold is not None and x0 <= self.threshold <= x1:
+            # the threshold itself: the rows centred upstream of it are the plenum
+            painter.setPen(QPen(QColor(kit.color("text_dim")), 1))
+            tx = px(self.threshold)
+            painter.drawLine(QPointF(tx, box.top()), QPointF(tx, box.bottom()))
         nozzle = not geometry.problem       # a refused block: its sections only
         throat_x = px(float(x[geometry.throat]))
         if nozzle:
@@ -343,6 +361,12 @@ class NozzlePlot(QWidget):
                                    for t in (tx, tx + width)], x, ratio)
                 top = py(float(under.max())) > box.top() + 2 * metrics.height()
                 ty = box.top() + metrics.height() if top else box.bottom() - kit.px(6)
+                gap = kit.px(8)
+                for low_x, high_x in taken if top else ():
+                    # a narrow plenum's word reaches over these rows: step aside
+                    if tx < high_x + gap and tx + width > low_x - gap:
+                        tx = (high_x + gap if middle > 0.5 * (low_x + high_x)
+                              else low_x - gap - width)
                 painter.drawText(QPointF(tx, ty), name)
         token = "accent" if nozzle else "danger"
         line = QPainterPath(QPointF(px(float(x[0])), py(float(ratio[0]))))

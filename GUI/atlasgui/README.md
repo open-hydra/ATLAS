@@ -46,8 +46,9 @@ zone writes, which ICB stops on.
 The nozzle flow is a special mode (`icmodel.SPECIAL_MODES`), offered apart from
 the general ones (`MODES`) where the block fits it: `icgeom.NozzleGeometry`
 reads the cross-sections of a block as ICB's nozzle law does and refuses the
-blocks ICB refuses (`check_nozzle_geometry`), `icgeom.nozzle_rows` gives the
-plenum rows and those of the law, and `icbdialogs.NozzlePlot` draws them.
+blocks ICB refuses (`check_nozzle_geometry`), `icgeom.plenum_rows` gives the
+rows at rest (centred upstream of `nozzle-threshold`; the law takes the others),
+and `icbdialogs.NozzlePlot` draws them.
 
 `icgeom.state_map` gives, for every cell of a mesh block, the state ICB writes
 there last -- the block's own or All blocks', or a zone's, the zone order and

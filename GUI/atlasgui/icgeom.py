@@ -14,8 +14,8 @@ with its centres at z = 0.5, and takes r and t in the x-y plane
 
 Zones are written in order: a later zone overwrites an earlier one in the cells
 they share.  A nozzle zone also writes its plenum rows whole for the gas -- the
-cross-sections from its inlet end up to the first cell past
-``nozzle-threshold`` -- outside its range too.  ICB stops when a cell of a phase
+cross-sections whose centre lies upstream of ``nozzle-threshold`` -- outside its
+range too.  ICB stops when a cell of a phase
 is written by no zone, and, under a k-omega or Reynolds-stress model, when the
 turbulence of a cell is set by no zone.
 
@@ -239,25 +239,19 @@ class NozzleGeometry:
         return "", ""
 
 
-def nozzle_rows(cells, state):
-    """``(plenum, law)``: per row of cells i, whether a nozzle *state* writes it
-    as plenum (p0 and T0 at rest, the whole cross-section) and whether the law
-    writes it afterwards (in the range of the state), as ``assign_nozzle``
-    loops.  With ``dx`` the plenum runs from the first row to the row after the
-    first cell past ``nozzle-threshold``, the law from that row on; with ``sx``
-    the reverse from the last row.  A threshold no cell lies past puts every
-    row in the plenum with ``dx``, none with ``sx``; without one there is no
-    plenum."""
-    ni = cells.shape[0]
-    rows = np.arange(1, ni + 1)
+def plenum_rows(cells, state):
+    """Per row of cells i, whether a nozzle *state* keeps it as plenum (p0 and
+    T0 at rest, the whole cross-section), as ``assign_nozzle`` does: the rows
+    whose centre (at j = 1, k = 1) lies upstream of ``nozzle-threshold`` along
+    the flow, x below it with ``dx``, above it with ``sx``.  The law takes
+    every other row; without a threshold there is no plenum."""
+    x = cells.coordinate("x")[:, 0, 0]
     threshold = icmodel.to_float(state.get("nozzle-threshold"))
     if threshold is None:
-        return np.zeros(ni, dtype=bool), np.ones(ni, dtype=bool)
-    past = np.flatnonzero(cells.coordinate("x")[:, 0, 0] > threshold)
-    first = int(past[0]) + 1 if past.size else ni + 1    # L_threshold_cell
+        return np.zeros(x.shape, dtype=bool)
     if state.get("nozzle-direction").strip() == "sx":
-        return rows >= first + 1, rows <= first + 1
-    return rows <= first + 1, rows >= first + 1
+        return x > threshold
+    return x < threshold
 
 
 class ZoneCoverage:
@@ -318,12 +312,10 @@ class BlockCoverage:
                 continue
             mask = range_mask(cells, direction, values)
             plenum = None
-            still = None
+            rows = None
             if nozzle_law(state, kinds):
-                plenum_rows, law_rows = nozzle_rows(cells, state)
-                rows = np.broadcast_to(plenum_rows.reshape(-1, 1, 1), cells.shape)
-                still = np.broadcast_to((plenum_rows & ~law_rows).reshape(-1, 1, 1),
-                                        cells.shape)
+                rows = np.broadcast_to(plenum_rows(cells, state).reshape(-1, 1, 1),
+                                       cells.shape)
                 plenum = rows & ~mask
             zone = ZoneCoverage(number, ref.section, state, mask, plenum)
             zone.overwrites = int((mask & written).sum())
@@ -342,8 +334,8 @@ class BlockCoverage:
             written |= mask
             gas_written |= mask
             last_writer[mask] = order
-            # in its range a nozzle zone leaves the plenum rows the law skips at rest
-            rest[mask] = still[mask] if still is not None else False
+            # a nozzle zone leaves its plenum rows at rest, in its range and out of it
+            rest[mask] = rows[mask] if rows is not None else False
             if plenum is not None:
                 rest[plenum] = True
             if kinds & {"IG", "RF"}:
@@ -410,8 +402,7 @@ def state_map(doc, b, cells, phases):
     if not block.is_split:
         writer[...] = 0
         if nozzle_law(block, kinds) and not cells.nozzle().problem:
-            plenum, law = nozzle_rows(cells, block)
-            rest[...] = (plenum & ~law).reshape(-1, 1, 1)
+            rest[...] = plenum_rows(cells, block).reshape(-1, 1, 1)
         return StateMap([owner], writer, rest)
     direction = block.direction
     if not direction or any(c not in LETTERS for c in direction) or \
