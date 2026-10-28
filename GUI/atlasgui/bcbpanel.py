@@ -21,8 +21,8 @@ from PyQt6.QtGui import QBrush, QColor, QFont, QIcon
 from . import faces as facemod
 from . import filekeys, icons, mesh_io
 from .bcmodel import (
-    BCSection, ENUM_KEY_VALUES, KEYWORD_BCS, TYPED_BCS, file_keys_of,
-    suggested_keys,
+    BCSection, ENUM_KEY_VALUES, KEYWORD_BCS, REFUSED_BC_KEYS, TYPED_BCS,
+    file_keys_of, suggested_keys,
 )
 from .bcbdialogs import NewBCDialog
 from .filewidgets import FileColumn, FilesDialog
@@ -710,6 +710,11 @@ class BCBPanel(QWidget):
         item = self.sections_list.currentItem()
         return item.data(Qt.ItemDataRole.UserRole) if item else None
 
+    def open_section(self, name):
+        """Show BC *name* in the Build tab's editor."""
+        self.right_tabs.setCurrentIndex(1)
+        self._select_section_in_list(name)
+
     def _select_section_in_list(self, name):
         for i in range(self.sections_list.count()):
             it = self.sections_list.item(i)
@@ -832,11 +837,15 @@ class BCBPanel(QWidget):
         sec = self.doc.sections[name]
         sec.type = self.sec_type_combo.currentText().strip()
         params = OrderedDict()
+        self.param_table.blockSignals(True)
         for r in range(self.param_table.rowCount()):
             k = self._cell(self.param_table, r, 0)
             v = self._cell(self.param_table, r, 1)
+            if self.param_table.item(r, 0) is not None:
+                self._mark_key(self.param_table.item(r, 0))
             if k:
                 params[k] = v
+        self.param_table.blockSignals(False)
         sec.params = params
         self.file_column.refresh()
         self._refresh_sections_list_label(name)
@@ -926,8 +935,18 @@ class BCBPanel(QWidget):
     def _table_append(self, table, key, value):
         r = table.rowCount()
         table.insertRow(r)
-        table.setItem(r, 0, QTableWidgetItem(str(key)))
+        item = QTableWidgetItem(str(key))
+        if table is self.param_table:
+            self._mark_key(item)
+        table.setItem(r, 0, item)
         table.setItem(r, 1, QTableWidgetItem(str(value)))
+
+    def _mark_key(self, item):
+        """A key BCB refuses in red, with the reason as its tooltip."""
+        why = REFUSED_BC_KEYS.get(item.text().strip())
+        item.setData(Qt.ItemDataRole.ForegroundRole,
+                     self._brush(self.theme["danger"]) if why else None)
+        item.setToolTip(f"BCB refuses this key: {why}" if why else "")
 
     def _cell(self, table, r, c):
         it = table.item(r, c)

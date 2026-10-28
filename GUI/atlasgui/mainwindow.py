@@ -523,7 +523,7 @@ class AtlasMainWindow(QWidget):
         if stage == "gpb":
             return f"[GPB-Phase{index + 1}]" if isinstance(index, int) else None
         if stage == "bcb":
-            return "[BCB-Block"
+            return f"[{index}]" if isinstance(index, str) else "[BCB-Block"
         if stage != "icb" or index is None:
             return None
         if isinstance(index, tuple):
@@ -568,6 +568,8 @@ class AtlasMainWindow(QWidget):
             self.gpb_panel.phase_list.setCurrentRow(index)
         elif stage == "icb" and index is not None:
             self.icb_panel.select_target(index)
+        elif stage == "bcb" and isinstance(index, str):
+            self.bcb_panel.open_section(index)
 
     # -------------------------------------------------------- status strip
     def _build_status_strip(self):
@@ -828,6 +830,10 @@ class AtlasMainWindow(QWidget):
             issues.append(("error", ("bcb", None), (
                 f"{len(undefined)} face(s) name a BC that is not defined: "
                 f"{preview}")))
+        level = "error" if self.doc.strict_keys() else "warning"
+        for name, key, why in self.doc.bcb.refused_keys():
+            issues.append((level, ("bcb", name), (
+                f"BC '{name}': BCB reads no key {key} ({why})")))
         # A deck without GPB sections takes its phases from *phase.txt files
         # the GUI does not read, so the names can only be checked against GPB.
         if self.doc.gpb.phases:

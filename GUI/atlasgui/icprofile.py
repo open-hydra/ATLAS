@@ -203,6 +203,47 @@ def read_field(path):
     return field
 
 
+def _turbulence_kind(name):
+    """What a band name is to ICB (``turb_kind`` of src/ICB/io_fields.f90):
+    1 the Spalart-Allmaras variable, 2 k, 3 omega, 11-16 the Reynolds
+    stresses R11 R22 R33 R12 R13 R23, 0 anything else."""
+    s = name.strip().lower()
+    t = s.replace("'", "")
+    if "mi_t" in s or "tilde" in s or "tilda" in s:
+        return 1
+    if s in ("rhok", "kappa", "tke", "k"):
+        return 2
+    if s in ("rhoomega", "omega"):
+        return 3
+    return {"ruu": 11, "rvv": 12, "rww": 13, "ruv": 14, "ruw": 15, "rvw": 16}.get(t, 0)
+
+
+def source_turbulence(field):
+    """The turbulence model ICB adopts from an old solution whose header is
+    *field* (``detect_turbulence``): from the names of the bands after the
+    pressure, 1 for one Spalart-Allmaras band, 2 for one k and one omega, 7
+    for Reynolds stresses and one omega, 0 when they hold none of these or
+    no supported set.  None when the header gives no names to read (a binary
+    file, no band named p): ICB may still find bands there."""
+    names = [v.lower() for v in field.variables[field.coordinates:]]
+    if "p" in names:
+        tail = field.variables[field.coordinates + names.index("p") + 1:]
+    elif "pressure" in names:
+        tail = field.variables[field.coordinates + names.index("pressure") + 1:]
+    else:
+        return None
+    kinds = [_turbulence_kind(name) for name in tail]
+    sa, k, omega = kinds.count(1), kinds.count(2), kinds.count(3)
+    stresses = [kind for kind in kinds if kind > 10]
+    if stresses and not sa and not k and omega == 1 and len(set(stresses)) == len(stresses):
+        return 7
+    if not stresses and not sa and k == 1 and omega == 1:
+        return 2
+    if not stresses and sa == 1 and not k and not omega:
+        return 1
+    return 0
+
+
 def _cell_centred(header, index):
     """True when VARLOCATION of the zone *header* lists variable *index* as
     CELLCENTERED (``[3]``, ``[3-5]``, ``[1,3]``)."""

@@ -113,6 +113,12 @@ class AtlasDocument:
         names.update(name for name, _kv in self.foreign)
         return names
 
+    def strict_keys(self):
+        """``strict-keys`` of [ATLAS-Parameters]: True unless set false, when
+        the tools warn about a key they do not read instead of stopping."""
+        value = str(self.parameters.get("strict-keys", "T")).strip()
+        return value.upper() not in ("F", "FALSE", ".FALSE.", "NO", "0")
+
     # -- status ----------------------------------------------------------
     def summary(self):
         """``(n_phases, n_blocks)`` for the status bar."""

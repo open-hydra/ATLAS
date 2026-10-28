@@ -34,6 +34,7 @@ dimmed; a click on a cell opens the state it takes.
 from __future__ import annotations
 
 import math
+import os
 import weakref
 from collections import OrderedDict
 
@@ -229,8 +230,7 @@ class ICBPanel(QWidget):
         return self._phases
 
     def strict_keys(self):
-        value = str(self.shell.doc.parameters.get("strict-keys", "T")).strip()
-        return value.upper() not in ("F", "FALSE", ".FALSE.", "NO", "0")
+        return self.shell.doc.strict_keys()
 
     def mesh_blocks(self):
         return getattr(self.shell.bcb_panel, "blocks", None) or []
@@ -241,7 +241,8 @@ class ICBPanel(QWidget):
         issues = self.icb.validate(self.block_count(), self._phases, self.strict_keys())
         mesh = self.mesh_blocks()
         if mesh:
-            issues += icgeom.coverage_issues(self.icb, mesh, self._phases, self._cells)
+            issues += icgeom.coverage_issues(self.icb, mesh, self._phases, self._cells,
+                                             self._source_model)
             issues += icgeom.nozzle_issues(self.icb, mesh, self._phases, self._cells)
         for block in self.icb.all_blocks():
             owner = block.index
@@ -258,6 +259,14 @@ class ICBPanel(QWidget):
                 issues += icprofile.profile_issues(state, where, target, self.case_dir,
                                                    self._profiles, cover)
         return issues
+
+    def _source_model(self, state):
+        """The turbulence model ICB adopts from the old solution of *state*
+        (:func:`icprofile.source_turbulence`), None when not known."""
+        path = icprofile.resolve(state.get("old-solution"), self.case_dir)
+        if not path.lower().endswith(".tec") or not os.path.isfile(path):
+            return None
+        return icprofile.source_turbulence(self._profiles.get(path, icprofile.read_field))
 
     # -- the cells of a state on the mesh --------------------------------------
     def _state_cells(self, owner, block, ref):
@@ -1193,16 +1202,17 @@ class ICBPanel(QWidget):
         repaint()
         return box
 
-    def _confirm_drop(self, title, keys):
-        """True when no value would be lost, or the user agrees to lose it."""
+    def _confirm_drop(self, title, keys, why=None):
+        """True when no value would be lost, or the user agrees to lose it;
+        *why* says what replaces them."""
         state = self.current_state()
         lost = [f"{k} = {state.get(k)}" for k in keys if state.get(k)]
         if not lost:
             return True
         reply = QMessageBox.question(
             self, title,
-            "These values are not read in the new setting and will be removed:"
-            "\n\n" + "\n".join(lost[:10]) + ("\n…" if len(lost) > 10 else "")
+            (why or "These values are not read in the new setting and will be removed:")
+            + "\n\n" + "\n".join(lost[:10]) + ("\n…" if len(lost) > 10 else "")
             + "\n\nContinue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
         return reply == QMessageBox.StandardButton.Yes
@@ -1770,11 +1780,24 @@ class ICBPanel(QWidget):
         state = self.current_state()
         if state is None or self._loading:
             return
+        switching = weighted is not None          # the form, not the model
         if weighted is None:
             weighted = self._turbulence_form_of(state, self._kinds(state))
         keep = set(icmodel.turbulence_keys(model, weighted))
         dropped = [k for k in icmodel.TURBULENCE_KEYS if k not in keep and k != "nrans"]
-        if not self._confirm_drop("Change the turbulence input", dropped):
+        why = None
+        if switching:
+            new = " and ".join(icmodel.turbulence_keys(model, weighted))
+            old = " and ".join(icmodel.turbulence_keys(model, not weighted))
+            if weighted:
+                why = (f"The density-weighted form reads {new}, which are {old} times "
+                       f"the density. These specific values are removed: give {new} "
+                       "in their place.")
+            else:
+                why = (f"The specific form reads {new}, which are {old} divided by "
+                       f"the density. These density-weighted values are removed: give "
+                       f"{new} in their place.")
+        if not self._confirm_drop("Change the turbulence input", dropped, why):
             self._rebuild_editor()
             return
         icmodel.set_turbulence(state, model, weighted)

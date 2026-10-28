@@ -454,6 +454,30 @@ class Checks(unittest.TestCase):
         self.assertTrue(any(level == "warning" and "law" in m
                             for level, m in self.validate(text, strict=False)))
 
+    def test_unread_key_hints_as_icb(self):
+        """An unread key gets ICB's hint: the key it differs from in letter
+        case or by a letter or two (ICB reads keys case-sensitively)."""
+        found = self.validate("[ICB-Block*]\np = 1e5\nT = 300\nyN2 = 1\nnrans = 2\n"
+                              "rhok = 1\nrhoomega = 100\nyn2 = 0\n")
+        for key, hint in (("rhok", "rhoK"), ("rhoomega", "rhoOmega")):
+            self.assertIn(("error", f"All blocks: ICB reads no key {key}: did you mean {hint}?"),
+                          found)
+        # a y of a species the gas does not declare: ICB names the declared ones
+        self.assertIn(("error", "All blocks: the gas declares no species n2 (its species: H2, "
+                                "O2, N2): did you mean yN2?"), found)
+        self.assertEqual(icmodel.closest_key("xyzzy"), "")
+        self.assertEqual(icmodel.closest_key("old-solutoin"), "old-solution")
+
+    def test_boundaries_refuse_density_weighted_turbulence(self):
+        """BCB refuses the density-weighted turbulence of an ICB zone in a BC,
+        and the keys of earlier decks, each with its reason."""
+        doc = AtlasDocument.from_ini("[BCB-Block1]\nface1 = inlet\n\n[inlet]\ntype = inlet\n"
+                                     "k = 1\nrhoK = 1\nrhoOmega = 2\nkappa = 1\n")
+        refused = doc.bcb.refused_keys()
+        self.assertEqual([(name, key) for name, key, _why in refused],
+                         [("inlet", "rhoK"), ("inlet", "rhoOmega"), ("inlet", "kappa")])
+        self.assertIn("a boundary takes the specific k", refused[0][2])
+
 
 class Profiles(unittest.TestCase):
 

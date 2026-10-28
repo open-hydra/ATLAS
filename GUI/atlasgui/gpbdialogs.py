@@ -193,6 +193,7 @@ class AdvancedKeysDialog(_Dialog):
         self._describe_key = describe or gpbmodel.describe
         self._default_of = default or gpbmodel.default_of
         suggested = list(gpbmodel.KEY_INFO) if keys is None else list(keys)
+        self._suggested = suggested
         self.table = QTableWidget(0, 2)
         self.table.setHorizontalHeaderLabels(["KEY", "VALUE"])
         self.table.horizontalHeader().setSectionResizeMode(
@@ -233,8 +234,16 @@ class AdvancedKeysDialog(_Dialog):
         if item is not None:
             item.setToolTip(self._describe_key(item.text().strip()) or "")
 
+    def _canonical(self, key):
+        """*key* as documented when only its letter case differs: the tools
+        read keys case-sensitively (``rhok`` is no key, ``rhoK`` is)."""
+        if key in self._suggested:
+            return key
+        same = {k for k in self._suggested if k.lower() == key.lower()}
+        return same.pop() if len(same) == 1 else key
+
     def _add(self):
-        key = self.key_combo.currentText().strip()
+        key = self._canonical(self.key_combo.currentText().strip())
         if not key:
             return
         self._append(key, self._default_of(key))
@@ -249,7 +258,7 @@ class AdvancedKeysDialog(_Dialog):
         for row in range(self.table.rowCount()):
             key = self.table.item(row, 0)
             value = self.table.item(row, 1)
-            key = key.text().strip() if key else ""
+            key = self._canonical(key.text().strip()) if key else ""
             value = value.text().strip() if value else ""
             if key:
                 params[key] = value

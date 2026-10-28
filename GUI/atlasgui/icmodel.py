@@ -1185,6 +1185,38 @@ def is_known_key(key):
     return any(key in REFERENCE.get(table, {}) for table in tables)
 
 
+def closest_key(name, extra=()):
+    """The key of a block or zone section (or of *extra*, the y<species> of
+    the gas) nearest to *name*, as ICB hints it (``closest_key`` of
+    src/common/input_keys.f90): letter case ignored, an edit distance of 1,
+    or of 2 from four characters on; "" when none is that close.  ICB reads
+    keys case-sensitively, so ``rhok`` is not ``rhoK``."""
+    tables = [BLOCK_TABLE, COMPOSITION_TABLE] + list(KIND_TABLES.values())
+    candidates = [k for table in tables for k in REFERENCE.get(table, {})
+                  if "<" not in k] + list(extra)
+    limit = 2 if len(name) >= 4 else 1
+    best, best_distance = "", limit + 1
+    for candidate in candidates:
+        distance = _edit_distance(name.lower(), candidate.lower())
+        if distance > limit:
+            continue
+        if distance < best_distance or (distance == best_distance and len(candidate) == len(name)
+                                         and len(best) != len(name)):
+            best, best_distance = candidate, distance
+    return best
+
+
+def _edit_distance(a, b):
+    """Levenshtein distance between *a* and *b*."""
+    row = list(range(len(b) + 1))
+    for i, ca in enumerate(a, start=1):
+        previous, row[0] = row[0], i
+        for j, cb in enumerate(b, start=1):
+            previous, row[j] = row[j], min(row[j] + 1, row[j - 1] + 1,
+                                           previous + (ca != cb))
+    return row[-1]
+
+
 def _state_issues(state, block, phases, where, target, strict=True):
     issues = []
 
@@ -1203,8 +1235,13 @@ def _state_issues(state, block, phases, where, target, strict=True):
     for key, value in state.params.items():
         if SCHEMA_FOUND and not is_known_key(key):
             hint = RENAMED_KEYS.get(key)
-            add("error" if strict else "warning",
-                f"ICB reads no key {key}" + (f": write {hint}" if hint else ""))
+            if hint:
+                hint = f": write {hint}"
+            else:
+                species = gas_species(block, phases) or ()
+                best = closest_key(key, [f"y{s}" for s in species])
+                hint = f": did you mean {best}?" if best else ""
+            add("error" if strict else "warning", f"ICB reads no key {key}{hint}")
         if key in NUMERIC_KEYS or species_key_pattern(key) == "yspecies":
             tokens = split_values(value) or [""]
             if any(to_float(t) is None for t in tokens):
@@ -1282,7 +1319,10 @@ def _composition_issues(state, species, add):
     if species is not None:
         unknown = [s for s in named if s not in species]
         if unknown:
-            add("error", f"the gas declares no species {', '.join(unknown)}")
+            cased = [f"y{d}" for u in unknown for d in species if d.lower() == u.lower()]
+            add("error", f"the gas declares no species {', '.join(unknown)} (its species: "
+                         f"{', '.join(species)})"
+                         + (f": did you mean {', '.join(cased)}?" if cased else ""))
         if len(species) <= 1:
             return
     if not named:

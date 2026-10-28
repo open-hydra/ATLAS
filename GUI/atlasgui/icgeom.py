@@ -276,7 +276,10 @@ class BlockCoverage:
     * ``unwritten`` -- ``{kind: (count, (i, j, k) of the first)}`` for each
       kind of phase with cells no zone writes (ICB stops);
     * ``turbulence`` -- ``(model, count, first)`` of the cells whose
-      turbulence no zone sets, or None;
+      turbulence no zone sets, or None; the model of a zone is its keys', or
+      the one ICB adopts from the old solution of an interpolated zone that
+      gives none (*source_model*: a state -> 1, 2, 7, 0 for a laminar source,
+      None when not known);
     * ``plenum_overwrites`` -- ``[(zone, count, earlier)]``: the cells a
       nozzle plenum and another zone both write (ICB warns, the order decides);
     * ``written_after`` -- the gas cells written once each zone is done, the
@@ -286,7 +289,7 @@ class BlockCoverage:
     * ``rest``      -- the cells a nozzle zone writes last as plenum, at rest.
     """
 
-    def __init__(self, cells, block, zones_by_name, kinds):
+    def __init__(self, cells, block, zones_by_name, kinds, source_model=None):
         self.cells = cells
         self.total = cells.count
         self.zones = []
@@ -340,11 +343,17 @@ class BlockCoverage:
                 rest[plenum] = True
             if kinds & {"IG", "RF"}:
                 model = icmodel.turbulence_model(state)
+                source = None
+                if state.mode == "interpolate" and source_model is not None:
+                    source = source_model(state)
+                if not model and source:
+                    model = source          # ICB adopts the model of the source
                 if model:
                     models.add(model)
-                # an interpolated zone may bring the turbulence of its source
-                if any(state.has(k) for k in TURBULENCE_VALUES) or \
-                        state.mode == "interpolate":
+                # an interpolated zone brings the turbulence bands of its source,
+                # if it has any (a source the GUI cannot read is taken to)
+                brings = state.mode == "interpolate" and source != 0
+                if any(state.has(k) for k in TURBULENCE_VALUES) or brings:
                     turbulent |= mask
             self.zones.append(zone)
             self.written_after.append(int(gas_written.sum()))
@@ -451,11 +460,12 @@ def nozzle_issues(doc, mesh_blocks, phases, cache=None):
     return issues
 
 
-def coverage_issues(doc, mesh_blocks, phases, cache=None):
+def coverage_issues(doc, mesh_blocks, phases, cache=None, source_model=None):
     """``[(level, target, message)]`` of the zones of *doc* (an
     :class:`icmodel.ICBDocument`) on *mesh_blocks*: the cells ICB would find
     unwritten, the zones that write no cell, the plenum overlaps ICB reports.
-    *cache* maps a mesh block to its :class:`BlockCells` across calls."""
+    *cache* maps a mesh block to its :class:`BlockCells` across calls;
+    *source_model* is that of :class:`BlockCoverage`."""
     issues = []
     cache = cache if cache is not None else {}
     for b, mesh in enumerate(mesh_blocks, start=1):
@@ -467,7 +477,7 @@ def coverage_issues(doc, mesh_blocks, phases, cache=None):
             continue                        # the deck checks report the letters
         cells = _cells(mesh, cache)
         kinds = icmodel.block_kinds(block, phases)
-        cover = BlockCoverage(cells, block, doc.zones, kinds)
+        cover = BlockCoverage(cells, block, doc.zones, kinds, source_model)
         target = block.index
         where = icmodel.block_label(target)
         on = f"on block {b}, " if block.is_wildcard else ""

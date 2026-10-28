@@ -50,6 +50,14 @@ blocks ICB refuses (`check_nozzle_geometry`), `icgeom.plenum_rows` gives the
 rows at rest (centred upstream of `nozzle-threshold`; the law takes the others),
 and `icbdialogs.NozzlePlot` draws them.
 
+An interpolated zone without turbulence keys takes the model ICB adopts from
+its old solution (`icprofile.source_turbulence`, by the band names after the
+pressure, as ICB's `detect_turbulence`), and the zone coverage checks the
+turbulence of the other zones under it. A key ICB does not read gets ICB's hint
+(`icmodel.closest_key`); a BC key BCB refuses with a hint (`bcmodel.REFUSED_BC_KEYS`:
+the density-weighted turbulence of an ICB zone, the keys of earlier decks) is
+marked in the BC editor and listed in Review.
+
 `icgeom.state_map` gives, for every cell of a mesh block, the state ICB writes
 there last -- the block's own or All blocks', or a zone's, the zone order and
 the plenum rows of nozzle zones included -- and which cells a plenum leaves at

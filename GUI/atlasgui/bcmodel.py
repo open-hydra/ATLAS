@@ -93,6 +93,27 @@ def file_keys_of(bc_type):
     return keys
 
 
+# Keys BCB refuses in a BC section with a hint (hint_key of
+# src/common/input_keys.f90): keys of earlier decks, and the density-weighted
+# turbulence of an ICB zone -- a boundary takes nuTilde, k, omega and Rij
+# specific, and the solver multiplies them by the density of the state it
+# builds there.
+_BOUNDARY_SPECIFIC = ("a boundary takes the specific {0}: the solver multiplies it "
+                      "by the density of the boundary state")
+REFUSED_BC_KEYS = OrderedDict([
+    ("rt", "renamed g, the nozzle mass flux [kg m-2 s-1]"),
+    ("force-connect", "the option is BC-force-connect in [ATLAS-Parameters]"),
+    ("mit", "renamed nuTilde (specific, m2/s)"),
+    ("kappa", "renamed k (specific, m2/s2)"),
+    ("nut", "nut names the eddy viscosity, not an input: give the Spalart-Allmaras "
+            "variable nuTilde (m2/s)"),
+    ("mut", "mut names the eddy viscosity, not an input: give nuTilde (m2/s)"),
+    ("rhoNuTilde", _BOUNDARY_SPECIFIC.format("nuTilde")),
+    ("rhoK", _BOUNDARY_SPECIFIC.format("k")),
+    ("rhoOmega", _BOUNDARY_SPECIFIC.format("omega")),
+    ("rhoRij", _BOUNDARY_SPECIFIC.format("Rij")),
+])
+
 # Keys whose value must be one of a fixed set of names. BCB stops with an error
 # on an unknown name, so the editor pre-fills the first entry and lists the rest.
 ENUM_KEY_VALUES = {
@@ -276,6 +297,13 @@ class BCBDocument:
                 for b, faces in enumerate(self.block_faces)
                 for f, val in sorted(faces.items())
                 if val and val not in names]
+
+    def refused_keys(self):
+        """``(section, key, why)`` of the keys of the BC sections that BCB
+        refuses with a hint (:data:`REFUSED_BC_KEYS`)."""
+        return [(name, key, REFUSED_BC_KEYS[key])
+                for name, section in self.sections.items()
+                for key in section.params if key in REFUSED_BC_KEYS]
 
     # -- serialisation ---------------------------------------------------
     def to_ini_blocks(self):

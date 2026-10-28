@@ -133,6 +133,14 @@ saying what that type is for), and the files that type reads — pick them there
 and the section is created with them. Everything it offers can also be set
 afterwards, from the BC editor.
 
+A key BCB refuses in a BC is shown red in the BC editor, its reason in the
+tooltip, and listed in **Review**: the density-weighted turbulence of an ICB
+zone (`rhoNuTilde`, `rhoK`, `rhoOmega`, `rhoRij` — a boundary takes `nuTilde`,
+`k`, `omega`, `Rij` specific, and the solver multiplies them by the density of
+the state it builds there), and the keys of earlier decks (`kappa`, `mit`,
+`rt`, …). With `strict-keys = F` BCB warns instead of stopping, and so does
+Review.
+
 Selecting a **block** (rather than a face) shows which GPB phases live in it:
 the chips are the phases defined in the Phases stage, and they write the
 block's `phase` key. No chip selected means every phase, which is what BCB
@@ -174,9 +182,12 @@ A gas given by total conditions takes its speed either way: ICB expands `p0` and
 The **Checks** card under the form lists what ICB would stop on, from the deck
 alone: a block with no state, a gas state without a pair, a speed given twice
 (`mach` and `u`, `v`, `w`), mass fractions that do not sum to 1, a key ICB does
-not read (with the name to use instead, for the keys of earlier decks), a
-turbulence model without its quantities, a value that is not physical. They are
-listed in **Review** too.
+not read (with ICB's hint: the name to use instead for the keys of earlier
+decks, else the key it differs from in letter case or by a letter or two — ICB
+reads keys case-sensitively, `rhok` is not `rhoK`), a turbulence model without
+its quantities, a value that is not physical. They are listed in **Review** too.
+In **All keys…**, a key typed in the wrong letter case takes the documented
+spelling.
 
 ### Special initialisations
 
@@ -262,7 +273,11 @@ pick. The checks also catch what ICB refuses in a layout: letters out of the
 order `x y z r t i j k`, a range without one pair per letter, a gap in the
 numbering of the zones (ICB stops reading at the first missing number), a zone
 whose range holds no cell, a zone every cell of which a later zone takes, and
-zones that set different turbulence models.
+zones that set different turbulence models. An interpolated zone that gives no
+turbulence keys takes the model of its old solution, as ICB does (the GUI reads
+the band names of an ASCII Tecplot source: `mi_t` or `nuTilde`, `k` and `omega`,
+the Reynolds stresses): the cells of the other zones without turbulence keys
+then stay 0, a warning under Spalart-Allmaras and an error under k-omega.
 
 ### The 3-D view
 

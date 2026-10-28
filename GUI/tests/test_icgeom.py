@@ -7,7 +7,9 @@ whose ranges leave gaps (and some that cover the block) on a pure 2-D, an
 extruded 2-D and a 3-D mesh, along every letter, runs ICB on each and checks
 that the GUI finds the cells ICB writes after each zone, the count of cells
 no zone writes and the first of them; and, on the nozzle decks of the suite,
-the plenum rows ICB reports writing over earlier zones; that the state the
+the plenum rows ICB reports writing over earlier zones; that an interpolated
+zone takes the turbulence model of its source, and the cells it leaves without
+turbulence are those ICB warns or stops on; that the state the
 3-D view shows in every cell is the one ICB writes there, the plenum of nozzle
 zones included; that the cells of a zone a profile table misses (icprofile)
 are those ICB stops on; that the GUI
@@ -188,6 +190,29 @@ class Cells(unittest.TestCase):
         box = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["box"][0])[0])
         self.assertFalse(icgeom.state_map(nozzle, 1, box, []).rest.any())  # ICB stops on it
 
+    def test_source_turbulence(self):
+        """The model ICB adopts from an old solution, by the names of the bands
+        after the pressure."""
+        from atlasgui import icprofile
+        cases = [
+            ('"x" "y" "rho(1)" "u" "v" "p" "mi_t"', 1),
+            ('"x" "y" "rho(1)" "u" "v" "p" "rhoK" "rhoOmega"', 2),
+            ('"x" "y" "z" "rho(1)" "u" "v" "w" "p" "ru\'u\'" "rv\'v\'" "rw\'w\'" "ru\'v\'" "omega"', 7),
+            ('"x" "y" "rho(1)" "u" "v" "p" "mu_t"', 0),           # an eddy viscosity: ignored
+            ('"x" "y" "rhoK" "u" "v" "p"', 0),                    # a species band named rhoK
+            ('"x" "y" "rho(1)" "u" "v" "p" "k"', 0),              # k without omega: no set
+            ('"x" "y" "rho(1)" "u" "v" "pres" "mi_t"', None),     # no pressure band by name
+        ]
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "source.tec")
+            for variables, model in cases:
+                with self.subTest(variables=variables):
+                    with open(path, "w") as handle:
+                        handle.write(f"VARIABLES = {variables}\nZONE I=2, J=2, K=1\n")
+                    self.assertEqual(icprofile.source_turbulence(icprofile.read_field(path)), model)
+            binary = icprofile.read_field(os.path.join(work, "source.szplt"))
+            self.assertIsNone(icprofile.source_turbulence(binary))
+
     def test_outward_limits(self):
         for value in (0.12000000000000001, -3.3333333333, 1234567.891, 1e-7 / 3):
             self.assertGreaterEqual(float(icgeom.outward_limit(value, True)), value)
@@ -333,6 +358,54 @@ class AgainstICB(unittest.TestCase):
         self.assertEqual(compared, len(MESHES["pure 2-D"][1]) + len(MESHES["extruded"][1])
                          + len(MESHES["3-D"][1]) + 8)
         self.assertGreater(min(kinds.values()), 10, kinds)
+
+    def test_interpolated_turbulence(self):
+        """An interpolated zone takes the turbulence model of its source, and
+        the cells of the other zones that give no turbulence keys stay 0: ICB
+        warns under Spalart-Allmaras and stops under k-omega, as the GUI says;
+        a laminar source brings no model."""
+        from atlasgui import icprofile
+        source = os.path.join(ICB_TESTS, "IG-zone-interp-range-turb")
+        mesh = mesh_io.read_mesh(os.path.join(source, "mesh.tec"))
+        with tempfile.TemporaryDirectory() as work:
+            for f in ("mesh.tec", "phase.txt", "thermo.dat"):
+                shutil.copy(os.path.join(source, f), work)
+            with open(os.path.join(source, "source.tec")) as handle:
+                field = handle.read()
+            variants = {   # the source as written: one Spalart-Allmaras band, mi_t
+                "sa": (field, "warning"),
+                "laminar": (field.replace('"mi_t"', '"mu_t"'), None),
+                "komega": (field.replace('"mi_t"', '"rhoK" "rhoOmega"')
+                           .replace("[3-9]=CELLCENTERED", "[3-10]=CELLCENTERED").rstrip("\n")
+                           + "\n" + " ".join(["150.0"] * 6) + "\n", "error"),
+            }
+            with open(os.path.join(source, "input.ini")) as handle:
+                deck = handle.read()
+            phases = icmodel.case_phases(None, work)
+            for name, (text, level) in variants.items():
+                with open(os.path.join(work, f"{name}.tec"), "w") as handle:
+                    handle.write(text)
+                variant = deck.replace("old-solution = source.tec", f"old-solution = {name}.tec")
+                rc, out = self.run_icb(work, variant)
+                doc = AtlasDocument.from_ini(variant).icb
+
+                def model(state):
+                    return icprofile.source_turbulence(
+                        icprofile.read_field(os.path.join(work, state.get("old-solution"))))
+
+                gui = [(lv, m) for lv, _t, m in icgeom.coverage_issues(doc, mesh, phases, {}, model)
+                       if "turbulence" in m]
+                found = re.search(r"(\[WARNING\]|\[ERROR\]) build_IC block 1 \(IG\): .*? of "
+                                  r"(\d+) of (\d+) cells (?:is|are) set by no zone", out)
+                with self.subTest(source=name):
+                    if level is None:
+                        self.assertEqual((rc, found, gui), (0, None, []))
+                        continue
+                    self.assertIsNotNone(found, out[-500:])
+                    self.assertEqual(found.group(1), "[WARNING]" if level == "warning" else "[ERROR]")
+                    self.assertEqual(len(gui), 1)
+                    self.assertEqual(gui[0][0], level)
+                    self.assertIn(f"{found.group(2)} of {found.group(3)} cells", gui[0][1])
 
     def test_profile_tables(self):
         """The cells of a zone a T table misses: those ICB stops on."""
