@@ -194,7 +194,8 @@ contains
     this%params(n)%type_id = TYPE_REAL
     this%params(n)%value%r => var
 
-    read(default,*) var
+    ! a blank default (a key whose absence means something of its own): var keeps its value
+    if (len_trim(default) > 0) read(default,*) var
 
   end subroutine add_real
 

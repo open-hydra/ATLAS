@@ -1,17 +1,19 @@
 !> General-purpose field interpolation utilities.
 !>
-!> Two independent capabilities:
+!> Three independent capabilities:
 !>   1. interpolate_from_file  – reads a source file and nearest-neighbor
 !>      interpolates its first variable onto a target block.
 !>   2. interp_map_t / compute_interp_map / apply_interp_map – compute an
 !>      interpolation index-map once, then apply it to any number of
 !>      individual scalar fields.
+!>   3. assign_from_1D_table – a two-column profile (coordinate, value) along
+!>      one letter, interpolated at the cell centres of a zone.
 module ic_interpolation_general_mod
   use, intrinsic :: iso_fortran_env, only : R8 => real64
   use ic_block_mod, only: IC_block, var_block
   implicit none
   private
-  public :: interpolate_from_file
+  public :: interpolate_from_file, assign_from_1D_table
   public :: interp_map_t, compute_interp_map, apply_interp_map
   public :: rotate_2d_to_3d
 
@@ -58,6 +60,82 @@ contains
     endif
     call nearest_neighbor_file(field, blk)
   end subroutine interpolate_from_file
+
+
+  ! =================================================================
+  !  1b. assign_from_1D_table  (two-column profile → the cells of a zone)
+  ! =================================================================
+
+  !> The <key>-file profile of a zone given with <key>-direction: a two-column table (coordinate, value,
+  !> read_ascii_table) along x, y, z, r or t (t in degrees), interpolated linearly at the cell centres.
+  !> Only the cells of inside (the range of the zone) need a value; the others are left 0, as no writer
+  !> reads them (before this form the table had to span the whole block, so a zone whose table covered its
+  !> own range stopped ICB). A centre on the first point of the table takes its value (interp_1d reads
+  !> (x1, xn]), as STB does; a centre outside the table stops ICB naming the first such cell, the file and
+  !> its range. Shared by the ideal-gas, real-fluid and solid builders (three copies before).
+  subroutine assign_from_1D_table(blk, varfile, vardirection, var, inside)
+    use io_ascii_table_mod, only: read_ascii_table
+    use math_utils_mod,     only: interp_1d
+    implicit none
+    type(IC_block),   intent(in)  :: blk
+    character(len=*), intent(in)  :: varfile, vardirection
+    real(R8),         intent(out) :: var(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
+    logical,          intent(in)  :: inside(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
+    integer :: dir, ios, n, i, j, k, first(3)
+    real(R8), allocatable :: file_dir(:), file_var(:)
+    logical, allocatable  :: outside(:,:,:)
+    real(R8) :: x
+    logical  :: found
+
+    select case (trim(vardirection))
+    case ('x'); dir = 1
+    case ('y'); dir = 2
+    case ('z'); dir = 3
+    case ('r'); dir = 4
+    case ('t'); dir = 5
+    case default
+      write(*,'(A)') "[ERROR] profile "//trim(varfile)//": direction '"//trim(vardirection)// &
+        "' is not a letter of a 1-D profile (x, y, z, r, t)"
+      stop 1
+    end select
+
+    call read_ascii_table(varfile, file_dir, file_var, ios)
+    if (ios /= 0) then
+      write(*,'(A)') '[ERROR] Could not read file: '//trim(varfile)
+      stop 1
+    endif
+    n = size(file_dir)
+    if (dir == 5) file_dir(:) = file_dir(:) * acos(-1d0) / 180d0
+
+    var = 0.0_R8
+    allocate(outside(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)), source=.false.)
+    !$omp parallel do collapse(3) private(i,j,k,x,found)
+    do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+      if (.not. inside(i,j,k)) cycle
+      x = blk%center(i,j,k)%c(dir)
+      found = interp_1d(x, file_dir, file_var, n, var(i,j,k))
+      if (.not. found) then
+        if (x == file_dir(1)) then
+          var(i,j,k) = file_var(1)
+        else
+          outside(i,j,k) = .true.
+        endif
+      endif
+    enddo; enddo; enddo
+    !$omp end parallel do
+
+    if (any(outside)) then
+      first = findloc(outside, .true.)
+      x = blk%center(first(1),first(2),first(3))%c(dir)
+      if (dir == 5) x = x * 180d0 / acos(-1d0)
+      write(*,'(A,I0,A,I0,A,I0,A,I0,A,ES12.5,A,I0,A,ES12.5,A,ES12.5,A)') '[ERROR] profile '//trim(varfile)// &
+        ' along '//trim(vardirection)//' of block ', blk%id, ': the centre of cell (', first(1), ',', first(2), &
+        ',', first(3), '), '//trim(vardirection)//' = ', x, ', and ', count(outside) - 1, &
+        ' more cells of the zone lie outside the table [', file_dir(1) * merge(180d0 / acos(-1d0), 1d0, dir == 5), &
+        ', ', file_dir(n) * merge(180d0 / acos(-1d0), 1d0, dir == 5), ']'
+      stop 1
+    endif
+  end subroutine assign_from_1D_table
 
 
   ! =================================================================
@@ -1066,6 +1144,13 @@ contains
 
     if (error /= 0) then
       write(*,*) '[ERROR] interpolation_general: failed to read ', trim(filename)
+      stop 1
+    endif
+    ! the value is read cell by cell: a file without cell-centred variables (no VARLOCATION
+    ! ...=CELLCENTERED) gave 0 in every cell, and ICB stopped on a state "not physical" instead
+    if (IOfield%tec%node) then
+      write(*,'(A)') '[ERROR] field file '//trim(filename)//': its variables are nodal, and ICB reads the value of'// &
+        ' each cell: write the variable after the coordinates as cell-centred (VARLOCATION=([n]=CELLCENTERED))'
       stop 1
     endif
 

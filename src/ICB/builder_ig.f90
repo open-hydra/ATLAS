@@ -8,12 +8,12 @@ contains
   subroutine build_IG_field(blk,zoneini,ig_cfg,IC_type,sp,range,dirSize,dir)
     use global_mod,                   only: verbose, llen
     use finer,                        only: file_ini
-    use phase_mod,                    only: species_t, define_composition, T02T, tab_T
+    use phase_mod,                    only: species_t, define_composition, T02T, p02p, tab_T, mix_cp, mix_h, mix_h2T
     use ic_block_mod
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock, old_mesh_type
     use grid_mod,                     only: MESH_PURE_2D, mesh_cfg
     use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, interpolate_from_file, &
-                                            rotate_2d_to_3d
+                                            rotate_2d_to_3d, assign_from_1D_table
     use config_mod,                   only: config_ig_t, config_field_source_t, &
                                             config_interpolation, sync_interpolation_config
     use io_phase_mod,                 only: read_idealgas_properties
@@ -99,6 +99,12 @@ contains
     ux = ig_cfg%velocity%u
     uy = ig_cfg%velocity%v
     uz = ig_cfg%velocity%w
+    ! the speed is given once: with both, T and p followed mach while the velocity was u, v, w
+    if ((ux /= 0.d0 .or. uy /= 0.d0 .or. uz /= 0.d0) .and. any(M /= 0.d0)) then
+      write(*,'(A)') '[ERROR] build_IG_field block '//trim(blk_id_txt())//zsuffix//': mach and the velocity'// &
+        ' components u, v, w are both given: give the speed by mach (with alpha, beta) or by u, v, w'
+      stop 1
+    endif
 
     tgiven = turbulence_weighted(ig_cfg%turbulence, 1.0_R8) /= 0.0_R8
     ! Turbulence model of the block: a model already set on this block by an
@@ -630,6 +636,66 @@ contains
       endif
     end subroutine refuse_T0_outside_table
 
+    ! Static state of a homogeneous or variable cell from the keys of its zone (0: not given), the
+    ! rule of the solvers' inflow BC (BCB 405), so that an inlet and an initial field written from the
+    ! same keys agree:
+    ! - T from p and rho, or from T0 by the enthalpy balance at the Mach number (T02T) or, without one,
+    !   at the speed of u, v, w: h(T0) = h(T) + |u|^2/2;
+    ! - p from T and rho, or from p0 on the isentrope down to T (p02p); with a static T the stagnation
+    !   temperature is that of T and the speed;
+    ! - the Mach number of u, v, w when not given, gamma and the speed of sound a from the cp of the
+    !   solvers' table lookup (mix_cp). Before this form T0 with u, v, w gave T = T0 (the speed entered
+    !   p only), and p0 used p0/(1 + (gamma-1)/2 M^2)^(gamma/(gamma-1)) at the cp of the nearest node.
+    subroutine static_state(T0v, p0v, Tv, pv, rhov, Mv)
+      implicit none
+      real(R8), intent(in)    :: T0v, p0v
+      real(R8), intent(inout) :: Tv, pv, rhov, Mv
+      real(R8) :: speed, Ts
+      integer  :: lo, hi
+      logical  :: from_T0
+
+      speed = sqrt(ux*ux+uy*uy+uz*uz)
+      ! Temperature (a static T given next to T0 is the one taken, as before)
+      from_T0 = T0v/=0 .and. Tv==0
+      if (T0v==0 .and. Tv==0) Tv = pv/(Rgas*rhov)
+      if (from_T0) then
+        call refuse_T0_outside_table(T0v)
+        if (Mv==0 .and. speed>0) then
+          Tv = mix_h2T(mix_h(T0v, sp) - 0.5_R8*speed*speed, sp)
+        else
+          Tv = T02T(T0v,Mv,sp)
+        endif
+      endif
+      ! L5 (state-range check): a non-positive or non-finite T (T = -300 given, or p / rho of the wrong sign) is
+      ! refused here, before the lookup; a T outside the thermo table reads its end row (tab_T, as
+      ! the solvers clamp) and is reported by check_written_state, not refused
+      if (.not. (Tv > 0.0_R8) .or. Tv /= Tv) call refuse_state('T', Tv)   ! compared as reals: nint(1.5e22) overflows
+      ! Mach
+      cp_ = mix_cp(Tv, sp)
+      gamma = cp_/(cp_-Rgas)
+      a = sqrt(gamma*Rgas*Tv)
+      if (Mv==0) Mv = speed/a
+      ! Pressure
+      if (p0v==0 .and. pv==0) pv = Tv * (Rgas*rhov)
+      if (p0v/=0 .and. pv==0) then
+        Ts = T0v
+        if (.not. from_T0) then
+          Ts = mix_h2T(mix_h(Tv, sp) + 0.5_R8*(Mv*a)**2, sp)
+          lo = lbound(sp%cp, dim=2) + 1; hi = ubound(sp%cp, dim=2) - 1
+          if (Ts < real(lo, R8) .or. Ts > real(hi, R8)) then
+            write(*,'(A,ES12.5,A,ES12.5,A,I0,A,I0,A)') '[ERROR] build_IG_field block '//trim(blk_id_txt())// &
+              ': the stagnation temperature of T = ', Tv, ' K at its speed is ', Ts, &
+              ' K, outside the temperature range of thermo.dat [', lo, ', ', hi, &
+              '] K (p0 is expanded from it: extend the table, or give p)'
+            stop 1
+          endif
+        endif
+        pv = p02p(p0v, Ts, Tv, sp)
+      endif
+      ! Density
+      if (rhov==0) rhov = pv/(Rgas*Tv)
+    end subroutine static_state
+
     subroutine assign_homogeneous()
       implicit none
       associate( T0c => T0(1,1,1), p0c => p0(1,1,1), Tc => T(1,1,1), &
@@ -646,28 +712,8 @@ contains
 
       ! R
       Rgas = sum(Runi*sp%massf/sp%w)
-      ! Temperature
       if (T0c < 0.0_R8 .or. T0c /= T0c) call refuse_state('T0', T0c)
-      if (T0c==0 .and. Tc==0) Tc = pc/(Rgas*rhoc)
-      if (T0c/=0 .and. Tc==0) then
-        call refuse_T0_outside_table(T0c)   !
-        Tc = T02T(T0c,Mc,sp)
-      endif
-      ! L5 (state-range check): a non-positive or non-finite T (T = -300 given, or p / rho of the wrong sign) is
-      ! refused here, before the lookup; a T outside the thermo table reads its end row (tab_T, as
-      ! the solvers clamp) and is reported by check_written_state, not refused
-      if (.not. (Tc > 0.0_R8) .or. Tc /= Tc) call refuse_state('T', Tc)   ! compared as reals: nint(1.5e22) overflows
-      ! Mach
-      cp_ = sum(sp%massf*sp%cp(:,nint(tab_T(Tc, sp))))
-      gamma = cp_/(cp_-Rgas)
-      del = 0.5*(gamma-1)
-      a = sqrt(gamma*Rgas*Tc)
-      if (Mc==0) Mc = sqrt(ux*ux+uy*uy+uz*uz)/a
-      ! Pressure
-      if (p0c==0 .and. pc==0) pc = Tc * (Rgas*rhoc)
-      if (p0c/=0 .and. pc==0) pc = p0c/((1+del*Mc*Mc)**(gamma/(gamma-1)))
-      ! Density
-      if (rhoc==0) rhoc = pc/(Rgas*Tc)
+      call static_state(T0c, p0c, Tc, pc, rhoc, Mc)
       ! Velocity
       vel = Mc*a
 
@@ -719,26 +765,7 @@ contains
 
           ! R
           Rgas = sum(Runi*sp%massf/sp%w)
-
-          ! Temperature
-          if (T0(i,j,k)==0 .and. T(i,j,k)==0) T(i,j,k) = p(i,j,k)/(Rgas*rho(i,j,k))
-          if (T0(i,j,k)/=0 .and. T(i,j,k)==0) then
-            call refuse_T0_outside_table(T0(i,j,k))   !
-            T(i,j,k) = T02T(T0(i,j,k),M(i,j,k),sp)
-          endif
-          ! state-range check: non-positive / non-finite T refused before the lookup, T outside the
-          ! table reads its end row and is reported by check_written_state
-          if (.not. (T(i,j,k) > 0.0_R8) .or. T(i,j,k) /= T(i,j,k)) call refuse_state('T', T(i,j,k))
-          cp_ = sum(sp%massf*sp%cp(:,nint(tab_T(T(i,j,k), sp))))
-          gamma = cp_/(cp_-Rgas)
-          del = 0.5*(gamma-1)
-          ! Mach
-          if (M(i,j,k)==0) M(i,j,k) = sqrt((ux*ux+uy*uy+uz*uz)/(gamma*Rgas*T(i,j,k)))
-          ! Pressure
-          if (p0(i,j,k)==0 .and. p(i,j,k)==0) p(i,j,k) = T(i,j,k) * (Rgas*rho(i,j,k))
-          if (p0(i,j,k)/=0 .and. p(i,j,k)==0) p(i,j,k) = p0(i,j,k)/((1+del*M(i,j,k)*M(i,j,k))**(gamma/(gamma-1)))
-          ! Density
-          if (rho(i,j,k)==0) rho(i,j,k) = p(i,j,k)/(Rgas*T(i,j,k))
+          call static_state(T0(i,j,k), p0(i,j,k), T(i,j,k), p(i,j,k), rho(i,j,k), M(i,j,k))
 
             if (cell_in_range(i,j,k)) then
               do s = 1, sp%n
@@ -748,7 +775,6 @@ contains
                   stop 1
                 endif
               enddo
-              a = sqrt(gamma*Rgas*T(i,j,k))
               vel = M(i,j,k)*a
               blk%ig%temperature(i,j,k) = T(i,j,k)
               call assign_velocity_components(i, j, k, vel)
@@ -768,9 +794,25 @@ contains
     subroutine assign_nozzle()
       implicit none
       real(R8), allocatable :: radius_ext(:), radius_int(:), area(:)
-      integer :: ib1, ib2, ib3, throat_cell, L_threshold_cell, nplenum_over
+      integer :: throat_cell, nplenum_over
+      logical, allocatable :: plenum_row(:)
 
       associate( T0c => T0(1,1,1), p0c => p0(1,1,1) )
+      ! the cross-section of every row of cells about the x axis, between its walls j = 1 and j = J (the node
+      ! lines that bound j on the first node plane of k); a block that is no nozzle is refused before anything
+      ! is written
+      allocate(radius_ext(1:blk%dim(1)))
+      allocate(radius_int(1:blk%dim(1)))
+      allocate(area(1:blk%dim(1)))
+      do i = 1, blk%dim(1)
+        radius_ext(i) = sqrt( 0.25*(blk%node(i-1,blk%dim(2),0)%c(2)+blk%node(i,blk%dim(2),0)%c(2))**2 + &
+                              0.25*(blk%node(i-1,blk%dim(2),0)%c(3)+blk%node(i,blk%dim(2),0)%c(3))**2 )
+        radius_int(i) = sqrt( 0.25*(blk%node(i-1,0,0)%c(2)+blk%node(i,0,0)%c(2))**2 + &
+                              0.25*(blk%node(i-1,0,0)%c(3)+blk%node(i,0,0)%c(3))**2 )
+      enddo
+      area = acos(-1d0)*abs(radius_ext*radius_ext-radius_int*radius_int)
+      call check_nozzle_geometry(radius_int, radius_ext, area)
+
       ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
       sp%massf = 1d-20
       call define_composition(zoneini, sp, T0c, p0c)
@@ -782,10 +824,6 @@ contains
       call assemble_composition(1, 1, 1)
       call report_renormalisation()
 
-      allocate(radius_ext(1:blk%dim(1)))
-      allocate(radius_int(1:blk%dim(1)))
-      allocate(area(1:blk%dim(1)))
-
       Rgas = sum(Runi*sp%massf/sp%w)
       ! state-range check: a non-positive / non-finite T0 is refused before the lookup; a T0 outside
       ! the table is refused too; the expanded field outside it is reported by check_written_state
@@ -795,41 +833,29 @@ contains
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
 
-      do i = 1, blk%dim(1)
-        radius_ext(i) = sqrt( 0.25*(blk%node(i-1,blk%dim(2),0)%c(2)+blk%node(i,blk%dim(2),0)%c(2))**2 + &
-                              0.25*(blk%node(i-1,blk%dim(2),0)%c(3)+blk%node(i,blk%dim(2),0)%c(3))**2 )
-        radius_int(i) = sqrt( 0.25*(blk%node(i-1,0,0)%c(2)+blk%node(i,0,0)%c(2))**2 + &
-                              0.25*(blk%node(i-1,0,0)%c(3)+blk%node(i,0,0)%c(3))**2 )
-      enddo
-      area = acos(-1d0)*abs(radius_ext*radius_ext-radius_int*radius_int)
       throat_cell = minloc(area,1)
       throat_area = area(throat_cell)
 
-      L_threshold_cell = 0
-      do i = 1, blk%dim(1)
-        if (blk%center(i,1,1)%c(1)>L_threshold) then
-          L_threshold_cell = i
-          exit
-        endif
-      enddo
-
-      if (nozzle_dir=='dx') then
-        ip = 1
-        ib1 = 1
-        ib2 = L_threshold_cell+1
-        ib3 = blk%dim(1)
-      elseif (nozzle_dir=='sx') then
-        ip = -1
-        ib1 = blk%dim(1)
-        ib2 = L_threshold_cell+1
-        ib3 = 1
+      ! the plenum: the rows of cells whose centre (at j = 1, k = 1) lies upstream of nozzle-threshold along
+      ! the flow, x below it with dx (towards +x), above it with sx (towards -x). They keep p0 and T0 at rest
+      ! over the whole cross-section; every other row takes the nozzle law. A threshold beyond every centre
+      ! makes the whole block plenum or none of it, as it lies upstream or downstream of the block; without
+      ! nozzle-threshold there is no plenum. (Up to 2026-10-28 the plenum also took the first row past the
+      ! threshold with dx, and left out the first two with sx.)
+      ip = merge(1, -1, nozzle_dir == 'dx')
+      allocate(plenum_row(1:blk%dim(1)), source=.false.)
+      if (L_threshold < huge(1.0_R8)) then
+        do i = 1, blk%dim(1)
+          plenum_row(i) = ip*blk%center(i,1,1)%c(1) < ip*L_threshold
+        enddo
       endif
 
       ! plenum rows outside the range of this zone: the cells an earlier zone wrote there are overwritten
       ! (reported), and the zones after this one are checked against them (report_plenum_overwritten)
       allocate(plenum_new(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)), source=.false.)
       nplenum_over = 0
-      do i = ib1, ib2, ip
+      do i = 1, blk%dim(1)
+        if (.not. plenum_row(i)) cycle
         do k = 1, blk%dim(3)
           do j = 1, blk%dim(2)
             if (cell_in_range(i,j,k)) cycle
@@ -843,7 +869,8 @@ contains
         ' the range of the zone) overwrite ', nplenum_over, ' cells that an earlier zone wrote: the zone order decides'// &
         ' their state'
 
-      do i = ib1, ib2, ip
+      do i = 1, blk%dim(1)
+        if (.not. plenum_row(i)) cycle
         do s = 1, sp%n
           blk%ig%density(s,i,:,:) = sp%massf(s)*p0c/(Rgas*T0c)
         enddo
@@ -854,7 +881,8 @@ contains
         blk%zone_ig(i,:,:) = .true.
       enddo
 
-      do i = ib2, ib3, ip
+      do i = 1, blk%dim(1)
+        if (plenum_row(i)) cycle
         M0 = 0.001
         if (ip*i > ip*throat_cell) M0 = 1.30
         call legge_aree(area(i),M0,Mach,throat_area,gamma)
@@ -888,6 +916,45 @@ contains
       endassociate
     end subroutine assign_nozzle
 
+    ! The nozzle law needs a nozzle: a duct about the x axis meshed along it -- the row i a cross-section from
+    ! the axis or the inner wall (j = 1) to the outer wall (j = J), the cell centres advancing along +x with i,
+    ! as the plenum search along nozzle-threshold reads them -- whose section varies, with a throat. On another
+    ! block the law stopped ICB in legge_aree (a constant section is a throat everywhere) or wrote a field
+    ! without meaning (rows that are no cross-section), so such a block is refused.
+    subroutine check_nozzle_geometry(radius_int, radius_ext, area)
+      real(R8), intent(in) :: radius_int(:), radius_ext(:), area(:)
+      real(R8), parameter :: AREA_TOL = 1.0e-3_R8   ! a section that varies less is constant: no throat
+      character(len=:), allocatable :: head
+      integer :: n
+
+      head = '[ERROR] build_IG_field block '//trim(blk_id_txt())//zsuffix//': the nozzle law needs a duct about'// &
+        ' the x axis, meshed along it (i from inlet to exit, j from the axis or the inner wall to the outer wall)'
+      do n = 2, blk%dim(1)
+        if (.not. (blk%center(n,1,1)%c(1) > blk%center(n-1,1,1)%c(1))) then
+          write(*,'(A,I0,A,ES12.5,A,I0,A,ES12.5,A)') head//', and its cell centres do not advance along +x with i:'// &
+            ' at j = 1, k = 1 cell i = ', n, ' lies at x = ', blk%center(n,1,1)%c(1), ', cell i = ', n-1, &
+            ' at x = ', blk%center(n-1,1,1)%c(1), ': this block is not meshed along the axis of a nozzle'
+          stop 1
+        endif
+      enddo
+      ! no cross-section: the walls at the same distance from the axis, to rounding (r_ext**2 - r_int**2 is
+      ! not 0 to the last bit when the compiler fuses the products)
+      do n = 1, blk%dim(1)
+        if (.not. (area(n) > 1.0e-9_R8*acos(-1d0)*max(radius_int(n), radius_ext(n))**2)) then
+          write(*,'(A,I0,A,ES12.5,A,ES12.5,A)') head//', and the row of cells i = ', n, ' has no cross-section:'// &
+            ' its walls j = 1 and j = J lie at the distances ', radius_int(n), ' and ', radius_ext(n), &
+            ' from the x axis'
+          stop 1
+        endif
+      enddo
+      if (maxval(area) <= (1.0_R8 + AREA_TOL)*minval(area)) then
+        write(*,'(A,F0.7,A)') head//', and its cross-section is constant along i (A max/min = ', &
+          maxval(area)/minval(area), ', the law needs 1.001 at least): a duct without a throat is no nozzle,'// &
+          ' and the area law gives it no Mach number (build it as a homogeneous zone)'
+        stop 1
+      endif
+    end subroutine check_nozzle_geometry
+
 
     ! Load a field for IG assignment. The field can be either a constant value
     ! or read from a file. File-based inputs support Tecplot data on the same
@@ -909,13 +976,24 @@ contains
 
       is_variable = .true.
       if (field_cfg%has_direction) then
-        call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field)
+        call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field, zone_cells())
       else
         call interpolate_from_file(field, blk, field_cfg%file)
       endif
       if (scale/=1.d0) field = field*scale
 
     end subroutine load_zone_field
+
+    ! the cells of the zone range (cell_in_range), those a 1-D profile must cover
+    function zone_cells() result(inside)
+      implicit none
+      logical, allocatable :: inside(:,:,:)
+      integer :: ic, jc, kc
+      allocate(inside(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+      do kc = 1, blk%dim(3); do jc = 1, blk%dim(2); do ic = 1, blk%dim(1)
+        inside(ic,jc,kc) = cell_in_range(ic,jc,kc)
+      enddo; enddo; enddo
+    end function zone_cells
 
     ! Check if the cell center is within the specified range for IG assignment
     logical function cell_in_range(i, j, k)
@@ -941,7 +1019,10 @@ contains
 
     end function cell_in_range
 
-    ! Assign velocity components based on specified angles and magnitude, or user-defined values. 
+    ! Assign velocity components based on specified angles and magnitude, or user-defined values.
+    ! The angles (radians) are those of the solvers' inflow BC (MOSE Lib_BC_Fluxes_Inflow): alpha in
+    ! the x-y plane from x towards y, beta out of it towards z, so the direction is a unit vector and
+    ! the speed is vel_mag whatever the angles.
     subroutine assign_velocity_components(i, j, k, vel_mag)
       implicit none
       integer,  intent(in) :: i, j, k
@@ -950,7 +1031,7 @@ contains
 
       if (ux==0.d0 .and. uy==0.d0 .and. uz==0.d0) then
         blk%ig%velocity(1,i,j,k) = vel_mag*cos(alpha)*cos(beta)
-        blk%ig%velocity(2,i,j,k) = vel_mag*cos(alpha)*sin(beta)
+        blk%ig%velocity(2,i,j,k) = vel_mag*sin(alpha)*cos(beta)
         blk%ig%velocity(3,i,j,k) = vel_mag*sin(beta)
       else
         blk%ig%velocity(1,i,j,k) = ux
@@ -961,6 +1042,7 @@ contains
       do l = 1, 3
         if (isnan(blk%ig%velocity(l,i,j,k))) then
           write(*,*) '[ERROR] NaN in velocity assignment'
+          stop 1
         endif
       enddo
 
@@ -1104,53 +1186,5 @@ contains
   end subroutine build_IG_field
 
 
-  subroutine assign_from_1D_table (blk, varfile, vardirection, var)
-    use io_ascii_table_mod
-    use ic_block_mod
-    use math_utils_mod, only: interp_1d
-    implicit none
-    type(IC_block),   intent(in)  :: blk
-    character(len=*), intent(in)  :: varfile
-    character(len=*), intent(in)  :: vardirection
-    real(R8),         intent(out) :: var(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
-    ! Local
-    integer :: dir, ios, file_length, i, j, k
-    real(R8), dimension(:), allocatable :: file_dir, file_var
-    logical :: found
-
-    select case (trim(vardirection))
-    case ('x'); dir = 1
-    case ('y'); dir = 2
-    case ('z'); dir = 3
-    case ('r'); dir = 4
-    case ('t'); dir = 5
-    case default
-      write(*,*) '[ERROR] Unsupported direction in read_file_direction: ', trim(vardirection)
-      stop 1
-    end select
-
-    call read_ascii_table(varfile, file_dir, file_var, ios)
-    if (ios/=0) then
-      write(*,*) '[ERROR] Could not read file: ', trim(varfile)
-      stop 1
-    endif
-
-    file_length = size(file_dir)
-    if (dir == 5) file_dir(:) = file_dir(:) * acos(-1d0) / 180d0
-
-    !$omp parallel private(i,j,k,found)
-    !$omp do collapse(3)
-    do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
-      found = interp_1d(blk%center(i,j,k)%c(dir), file_dir, file_var, file_length, var(i,j,k))
-      if (.not.found) then
-        write(*,*) '[ERROR] interpolated point ', blk%center(i,j,k)%c(dir), ' is outside the file data range.'
-        write(*,*) '        File: ', trim(varfile)
-        write(*,*) '        File data range: ', file_dir(1), ' to ', file_dir(file_length)
-        stop 1
-      endif
-    enddo; enddo; enddo
-    !$omp end parallel
-
-  end subroutine assign_from_1D_table  
 
 end module ic_ig_mod

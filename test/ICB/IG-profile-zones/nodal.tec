@@ -1,0 +1,6 @@
+TITLE = "nodal p"
+VARIABLES = "x" "y" "p"
+ZONE T = "B1", I=3, J=2, K=1, DATAPACKING=BLOCK
+0.0 0.5 1.0 0.0 0.5 1.0
+0.0 0.0 0.0 0.5 0.5 0.5
+1.0e5 1.0e5 1.0e5 1.0e5 1.0e5 1.0e5

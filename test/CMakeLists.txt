@@ -382,6 +382,62 @@ set_tests_properties(IG-turbulence-source-names-sa PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- ICB : velocity-angles (alpha, beta turn the speed of the zone into V (cos alpha cos beta, sin alpha cos beta, sin beta), the direction of the solvers' inflow BC: the speed is kept, in an ideal-gas zone given by mach and in a real-fluid zone given by vel) -------------
+add_test(
+    NAME    velocity-angles
+    COMMAND bash -c "for p in IG RF; do rm -rf _run-$p-angles _run-$p-zero && for d in angles zero; do mkdir _run-$p-$d && cp $p/* _run-$p-$d/ && (cd _run-$p-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_angles.py _run-$p-angles/fromATLAStoSolver/ic.tec _run-$p-zero/fromATLAStoSolver/ic.tec 0.6 0.25 || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/velocity-angles"
+)
+set_tests_properties(velocity-angles PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-total-conditions (a zone given by p0 and T0 with mach carries the static T and p of the supersonic inlet
+# ----       (BC 405) given by the same keys, on a variable-cp N2 table; the zones that reach the same flow from T0 or T,
+# ----       by mach or by u, v, w, carry the same state to 1e-12; mach next to u, v, w stops ICB) -------------
+add_test(
+    NAME    IG-total-conditions
+    COMMAND bash -c "rm -rf _run-* && for d in mach components static static-components both; do mkdir _run-$d && cp mesh.tec phase.txt thermo.dat $d.ini _run-$d/ || exit 1; done && (cd _run-mach && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB --input mach.ini) || exit 1; for d in mach components static static-components; do (cd _run-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_totals.py _run-mach/fromATLAStoSolver/bc.txt _run-mach/fromATLAStoSolver/ic.tec _run-components/fromATLAStoSolver/ic.tec _run-static/fromATLAStoSolver/ic.tec _run-static-components/fromATLAStoSolver/ic.tec || exit 1; cd _run-both && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input both.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 2; test $rc -eq 1 && grep -q -F '[ERROR] build_IG_field block 1 (section [ICB-Block1]): mach and the velocity components u, v, w are both given' <<< \"$out\" && test ! -e fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-total-conditions"
+)
+set_tests_properties(IG-total-conditions PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-nozzle-threshold-last (nozzle-threshold between the centres of the last two cells: with dx the two rows
+# ----       upstream of it are the plenum and the last row takes the nozzle law, with sx the last row is the plenum and
+# ----       the first two take the law; ICB used to write the row after the first cell past the threshold, here
+# ----       past the arrays, a Bus error on macOS) -------------
+add_test(
+    NAME    IG-nozzle-threshold-last
+    COMMAND bash -c "for d in dx sx; do rm -rf _run-$d && mkdir _run-$d && cp mesh.tec gas-phase.txt gas-thermo.dat $d.ini _run-$d/ && (cd _run-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_rows.py _run-dx/fromATLAStoSolver/gas-ic.tec dx 1-2 && python3 check_rows.py _run-sx/fromATLAStoSolver/gas-ic.tec sx 3-3"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-threshold-last"
+)
+set_tests_properties(IG-nozzle-threshold-last PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-profile-zones (1-D profiles in zones: a zone's table covers its own range only, a cell centre on the first
+# ----       point of a table takes its value, a constant next to its profile and a direction without a profile stop
+# ----       ICB; a solid block split along x and i honours both letters; a field profile without cell-centred
+# ----       variables stops ICB naming the file) -------------
+add_test(
+    NAME    IG-profile-zones
+    COMMAND bash -c "rm -rf _run-* && for d in zones first both dironly nodal; do mkdir _run-$d && cp mesh.tec phase.txt thermo.dat lo.dat first.dat nodal.tec $d.ini _run-$d/ || exit 1; done && mkdir _run-solid && cp ../IG+SP/mesh.tec ../IG+SP/gas-phase.txt ../IG+SP/gas-thermo.dat ../IG+SP/solid-phase.txt solid.ini _run-solid/ || exit 1; for d in zones first solid; do (cd _run-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_profile.py zones _run-zones/fromATLAStoSolver/ic.tec && python3 check_profile.py first _run-first/fromATLAStoSolver/ic.tec && python3 check_profile.py solid _run-solid/fromATLAStoSolver/solid-ic.tec || exit 1; out=$(cd _run-both && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input both.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key T-file of section [ICB-Block1]: the constant T is given too; give one of the two' <<< \"$out\" && test ! -e _run-both/fromATLAStoSolver/ic.tec || exit 1; out=$(cd _run-dironly && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input dironly.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key p-direction of section [ICB-Block1]: a direction without the profile file p-file' <<< \"$out\" && test ! -e _run-dironly/fromATLAStoSolver/ic.tec || exit 1; out=$(cd _run-nodal && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input nodal.ini 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] field file nodal.tec: its variables are nodal, and ICB reads the value of each cell' <<< \"$out\" && test ! -e _run-nodal/fromATLAStoSolver/ic.tec"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-profile-zones"
+)
+set_tests_properties(IG-profile-zones PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- ICB : IG-state-not-physical (a zone with a negative pressure stops ICB naming the first cell and the state; nothing is written) -------------
 add_test(
     NAME    IG-state-not-physical
@@ -486,16 +542,47 @@ set_tests_properties(IG-interp-src-3coord-plane PROPERTIES
 )
 
 # ---- ICB : IG-nozzle-plenum-order (the plenum rows of a nozzle zone cover the whole cross-section upstream of
-# ----       nozzle-threshold, also outside the range of the zone: a homogeneous zone listed before the nozzle zone
+# ----       nozzle-threshold, here row 1, also outside the range of the zone: a homogeneous zone listed before the nozzle zone
 # ----       loses 4 cells to the plenum, listed after it takes them back; a WARNING names each case and the
-# ----       products of both orders are unchanged; unlike the other fixtures of this block, the two references are
-# ----       ATLAS output, since the nozzle law has no simple independent oracle) -------------
+# ----       products of both orders are unchanged; the two references are ATLAS output, IG-nozzle-area-law checks
+# ----       the nozzle law itself against an independent solve) -------------
 add_test(
     NAME    IG-nozzle-plenum-order
     COMMAND bash -c "rm -rf fromATLAStoSolver first; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null) && mv fromATLAStoSolver first && out2=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input reverse.ini 2>&1 < /dev/null) && grep -q -F 'block 1 (section [noz]): the plenum rows of this nozzle zone' <<< \"$out\" && grep -q -F 'overwrite 4 cells that an earlier zone wrote: the zone order decides' <<< \"$out\" && grep -q -F 'block 1 (section [hom]): this zone overwrites 4 cells that the plenum rows of an earlier nozzle zone' <<< \"$out2\" && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/ic.tec first/ic.tec && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/reverse-ic.tec fromATLAStoSolver/ic.tec"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-plenum-order"
 )
 set_tests_properties(IG-nozzle-plenum-order PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-nozzle-area-law (the nozzle law on a converging-diverging quarter annulus, checked row by row against the
+# ----       quasi-1-D isentropic law solved independently: the throat row exactly sonic (legge_aree left it 1e-9 off),
+# ----       the plenum with and without nozzle-threshold in both directions. The plenum is the rows whose centre lies
+# ----       upstream of the threshold: x below 0.12 with dx (row 1; the first row past it was plenum too), above 0.9
+# ----       with sx (rows 10-12; rows 10 and 11 took the law); a threshold past the block or before it makes every row
+# ----       plenum or none, as the block lies downstream or upstream of it; without it there is no plenum) -------------
+add_test(
+    NAME    IG-nozzle-area-law
+    COMMAND bash -c "for c in 'dx dx 1-1' 'sx sx 10-12' 'dx-none dx none' 'sx-none sx none' 'dx-past dx 1-12' 'sx-past sx none' 'dx-before dx none' 'sx-before sx 1-12'; do set -- $c; rm -rf _run-$1 && mkdir _run-$1 && cp mesh.tec phase.txt thermo.dat $1.ini _run-$1/ && (cd _run-$1 && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $1.ini < /dev/null > /dev/null) && python3 check_law.py _run-$1/fromATLAStoSolver/ic.tec mesh.tec $2 $3 || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-area-law"
+)
+set_tests_properties(IG-nozzle-area-law PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-nozzle-geometry-refused (the nozzle law on a block that is no nozzle stops ICB before anything is
+# ----       written: a constant section, on which legge_aree stopped with a Fortran backtrace; walls at the same
+# ----       distance from the x axis, no cross-section; i running towards -x) -------------
+add_test(
+    NAME    IG-nozzle-geometry-refused
+    COMMAND bash -c "run() { rm -rf _run-$1 && mkdir _run-$1 && cp $1.tec _run-$1/mesh.tec && cp input.ini phase.txt thermo.dat _run-$1/ && out=$(cd _run-$1 && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F \"$2\" <<< \"$out\" && test ! -e _run-$1/fromATLAStoSolver/ic.tec; }; run box 'its cross-section is constant along i (A max/min = 1.0000000' && run flat 'the row of cells i = 1 has no cross-section' && run reversed 'its cell centres do not advance along +x with i: at j = 1, k = 1 cell i = 2 lies at x'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-geometry-refused"
+)
+set_tests_properties(IG-nozzle-geometry-refused PROPERTIES
     LABELS      "ICB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

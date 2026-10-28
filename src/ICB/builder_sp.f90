@@ -7,12 +7,13 @@ module ic_sp_mod
 
 contains
 
-  subroutine build_SP_field(blk,sp_cfg,IC_type,mat,range,dirSize,dir,index_based)
+  subroutine build_SP_field(blk,sp_cfg,IC_type,mat,range,dirSize,dir)
     use phase_mod,                    only: material_t
     use global_mod,                    only: llen
     use ic_block_mod
     use ic_interpolation_old_mod,     only: ensure_old_solution, oldblock
-    use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, interpolate_from_file
+    use ic_interpolation_general_mod, only: interp_map_t, compute_interp_map, apply_interp_map, interpolate_from_file, &
+                                            assign_from_1D_table
     use config_mod,                   only: config_sp_t, config_field_source_t, &
                                             sync_interpolation_config
 
@@ -21,15 +22,12 @@ contains
     type(config_sp_t), intent(in)   :: sp_cfg
     character(len=*), intent(inout) :: IC_type
     type(material_t), intent(in)    :: mat
-    logical,          intent(in)    :: index_based
     real(R8),         intent(in)    :: range(6)
     integer,          intent(in)    :: dirSize
     integer,          intent(in)    :: dir(:)
     !! Local
     ! Unspecified
     integer                       :: i, j, k
-    integer                       :: imin, imax, jmin, jmax, kmin, kmax
-    real(R8)                      :: here(3)
     ! Support fields
     real(R8)                      :: T   (1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
     real(R8)                      :: mID_field(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
@@ -98,48 +96,17 @@ contains
 
     end select
 
-    !! Assign support variables to blk (range-filtered)
-    if (.not.index_based) then
-      here = 1.0
-      !$omp parallel private(i,j,k) firstprivate(here)
-      !$omp do collapse(3)
-      do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
-          if (dirSize>=1) here(1) = blk%center(i,j,k)%c(dir(1))
-          if (dirSize>=2) here(2) = blk%center(i,j,k)%c(dir(2))
-          if (dirSize>=3) here(3) = blk%center(i,j,k)%c(dir(3))
-          if (here(1)>=range(1) .and. here(1)<=range(2) .and. &
-              here(2)>=range(3) .and. here(2)<=range(4) .and. &
-              here(3)>=range(5) .and. here(3)<=range(6)) then
-            blk%sp%temperature(i,j,k) = T(i,j,k)
-            blk%sp%mID(i,j,k) = mID_field(i,j,k)
-            blk%set_sp(i,j,k) = .true.
-          endif
-      enddo; enddo; enddo
-      !$omp end parallel
-
-    elseif (index_based) then
-      imin = -huge(imin); jmin = -huge(jmin); kmin = -huge(kmin)
-      imax = huge(imax); jmax = huge(jmax); kmax = huge(kmax)
-      do i = 1, dirSize
-        select case(dir(i))
-        case(6); imin = nint(range(2*i-1)); imax = nint(range(2*i))
-        case(7); jmin = nint(range(2*i-1)); jmax = nint(range(2*i))
-        case(8); kmin = nint(range(2*i-1)); kmax = nint(range(2*i))
-        end select
-      enddo
-      !$omp parallel private(i,j,k)
-      !$omp do collapse(3)
-      do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
-        if (i>=imin .and. i<=imax .and. &
-            j>=jmin .and. j<=jmax .and. &
-            k>=kmin .and. k<=kmax) then
-          blk%sp%temperature(i,j,k) = T(i,j,k)
-          blk%sp%mID(i,j,k) = mID_field(i,j,k)
-          blk%set_sp(i,j,k) = .true.
-        endif
-      enddo; enddo; enddo
-      !$omp end parallel
-    endif
+    !! Assign support variables to blk (range-filtered): the cell rule of the other writers (cell_in_range).
+    !! A direction mixing coordinate and index letters (xi) used to compare the index letters only.
+    !$omp parallel do collapse(3) private(i,j,k)
+    do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
+      if (cell_in_range(i,j,k)) then
+        blk%sp%temperature(i,j,k) = T(i,j,k)
+        blk%sp%mID(i,j,k) = mID_field(i,j,k)
+        blk%set_sp(i,j,k) = .true.
+      endif
+    enddo; enddo; enddo
+    !$omp end parallel do
 
   contains
 
@@ -180,65 +147,46 @@ contains
       if (.not. field_cfg%has_file) return
 
       if (field_cfg%has_direction) then
-        call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field)
+        call assign_from_1D_table(blk, field_cfg%file, field_cfg%direction, field, zone_cells())
       else
         call interpolate_from_file(field, blk, field_cfg%file)
       endif
     end subroutine load_zone_field
 
+    ! the cells of the zone range, those a 1-D profile must cover
+    function zone_cells() result(inside)
+      logical, allocatable :: inside(:,:,:)
+      integer :: ic, jc, kc
+      allocate(inside(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)))
+      do kc = 1, blk%dim(3); do jc = 1, blk%dim(2); do ic = 1, blk%dim(1)
+        inside(ic,jc,kc) = cell_in_range(ic,jc,kc)
+      enddo; enddo; enddo
+    end function zone_cells
+
+    ! the cell rule of the gas writer (cell_in_range of build_IG_field): a coordinate letter compares the
+    ! cell centre, an index letter (i, j, k) the cell index; the limits are included
+    logical function cell_in_range(i, j, k)
+      integer, intent(in) :: i, j, k
+      real(R8)            :: here(3)
+      integer             :: n
+      here = 1.0_R8
+      do n = 1, min(dirSize, 3)
+        select case (dir(n))
+        case (6); here(n) = real(i, R8)
+        case (7); here(n) = real(j, R8)
+        case (8); here(n) = real(k, R8)
+        case default; here(n) = blk%center(i,j,k)%c(dir(n))
+        end select
+      enddo
+      cell_in_range = here(1)>=range(1) .and. here(1)<=range(2) .and. &
+                      here(2)>=range(3) .and. here(2)<=range(4) .and. &
+                      here(3)>=range(5) .and. here(3)<=range(6)
+    end function cell_in_range
+
   end subroutine build_SP_field
 
 
 
-  subroutine assign_from_1D_table (blk, varfile, vardirection, var)
-    use io_ascii_table_mod
-    use ic_block_mod
-    use math_utils_mod, only: interp_1d
-    implicit none
-    type(IC_block),   intent(in)  :: blk
-    character(len=*), intent(in)  :: varfile
-    character(len=*), intent(in)  :: vardirection
-    real(R8),         intent(out) :: var(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3))
-    ! Local
-    integer :: dir, ios, file_length, i, j, k
-    real(R8), dimension(:), allocatable :: file_dir, file_var
-    logical :: found
-
-    select case (trim(vardirection))
-    case ('x'); dir = 1
-    case ('y'); dir = 2
-    case ('z'); dir = 3
-    case ('r'); dir = 4
-    case ('t'); dir = 5
-    case default
-      write(*,*) '[ERROR] Unsupported direction in assign_from_1D_table: ', trim(vardirection)
-      stop 1
-    end select
-
-    call read_ascii_table(varfile, file_dir, file_var, ios)
-    if (ios/=0) then
-      write(*,*) '[ERROR] Could not read file: ', trim(varfile)
-      stop 1
-    endif
-
-    file_length = size(file_dir)
-
-    if (dir == 5) file_dir(:) = file_dir(:) * acos(-1.0_R8) / 180.0_R8
-
-    !$omp parallel private(i,j,k,found)
-    !$omp do collapse(3)
-    do k = 1, blk%dim(3); do j = 1, blk%dim(2); do i = 1, blk%dim(1)
-      found = interp_1d(blk%center(i,j,k)%c(dir), file_dir, file_var, file_length, var(i,j,k))
-      if (.not.found) then
-        write(*,*) '[ERROR] interpolated point ', blk%center(i,j,k)%c(dir), ' is outside the file data range.'
-        write(*,*) '        File: ', trim(varfile)
-        write(*,*) '        File data range: ', file_dir(1), ' to ', file_dir(file_length)
-        stop 1
-      endif
-    enddo; enddo; enddo
-    !$omp end parallel
-
-  end subroutine assign_from_1D_table
 
 
 end module ic_sp_mod

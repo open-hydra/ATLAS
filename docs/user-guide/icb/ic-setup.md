@@ -79,11 +79,57 @@ v = 0.0
 w = 0.0
 ```
 
-For ideal-gas blocks, `p0`/`T0` and `mach` are also supported.
+For ideal-gas blocks, `p0`/`T0` and `mach` are also supported ([Total conditions](#total-conditions)).
+
+### Velocity
+
+The velocity of a zone is given by its components `u`, `v`, `w` [m/s], or by a speed $V$ and a
+direction. The speed is `mach` times the speed of sound (ideal gas) or `vel` (real fluid). The
+direction is set by the flow angles `alpha` and `beta`, in radians:
+
+$$\mathbf{u} = V\,(\cos\alpha\cos\beta,\ \sin\alpha\cos\beta,\ \sin\beta)$$
+
+`alpha` turns the flow in the x-y plane from x towards y, and `beta` lifts it out of that plane
+towards z; without angles the flow is along x. This is the direction the solvers give the `alpha`
+and `beta` of an inflow BC, so an inlet and an initial field written from the same keys agree. An
+ideal-gas zone that gives any of `u`, `v`, `w` takes the three components and ignores the angles;
+in a real-fluid zone each component given replaces its own term.
+
+!!! note "Initial fields written before this fix"
+    Earlier ICB versions wrote $v = V\cos\alpha\sin\beta$: with either angle non-zero the direction
+    was wrong, and so was the speed ($V\cos\alpha$ along x alone when `beta` is 0). Rebuild the
+    initial fields of cases that give `alpha` or `beta`.
+
+An ideal-gas zone gives its speed once: `mach` next to a non-zero `u`, `v` or `w` stops ICB.
+
+### Total conditions
+
+An ideal-gas zone can give its state by the stagnation pressure `p0` and temperature `T0`, alone or
+next to the static `p` or `T` (`p0` with `T`, `p` with `T0`). ICB derives the static state the way
+the solvers' supersonic inlet (BC 405) does, on the cp and h tables of `thermo.dat`:
+
+* the static $T$ follows from the energy balance $h(T_0) = h(T) + V^2/2$, the speed $V$ being given
+  by `mach` ($V = M a(T)$) or by `u`, `v`, `w`;
+* the static $p$ lies on the isentrope from $p_0$ down to $T$,
+  $\ln(p_0/p) = \int_T^{T_0} c_p(T')/(R\,T')\,dT'$; with a static `T` the stagnation temperature
+  is that of $T$ at the speed of the zone.
+
+A zone and an inlet given by the same `p0`, `T0` and `mach` therefore carry the same static T and
+p, whatever the variation of $c_p$ with temperature.
+
+!!! note "Initial fields written before this fix"
+    Earlier ICB versions took $T = T_0$ when the speed was given by `u`, `v`, `w` (the speed
+    entered the pressure only), and expanded $p_0$ with
+    $(1 + \frac{\gamma-1}{2}M^2)^{\gamma/(\gamma-1)}$ at the $\gamma$ of the static temperature,
+    1.5 % off the isentrope for N2 at $T_0$ = 1200 K, $M$ = 2. Rebuild the initial fields of
+    ideal-gas zones that give `p0` or `T0` with a speed; the fields of zones at rest move by
+    less than 1e-8.
 
 ## Variable Initialization (file-driven)
 
-Use `<key>-file` with optional `<key>-direction` for 1-D mapped fields.
+A value can vary cell by cell: `<key>-file` gives it from a file, in place of the constant `<key>`
+(the zone is then built as `variable`). The keys that take a profile are `mach`, `p0`, `T0`, `p`, `T`,
+`rho` and `y<species>` for an ideal gas, `p`, `T`, `h`, `vel` for a real fluid, `T` for a solid.
 
 ```ini
 [ICB-Block1]
@@ -93,7 +139,26 @@ T-direction = x
 p = 101325.0
 ```
 
-This is available for IG/RF/SP fields and is useful for profile-based starts.
+The file is read in one of two ways:
+
+* **With `<key>-direction`** (`x`, `y`, `z`, `r` or `t`): a table of two columns, the coordinate and
+  the value, one row per point (`#` or `!` starts a comment). The coordinate must be monotone, and
+  `t` is in degrees. Each cell takes the value interpolated linearly at its centre, along the letter
+  ($r$ and $t$ about the x axis, as for the [zone ranges](#multizone-setup)). The table must hold the
+  centre of every cell of the zone: only the cells of the zone's own range, not the whole block.
+* **Without it**: a Tecplot field (`.tec`, or `.szplt` with a TecIO build) on a structured grid, any
+  grid: each cell takes the value of the nearest cell of the file, the first variable after the
+  coordinates. That variable must be cell-centred (`VARLOCATION=([3]=CELLCENTERED)` after `x`, `y`);
+  a file of nodal variables stops ICB.
+
+A constant next to its profile (`T` and `T-file`), and a direction without its profile, stop ICB:
+give one of the two.
+
+!!! note "Profiles read before this fix"
+    ICB read a 1-D table at every cell of the block, so a zone whose table covered only its own range
+    stopped ICB; a cell centre on the first point of a table stopped it too. A constant next to its
+    profile dropped the profile in silence, and a direction without a profile was ignored. A field of
+    nodal variables gave 0 in every cell (ICB then stopped on a state "not physical").
 
 ## Nozzle Initialization (IG)
 
@@ -106,7 +171,44 @@ nozzle-direction = dx
 nozzle-threshold = 0.0
 ```
 
-`nozzle-direction` accepts `dx` or `sx`.
+The nozzle law starts a nozzle from rest in its plenum: every row of cells i is a cross-section, and
+the quasi-1-D isentropic law gives it the Mach number of its area ratio A/A*, from `p0` and `T0`.
+
+- **The geometry.** The block must be a duct about the x axis, meshed along it: i from inlet to exit
+  (the cell centres advance along +x with i), j from the axis or the inner wall to the outer wall. The
+  area of row i is `pi |r_ext^2 - r_int^2|`, from the distances to the x axis of its walls j = 1 and
+  j = J (on the first node plane of k): an axisymmetric duct, or a sector of one. The throat is the
+  row of smallest area, in this block. On a 2-D planar channel the law reads the area ratio squared.
+- **The law.** Upstream of the throat (along the flow) the rows are subsonic, downstream
+  supersonic, the throat row exactly sonic; `p`, `T` and the speed follow from `p0`, `T0` and gamma
+  of the gas at `T0`. The velocity runs along the i lines of the mesh.
+- **The plenum.** `nozzle-direction` is the direction of the flow: `dx` towards +x, `sx` towards -x.
+  `nozzle-threshold` is the x where the plenum ends: the rows of cells whose centre (at j = 1, k = 1)
+  lies upstream of it keep `p0` and `T0` at rest, over the whole cross-section, and every other row
+  takes the law. Upstream is below the threshold with `dx`, above it with `sx`; a row centred on it
+  takes the law. A threshold beyond every centre makes the whole block plenum when the block lies
+  upstream of it, and none of it when the block lies downstream. Without `nozzle-threshold` there is
+  no plenum and the law takes every row.
+
+A block that is no nozzle stops ICB before anything is written, naming what is missing:
+
+- `[ERROR] build_IG_field block <b> (section [<s>]): the nozzle law needs a duct about the x axis,
+  meshed along it (...), and its cross-section is constant along i (A max/min = <r>, the law needs
+  1.001 at least): a duct without a throat is no nozzle ...`;
+- `... and the row of cells i = <i> has no cross-section: its walls j = 1 and j = J lie at the
+  distances <r1> and <r2> from the x axis` (a planar channel from y = -h to y = h, say);
+- `... and its cell centres do not advance along +x with i: at j = 1, k = 1 cell i = <i> lies at x = ...`.
+
+!!! note "Nozzle fields written before 2026-10-28"
+    The throat row was sonic to 1e-9 only (the Newton iteration of `legge_aree` crawls at the double
+    root M = 1), and on a duct of constant section the iteration stalled: ICB stopped with a Fortran
+    backtrace (`legge_aree: Max iterations reached`). Without `nozzle-threshold`, `sx` made every row
+    but the first a plenum, and `dx` wrote the first row as plenum outside the range of a zone; a
+    threshold that no cell lies past gave no plenum with `dx` and a plenum of every row with `sx`.
+    The plenum also missed the threshold by a row or two: with `dx` it took the first row whose
+    centre lies past the threshold too, with `sx` it left out the first two rows upstream of it. A
+    field written with a threshold has one row more at rest (`dx`) or two fewer (`sx`) than the
+    rule above gives.
 
 ## Interpolation Initialization
 
