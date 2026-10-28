@@ -74,8 +74,8 @@ Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile fi
 | theta | 90.0 |  |  no | Angle in degrees of the sector into which the extrude law revolves the 2D source (from the source plane towards +z). |
 | nz | 4 | >=1 |  no | Number of cells of the sector built by the extrude law. |
 | old-species |  |  |  no | Species list of the old solution for IG interpolation: a directory (old/, reads old/<phase>phase.txt) or a file prefix (old-, reads old-<phase>phase.txt in the case directory; the launcher then also finds old-phase.txt and writes a header-only old-ic.tec). |
-| nozzle-direction | dx | dx,sx |  no | Direction of the flow in the nozzle: dx towards +x (the plenum at the first rows of cells), sx towards -x (the plenum at the last rows). |
-| nozzle-threshold |  |  |  no | x where the plenum ends: the rows of cells upstream of it keep p0 and T0 at rest. Absent, there is no plenum and the nozzle law takes every row. |
+| nozzle-direction | dx | dx,sx |  no | Direction of the flow in the nozzle: dx towards +x (the plenum at low x), sx towards -x (the plenum at high x). |
+| nozzle-threshold |  |  |  no | x where the plenum ends: the rows of cells whose centre lies upstream of it (below it with dx, above it with sx) keep p0 and T0 at rest, the others take the nozzle law. Absent, there is no plenum and the nozzle law takes every row. |
 | yspecies-file |  |  |  no | Mass-fraction profile of the species named by the suffix (y<species>-file, in place of the constant y<species>): a Tecplot field on the block grid, or a two-column table (coordinate, y) along y<species>-direction; read like T-file, it makes the zone variable. |
 | yspecies-direction |  | x,y,z,r,t |  no | Direction of the 1D y<species>-file table. |
 

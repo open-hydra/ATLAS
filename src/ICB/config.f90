@@ -367,9 +367,10 @@ contains
     call add_turbulence_registry_entries(icb_registry, 'ICB-IG', ig_cfg%turbulence)
     call add_interpolation_entries('ICB-IG', ig_cfg%interpolation, .true.)
     call icb_registry%add('ICB-IG', 'nozzle-direction', ig_cfg%nozzle_direction, 'dx', 'Direction of the flow in the nozzle:'// &
-      ' dx towards +x (the plenum at the first rows of cells), sx towards -x (the plenum at the last rows).', 'dx,sx', .false.)
+      ' dx towards +x (the plenum at low x), sx towards -x (the plenum at high x).', 'dx,sx', .false.)
     call icb_registry%add('ICB-IG', 'nozzle-threshold', ig_cfg%nozzle_threshold, '', 'x where the plenum ends: the rows of'// &
-      ' cells upstream of it keep p0 and T0 at rest. Absent, there is no plenum and the nozzle law takes every row.', '', .false.)
+      ' cells whose centre lies upstream of it (below it with dx, above it with sx) keep p0 and T0 at rest, the others'// &
+      ' take the nozzle law. Absent, there is no plenum and the nozzle law takes every row.', '', .false.)
     call add_species_profile_entries()
 
     call add_field_source_entries('ICB-RF', 'p', rf_cfg%p, 'Real-fluid pressure.')

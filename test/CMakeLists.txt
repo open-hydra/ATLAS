@@ -406,12 +406,13 @@ set_tests_properties(IG-total-conditions PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- ICB : IG-nozzle-threshold-last (the first cell past nozzle-threshold is the last cell of the block: the row after
-# ----       it lies outside the block, and ICB wrote it past the arrays, a Bus error on macOS; with dx the whole block is
-# ----       plenum, with sx every row takes the nozzle law) -------------
+# ---- ICB : IG-nozzle-threshold-last (nozzle-threshold between the centres of the last two cells: with dx the two rows
+# ----       upstream of it are the plenum and the last row takes the nozzle law, with sx the last row is the plenum and
+# ----       the first two take the law; ICB used to write the row after the first cell past the threshold, here
+# ----       past the arrays, a Bus error on macOS) -------------
 add_test(
     NAME    IG-nozzle-threshold-last
-    COMMAND bash -c "for d in dx sx; do rm -rf _run-$d && mkdir _run-$d && cp mesh.tec gas-phase.txt gas-thermo.dat $d.ini _run-$d/ && (cd _run-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_rows.py _run-dx/fromATLAStoSolver/gas-ic.tec plenum && python3 check_rows.py _run-sx/fromATLAStoSolver/gas-ic.tec nozzle"
+    COMMAND bash -c "for d in dx sx; do rm -rf _run-$d && mkdir _run-$d && cp mesh.tec gas-phase.txt gas-thermo.dat $d.ini _run-$d/ && (cd _run-$d && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $d.ini) || exit 1; done && python3 check_rows.py _run-dx/fromATLAStoSolver/gas-ic.tec dx 1-2 && python3 check_rows.py _run-sx/fromATLAStoSolver/gas-ic.tec sx 3-3"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-threshold-last"
 )
 set_tests_properties(IG-nozzle-threshold-last PROPERTIES
@@ -539,7 +540,7 @@ set_tests_properties(IG-interp-src-3coord-plane PROPERTIES
 )
 
 # ---- ICB : IG-nozzle-plenum-order (the plenum rows of a nozzle zone cover the whole cross-section upstream of
-# ----       nozzle-threshold, also outside the range of the zone: a homogeneous zone listed before the nozzle zone
+# ----       nozzle-threshold, here row 1, also outside the range of the zone: a homogeneous zone listed before the nozzle zone
 # ----       loses 4 cells to the plenum, listed after it takes them back; a WARNING names each case and the
 # ----       products of both orders are unchanged; the two references are ATLAS output, IG-nozzle-area-law checks
 # ----       the nozzle law itself against an independent solve) -------------
@@ -556,12 +557,13 @@ set_tests_properties(IG-nozzle-plenum-order PROPERTIES
 
 # ---- ICB : IG-nozzle-area-law (the nozzle law on a converging-diverging quarter annulus, checked row by row against the
 # ----       quasi-1-D isentropic law solved independently: the throat row exactly sonic (legge_aree left it 1e-9 off),
-# ----       the plenum with and without nozzle-threshold in both directions; without it there is no plenum (with sx
-# ----       every row but the first was plenum), a threshold past the block makes every row plenum with dx, none
-# ----       with sx) -------------
+# ----       the plenum with and without nozzle-threshold in both directions. The plenum is the rows whose centre lies
+# ----       upstream of the threshold: x below 0.12 with dx (row 1; the first row past it was plenum too), above 0.9
+# ----       with sx (rows 10-12; rows 10 and 11 took the law); a threshold past the block or before it makes every row
+# ----       plenum or none, as the block lies downstream or upstream of it; without it there is no plenum) -------------
 add_test(
     NAME    IG-nozzle-area-law
-    COMMAND bash -c "for c in 'dx dx 1-2' 'sx sx 12-12' 'dx-none dx none' 'sx-none sx none' 'dx-past dx 1-12' 'sx-past sx none'; do set -- $c; rm -rf _run-$1 && mkdir _run-$1 && cp mesh.tec phase.txt thermo.dat $1.ini _run-$1/ && (cd _run-$1 && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $1.ini < /dev/null > /dev/null) && python3 check_law.py _run-$1/fromATLAStoSolver/ic.tec mesh.tec $2 $3 || exit 1; done"
+    COMMAND bash -c "for c in 'dx dx 1-1' 'sx sx 10-12' 'dx-none dx none' 'sx-none sx none' 'dx-past dx 1-12' 'sx-past sx none' 'dx-before dx none' 'sx-before sx 1-12'; do set -- $c; rm -rf _run-$1 && mkdir _run-$1 && cp mesh.tec phase.txt thermo.dat $1.ini _run-$1/ && (cd _run-$1 && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $1.ini < /dev/null > /dev/null) && python3 check_law.py _run-$1/fromATLAStoSolver/ic.tec mesh.tec $2 $3 || exit 1; done"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-area-law"
 )
 set_tests_properties(IG-nozzle-area-law PROPERTIES

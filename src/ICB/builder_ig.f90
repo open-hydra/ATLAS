@@ -794,8 +794,8 @@ contains
     subroutine assign_nozzle()
       implicit none
       real(R8), allocatable :: radius_ext(:), radius_int(:), area(:)
-      integer :: ib1, ib2, ib3, ilaw, throat_cell, L_threshold_cell, nplenum_over
-      logical :: has_threshold
+      integer :: throat_cell, nplenum_over
+      logical, allocatable :: plenum_row(:)
 
       associate( T0c => T0(1,1,1), p0c => p0(1,1,1) )
       ! the cross-section of every row of cells about the x axis, between its walls j = 1 and j = J (the node
@@ -836,46 +836,26 @@ contains
       throat_cell = minloc(area,1)
       throat_area = area(throat_cell)
 
-      ! the plenum: with dx the rows from the first one to the row after the first cell past nozzle-threshold,
-      ! with sx the rows from the last one down to that row. A threshold no cell lies past puts every row
-      ! upstream of it with dx, none with sx (L_threshold_cell = dim(1)+1); without nozzle-threshold there is no
-      ! plenum and the law takes every row (the first row was a plenum with dx, every row but the first with sx)
-      has_threshold = L_threshold < huge(1.0_R8)
-      L_threshold_cell = blk%dim(1) + 1
-      do i = 1, blk%dim(1)
-        if (blk%center(i,1,1)%c(1)>L_threshold) then
-          L_threshold_cell = i
-          exit
-        endif
-      enddo
-
-      ! ib2 is the row after the first cell past nozzle-threshold: when that cell is the last one of the
-      ! block, ib2 = dim(1)+1 lies outside it and the loops below skip it (the plenum (dx) or the nozzle
-      ! law (sx) wrote that row, past the arrays: a Bus error on macOS, memory overwritten in silence
-      ! elsewhere)
-      if (nozzle_dir=='dx') then
-        ip = 1
-        ib1 = 1
-        ib2 = L_threshold_cell+1
-        ib3 = blk%dim(1)
-      elseif (nozzle_dir=='sx') then
-        ip = -1
-        ib1 = blk%dim(1)
-        ib2 = L_threshold_cell+1
-        ib3 = 1
-      endif
-      ilaw = ib2                      ! the first row of the law
-      if (.not. has_threshold) then
-        ib2 = ib1 - ip                ! no plenum row
-        ilaw = ib1
+      ! the plenum: the rows of cells whose centre (at j = 1, k = 1) lies upstream of nozzle-threshold along
+      ! the flow, x below it with dx (towards +x), above it with sx (towards -x). They keep p0 and T0 at rest
+      ! over the whole cross-section; every other row takes the nozzle law. A threshold beyond every centre
+      ! makes the whole block plenum or none of it, as it lies upstream or downstream of the block; without
+      ! nozzle-threshold there is no plenum. (Up to 2026-10-28 the plenum also took the first row past the
+      ! threshold with dx, and left out the first two with sx.)
+      ip = merge(1, -1, nozzle_dir == 'dx')
+      allocate(plenum_row(1:blk%dim(1)), source=.false.)
+      if (L_threshold < huge(1.0_R8)) then
+        do i = 1, blk%dim(1)
+          plenum_row(i) = ip*blk%center(i,1,1)%c(1) < ip*L_threshold
+        enddo
       endif
 
       ! plenum rows outside the range of this zone: the cells an earlier zone wrote there are overwritten
       ! (reported), and the zones after this one are checked against them (report_plenum_overwritten)
       allocate(plenum_new(1:blk%dim(1),1:blk%dim(2),1:blk%dim(3)), source=.false.)
       nplenum_over = 0
-      do i = ib1, ib2, ip
-        if (i > blk%dim(1)) cycle
+      do i = 1, blk%dim(1)
+        if (.not. plenum_row(i)) cycle
         do k = 1, blk%dim(3)
           do j = 1, blk%dim(2)
             if (cell_in_range(i,j,k)) cycle
@@ -889,8 +869,8 @@ contains
         ' the range of the zone) overwrite ', nplenum_over, ' cells that an earlier zone wrote: the zone order decides'// &
         ' their state'
 
-      do i = ib1, ib2, ip
-        if (i > blk%dim(1)) cycle
+      do i = 1, blk%dim(1)
+        if (.not. plenum_row(i)) cycle
         do s = 1, sp%n
           blk%ig%density(s,i,:,:) = sp%massf(s)*p0c/(Rgas*T0c)
         enddo
@@ -901,8 +881,8 @@ contains
         blk%zone_ig(i,:,:) = .true.
       enddo
 
-      do i = ilaw, ib3, ip
-        if (i > blk%dim(1)) cycle
+      do i = 1, blk%dim(1)
+        if (plenum_row(i)) cycle
         M0 = 0.001
         if (ip*i > ip*throat_cell) M0 = 1.30
         call legge_aree(area(i),M0,Mach,throat_area,gamma)

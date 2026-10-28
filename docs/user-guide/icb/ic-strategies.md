@@ -136,8 +136,9 @@ The block must be a nozzle: a duct about the x axis meshed along it, whose cross
 throat (see [Nozzle Initialization](ic-setup.md#nozzle-initialization-ig)); on any other block ICB
 stops. Without `nozzle-threshold` there is no plenum and the law takes every row.
 
-The plenum of a `nozzle` zone is every row of cells upstream of `nozzle-threshold` (along
-`nozzle-direction`), over the whole cross-section of the block: in a multizone block the plenum rows
+The plenum of a `nozzle` zone is every row of cells whose centre lies upstream of `nozzle-threshold`
+along `nozzle-direction` (below it with `dx`, above it with `sx`), over the whole cross-section of the
+block: in a multizone block the plenum rows
 are written also outside the `range<n>` of the zone, and only the rows downstream take the nozzle law
 inside the range. The zone order therefore decides the state of the plenum cells that lie in the range
 of another zone:

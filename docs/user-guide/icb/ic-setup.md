@@ -183,11 +183,12 @@ the quasi-1-D isentropic law gives it the Mach number of its area ratio A/A*, fr
   supersonic, the throat row exactly sonic; `p`, `T` and the speed follow from `p0`, `T0` and gamma
   of the gas at `T0`. The velocity runs along the i lines of the mesh.
 - **The plenum.** `nozzle-direction` is the direction of the flow: `dx` towards +x, `sx` towards -x.
-  The rows upstream of `nozzle-threshold` (an x) keep `p0` and `T0` at rest. With `dx` the plenum
-  runs from the first row to the first cell whose centre lies past the threshold, that cell included;
-  with `sx` from the last row down to the second cell past it. A threshold that no cell lies past
-  makes every row plenum with `dx`, none with `sx`. Without `nozzle-threshold` there is no plenum and
-  the law takes every row.
+  `nozzle-threshold` is the x where the plenum ends: the rows of cells whose centre (at j = 1, k = 1)
+  lies upstream of it keep `p0` and `T0` at rest, over the whole cross-section, and every other row
+  takes the law. Upstream is below the threshold with `dx`, above it with `sx`; a row centred on it
+  takes the law. A threshold beyond every centre makes the whole block plenum when the block lies
+  upstream of it, and none of it when the block lies downstream. Without `nozzle-threshold` there is
+  no plenum and the law takes every row.
 
 A block that is no nozzle stops ICB before anything is written, naming what is missing:
 
@@ -204,6 +205,10 @@ A block that is no nozzle stops ICB before anything is written, naming what is m
     backtrace (`legge_aree: Max iterations reached`). Without `nozzle-threshold`, `sx` made every row
     but the first a plenum, and `dx` wrote the first row as plenum outside the range of a zone; a
     threshold that no cell lies past gave no plenum with `dx` and a plenum of every row with `sx`.
+    The plenum also missed the threshold by a row or two: with `dx` it took the first row whose
+    centre lies past the threshold too, with `sx` it left out the first two rows upstream of it. A
+    field written with a threshold has one row more at rest (`dx`) or two fewer (`sx`) than the
+    rule above gives.
 
 ## Interpolation Initialization
 
