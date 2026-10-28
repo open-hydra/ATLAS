@@ -19,6 +19,9 @@ cross-sections from its inlet end up to the first cell past
 is written by no zone, and, under a k-omega or Reynolds-stress model, when the
 turbulence of a cell is set by no zone.
 
+The nozzle law reads every row of cells i as a cross-section of a duct about the
+x axis (:class:`NozzleGeometry`), and ICB refuses a block that is not one.
+
 Only numpy: the Initial stage and the tests use it without Qt.
 """
 
@@ -33,6 +36,7 @@ from . import icmodel
 LETTERS = icmodel.DIRECTION_LETTERS        # "xyzrtijk"
 INDEX_LETTERS = "ijk"
 MAX_LETTERS = 3                            # ICB reads three pairs of range<n>
+NOZZLE_AREA_TOL = 1.0e-3                   # a section that varies less has no throat
 TURBULENCE_VALUES = tuple(k for k in icmodel.TURBULENCE_KEYS if k != "nrans")
 
 
@@ -52,6 +56,7 @@ class BlockCells:
         self.shape = (ni - 1, nj - 1, 1 if self.pure_2d else nk - 1)
         self._coords = {}
         self.masks = {}            # (direction, values) -> cells of that range
+        self._nozzle = None
 
     @property
     def count(self):
@@ -110,6 +115,12 @@ class BlockCells:
             return 0.0, float(np.sqrt(a ** 2 + b ** 2).max())
         nodes = {"x": x, "y": y, "z": z}[letter]
         return float(nodes.min()), float(nodes.max())
+
+    def nozzle(self):
+        """The :class:`NozzleGeometry` of the block, computed once."""
+        if self._nozzle is None:
+            self._nozzle = NozzleGeometry(self)
+        return self._nozzle
 
     def first_index(self, mask):
         """``(i, j, k)`` from 1 of the first True cell of *mask*, i fastest
@@ -176,23 +187,83 @@ def nozzle_law(state, kinds):
             and not state.has("old-solution") and not state.profile_keys())
 
 
-def plenum_mask(cells, state):
-    """The plenum rows a nozzle *state* writes: the i rows from its inlet end
-    up to the first cell whose centre lies past ``nozzle-threshold``."""
-    threshold = icmodel.to_float(state.get("nozzle-threshold")) if \
-        state.has("nozzle-threshold") else 0.0
-    if threshold is None:
-        threshold = 0.0
+class NozzleGeometry:
+    """The cross-sections the nozzle law reads in a block, as ICB takes them
+    (``assign_nozzle``, ``check_nozzle_geometry``): the row of cells i is a
+    section of a duct about the x axis, of area pi |r_ext² - r_int²|, the
+    distances to the axis of its walls j = 1 and j = J, mid-row on the first
+    node plane of k.
+
+    * ``x``       -- the centre x of the cells (i, 1, 1), one per row;
+    * ``area``    -- the area of every row, ``ratio`` it over the throat's;
+    * ``throat``  -- the row of smallest area, from 0;
+    * ``problem`` -- why ICB refuses the block (the first of its checks that
+      fails), ``short`` the same in a few words; both "" for a nozzle.
+    """
+
+    def __init__(self, cells):
+        _x, y, z = cells._nodes()
+
+        def radius(j):
+            return np.sqrt((0.5 * (y[:-1, j, 0] + y[1:, j, 0])) ** 2
+                           + (0.5 * (z[:-1, j, 0] + z[1:, j, 0])) ** 2)
+
+        self.rows = cells.shape[0]
+        self.r_int, self.r_ext = radius(0), radius(-1)
+        self.area = math.pi * np.abs(self.r_ext ** 2 - self.r_int ** 2)
+        self.x = np.array(cells.coordinate("x")[:, 0, 0])
+        self.throat = int(np.argmin(self.area))
+        throat_area = self.area[self.throat]
+        with np.errstate(divide="ignore", invalid="ignore"):
+            self.ratio = self.area / throat_area if throat_area > 0 else np.full(self.rows, np.nan)
+        self.problem, self.short = self._check()
+
+    def _check(self):
+        for n in range(1, self.rows):
+            if not self.x[n] > self.x[n - 1]:
+                return (f"its cell centres do not advance along +x with i: at j = 1, "
+                        f"k = 1 cell i = {n + 1} lies at x = {self.x[n]:.6g}, cell "
+                        f"i = {n} at x = {self.x[n - 1]:.6g}",
+                        "i does not run along +x")
+        for n in range(self.rows):
+            if not self.area[n] > 1e-9 * math.pi * max(self.r_int[n], self.r_ext[n]) ** 2:
+                return (f"the row of cells i = {n + 1} has no cross-section: its walls "
+                        f"j = 1 and j = J lie at the same distance from the x axis "
+                        f"({self.r_int[n]:.6g} and {self.r_ext[n]:.6g})",
+                        f"row i = {n + 1} has no cross-section")
+        if self.area.max() <= (1.0 + NOZZLE_AREA_TOL) * self.area.min():
+            return (f"its cross-section is constant along i (A max/min = "
+                    f"{self.area.max() / self.area.min():.7f}, the law needs 1.001 at "
+                    "least): a duct without a throat",
+                    "the cross-section is constant, no throat")
+        return "", ""
+
+
+def nozzle_rows(cells, state):
+    """``(plenum, law)``: per row of cells i, whether a nozzle *state* writes it
+    as plenum (p0 and T0 at rest, the whole cross-section) and whether the law
+    writes it afterwards (in the range of the state), as ``assign_nozzle``
+    loops.  With ``dx`` the plenum runs from the first row to the row after the
+    first cell past ``nozzle-threshold``, the law from that row on; with ``sx``
+    the reverse from the last row.  A threshold no cell lies past puts every
+    row in the plenum with ``dx``, none with ``sx``; without one there is no
+    plenum."""
     ni = cells.shape[0]
-    centre_x = cells.coordinate("x")[:, 0, 0]
-    past = np.flatnonzero(centre_x > threshold)
-    last = int(past[0]) + 1 if past.size else 0          # L_threshold_cell
-    rows = np.zeros(ni, dtype=bool)
+    rows = np.arange(1, ni + 1)
+    threshold = icmodel.to_float(state.get("nozzle-threshold"))
+    if threshold is None:
+        return np.zeros(ni, dtype=bool), np.ones(ni, dtype=bool)
+    past = np.flatnonzero(cells.coordinate("x")[:, 0, 0] > threshold)
+    first = int(past[0]) + 1 if past.size else ni + 1    # L_threshold_cell
     if state.get("nozzle-direction").strip() == "sx":
-        rows[min(last, ni):] = True                      # i = L+1 .. ni
-    else:
-        rows[:min(last + 1, ni)] = True                  # i = 1 .. L+1
-    return np.broadcast_to(rows.reshape(ni, 1, 1), cells.shape)
+        return rows >= first + 1, rows <= first + 1
+    return rows <= first + 1, rows >= first + 1
+
+
+def plenum_mask(cells, state):
+    """The cells of the plenum rows a nozzle *state* writes."""
+    rows = nozzle_rows(cells, state)[0]
+    return np.broadcast_to(rows.reshape(-1, 1, 1), cells.shape)
 
 
 class ZoneCoverage:
@@ -296,6 +367,44 @@ class BlockCoverage:
         return not self.unwritten
 
 
+def _cells(mesh, cache):
+    cells = cache.get(id(mesh))
+    if cells is None or cells.mesh is not mesh:
+        cells = cache[id(mesh)] = BlockCells(mesh)
+    return cells
+
+
+def nozzle_issues(doc, mesh_blocks, phases, cache=None):
+    """``[(level, target, message)]``: the nozzle states of *doc* given to a
+    mesh block that is no nozzle, on which ICB stops."""
+    issues = []
+    cache = cache if cache is not None else {}
+    for b, mesh in enumerate(mesh_blocks, start=1):
+        block = doc.block(b)
+        if block is None:
+            continue
+        kinds = icmodel.block_kinds(block, phases)
+        if block.is_split:
+            states = [(doc.zones.get(ref.section), (block.index, ref.section),
+                       f"{icmodel.block_label(block.index)}, zone [{ref.section}]")
+                      for ref in block.zone_refs()]
+        else:
+            states = [(block, block.index, icmodel.block_label(block.index))]
+        states = [s for s in states if s[0] is not None and nozzle_law(s[0], kinds)]
+        if not states:
+            continue
+        problem = _cells(mesh, cache).nozzle().problem
+        if not problem:
+            continue
+        on = f"on block {b}, " if block.is_wildcard else ""
+        for _state, target, where in states:
+            issues.append(("error", target, (
+                f"{where}: {on}the nozzle flow needs a nozzle along x, and the block is "
+                f"not one: {problem}. ICB stops on it: build the block as a uniform "
+                "state")))
+    return issues
+
+
 def coverage_issues(doc, mesh_blocks, phases, cache=None):
     """``[(level, target, message)]`` of the zones of *doc* (an
     :class:`icmodel.ICBDocument`) on *mesh_blocks*: the cells ICB would find
@@ -310,9 +419,7 @@ def coverage_issues(doc, mesh_blocks, phases, cache=None):
         if any(c not in LETTERS for c in block.direction) or \
                 len(block.direction) > MAX_LETTERS:
             continue                        # the deck checks report the letters
-        cells = cache.get(id(mesh))
-        if cells is None or cells.mesh is not mesh:
-            cells = cache[id(mesh)] = BlockCells(mesh)
+        cells = _cells(mesh, cache)
         kinds = icmodel.block_kinds(block, phases)
         cover = BlockCoverage(cells, block, doc.zones, kinds)
         target = block.index

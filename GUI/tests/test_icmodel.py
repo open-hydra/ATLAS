@@ -270,7 +270,7 @@ class StateChoices(unittest.TestCase):
         self.assertEqual(ICState([("p", "1e5"), ("T", "300")]).summary(),
                          "Uniform  ·  p 1e5  ·  T 300")
         self.assertEqual(ICState([("type", "nozzle"), ("p0", "5e5"), ("T0", "450")]).summary(),
-                         "Nozzle  ·  p0 5e5  ·  T0 450")
+                         "Nozzle flow  ·  p0 5e5  ·  T0 450")
         self.assertEqual(ICState([("old-solution", "run/field.tec")]).summary(),
                          "Interpolate  ·  field.tec")
         self.assertEqual(ICState().summary(), "Uniform  ·  no state yet")

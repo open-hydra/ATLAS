@@ -43,6 +43,12 @@ included, r and t about the x axis (in the x-y plane on a pure 2-D mesh), the
 zones in order, the plenum rows of a nozzle zone -- and gives the cells no
 zone writes, which ICB stops on.
 
+The nozzle flow is a special mode (`icmodel.SPECIAL_MODES`), offered apart from
+the general ones (`MODES`) where the block fits it: `icgeom.NozzleGeometry`
+reads the cross-sections of a block as ICB's nozzle law does and refuses the
+blocks ICB refuses (`check_nozzle_geometry`), `icgeom.nozzle_rows` gives the
+plenum rows and those of the law, and `icbdialogs.NozzlePlot` draws them.
+
 A value can come from a profile file instead (`<key>-file`, with
 `<key>-direction` for a table): `icprofile.py` reads a table line by line as
 ICB's `read_ascii_table` does and the header of a Tecplot field (the variable
@@ -55,8 +61,10 @@ the test suite through the document and back, and checks that `validate`
 flags no ICB deck the tool accepts while catching the ones it refuses.
 `GUI/tests/test_icgeom.py` (CTest `GUI-icgeom`, numpy) runs ICB on random zone
 decks over a pure 2-D, an extruded and a 3-D mesh and checks that `icgeom`
-finds the cells ICB writes after each zone and those it leaves unwritten, and
-that `icprofile` finds the cells a zone's table misses, as ICB does.
+finds the cells ICB writes after each zone and those it leaves unwritten, that
+`icprofile` finds the cells a zone's table misses as ICB does, and that the GUI
+refuses the nozzle flow where ICB refuses it and finds the plenum rows ICB
+writes.
 
 ## What the GPB panel knows
 
@@ -154,7 +162,7 @@ python -m atlasgui ...
 | `gpbmodel.py` | GPB phases, the schema from `input_registry.py`, validation |
 | `bcmodel.py` | `BCBDocument`: blocks, faces, named BC sections, INI I/O |
 | `icmodel.py` | `ICBDocument`: block and zone states, what they mean to ICB, its checks |
-| `icgeom.py` | the cells each zone of a block takes on the mesh, as ICB (numpy only) |
+| `icgeom.py` | the cells each zone of a block takes on the mesh, and the cross-sections the nozzle law reads, as ICB (numpy only) |
 | `icprofile.py` | profile files (`<key>-file`): tables and Tecplot fields read as ICB reads them |
 | `database.py` | what `database/` holds, for the pickers |
 | `filekeys.py` | which INI keys name a file, and how a value resolves |

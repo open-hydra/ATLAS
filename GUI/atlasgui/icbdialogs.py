@@ -1,5 +1,5 @@
 """Dialogs of the Initial stage: splitting a block into zones, and the
-profile of a value (``<key>-file``).
+profile of a value (``<key>-file``); the plot of a nozzle's cross-sections.
 
 The profile dialog edits what ICB reads: a two-column table along a letter
 (the rows edited here and written to the file only when they changed), or a
@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 from collections import OrderedDict
 
+import numpy as np
 from PyQt6.QtCore import QPointF, QRectF, Qt
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
@@ -237,6 +238,140 @@ class ProfilePlot(QWidget):
             text = f"{value:.4g}"
             painter.drawText(QPointF(box.left() - metrics.horizontalAdvance(text) - kit.px(6),
                                      y + metrics.ascent() / 2), text)
+
+
+class NozzlePlot(QWidget):
+    """The cross-sections of a block as the nozzle law reads them: A/A* of
+    every row of cells against x, the throat marked, the plenum rows shaded,
+    and the two branches of the law named -- subsonic upstream of the throat
+    along the flow, supersonic downstream."""
+
+    def __init__(self, kit):
+        super().__init__()
+        self.kit = kit
+        self.geometry = self.plenum = self.law = None
+        self.towards_minus = False
+        self.setMinimumHeight(kit.px(180))
+
+    def set_data(self, geometry, plenum, law, towards_minus):
+        """*geometry* an :class:`icgeom.NozzleGeometry`, *plenum* and *law* the
+        rows each writes (:func:`icgeom.nozzle_rows`), or all None."""
+        self.geometry, self.plenum, self.law = geometry, plenum, law
+        self.towards_minus = towards_minus
+        self.update()
+
+    def paintEvent(self, _event):
+        kit = self.kit
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.fillRect(self.rect(), QColor(kit.color("surface")))
+        box = QRectF(self.rect()).adjusted(kit.px(46), kit.px(24), -kit.px(14), -kit.px(26))
+        painter.setPen(QPen(QColor(kit.color("border")), 1))
+        painter.drawRect(box)
+        painter.setPen(QColor(kit.color("muted")))
+        geometry = self.geometry
+        if geometry is None:
+            painter.drawText(box, Qt.AlignmentFlag.AlignCenter, "Load the mesh to see the "
+                             "cross-sections")
+            return
+        x, ratio = geometry.x, geometry.ratio
+        if not np.isfinite(ratio).all():
+            painter.drawText(box, Qt.AlignmentFlag.AlignCenter, "A row has no cross-section")
+            return
+        ordered = not geometry.short.startswith("i does not")
+        x0, x1 = float(x.min()), float(x.max())
+        y0, y1 = 1.0, float(ratio.max())
+        if x1 == x0:
+            x0, x1 = x0 - 0.5, x1 + 0.5
+        if y1 - y0 < 1e-6:
+            y0, y1 = 0.9, 1.1
+        pad = 0.08 * (y1 - y0)
+        y0, y1 = y0 - pad, y1 + pad
+        if ordered and len(x) > 1:          # the rows span x from edge to edge
+            half = 0.5 * np.diff(x)
+            edges = np.concatenate([[x[0] - half[0]], x[:-1] + half, [x[-1] + half[-1]]])
+            x0, x1 = float(edges[0]), float(edges[-1])
+        else:
+            edges = None
+
+        def px(value):
+            return box.left() + (value - x0) / (x1 - x0) * box.width()
+
+        def py(value):
+            return box.bottom() - (value - y0) / (y1 - y0) * box.height()
+
+        metrics = painter.fontMetrics()
+        at_rest = None if self.plenum is None else self.plenum & ~self.law
+        if edges is not None and at_rest is not None and at_rest.any():
+            shade = QColor(kit.color("muted"))
+            shade.setAlpha(46)
+            rows = np.flatnonzero(at_rest)
+            left, right = px(edges[rows[0]]), px(edges[rows[-1] + 1])
+            painter.fillRect(QRectF(left, box.top(), right - left, box.height()), shade)
+            painter.setPen(QColor(kit.color("muted")))
+            painter.drawText(QRectF(left, box.top(), right - left, metrics.height() + 4),
+                             Qt.AlignmentFlag.AlignCenter, "plenum")
+        nozzle = not geometry.problem       # a refused block: its sections only
+        throat_x = px(float(x[geometry.throat]))
+        if nozzle:
+            pen = QPen(QColor(kit.color("accent")), 1, Qt.PenStyle.DashLine)
+            painter.setPen(pen)
+            painter.drawLine(QPointF(throat_x, box.top()), QPointF(throat_x, box.bottom()))
+            painter.setPen(QColor(kit.color("text_dim")))
+            text = "throat"
+            painter.drawText(QPointF(min(max(throat_x - metrics.horizontalAdvance(text) / 2,
+                                             box.left() + metrics.horizontalAdvance("A/A*  ")),
+                                         box.right() - metrics.horizontalAdvance(text)),
+                                     box.top() - kit.px(6)), text)
+        if nozzle and edges is not None and self.law is not None and self.law.any():
+            # each branch named over the rows of the law on its side of the throat
+            rows = np.arange(len(x))
+            upstream = rows > geometry.throat if self.towards_minus else rows < geometry.throat
+            painter.setPen(QColor(kit.color("muted")))
+            for side, name in ((upstream, "subsonic"), (~upstream & (rows != geometry.throat),
+                                                        "supersonic")):
+                written = np.flatnonzero(side & self.law)
+                if not written.size:
+                    continue
+                low, high = edges[written[0]], edges[written[-1] + 1]
+                middle = 0.5 * (px(low) + px(high))
+                width = metrics.horizontalAdvance(name)
+                tx = min(max(middle - width / 2, box.left() + kit.px(4)),
+                         box.right() - width - kit.px(4))
+                # at the top unless the curve climbs there: then at the bottom
+                under = np.interp([x0 + (x1 - x0) * (t - box.left()) / box.width()
+                                   for t in (tx, tx + width)], x, ratio)
+                top = py(float(under.max())) > box.top() + 2 * metrics.height()
+                ty = box.top() + metrics.height() if top else box.bottom() - kit.px(6)
+                painter.drawText(QPointF(tx, ty), name)
+        token = "accent" if nozzle else "danger"
+        line = QPainterPath(QPointF(px(float(x[0])), py(float(ratio[0]))))
+        for a, b in zip(x[1:], ratio[1:]):
+            line.lineTo(QPointF(px(float(a)), py(float(b))))
+        painter.setPen(QPen(QColor(kit.color(token)), kit.px(2)))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(line)
+        radius = kit.px(3)
+        for n, (a, b) in enumerate(zip(x, ratio)):
+            law = self.law is None or bool(self.law[n])
+            painter.setBrush(QColor(kit.color(token if law else "surface")))
+            painter.drawEllipse(QPointF(px(float(a)), py(float(b))), radius, radius)
+        painter.setPen(QColor(kit.color("muted")))
+        tiny = 1e-9 * (x1 - x0)
+        for value, edge in ((x0, box.left()), (x1, box.right())):
+            text = f"{0.0 if abs(value) < tiny else value:.4g}"
+            painter.drawText(QPointF(min(max(edge - metrics.horizontalAdvance(text) / 2, 0),
+                                         self.width() - metrics.horizontalAdvance(text)),
+                                     box.bottom() + metrics.height()), text)
+        text = "x [m]"
+        painter.drawText(QPointF(box.center().x() - metrics.horizontalAdvance(text) / 2,
+                                 box.bottom() + metrics.height()), text)
+        for value in sorted({round(float(ratio.max()), 6), 1.0}):
+            y = py(value)
+            text = f"{value:.3g}"
+            painter.drawText(QPointF(box.left() - metrics.horizontalAdvance(text) - kit.px(6),
+                                     y + metrics.ascent() / 2), text)
+        painter.drawText(QPointF(box.left(), box.top() - kit.px(6)), "A/A*")
 
 
 class ProfileDialog(QDialog):

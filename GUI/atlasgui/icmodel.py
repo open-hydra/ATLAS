@@ -12,8 +12,8 @@ A *state* is one flat list of keys that every phase of the block reads at the
 same time: ``T = 300`` sets the gas and the solid alike.  :class:`ICState` keeps
 those keys as the source of truth -- a key the GUI has no widget for is still
 written back -- and reads the structure the editor needs from them: the mode
-(uniform, nozzle, interpolate), the profiles (``<key>-file``), the species
-mass fractions (``y<species>``).
+(uniform, interpolate, or the special nozzle flow), the profiles
+(``<key>-file``), the species mass fractions (``y<species>``).
 
 Zone sections carry no prefix, like the BC sections of BCB: a section belongs
 to ICB when an ICB block names it in a ``zone<n>`` key
@@ -165,13 +165,21 @@ NOZZLE_KEYS = ("nozzle-direction", "nozzle-threshold")
 
 # The modes a state is edited in.  ICB's own type follows from them: a
 # uniform state with a profile is 'variable', and old-solution makes any
-# state 'interpolation' whatever its type says.
+# state 'interpolation' whatever its type says.  MODES are the general ways
+# to build any block; SPECIAL_MODES are laws for one kind of geometry,
+# offered apart, where the mesh fits them (icgeom.NozzleGeometry).
 MODES = OrderedDict([
     ("uniform", "Uniform"),
-    ("nozzle", "Nozzle"),
     ("interpolate", "Interpolate"),
 ])
+SPECIAL_MODES = OrderedDict([
+    ("nozzle", "Nozzle flow"),
+])
 ICB_TYPES = ("homogeneous", "variable", "interpolation", "nozzle", "multizone")
+
+
+def mode_label(mode):
+    return MODES.get(mode) or SPECIAL_MODES[mode]
 
 
 def is_structural(key):
@@ -246,6 +254,8 @@ REAL_FLUID_PAIRS = OrderedDict([
 SPEED_KEY = {"IG": "mach", "RF": "vel"}
 COMPONENT_KEYS = ("u", "v", "w")
 ANGLE_KEYS = ("alpha", "beta")
+# What the nozzle law sets itself, row by row: the static state and the velocity.
+NOZZLE_SETS = ("p", "T", "rho", "mach") + COMPONENT_KEYS + ANGLE_KEYS
 
 # Turbulence: the model follows from the keys given (src/common/config_shared.f90)
 # unless nrans names it; each quantity is given specific or density-weighted.
@@ -483,7 +493,7 @@ class ICState:
     def summary(self):
         """One line for a list: the mode, then the values that define it."""
         mode = self.mode
-        parts = [MODES[mode]]
+        parts = [mode_label(mode)]
         if mode == "interpolate":
             parts.append(os.path.basename(self.get("old-solution")) or "no source yet")
         else:

@@ -578,6 +578,9 @@ QPushButton[seg="right"] { border-top-left-radius: 0; border-bottom-left-radius:
     padding: 6px 10px; }
 QPushButton[seg]:checked { background-color: %(accent_soft)s;
     border-color: %(accent_line)s; color: %(text)s; }
+QPushButton[role="special"] { padding: 6px 12px; }
+QPushButton[role="special"][active="true"] { background-color: %(accent_soft)s;
+    border-color: %(accent_line)s; color: %(text)s; }
 
 /* ----------------------------------------------------------------- inputs */
 QLineEdit, QComboBox, QAbstractSpinBox {

@@ -231,6 +231,22 @@ def _profile(p, c):
     _poly(p, [(6.5, 16.5), (9.5, 13), (12.5, 14.5), (15.5, 8.5), (19, 6)])
 
 
+def _nozzle(p, c):
+    """A de Laval nozzle in section, the flow through it: the special
+    initialisations."""
+    _stroke(p, c, 1.7)
+    for side in (1, -1):
+        path = QPainterPath(QPointF(2.5, 12 - side * 7))
+        path.cubicTo(QPointF(7.5, 12 - side * 7), QPointF(8.5, 12 - side * 3.6),
+                     QPointF(11.5, 12 - side * 3.6))
+        path.cubicTo(QPointF(15, 12 - side * 3.6), QPointF(17.5, 12 - side * 8.5),
+                     QPointF(21.5, 12 - side * 9.5))
+        p.drawPath(path)
+    _stroke(p, c, 1.5)
+    _poly(p, [(6.5, 12), (17, 12)])
+    _poly(p, [(14.5, 10), (17, 12), (14.5, 14)])
+
+
 def _chevron_right(p, c):
     _stroke(p, c, 2.1)
     _poly(p, [(9.5, 6), (15.5, 12), (9.5, 18)])
@@ -315,6 +331,7 @@ DRAW = {
     "layers": _layers, "sliders": _sliders, "code": _code, "info": _info,
     "chevron-down": _chevron_down, "chevron-right": _chevron_right,
     "chevron-up": _chevron_up, "split": _split, "profile": _profile,
+    "nozzle": _nozzle,
     "circle": _circle, "file": _file, "alert": _alert, "gear": _gear,
     "reset": _reset, "type": _type, "thermo": _thermo,
 }

@@ -7,9 +7,11 @@ whose ranges leave gaps (and some that cover the block) on a pure 2-D, an
 extruded 2-D and a 3-D mesh, along every letter, runs ICB on each and checks
 that the GUI finds the cells ICB writes after each zone, the count of cells
 no zone writes and the first of them; and, on the nozzle decks of the suite,
-the plenum rows ICB reports writing over earlier zones; and that the cells of a
-zone a profile table misses (icprofile) are those ICB stops on.  It is skipped
-when ICB is not built.  Exit status 77 (skipped) without numpy.
+the plenum rows ICB reports writing over earlier zones; that the cells of a
+zone a profile table misses (icprofile) are those ICB stops on; that the GUI
+refuses the nozzle flow on the meshes ICB refuses it on, for the same reason,
+and finds the plenum rows ICB writes.  It is skipped when ICB is not built.
+Exit status 77 (skipped) without numpy.
 """
 
 import os
@@ -44,6 +46,23 @@ MESHES = {
     "3-D": (os.path.join(ICB_TESTS, "IG-interp-spherical-3D", "mesh.tec"),
             ["x", "y", "z", "r", "t", "k", "xyz", "ijk"]),
 }
+
+
+NOZZLE_LAW = os.path.join(ICB_TESTS, "IG-nozzle-area-law")
+REFUSED = os.path.join(ICB_TESTS, "IG-nozzle-geometry-refused")
+# meshes for the nozzle law, with the reason ICB refuses it ("" when it does not)
+NOZZLE_MESHES = {
+    "area-law": (os.path.join(NOZZLE_LAW, "mesh.tec"), ""),
+    "box": (os.path.join(REFUSED, "box.tec"), "constant"),
+    "flat": (os.path.join(REFUSED, "flat.tec"), "no cross-section"),
+    "reversed": (os.path.join(REFUSED, "reversed.tec"), "do not advance"),
+    "plenum-order": (os.path.join(ICB_TESTS, "IG-nozzle-plenum-order", "mesh.tec"), ""),
+    "extruded nozzle": (MESHES["extruded"][0], ""),
+    "pure 2-D box": (MESHES["pure 2-D"][0], "constant"),
+    "3-D annulus": (MESHES["3-D"][0], "constant"),
+}
+NOZZLE_DECK = ("[ATLAS-Parameters]\nIC-format = tec\n\n[ICB-Block1]\ntype = nozzle\n"
+               "p0 = 500000.0\nT0 = 450.0\nyO2 = 0.25\nyN2 = 0.75\n")
 
 
 class Mesh:
@@ -95,6 +114,53 @@ class Cells(unittest.TestCase):
         self.assertEqual([z.cells for z in cover.zones], [2, 1])
         self.assertEqual([z.kept for z in cover.zones], [1, 1])    # b writes cell 2 again
         self.assertEqual(cover.written_after, [2, 2])
+
+    def test_nozzle_geometry(self):
+        for name, (path, reason) in NOZZLE_MESHES.items():
+            with self.subTest(mesh=name):
+                geometry = icgeom.BlockCells(mesh_io.read_mesh(path)[0]).nozzle()
+                if reason:
+                    self.assertIn(reason, geometry.problem)
+                    self.assertTrue(geometry.short)
+                else:
+                    self.assertEqual(geometry.problem, "")
+        law = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])[0]).nozzle()
+        self.assertEqual(law.throat, 4)                       # row 5, x = 0.45
+        self.assertAlmostEqual(float(law.ratio.max()), 5.95934, places=4)
+        box = icgeom.BlockCells(Mesh(3, 2, 2).block).nozzle()  # a Cartesian box
+        self.assertIn("constant", box.problem)
+
+    def test_nozzle_rows(self):
+        cells = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])[0])
+
+        def rows(**keys):
+            state = icmodel.ICState(list(keys.items()))
+            plenum, law = icgeom.nozzle_rows(cells, state)
+            return [int(n) + 1 for n in np.flatnonzero(plenum & ~law)], int(law.sum())
+
+        # the plenum of IG-nozzle-area-law's decks (the cells at rest ICB writes)
+        self.assertEqual(rows(), ([], 12))
+        self.assertEqual(rows(**{"nozzle-direction": "sx"}), ([], 12))
+        self.assertEqual(rows(**{"nozzle-threshold": "0.12"}), ([1, 2], 10))
+        self.assertEqual(rows(**{"nozzle-threshold": "0.9", "nozzle-direction": "sx"}), ([12], 11))
+        self.assertEqual(rows(**{"nozzle-threshold": "5"}), (list(range(1, 13)), 0))
+        self.assertEqual(rows(**{"nozzle-threshold": "5", "nozzle-direction": "sx"}), ([], 12))
+
+    def test_nozzle_issues(self):
+        box = mesh_io.read_mesh(NOZZLE_MESHES["box"][0])
+        law = mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])
+        gas = "[ICB-Block1]\ntype = nozzle\np0 = 5e5\nT0 = 450\nyN2 = 1\n"
+        issues = icgeom.nozzle_issues(AtlasDocument.from_ini(gas).icb, box, [])
+        self.assertEqual([(level, target) for level, target, _m in issues], [("error", 1)])
+        self.assertIn("constant", issues[0][2])
+        self.assertEqual(icgeom.nozzle_issues(AtlasDocument.from_ini(gas).icb, law, []), [])
+        zones = ("[ICB-Block1]\ndirection = x\nzone1 = up\nrange1 = 0 1\nzone2 = down\n"
+                 "range2 = 1 3\n[up]\np = 1e5\nT = 300\nyN2 = 1\n"
+                 "[down]\ntype = nozzle\np0 = 5e5\nT0 = 450\nyN2 = 1\n")
+        issues = icgeom.nozzle_issues(AtlasDocument.from_ini(zones).icb, box, [])
+        self.assertEqual([target for _l, target, _m in issues], [(1, "down")])
+        profile = gas + "T0-file = t.dat\nT0-direction = x\n"     # variable: no law
+        self.assertEqual(icgeom.nozzle_issues(AtlasDocument.from_ini(profile).icb, box, []), [])
 
     def test_outward_limits(self):
         for value in (0.12000000000000001, -3.3333333333, 1234567.891, 1e-7 / 3):
@@ -216,6 +282,43 @@ class AgainstICB(unittest.TestCase):
         self.assertEqual(compared, 36)
         self.assertGreater(stopped, 12)          # the tables that miss cells are compared too
 
+    def test_nozzle_geometry(self):
+        """ICB refuses the nozzle law on the meshes the GUI refuses it on."""
+        with tempfile.TemporaryDirectory() as work:
+            for f in ("phase.txt", "thermo.dat"):
+                shutil.copy(os.path.join(NOZZLE_LAW, f), work)
+            for name, (path, reason) in NOZZLE_MESHES.items():
+                shutil.copy(path, os.path.join(work, "mesh.tec"))
+                rc, out = self.run_icb(work, NOZZLE_DECK)
+                geometry = icgeom.BlockCells(mesh_io.read_mesh(path)[0]).nozzle()
+                with self.subTest(mesh=name):
+                    self.assertEqual(rc != 0, bool(geometry.problem), out[-400:])
+                    if reason:
+                        self.assertIn(reason, out)
+                        self.assertIn("the nozzle law needs a duct about the x axis", out)
+
+    def test_nozzle_rows(self):
+        """The plenum rows ICB writes at rest, against icgeom.nozzle_rows."""
+        rng = random.Random(28)
+        cells = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])[0])
+        thresholds = [None, -1.0, 5.0, 0.05, 0.15] + [round(rng.uniform(-0.1, 1.3), 4)
+                                                    for _ in range(5)]
+        with tempfile.TemporaryDirectory() as work:
+            for f in ("mesh.tec", "phase.txt", "thermo.dat"):
+                shutil.copy(os.path.join(NOZZLE_LAW, f), work)
+            for direction in ("dx", "sx"):
+                for threshold in thresholds:
+                    deck = NOZZLE_DECK + f"nozzle-direction = {direction}\n"
+                    if threshold is not None:
+                        deck += f"nozzle-threshold = {threshold}\n"
+                    rc, out = self.run_icb(work, deck)
+                    with self.subTest(direction=direction, threshold=threshold):
+                        self.assertEqual(rc, 0, out[-400:])
+                        rest = _rows_at_rest(os.path.join(work, "fromATLAStoSolver", "ic.tec"))
+                        state = AtlasDocument.from_ini(deck).icb.block(1)
+                        plenum, law = icgeom.nozzle_rows(cells, state)
+                        self.assertEqual(rest, [int(n) + 1 for n in np.flatnonzero(plenum & ~law)])
+
     def test_nozzle_plenum(self):
         source = os.path.join(ICB_TESTS, "IG-nozzle-plenum-order")
         with tempfile.TemporaryDirectory() as work:
@@ -235,6 +338,22 @@ class AgainstICB(unittest.TestCase):
                         r"overwrite[s]? (\d+) cells", out))
                     gui = sorted(n for _zone, n, _what in cover.plenum_overwrites)
                     self.assertEqual(gui, icb)
+
+
+def _rows_at_rest(path):
+    """The rows i of an ASCII ic.tec whose every cell holds p0 = 5e5 at rest."""
+    with open(path) as handle:
+        lines = handle.read().split("\n")
+    names = lines[0].split("=", 1)[1].split()
+    ni, nj, nk = (int(lines[1].split(f"{c}=")[1].split(",")[0]) for c in "IJK")
+    values = [float(v) for line in lines[2:] for v in line.split()]
+    nn, nc = ni * nj * nk, (ni - 1) * (nj - 1) * (nk - 1)
+    band = {n: values[3 * nn + b * nc: 3 * nn + (b + 1) * nc] for b, n in enumerate(names[3:])}
+    rest = set(range(1, ni))
+    for c in range(nc):
+        if (band["p"][c], band["u"][c], band["v"][c], band["w"][c]) != (5e5, 0.0, 0.0, 0.0):
+            rest.discard(c % (ni - 1) + 1)
+    return sorted(rest)
 
 
 if __name__ == "__main__":

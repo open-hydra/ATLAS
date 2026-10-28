@@ -155,13 +155,13 @@ shows a card for each thing the state needs, for the phases of the block:
 | Card | What it writes |
 |------|----------------|
 | **Phases** | the block's `phase` key (none selected: every phase, as ICB assumes) |
-| **How the field is built** | *Uniform*, *Nozzle* (`type = nozzle`, ideal gas only) or *Interpolate* (`old-solution`) |
+| **How the field is built** | *Uniform* or *Interpolate* (`old-solution`), the general ways; **Special**: *Nozzle flow* (`type = nozzle`) |
 | **Gas state** | two of `p`, `T`, `p0`, `T0`, `rho`, chosen as a pair; ICB derives the rest |
 | **Velocity** | the Mach number (`vel` for a real fluid) with the flow angles, or `u`, `v`, `w` |
 | **Composition** | the mass fractions `y<species>`, with their sum, or a CEA equilibrium (`eq-CEA-file`) |
 | **Turbulence** | the model and its quantities, specific (`k`, `omega`, …) or density-weighted (`rhoK`, …) |
 | **Solid**, **Dispersed phase**, **Real fluid** | `T` and `material`; `krho`, `kT`, `dp` or `rp`, `Pp`; `p` with `T` or `h` |
-| **Nozzle**, **Interpolation** | `p0`, `T0`, `nozzle-direction`, `nozzle-threshold`; the source, the law, `old-block-id`, `old-species` |
+| **Nozzle flow**, **Interpolation** | `p0`, `T0`, `nozzle-direction`, `nozzle-threshold`; the source, the law, `old-block-id`, `old-species` |
 
 The species are those of the phase files ICB reads (`*phase.txt` in the case
 directory, then `fromATLAStoSolver/`, where GPB writes them), else the species
@@ -177,6 +177,32 @@ alone: a block with no state, a gas state without a pair, a speed given twice
 not read (with the name to use instead, for the keys of earlier decks), a
 turbulence model without its quantities, a value that is not physical. They are
 listed in **Review** too.
+
+### Special initialisations
+
+*Uniform* and *Interpolate* build any block. A special initialisation is a law
+for one kind of geometry, so it sits apart, under **Special**, and is offered
+only where it applies: a greyed entry says why not. When it is chosen, the
+button names it and the editor shows its card.
+
+**Nozzle flow** starts a nozzle from rest in its plenum
+([Nozzle initialization](./icb/ic-setup.md#nozzle-initialization-ig)). It
+builds an ideal gas, and the block must be a nozzle along x: a duct about the
+x axis meshed along it, the cell centres advancing along +x with i, the rows of
+cells its cross-sections between the walls j = 1 and j = J, with a throat. ICB
+stops on any other block, and so the GUI does not offer the law there once the
+mesh is loaded. Choosing it drops the static state and the velocity of a
+gas-only block (the law sets them in every row); *Back to a uniform state*
+drops the nozzle keys.
+
+The **Nozzle flow** card takes `p0` and `T0`, the direction of the flow and
+the x where the plenum ends (empty: no plenum). A plot shows the
+cross-sections as the law reads them, A/A* against x: the throat, the plenum
+rows shaded, the subsonic and supersonic rows of the law. The line under it
+says whether the block is a nozzle and which rows are the plenum. On a block
+that is not one, the curve is drawn red, the line names what ICB refuses — a
+constant section, a row without cross-section, i not along +x — and Review
+lists it as an error.
 
 ### Profiles
 

@@ -38,7 +38,7 @@ from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView, QButtonGroup, QComboBox, QDialog, QFormLayout,
     QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
-    QListWidget, QListWidgetItem, QMessageBox, QSizePolicy, QSplitter,
+    QListWidget, QListWidgetItem, QMenu, QMessageBox, QSizePolicy, QSplitter,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -46,7 +46,7 @@ from . import database, filekeys, icgeom, icmodel, icons, icprofile
 from .bcmodel import KEYWORD_BCS
 from .filewidgets import STATE_ICON, STATE_TOKEN, pick_value
 from .gpbdialogs import AdvancedKeysDialog
-from .icbdialogs import LETTER_TIPS, LETTER_UNITS, ProfileDialog, SplitDialog
+from .icbdialogs import LETTER_TIPS, LETTER_UNITS, NozzlePlot, ProfileDialog, SplitDialog
 from .icmodel import (GAS_PAIRS, REAL_FLUID_PAIRS, TURBULENCE_MODELS,
                       block_label)
 from .widgets import Card, clear_layout
@@ -72,11 +72,17 @@ MODE_BLURBS = {
     "uniform": "One state for every cell. A value can also vary cell by cell, "
                "from a profile file (the profile button by the value): the state "
                "is then variable.",
-    "nozzle": "A de Laval nozzle along x: the plenum upstream of the threshold "
-              "keeps p0 and T0, downstream the quasi-1-D area law sets the "
-              "Mach number of every row of cells. Ideal gas only.",
+    "nozzle": "Nozzle flow, a special law for one geometry: a duct about the x "
+              "axis, meshed along it, with a throat. The plenum upstream of the "
+              "threshold keeps p0 and T0 at rest; downstream, the quasi-1-D area "
+              "law gives every row of cells its Mach number. Ideal gas only.",
     "interpolate": "The state of an earlier solution, interpolated onto this "
                    "mesh. The composition and the turbulence bands come with it.",
+}
+
+# The special initialisations in a few words, for their menu.
+SPECIAL_TAGLINES = {
+    "nozzle": "quasi-1-D flow from a plenum, for a nozzle along x",
 }
 
 LAW_LABELS = OrderedDict([
@@ -202,6 +208,7 @@ class ICBPanel(QWidget):
         mesh = self.mesh_blocks()
         if mesh:
             issues += icgeom.coverage_issues(self.icb, mesh, self._phases, self._cells)
+            issues += icgeom.nozzle_issues(self.icb, mesh, self._phases, self._cells)
         for block in self.icb.all_blocks():
             owner = block.index
             if block.is_split:
@@ -319,6 +326,16 @@ class ICBPanel(QWidget):
         if cells is None or cells.mesh is not block:
             cells = self._cells[id(block)] = icgeom.BlockCells(block)
         return cells
+
+    def _target_cells(self):
+        """``[(block, BlockCells)]``: the mesh blocks the selected row gives
+        its state to (none without the mesh)."""
+        target = self.current_target()
+        owner = target[0] if isinstance(target, tuple) else target
+        if owner is None:
+            return []
+        pairs = [(b, self._cells_of(b)) for b in self._users(owner)]
+        return [(b, cells) for b, cells in pairs if cells is not None]
 
     def _users(self, owner):
         """The mesh blocks the section *owner* gives a state to."""
@@ -611,6 +628,7 @@ class ICBPanel(QWidget):
             return
         self._loading = True
         self.zone_table = None
+        self.nozzle_plot = None
         try:
             state = self.current_state()
             if isinstance(target, tuple):
@@ -1048,13 +1066,55 @@ class ICBPanel(QWidget):
         card = Card()
         kit = self.kit
         card.body.addLayout(kit.panel_header("sliders", "HOW THE FIELD IS BUILT"))
-        disabled = {}
-        if "IG" not in kinds:
-            disabled["nozzle"] = "The nozzle law builds an ideal gas, and this block has none."
-        card.body.addWidget(self._segmented(
-            list(icmodel.MODES.items()), state.mode, self._set_mode, disabled))
+        row = QHBoxLayout()
+        row.setSpacing(10)
+        row.addWidget(self._segmented(list(icmodel.MODES.items()), state.mode,
+                                      self._set_mode), 1)
+        row.addWidget(self._special_button(state, kinds))
+        card.body.addLayout(row)
         card.body.addWidget(kit.hint(MODE_BLURBS[state.mode]))
         return card
+
+    def _special_button(self, state, kinds):
+        """The special initialisations, apart from the general modes: laws for
+        one kind of geometry, offered where the block fits them."""
+        current = state.mode if state.mode in icmodel.SPECIAL_MODES else None
+        button = self.kit.button(
+            icmodel.SPECIAL_MODES[current] if current else "Special", None, "nozzle",
+            "special", tip="Initialisations for one kind of geometry, such as the "
+                           "flow of a nozzle from its plenum.")
+        button.setProperty("active", bool(current))
+        menu = QMenu(button)
+        menu.setToolTipsVisible(True)
+        for mode, label in icmodel.SPECIAL_MODES.items():
+            reason = "" if mode == current else self._special_reason(kinds, mode)
+            action = menu.addAction(f"{label} — {SPECIAL_TAGLINES[mode]}")
+            action.setToolTip(MODE_BLURBS[mode])
+            action.setCheckable(True)
+            action.setChecked(mode == current)
+            action.setEnabled(not reason)
+            if mode == current:
+                action.triggered.connect(lambda _c=False, a=action: a.setChecked(True))
+            else:
+                action.triggered.connect(lambda _c=False, m=mode: self._set_mode(m))
+            if reason:
+                menu.addAction("      " + reason).setEnabled(False)
+        if current:
+            menu.addSeparator()
+            back = menu.addAction("Back to a uniform state")
+            back.triggered.connect(lambda _c=False: self._set_mode("uniform"))
+        button.setMenu(menu)
+        return button
+
+    def _special_reason(self, kinds, mode):
+        """Why the special *mode* does not fit the selected row, or ""."""
+        if mode == "nozzle":
+            if "IG" not in kinds:
+                return "the law builds an ideal gas, and this block has none"
+            for b, cells in self._target_cells():
+                if cells.nozzle().short:
+                    return f"Block {b} is not a nozzle along x: {cells.nozzle().short}"
+        return ""
 
     def _set_mode(self, mode):
         state = self.current_state()
@@ -1063,6 +1123,10 @@ class ICBPanel(QWidget):
         leaving = {"interpolate": ("old-solution", "old-block-id", "interpolation-law",
                                    "theta", "nz", "old-species"),
                    "nozzle": icmodel.NOZZLE_KEYS}.get(state.mode, ())
+        if mode == "nozzle" and self._kinds(state) == {"IG"}:
+            # the law sets them in every row; another phase of the block may read them
+            leaving += tuple(f"{k}{suffix}" for k in icmodel.NOZZLE_SETS
+                             for suffix in ("", "-file", "-direction"))
         if not self._confirm_drop("Change the mode", leaving):
             self._rebuild_editor()
             return
@@ -1475,12 +1539,15 @@ class ICBPanel(QWidget):
     def _nozzle_card(self, state):
         card = Card()
         kit = self.kit
-        card.body.addLayout(kit.panel_header("target", "NOZZLE"))
+        card.body.addLayout(kit.panel_header("nozzle", "NOZZLE FLOW", kit.badge("special")))
         card.body.addLayout(self._fields(["p0", "T0"], "IG"))
         form = self._form()
-        form.addRow("marching:", self._combo("nozzle-direction", [
-            ("dx", "towards +x (dx, the default)"), ("sx", "towards −x (sx)")]))
-        threshold = self._field("nozzle-threshold", "IG", "the first cell")
+        direction = self._combo("nozzle-direction", [
+            ("dx", "towards +x (dx, the default)"), ("sx", "towards −x (sx)")])
+        direction.currentIndexChanged.connect(lambda _i: self._refresh_nozzle())
+        form.addRow("flow:", direction)
+        threshold = self._field("nozzle-threshold", "IG", "none: no plenum")
+        threshold.textEdited.connect(lambda _t: self._refresh_nozzle())
         row = QHBoxLayout()
         row.addWidget(threshold, 1)
         unit = QLabel("m")
@@ -1488,11 +1555,80 @@ class ICBPanel(QWidget):
         row.addWidget(unit)
         form.addRow("plenum ends at x:", row)
         card.body.addLayout(form)
+        self.nozzle_plot = NozzlePlot(kit)
+        card.body.addWidget(self.nozzle_plot)
+        self.nozzle_check = QLabel()
+        self.nozzle_check.setWordWrap(True)
+        card.body.addWidget(self.nozzle_check)
         card.body.addWidget(kit.hint(
-            "The plenum is every row of cells upstream of the threshold, over the "
-            "whole cross-section of the block. The throat is where the area of "
-            "the block is smallest."))
+            "Every row of cells i is a cross-section, between the walls j = 1 and "
+            "j = J; the throat is the smallest. The plenum is every row upstream of "
+            "the threshold, over the whole cross-section of the block (also outside "
+            "the range of a zone); without a threshold there is no plenum. The law "
+            "gives every other row the Mach number of its A/A*: subsonic upstream "
+            "of the throat, sonic at it, supersonic downstream, the velocity along "
+            "the i lines."))
+        self._refresh_nozzle()
         return card
+
+    def _refresh_nozzle(self):
+        """The cross-sections and the verdict of the nozzle card, after an edit."""
+        plot = getattr(self, "nozzle_plot", None)
+        state = self.current_state()
+        if plot is None or state is None:
+            return
+        label = self.nozzle_check
+        towards_minus = state.get("nozzle-direction").strip() == "sx"
+        blocks = self._target_cells()
+        label.setProperty("role", None)
+        if not blocks:
+            plot.set_data(None, None, None, towards_minus)
+            label.setText("Load the mesh (Boundaries) to see the cross-sections of "
+                          "the block and check that it is a nozzle.")
+            label.setProperty("check", None)
+            label.setProperty("role", "muted")
+        else:
+            b, cells = blocks[0]
+            geometry = cells.nozzle()
+            plenum, law = icgeom.nozzle_rows(cells, state)
+            plot.set_data(geometry, plenum, law, towards_minus)
+            bad = [(n, c.nozzle()) for n, c in blocks if c.nozzle().problem]
+            if bad:
+                n, wrong = bad[0]
+                label.setText(f"✗  Block {n} is not a nozzle along x: {wrong.problem}. "
+                              "ICB stops on it: build it as a uniform state."
+                              + (f" So do {len(bad) - 1} more block(s)." if len(bad) > 1
+                                 else ""))
+                label.setProperty("check", "fail")
+            else:
+                label.setText(self._nozzle_verdict(b, geometry, plenum & ~law, len(blocks)))
+                label.setProperty("check", "pass")
+        label.style().unpolish(label)
+        label.style().polish(label)
+
+    @staticmethod
+    def _nozzle_verdict(b, geometry, at_rest, blocks):
+        rows = geometry.rows
+        throat = geometry.throat
+        text = (f"✓  Block {b} is a nozzle along x: the throat at x = "
+                f"{geometry.x[throat]:.4g} m (row {throat + 1} of {rows}), A/A* = "
+                f"{geometry.ratio[0]:.3g} at the first row and {geometry.ratio[-1]:.3g} "
+                "at the last.")
+        if not at_rest.any():
+            text += " No plenum: the law takes every row."
+        elif at_rest.all():
+            text += " Every row is plenum, at rest: no cell lies past the threshold."
+        else:
+            first, last = (int(n) + 1 for n in np.flatnonzero(at_rest)[[0, -1]])
+            text += (f" The plenum: row{'s' if last > first else ''} {first}"
+                     + (f"–{last}" if last > first else "") + ", at rest at p0 and T0.")
+        if throat in (0, rows - 1):
+            text += (f" The throat is the {'first' if throat == 0 else 'last'} row: if "
+                     "the nozzle goes on in another block, its narrowest section must "
+                     "be in this one.")
+        if blocks > 1:
+            text += f" The other {blocks - 1} block(s) are nozzles too."
+        return text
 
     def _interpolation_card(self, state, kinds):
         card = Card()
