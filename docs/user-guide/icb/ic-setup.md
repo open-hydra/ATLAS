@@ -171,7 +171,39 @@ nozzle-direction = dx
 nozzle-threshold = 0.0
 ```
 
-`nozzle-direction` accepts `dx` or `sx`.
+The nozzle law starts a nozzle from rest in its plenum: every row of cells i is a cross-section, and
+the quasi-1-D isentropic law gives it the Mach number of its area ratio A/A*, from `p0` and `T0`.
+
+- **The geometry.** The block must be a duct about the x axis, meshed along it: i from inlet to exit
+  (the cell centres advance along +x with i), j from the axis or the inner wall to the outer wall. The
+  area of row i is `pi |r_ext^2 - r_int^2|`, from the distances to the x axis of its walls j = 1 and
+  j = J (on the first node plane of k): an axisymmetric duct, or a sector of one. The throat is the
+  row of smallest area, in this block. On a 2-D planar channel the law reads the area ratio squared.
+- **The law.** Upstream of the throat (along the flow) the rows are subsonic, downstream
+  supersonic, the throat row exactly sonic; `p`, `T` and the speed follow from `p0`, `T0` and gamma
+  of the gas at `T0`. The velocity runs along the i lines of the mesh.
+- **The plenum.** `nozzle-direction` is the direction of the flow: `dx` towards +x, `sx` towards -x.
+  The rows upstream of `nozzle-threshold` (an x) keep `p0` and `T0` at rest. With `dx` the plenum
+  runs from the first row to the first cell whose centre lies past the threshold, that cell included;
+  with `sx` from the last row down to the second cell past it. A threshold that no cell lies past
+  makes every row plenum with `dx`, none with `sx`. Without `nozzle-threshold` there is no plenum and
+  the law takes every row.
+
+A block that is no nozzle stops ICB before anything is written, naming what is missing:
+
+- `[ERROR] build_IG_field block <b> (section [<s>]): the nozzle law needs a duct about the x axis,
+  meshed along it (...), and its cross-section is constant along i (A max/min = <r>, the law needs
+  1.001 at least): a duct without a throat is no nozzle ...`;
+- `... and the row of cells i = <i> has no cross-section: its walls j = 1 and j = J lie at the
+  distances <r1> and <r2> from the x axis` (a planar channel from y = -h to y = h, say);
+- `... and its cell centres do not advance along +x with i: at j = 1, k = 1 cell i = <i> lies at x = ...`.
+
+!!! note "Nozzle fields written before 2026-10-28"
+    The throat row was sonic to 1e-9 only (the Newton iteration of `legge_aree` crawls at the double
+    root M = 1), and on a duct of constant section the iteration stalled: ICB stopped with a Fortran
+    backtrace (`legge_aree: Max iterations reached`). Without `nozzle-threshold`, `sx` made every row
+    but the first a plenum, and `dx` wrote the first row as plenum outside the range of a zone; a
+    threshold that no cell lies past gave no plenum with `dx` and a plenum of every row with `sx`.
 
 ## Interpolation Initialization
 

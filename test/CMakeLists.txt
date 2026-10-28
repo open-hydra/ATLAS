@@ -541,14 +541,44 @@ set_tests_properties(IG-interp-src-3coord-plane PROPERTIES
 # ---- ICB : IG-nozzle-plenum-order (the plenum rows of a nozzle zone cover the whole cross-section upstream of
 # ----       nozzle-threshold, also outside the range of the zone: a homogeneous zone listed before the nozzle zone
 # ----       loses 4 cells to the plenum, listed after it takes them back; a WARNING names each case and the
-# ----       products of both orders are unchanged; unlike the other fixtures of this block, the two references are
-# ----       ATLAS output, since the nozzle law has no simple independent oracle) -------------
+# ----       products of both orders are unchanged; the two references are ATLAS output, IG-nozzle-area-law checks
+# ----       the nozzle law itself against an independent solve) -------------
 add_test(
     NAME    IG-nozzle-plenum-order
     COMMAND bash -c "rm -rf fromATLAStoSolver first; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null) && mv fromATLAStoSolver first && out2=$(${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input reverse.ini 2>&1 < /dev/null) && grep -q -F 'block 1 (section [noz]): the plenum rows of this nozzle zone' <<< \"$out\" && grep -q -F 'overwrite 4 cells that an earlier zone wrote: the zone order decides' <<< \"$out\" && grep -q -F 'block 1 (section [hom]): this zone overwrites 4 cells that the plenum rows of an earlier nozzle zone' <<< \"$out2\" && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/ic.tec first/ic.tec && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/reverse-ic.tec fromATLAStoSolver/ic.tec"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-plenum-order"
 )
 set_tests_properties(IG-nozzle-plenum-order PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-nozzle-area-law (the nozzle law on a converging-diverging quarter annulus, checked row by row against the
+# ----       quasi-1-D isentropic law solved independently: the throat row exactly sonic (legge_aree left it 1e-9 off),
+# ----       the plenum with and without nozzle-threshold in both directions; without it there is no plenum (with sx
+# ----       every row but the first was plenum), a threshold past the block makes every row plenum with dx, none
+# ----       with sx) -------------
+add_test(
+    NAME    IG-nozzle-area-law
+    COMMAND bash -c "for c in 'dx dx 1-2' 'sx sx 12-12' 'dx-none dx none' 'sx-none sx none' 'dx-past dx 1-12' 'sx-past sx none'; do set -- $c; rm -rf _run-$1 && mkdir _run-$1 && cp mesh.tec phase.txt thermo.dat $1.ini _run-$1/ && (cd _run-$1 && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB --input $1.ini < /dev/null > /dev/null) && python3 check_law.py _run-$1/fromATLAStoSolver/ic.tec mesh.tec $2 $3 || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-area-law"
+)
+set_tests_properties(IG-nozzle-area-law PROPERTIES
+    LABELS      "ICB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-nozzle-geometry-refused (the nozzle law on a block that is no nozzle stops ICB before anything is
+# ----       written: a constant section, on which legge_aree stopped with a Fortran backtrace; walls at the same
+# ----       distance from the x axis, no cross-section; i running towards -x) -------------
+add_test(
+    NAME    IG-nozzle-geometry-refused
+    COMMAND bash -c "run() { rm -rf _run-$1 && mkdir _run-$1 && cp $1.tec _run-$1/mesh.tec && cp input.ini phase.txt thermo.dat _run-$1/ && out=$(cd _run-$1 && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F \"$2\" <<< \"$out\" && test ! -e _run-$1/fromATLAStoSolver/ic.tec; }; run box 'its cross-section is constant along i (A max/min = 1.0000000' && run flat 'the row of cells i = 1 has no cross-section' && run reversed 'its cell centres do not advance along +x with i: at j = 1, k = 1 cell i = 2 lies at x'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle-geometry-refused"
+)
+set_tests_properties(IG-nozzle-geometry-refused PROPERTIES
     LABELS      "ICB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

@@ -132,6 +132,10 @@ nozzle-direction = dx
 nozzle-threshold = 0.0
 ```
 
+The block must be a nozzle: a duct about the x axis meshed along it, whose cross-section has a
+throat (see [Nozzle Initialization](ic-setup.md#nozzle-initialization-ig)); on any other block ICB
+stops. Without `nozzle-threshold` there is no plenum and the law takes every row.
+
 The plenum of a `nozzle` zone is every row of cells upstream of `nozzle-threshold` (along
 `nozzle-direction`), over the whole cross-section of the block: in a multizone block the plenum rows
 are written also outside the `range<n>` of the zone, and only the rows downstream take the nozzle law

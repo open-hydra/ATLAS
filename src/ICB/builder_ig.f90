@@ -794,9 +794,25 @@ contains
     subroutine assign_nozzle()
       implicit none
       real(R8), allocatable :: radius_ext(:), radius_int(:), area(:)
-      integer :: ib1, ib2, ib3, throat_cell, L_threshold_cell, nplenum_over
+      integer :: ib1, ib2, ib3, ilaw, throat_cell, L_threshold_cell, nplenum_over
+      logical :: has_threshold
 
       associate( T0c => T0(1,1,1), p0c => p0(1,1,1) )
+      ! the cross-section of every row of cells about the x axis, between its walls j = 1 and j = J (the node
+      ! lines that bound j on the first node plane of k); a block that is no nozzle is refused before anything
+      ! is written
+      allocate(radius_ext(1:blk%dim(1)))
+      allocate(radius_int(1:blk%dim(1)))
+      allocate(area(1:blk%dim(1)))
+      do i = 1, blk%dim(1)
+        radius_ext(i) = sqrt( 0.25*(blk%node(i-1,blk%dim(2),0)%c(2)+blk%node(i,blk%dim(2),0)%c(2))**2 + &
+                              0.25*(blk%node(i-1,blk%dim(2),0)%c(3)+blk%node(i,blk%dim(2),0)%c(3))**2 )
+        radius_int(i) = sqrt( 0.25*(blk%node(i-1,0,0)%c(2)+blk%node(i,0,0)%c(2))**2 + &
+                              0.25*(blk%node(i-1,0,0)%c(3)+blk%node(i,0,0)%c(3))**2 )
+      enddo
+      area = acos(-1d0)*abs(radius_ext*radius_ext-radius_int*radius_int)
+      call check_nozzle_geometry(radius_int, radius_ext, area)
+
       ! Assign species mass fractions (if equilibrium also pressure and temperature may be assigned)
       sp%massf = 1d-20
       call define_composition(zoneini, sp, T0c, p0c)
@@ -808,10 +824,6 @@ contains
       call assemble_composition(1, 1, 1)
       call report_renormalisation()
 
-      allocate(radius_ext(1:blk%dim(1)))
-      allocate(radius_int(1:blk%dim(1)))
-      allocate(area(1:blk%dim(1)))
-
       Rgas = sum(Runi*sp%massf/sp%w)
       ! state-range check: a non-positive / non-finite T0 is refused before the lookup; a T0 outside
       ! the table is refused too; the expanded field outside it is reported by check_written_state
@@ -821,17 +833,15 @@ contains
       gamma = cp_/(cp_-Rgas)
       del = 0.5*(gamma-1)
 
-      do i = 1, blk%dim(1)
-        radius_ext(i) = sqrt( 0.25*(blk%node(i-1,blk%dim(2),0)%c(2)+blk%node(i,blk%dim(2),0)%c(2))**2 + &
-                              0.25*(blk%node(i-1,blk%dim(2),0)%c(3)+blk%node(i,blk%dim(2),0)%c(3))**2 )
-        radius_int(i) = sqrt( 0.25*(blk%node(i-1,0,0)%c(2)+blk%node(i,0,0)%c(2))**2 + &
-                              0.25*(blk%node(i-1,0,0)%c(3)+blk%node(i,0,0)%c(3))**2 )
-      enddo
-      area = acos(-1d0)*abs(radius_ext*radius_ext-radius_int*radius_int)
       throat_cell = minloc(area,1)
       throat_area = area(throat_cell)
 
-      L_threshold_cell = 0
+      ! the plenum: with dx the rows from the first one to the row after the first cell past nozzle-threshold,
+      ! with sx the rows from the last one down to that row. A threshold no cell lies past puts every row
+      ! upstream of it with dx, none with sx (L_threshold_cell = dim(1)+1); without nozzle-threshold there is no
+      ! plenum and the law takes every row (the first row was a plenum with dx, every row but the first with sx)
+      has_threshold = L_threshold < huge(1.0_R8)
+      L_threshold_cell = blk%dim(1) + 1
       do i = 1, blk%dim(1)
         if (blk%center(i,1,1)%c(1)>L_threshold) then
           L_threshold_cell = i
@@ -853,6 +863,11 @@ contains
         ib1 = blk%dim(1)
         ib2 = L_threshold_cell+1
         ib3 = 1
+      endif
+      ilaw = ib2                      ! the first row of the law
+      if (.not. has_threshold) then
+        ib2 = ib1 - ip                ! no plenum row
+        ilaw = ib1
       endif
 
       ! plenum rows outside the range of this zone: the cells an earlier zone wrote there are overwritten
@@ -886,7 +901,7 @@ contains
         blk%zone_ig(i,:,:) = .true.
       enddo
 
-      do i = ib2, ib3, ip
+      do i = ilaw, ib3, ip
         if (i > blk%dim(1)) cycle
         M0 = 0.001
         if (ip*i > ip*throat_cell) M0 = 1.30
@@ -920,6 +935,45 @@ contains
 
       endassociate
     end subroutine assign_nozzle
+
+    ! The nozzle law needs a nozzle: a duct about the x axis meshed along it -- the row i a cross-section from
+    ! the axis or the inner wall (j = 1) to the outer wall (j = J), the cell centres advancing along +x with i,
+    ! as the plenum search along nozzle-threshold reads them -- whose section varies, with a throat. On another
+    ! block the law stopped ICB in legge_aree (a constant section is a throat everywhere) or wrote a field
+    ! without meaning (rows that are no cross-section), so such a block is refused.
+    subroutine check_nozzle_geometry(radius_int, radius_ext, area)
+      real(R8), intent(in) :: radius_int(:), radius_ext(:), area(:)
+      real(R8), parameter :: AREA_TOL = 1.0e-3_R8   ! a section that varies less is constant: no throat
+      character(len=:), allocatable :: head
+      integer :: n
+
+      head = '[ERROR] build_IG_field block '//trim(blk_id_txt())//zsuffix//': the nozzle law needs a duct about'// &
+        ' the x axis, meshed along it (i from inlet to exit, j from the axis or the inner wall to the outer wall)'
+      do n = 2, blk%dim(1)
+        if (.not. (blk%center(n,1,1)%c(1) > blk%center(n-1,1,1)%c(1))) then
+          write(*,'(A,I0,A,ES12.5,A,I0,A,ES12.5,A)') head//', and its cell centres do not advance along +x with i:'// &
+            ' at j = 1, k = 1 cell i = ', n, ' lies at x = ', blk%center(n,1,1)%c(1), ', cell i = ', n-1, &
+            ' at x = ', blk%center(n-1,1,1)%c(1), ': this block is not meshed along the axis of a nozzle'
+          stop 1
+        endif
+      enddo
+      ! no cross-section: the walls at the same distance from the axis, to rounding (r_ext**2 - r_int**2 is
+      ! not 0 to the last bit when the compiler fuses the products)
+      do n = 1, blk%dim(1)
+        if (.not. (area(n) > 1.0e-9_R8*acos(-1d0)*max(radius_int(n), radius_ext(n))**2)) then
+          write(*,'(A,I0,A,ES12.5,A,ES12.5,A)') head//', and the row of cells i = ', n, ' has no cross-section:'// &
+            ' its walls j = 1 and j = J lie at the distances ', radius_int(n), ' and ', radius_ext(n), &
+            ' from the x axis'
+          stop 1
+        endif
+      enddo
+      if (maxval(area) <= (1.0_R8 + AREA_TOL)*minval(area)) then
+        write(*,'(A,F0.7,A)') head//', and its cross-section is constant along i (A max/min = ', &
+          maxval(area)/minval(area), ', the law needs 1.001 at least): a duct without a throat is no nozzle,'// &
+          ' and the area law gives it no Mach number (build it as a homogeneous zone)'
+        stop 1
+      endif
+    end subroutine check_nozzle_geometry
 
 
     ! Load a field for IG assignment. The field can be either a constant value
