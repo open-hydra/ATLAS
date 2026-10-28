@@ -1,4 +1,4 @@
-# particle radius [m]   number fraction
+# particle radius [m]   mass fraction
 1.0e-6    0.05
 5.0e-6    0.20
 1.0e-5    0.30

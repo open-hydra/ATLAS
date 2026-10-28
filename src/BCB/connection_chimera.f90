@@ -222,21 +222,34 @@ module bc_chimera_mod
   private
   public:: chimera_wrapper
 
-  !> Largest difference, relative to the receiver volume, between the exact and the
-  !> clipped overlap volume of a donor for the exact ones to be kept. On regular
-  !> meshes the two agree to ~1e-8 (the E20.10 rounding of the exact points).
-  real(8), parameter :: XCHECK_TOL = 1.d-6
-
-  !> Receivers searched, and those whose volumes were recomputed by clipping
-  integer :: n_searched = 0, n_clipped = 0
-
   !> Growable, thread-local buffer of intersection records.
   type :: rec_buffer
     type(intersection_type), allocatable :: rec(:)
     integer :: n = 0
   end type rec_buffer
 
+  !> BC ids of the facelets of one face, as they were before the chimera search.
+  type :: face_ids
+    integer, allocatable :: id(:,:)
+  end type face_ids
+
+  !> The records grouped by receiver cell after the search: those of the cell with
+  !> linear key k (rec_key) are intersection(rec_off(k):rec_off(k+1)-1).
+  integer, allocatable :: rec_off(:), rec_blkoff(:)
+  integer              :: rec_gc(3) = 0
+
 contains
+
+  !> Linear key of a receiver cell (block, i, j, k with the ghost layers) in rec_off
+  integer function rec_key(block, id)
+    use bc_block_mod, only: BC_block
+    type(BC_block), intent(in) :: block(:)
+    integer, intent(in)        :: id(4)
+    integer :: n1, n2
+    n1 = block(id(1))%dim(1) + 2*rec_gc(1)
+    n2 = block(id(1))%dim(2) + 2*rec_gc(2)
+    rec_key = rec_blkoff(id(1)) + ((id(4)-1+rec_gc(3))*n2 + (id(3)-1+rec_gc(2)))*n1 + (id(2)+rec_gc(1))
+  end function rec_key
 
   !> Receivers claimed by the overset search: the faces declared 'chimera', plus
   !> the faces declared 'connection' that find_connect could not match. With
@@ -265,7 +278,9 @@ contains
     end associate
   end function is_chimera_face
 
-  subroutine chimera_wrapper(block,force_chimera)
+  !> chimera.log lists the closure of every receiver of the level (chimera<level>.log
+  !> above level 1, like bc<level>.txt).
+  subroutine chimera_wrapper(block,force_chimera,level)
     use intersection_mod
     use bc_block_mod
     use grid_mod, only: mesh_cfg
@@ -274,8 +289,10 @@ contains
     implicit none
     type(BC_block), intent(inout) :: block(:)
     logical, intent(in), optional :: force_chimera
+    integer, intent(in), optional :: level
     logical                 :: force
-    integer                 :: ir,jr,kr,br,ni
+    character(len=32)       :: logname
+    integer                 :: ir,jr,kr,br,fr,ni
     integer                 :: unitlog
     integer                 :: gc(3)
     integer                 :: procStart(3)
@@ -285,6 +302,7 @@ contains
     logical, allocatable                 :: processed(:,:,:)
     type(donor_grid_t)                   :: grid
     type(rec_buffer), allocatable        :: tbuf(:)
+    type(face_ids), allocatable          :: gp0(:,:)
 
     gc = mesh_cfg%gc
     procStart = [1-gc(1),1-gc(2),1-gc(3)]
@@ -293,15 +311,17 @@ contains
 
     ! Broad-phase acceleration structure over all donor cells
     call build_donor_grid(block, grid)
-    n_searched = 0
-    n_clipped  = 0
 
     ! One record buffer per thread (detection appends lock-free into its own)
     nthreads = 1
     !$ nthreads = omp_get_max_threads()
     allocate(tbuf(0:nthreads-1))
 
-    open(newunit=unitlog,file='chimera.log',status='replace',action='write')
+    logname = 'chimera.log'
+    if (present(level)) then
+      if (level > 1) write(logname,'(A,I0,A)') 'chimera', level, '.log'
+    endif
+    open(newunit=unitlog,file=trim(logname),status='replace',action='write')
 
     ! Loop over the receiver block cells
     do br = 1, size(block)
@@ -395,13 +415,9 @@ contains
       
     enddo
 
-    if (n_clipped > 0) write(*,'(A,I0,A,I0,A)') ' [LOG] Chimera: ', n_clipped, ' of ', n_searched, &
-      ' receivers with volumes by clipping, where the exact intersection disagrees'
-
     ! Concatenate the per-thread record buffers into the global list. Records of
     ! any given receiver stay in their original (bd,kd,jd,id) order because each
-    ! receiver cell is handled entirely by one thread; the cross-receiver order
-    ! is irrelevant since VolumeFractions re-groups the records by receiver.
+    ! receiver cell is handled entirely by one thread.
     ni = 0
     do t = 0, nthreads-1
       ni = ni + tbuf(t)%n
@@ -412,6 +428,52 @@ contains
       if (tbuf(t)%n > 0) intersection(off+1:off+tbuf(t)%n) = tbuf(t)%rec(1:tbuf(t)%n)
       off = off + tbuf(t)%n
     end do
+
+    ! Group the records by receiver cell (stable counting sort on the linear cell
+    ! key), so that VolumeFractions reads only the records of its receiver instead
+    ! of scanning them all for every boundary ghost cell: that scan cost
+    ! O(N_ghost_cells x N_records), 574 s of the 657 s of a 48 000-receiver case at 1
+    ! thread. The records of a receiver keep their order, so its sums are the same.
+    block
+      integer :: b, r, lin, nkeys
+      integer, allocatable :: cnt(:)
+      type(intersection_type), allocatable :: sorted(:)
+      rec_gc = gc
+      if (allocated(rec_blkoff)) deallocate(rec_blkoff)
+      if (allocated(rec_off)) deallocate(rec_off)
+      allocate(rec_blkoff(size(block)+1))
+      rec_blkoff(1) = 0
+      do b = 1, size(block)
+        rec_blkoff(b+1) = rec_blkoff(b) + (block(b)%dim(1)+2*gc(1))*(block(b)%dim(2)+2*gc(2))*(block(b)%dim(3)+2*gc(3))
+      enddo
+      nkeys = rec_blkoff(size(block)+1)
+      allocate(cnt(nkeys), rec_off(nkeys+1))
+      cnt = 0
+      do r = 1, ni
+        lin = rec_key(block, intersection(r)%receiverID)
+        cnt(lin) = cnt(lin) + 1
+      enddo
+      rec_off(1) = 1
+      do lin = 1, nkeys
+        rec_off(lin+1) = rec_off(lin) + cnt(lin)
+      enddo
+      allocate(sorted(size(intersection)))
+      cnt = 0
+      do r = 1, ni
+        lin = rec_key(block, intersection(r)%receiverID)
+        sorted(rec_off(lin)+cnt(lin)) = intersection(r)
+        cnt(lin) = cnt(lin) + 1
+      enddo
+      call move_alloc(sorted, intersection)
+    end block
+
+    ! BC ids before VolumeFractions turns the receivers into 102/104
+    allocate(gp0(size(block),6))
+    do br = 1, size(block)
+      do fr = 1, block(br)%nfaces
+        gp0(br,fr)%id = block(br)%face(fr)%center(1:block(br)%face(fr)%Nm,1:block(br)%face(fr)%Nn)%bc%gp_id
+      enddo
+    enddo
 
     !% Check volume division for receivers
     do br = 1, size(block)
@@ -461,6 +523,9 @@ contains
 
       close(unitlog)
 
+      call CompleteReceivers(block,gp0)
+      deallocate(rec_off, rec_blkoff)
+
   end subroutine chimera_wrapper
 
   subroutine LoopOverDonors(block,grid,tbuf,br,fr,force,ir,jr,kr,nodeinside,processed,startingIndexes,procStart)
@@ -479,16 +544,11 @@ contains
     logical, intent(inout) :: nodeinside(:,startingIndexes(1):,startingIndexes(2):,startingIndexes(3):)
     logical, intent(inout) :: processed(procStart(1):,procStart(2):,procStart(3):)
 
-    integer                :: bd,id,jd,kd,d,m,n,nd,ncand,np,tid
-    logical                :: next, exact_ok
-    real(8)                :: receiver(3,8), donor(3,8), vr, vr_tet, vtol, ve
-    real(8), allocatable   :: hull_points(:)
+    integer                :: bd,id,jd,kd,d,m,n,nd,ncand,tid
+    logical                :: next, inside
+    real(8)                :: receiver(3,8), donor(3,8), vr, vr_tet, vclip
     integer, allocatable   :: cb(:), ci(:), cj(:), ck(:)
     integer, allocatable   :: keep(:)
-    real(8), allocatable   :: vexact(:), vclip(:)
-    logical, allocatable   :: hit(:), nin(:,:)
-    character(len=64)          :: fmtbuf
-    character(len=:), allocatable :: sbuf
 
     if (.not.is_chimera_face(block,br,fr,ir,jr,kr,force)) return
     if (processed(ir,jr,kr)) return
@@ -520,8 +580,6 @@ contains
       keep(nd) = m
     enddo
     if (nd == 0) return
-    !$omp atomic
-    n_searched = n_searched + 1
 
     receiver(:,1) = block(br)%node(ir-1,jr-1,kr-1)%c(1:3)*fs
     receiver(:,2) = block(br)%node(ir-1, jr ,kr-1)%c(1:3)*fs
@@ -532,67 +590,34 @@ contains
     receiver(:,7) = block(br)%node( ir ,jr-1, kr )%c(1:3)*fs
     receiver(:,8) = block(br)%node( ir , jr , kr )%c(1:3)*fs
 
-    ! Exact hexahedron-hexahedron intersection (IV level), with every donor first
-    allocate(vexact(nd), hit(nd), nin(8,nd))
+    ! Receiver nodes inside any donor (IV level): a receiver with all eight nodes
+    ! covered must be closed by its donors, the others are only "not checkable"
     do n = 1, nd
       call donor_nodes(keep(n))
-      call HexahedronIntesectingPoints( receiver, donor, hull_points, nodeinside(:,ir,jr,kr) )
-      hit(n)    = size(hull_points) > 0
-      nin(:,n)  = nodeinside(:,ir,jr,kr)
-      vexact(n) = 0.d0
-      np = size(hull_points)/3
-      if (np >= 4) then
-        ! Reproduce the historical E20.10 point precision (a mild, deterministic
-        ! regularization of ill-conditioned sliver contacts) so the result is
-        ! reproducible and independent of thread count.
-        write(fmtbuf,'(A,I0,A)') '(', 3*np, 'E20.10)'
-        if (allocated(sbuf)) deallocate(sbuf)
-        allocate(character(len=3*np*20+16) :: sbuf)
-        write(sbuf,fmtbuf) hull_points(1:3*np)
-        read(sbuf,*)       hull_points(1:3*np)
-        call convexHullVolume(reshape(hull_points,[3,np]), np, vexact(n))
-        vexact(n) = vexact(n)/(fs**3)
-      endif
+      do d = 1, 8
+        if (nodeinside(d,ir,jr,kr)) cycle
+        call pointInsideHexahedron(receiver(:,d), donor, inside)
+        nodeinside(d,ir,jr,kr) = inside
+      enddo
     enddo
 
-    ! The same volumes by clipping the two cells split into tetrahedra, as the fraction
-    ! of the receiver each donor covers times its volume. The exact intersection is
-    ! ill-conditioned on warped cells and on nearly parallel faces (every k-face pair
-    ! of a layered mesh), where it gives spurious volumes, some as large as the donor;
-    ! clipping stays exact there and on thin overlaps. The exact volumes are kept
-    ! where the two agree, so the output of regular meshes does not change.
-    vr   = block(br)%vol(ir,jr,kr)
-    vtol = max(1d-18, 1d-6*vr)                 ! as VolumeFractions
-    allocate(vclip(nd))
-    exact_ok = .true.
+    ! Overlap volumes by clipping the two cells split into tetrahedra, as the fraction
+    ! of the receiver each donor covers times its volume (block%vol, the 5-tetrahedron
+    ! volume of the solver: the weights are ratios, so the factor cancels). Exact for
+    ! planar faces, a consistent planar model of warped ones, accurate on thin overlaps.
+    vr = block(br)%vol(ir,jr,kr)
     do n = 1, nd
-      call donor_nodes(keep(n))
-      call hexOverlapVolume(receiver, donor, vclip(n), vr_tet)
+      m = keep(n)
+      call donor_nodes(m)
+      call hexOverlapVolume(receiver, donor, vclip, vr_tet)
       if (vr > 0.d0 .and. vr_tet > 0.d0) then
-        vclip(n) = vclip(n)/vr_tet*vr
+        vclip = vclip/vr_tet*vr
       else
-        vclip(n) = vclip(n)/(fs**3)
+        vclip = vclip/(fs**3)
       endif
-      ve = 0.d0
-      if (hit(n) .and. vexact(n) > vtol) ve = vexact(n)
-      if (vr > 0.d0 .and. abs(ve - vclip(n)) > XCHECK_TOL*vr) exact_ok = .false.
+      if (vclip > 0.d0) call append_record(tbuf(tid), [br,ir,jr,kr], [cb(m),ci(m),cj(m),ck(m)], &
+                                           nodeinside(:,ir,jr,kr), vclip)
     enddo
-
-    if (exact_ok) then
-      do n = 1, nd
-        m = keep(n)
-        if (hit(n)) call append_record(tbuf(tid), [br,ir,jr,kr], [cb(m),ci(m),cj(m),ck(m)], &
-                                       nin(:,n), vexact(n), .false.)
-      enddo
-    else
-      !$omp atomic
-      n_clipped = n_clipped + 1
-      do n = 1, nd
-        m = keep(n)
-        if (vclip(n) > 0.d0) call append_record(tbuf(tid), [br,ir,jr,kr], [cb(m),ci(m),cj(m),ck(m)], &
-                                                nodeinside(:,ir,jr,kr), vclip(n), .true.)
-      enddo
-    endif
 
   contains
 
@@ -612,14 +637,76 @@ contains
 
   end subroutine LoopOverDonors
 
+  !> A facelet is a chimera receiver when both of its ghost layers found donors. One
+  !> that reaches the donor block with a single layer, a sliver at the rim of an
+  !> overlap thinner than the sampling resolution in the other layer, would be written
+  !> with a donor count of 0, which MOSE refuses at read time. A facelet claimed by
+  !> BC-force-chimera alone (declared neither chimera nor connection) then keeps its own
+  !> BC, as when it finds no donor at all. A declared one keeps what it found and is
+  !> reported, as are the declared facelets left without any donor: these keep ID 100,
+  !> on which MOSE applies no boundary flux.
+  subroutine CompleteReceivers(block,gp0)
+    use bc_block_mod, only: BC_block
+    use bc_names_mod, only: MARKER_Chim, MARKER_CONN
+    use grid_mod,     only: mesh_cfg, fmn2ijk
+    implicit none
+    type(BC_block), intent(inout) :: block(:)
+    type(face_ids), intent(in)    :: gp0(:,:)
+    integer :: br, fr, nf, m, n, g, Ai, Aj, Ak, gi(2), gj(2), gk(2), n100, none
+    logical :: has(2), declared
+
+    do br = 1, size(block)
+      nf = block(br)%nfaces
+      if (mesh_cfg%meshType /= 3) nf = min(nf, 4)   ! k faces are searched on a full 3-D mesh only
+      do fr = 1, nf
+        n100 = 0
+        none = 0
+        do n = 1, block(br)%face(fr)%Nn
+          do m = 1, block(br)%face(fr)%Nm
+            call fmn2ijk(fr,m,n,block(br)%dim(1),block(br)%dim(2),block(br)%dim(3),Ai,Aj,Ak)
+            do g = 1, 2
+              gi(g) = Ai; gj(g) = Aj; gk(g) = Ak
+              select case(fr)
+                case(1); gi(g) = Ai-g
+                case(2); gi(g) = Ai+g
+                case(3); gj(g) = Aj-g
+                case(4); gj(g) = Aj+g
+                case(5); gk(g) = Ak-g
+                case(6); gk(g) = Ak+g
+              end select
+              has(g) = allocated(block(br)%face(fr)%cell(gi(g),gj(g),gk(g))%chimerainfo)
+            enddo
+            declared = trim(block(br)%face(fr)%center(m,n)%bc%definition)==trim(MARKER_Chim) .or. &
+                       trim(block(br)%face(fr)%center(m,n)%bc%definition)==trim(MARKER_CONN)
+            if (has(1) .neqv. has(2)) then
+              if (declared) then
+                none = none + 1
+              else
+                do g = 1, 2
+                  if (has(g)) deallocate(block(br)%face(fr)%cell(gi(g),gj(g),gk(g))%chimerainfo)
+                enddo
+                block(br)%face(fr)%center(m,n)%bc%gp_id = gp0(br,fr)%id(m,n)
+              endif
+            endif
+            if (block(br)%face(fr)%center(m,n)%bc%gp_id == 100) n100 = n100 + 1
+          enddo
+        enddo
+        if (none > 0) write(*,'(A,I0,A,I0,A,I0,A)') '[WARNING] chimera: block ', br, ' face ', fr, ': ', none, &
+          ' facelet(s) found donors for one ghost layer only; the other is written with 0 donors, which MOSE refuses'
+        if (n100 > 0) write(*,'(A,I0,A,I0,A,I0,A)') '[WARNING] chimera: block ', br, ' face ', fr, ': ', n100, &
+          ' facelet(s) found no donor and keep ID 100, on which MOSE applies no boundary flux'
+      enddo
+    enddo
+
+  end subroutine CompleteReceivers
+
   !> Append one intersection record to a buffer, doubling capacity as needed.
-  subroutine append_record(buf, rid, did, nin, vol, clipped)
+  subroutine append_record(buf, rid, did, nin, vol)
     use intersection_mod, only: intersection_type
     type(rec_buffer), intent(inout) :: buf
     integer, intent(in) :: rid(4), did(4)
     logical, intent(in) :: nin(8)
     real(8), intent(in) :: vol
-    logical, intent(in) :: clipped
     type(intersection_type), allocatable :: tmp(:)
     integer :: cap
 
@@ -636,7 +723,6 @@ contains
     buf%rec(buf%n)%nodeinside      = nin
     buf%rec(buf%n)%inter_volume    = vol
     buf%rec(buf%n)%volume_fraction = 0.d0
-    buf%rec(buf%n)%clipped         = clipped
   end subroutine append_record
 
 
@@ -654,22 +740,30 @@ contains
     real(8)                 :: vol_tol
     integer                 :: k,i,m,n,t
     integer                 :: ni_per_receiver
-    logical                 :: nodeinside_local(8), clipped
+    logical                 :: nodeinside_local(8)
     integer                 :: p1, p2
+    integer                 :: i0, i1, key, b, nbdon
+    real(8)                 :: vr, vmax
+    real(8), allocatable    :: volb(:)
+    logical                 :: closed
 
     localID = [br,ir,jr,kr]
+    key = rec_key(block, localID)
+    i0  = rec_off(key)
+    i1  = rec_off(key+1) - 1
     volume = 0.d0
     ni_per_receiver = 0
     vol_tol = max(1d-18, 1d-6*block(br)%vol(ir,jr,kr))
     t = 0
     nodeinside_local = .false.
-    clipped = .false.
-    do i = 1, ni
+    allocate(volb(size(block)))
+    volb = 0.d0
+    do i = i0, i1
       if (all(intersection(i)%receiverID==localID)) then
         t = t + 1
-        clipped = clipped .or. intersection(i)%clipped
         if (intersection(i)%inter_volume>vol_tol) then
           volume = volume+intersection(i)%inter_volume
+          volb(intersection(i)%donorID(1)) = volb(intersection(i)%donorID(1)) + intersection(i)%inter_volume
           ni_per_receiver = ni_per_receiver+1
         endif
         nodeinside_local = intersection(i)%nodeinside
@@ -680,7 +774,7 @@ contains
     if (volume==0.d0) return
     if (ni_per_receiver==0) return
 
-    do i = 1, ni
+    do i = i0, i1
       if (all(intersection(i)%receiverID==localID)) then
         if (intersection(i)%inter_volume>vol_tol) then
           intersection(i)%volume_fraction = intersection(i)%inter_volume/volume
@@ -697,7 +791,7 @@ contains
     ! written below count: a ghost cell that merely touches a block of its own phase
     ! (zero intersection volume, as the solid row along a corner block) stays 104
     block(br)%face(fr)%center(m,n)%bc%gp_id = 104
-    do i = 1, ni
+    do i = i0, i1
       if (all(intersection(i)%receiverID==localID) .and. intersection(i)%inter_volume>vol_tol) then
         do p1 = 1, size(block(br)%associated_phase)
           do p2 = 1, size(block(intersection(i)%donorID(1))%associated_phase)
@@ -710,7 +804,7 @@ contains
     enddo
 
     k = 0
-    do i = 1, ni
+    do i = i0, i1
       if (all(intersection(i)%receiverID==localID)) then
         if (intersection(i)%inter_volume>vol_tol) then
           k = k+1
@@ -724,26 +818,33 @@ contains
       endif
     enddo
 
+    ! Closure: the donors of one block tile the receiver at most once, but two donor
+    ! blocks that overlap each other both cover it (RL36: block 1 face 6 under B2 and
+    ! B8), so their sum reaches 2 V_r while every weight is right. The receiver closes
+    ! when the sum, or with several donor blocks the largest per-block sum, is within
+    ! 1e-3 of its volume; the per-block sums are logged whenever more than one block donates.
+    vr     = block(br)%vol(ir,jr,kr)
+    vmax   = maxval(volb)
+    nbdon  = count(volb > 0.d0)
+    closed = abs(volume-vr) <= 1d-3*vr
+    if (nbdon > 1 .and. abs(vmax-vr) <= 1d-3*vr) closed = .true.
     !$omp critical(chimera_print)
-    if (clipped) write(unitlog,*) 'Volumes by clipping (the exact intersection disagrees)'
-    if (abs((volume-block(br)%vol(ir,jr,kr))/block(br)%vol(ir,jr,kr))>1d-3) then
-      if (all(nodeinside_local)) then
-        write(unitlog,*) 'Chimera volume division failed'
-        write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
-        write(unitlog,*) ' - Receiver total volume = ', volume
-        write(unitlog,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
-        !stop
-      else
-        write(unitlog,*) 'Volume division succesful (not checkable)'
-        write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
-        write(unitlog,*) ' - Receiver total volume = ', volume
-        write(unitlog,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
-      endif
-    else
+    if (closed) then
       write(unitlog,*) 'Volume division succesful'
-      write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
-      write(unitlog,*) ' - Receiver total volume = ', volume
-      write(unitlog,*) ' - Receiver real volume  = ', block(br)%vol(ir,jr,kr)
+    elseif (all(nodeinside_local)) then
+      write(unitlog,*) 'Chimera volume division failed'
+    else
+      write(unitlog,*) 'Volume division succesful (not checkable)'
+    endif
+    write(unitlog,*) ' - Receiver ID           = ', br,ir,jr,kr
+    write(unitlog,*) ' - Receiver total volume = ', volume
+    write(unitlog,*) ' - Receiver real volume  = ', vr
+    if (nbdon > 1) then
+      write(unitlog,'(A)',advance='no') '  - Volume per donor block ='
+      do b = 1, size(block)
+        if (volb(b) > 0.d0) write(unitlog,'(A,I0,A,ES14.6)',advance='no') ' ', b, ':', volb(b)
+      enddo
+      write(unitlog,*)
     endif
     !$omp end critical(chimera_print)
 

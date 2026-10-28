@@ -15,6 +15,8 @@ module config_stb_mod
     real(R8)            :: value = 0.0_R8
     character(len=llen) :: file = ''
     character(len=20)   :: direction = ''
+    logical             :: has_remap = .false.
+    character(len=16)   :: remap = 'covered'   ! 3D field: covered (power of the touched donor cells) or fraction
   end type config_source_t
 
   type, public :: config_t
@@ -51,6 +53,8 @@ contains
     cfg%var%value = 0.0_R8
     cfg%var%file = ''
     cfg%var%direction = ''
+    cfg%var%has_remap = .false.
+    cfg%var%remap = 'covered'
 
     call sini%get(section_name=section_name, option_name='direction', val=cfg%var%direction, error=error)
     cfg%var%has_direction = (error == 0 .and. len_trim(cfg%var%direction) > 0)
@@ -60,6 +64,10 @@ contains
 
     call sini%get(section_name=section_name, option_name=trim(name), val=cfg%var%value, error=error)
     cfg%var%has_value = (error == 0)
+
+    call sini%get(section_name=section_name, option_name=trim(name)//'-remap', val=cfg%var%remap, error=error)
+    cfg%var%has_remap = (error == 0)
+    if (.not. cfg%var%has_remap) cfg%var%remap = 'covered'
 
   end subroutine load_var_config
 
@@ -126,12 +134,14 @@ contains
     character(len=llen) :: fileout
     character(len=32), target :: var_name
     character(len=32), target :: direction
+    character(len=32), target :: remap
 
     ! Initialize registry and defaults
     atlas_cfg%input_file = 'input.ini'
     atlas_cfg%ic_format = 'tec'
     var_name = 'qvol'
     direction = ''
+    remap = 'covered'
     qvol_cfg%value = 0.0_R8
     qvol_cfg%file = ''
     qvol_cfg%direction = ''
@@ -164,7 +174,7 @@ contains
     subroutine add_stb_block_entries()
       call stb_registry%add('STB-Block*', 'direction', direction, '', &
                            'Direction for 1D profiles: x,y,z,r,t or combinations (a combination is read along its first'// &
-                           ' letter by priority x > y > z > r > t, with a WARNING).', &
+                           ' letter by priority x > y > z > r > t, with a WARNING); not given for a 3D field.', &
                            '', .false.)
       call stb_registry%add('STB-Block*', 'x-areavariation', qvol_cfg%file, '', &
                            'Area profile file for x-directed variation.', '', .false.)
@@ -186,7 +196,14 @@ contains
       call stb_registry%add(section, trim(base_name), source_cfg%value, '0.0', &
                            'Uniform '//trim(description)//' value.', '', .false.)
       call stb_registry%add(section, trim(file_key), source_cfg%file, '', &
-                           'File path for 1D profile or 3D field input.', '', .false.)
+                           'File of the '//trim(description)//': a two-column 1D profile (coordinate value) read along'// &
+                           ' direction, or, without direction, a 3D Tecplot field on another mesh (cell-centred variable'// &
+                           ' power, W per cell, or qvol, W/m3) remapped conservatively onto the block.', '', .false.)
+      call stb_registry%add(section, trim(base_name)//'-remap', remap, 'covered', &
+                           'Rule of the 3D remap: covered gives the whole power of a donor cell to the part the blocks'// &
+                           ' cover (the power of every touched donor cell is conserved: a field with no power outside'// &
+                           ' the blocks); fraction gives the volume fraction of it (the blocks are a part, e.g. a'// &
+                           ' symmetry sector, of a field with power outside them).', 'covered,fraction', .false.)
     end subroutine add_source_entries
 
   end subroutine write_stb_registry_markdown

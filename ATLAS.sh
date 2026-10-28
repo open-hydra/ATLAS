@@ -253,6 +253,10 @@ for program in "${TOOLS[@]}"; do
         echo "        Build it with:  ./install.sh build" >&2
         status=1
       else
+        # The automatic arrays of the Fortran tools live on the stack: ICB on a 3-D mesh (IG-nozzle3D)
+        # overflows the default 8 MB and dies with SIGSEGV. Raise the soft limit, as figaro does for the
+        # solvers and the CI before ctest; a hard limit below unlimited keeps whatever it allows.
+        ulimit -s unlimited 2>/dev/null || true
         "$ATLASDIR/bin/$program" ${INPUT:+--input "$INPUT"} $V $W "${EXTRA[@]}"
         status=$?
       fi

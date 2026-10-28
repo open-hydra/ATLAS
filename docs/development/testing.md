@@ -122,6 +122,7 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `x-variable` | STB | `STB/x-variable` | Spatially varying source-term generation along x. |
 | `area-any-order` | STB | `STB/area-any-order` | An area profile in any row order gives the area law of the sorted profile. |
 | `qvol-direction-combined` | STB | `STB/qvol-direction-combined` | A qvol profile with `direction = xy` is read along x with a `[WARNING]`: `st.tec` equals the one of `direction = x`. |
+| `qvol-3D-conservative` | STB | `STB/qvol-3D-conservative` | A `qvol-file` without `direction` is a 3D Tecplot field remapped conservatively (two donor cells of 10 W and 30 W, the second half covered: 10, 10, 60 W/m3, 40 W in all); the same field as a `qvol` density gives the same `st.tec`, `qvol-remap = fraction` gives 10, 10, 30 W/m3 (25 W); a table without `direction`, a field with `direction` and a `qvol-remap` outside covered/fraction are refused. |
 | `mesh-p3d-fallback` | BCB | `BCB/mesh-p3d-fallback` | An unreadable `mesh.p3d` is followed by `mesh.szplt` with a WARNING naming both files. |
 | `IG-table-header-skipped` | BCB | `BCB/IG-table-header-skipped` | A table row that is not two numbers is skipped with a WARNING; the product is that of the file without the row. |
 | `IG-table-not-monotone` | BCB | `BCB/IG-table-not-monotone` | A table whose coordinate column turns back is refused: the reader names the row and BCB says the file is refused for its content. |
@@ -141,6 +142,8 @@ These are the cases currently registered in `test/CMakeLists.txt`.
 | `DP-bad-name` | BCB | `BCB/DP-bad-name` | A phase file name with two dashes is refused. |
 | `DP-substring-names` | BCB | `BCB/DP-substring-names` | Phase names nested in each other (`part`, `partL`) are refused before any BC file is built. |
 | `DP-two-phases` | BCB | `BCB/DP-two-phases` | Two dispersed phases on the same faces: each `<name>-bc.txt` carries the ids and payloads of its own phase. |
+| `DP-distribution-missing` | BCB | `BCB/DP-distribution-missing` | A `distribution` file that does not exist stops BCB naming it, also with `sigmap = 0` (which turns only a law name into `Dirac`); nothing is written. |
+| `DP-distribution-long-path` | BCB | `BCB/DP-distribution-long-path` | A 40-character `distribution` path with `sigmap = 0` is written whole in column 8 of the `401` records: the `drop-bc.txt` of `DP-basic` with that path and `sigmap = 0`. |
 | `DP-axis-override` | BCB | `BCB/DP-axis-override` | `<phase>-type = outlet` on an axisymmetric face: the dispersed-phase file carries 400 on the axis, the gas file keeps 200. |
 | `DP-axis-symmetry` | BCB | `BCB/DP-axis-symmetry` | `<phase>-type = symmetry` on an axisymmetric face: the dispersed-phase file carries 300 on the axis, the gas file keeps 200. |
 | `DP-axis-refused` | BCB | `BCB/DP-axis-refused` | Any other `<phase>-type` word on an axisymmetric face stops BCB naming the two accepted ones. |
@@ -225,6 +228,7 @@ STB tests check source-term field generation.
 - `uniform`: validate constant source-term generation.
 - `x-variable`: validate spatially varying source terms.
 - `qvol-direction-combined`: validate a combined `direction` of a qvol profile (read along its first letter, with a warning).
+- `qvol-3D-conservative`: validate the conservative remap of a 3D field (`qvol-file` without `direction`), its density form, the `fraction` rule, and the refusals.
 - `area-any-order`: validate an area profile given in any row order.
 
 ## Running The Registered Regression Set
