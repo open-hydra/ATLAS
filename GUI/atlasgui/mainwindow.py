@@ -10,7 +10,8 @@ document, in the order the tools run:
 * **Boundaries** -- BCB: the mesh and its boundary conditions;
 * **Initial** -- ICB: the initial state of every block;
 * **Review** -- the INI as it will be written, with everything the GUI can
-  check about it.
+  check about it, grouped by stage; an entry shows its section in the INI, a
+  double click opens it in its stage.
 """
 
 from __future__ import annotations
@@ -18,15 +19,16 @@ from __future__ import annotations
 import os
 import sys
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import (QActionGroup, QBrush, QColor, QFont, QKeySequence,
-                         QSyntaxHighlighter, QTextCharFormat)
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import (QActionGroup, QBrush, QColor, QFont, QFontMetrics, QKeySequence,
+                         QSyntaxHighlighter, QTextCharFormat, QTextCursor,
+                         QTextFormat)
 from PyQt6.QtWidgets import (
     QAbstractItemView, QApplication, QButtonGroup, QComboBox, QFileDialog,
     QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget,
     QListWidgetItem, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
     QPushButton, QSizePolicy, QSplitter, QStackedWidget, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
 )
 
 from . import filekeys, icons, preferences
@@ -48,6 +50,7 @@ STAGES = [
     ("review", "Review", "code", "The INI file and what can be checked in it"),
 ]
 
+STAGE_LABELS = {key: label for key, label, _icon, _tip in STAGES}
 LEVEL_COLORS = {"error": "danger", "warning": "warning", "info": "muted"}
 LEVEL_ICONS = {"error": "info", "warning": "info", "info": "info"}
 
@@ -202,11 +205,12 @@ class AtlasMainWindow(QWidget):
         body.addWidget(self.stack, 1)
         root.addLayout(body, 1)
 
-        # The view controls belong to the Boundaries stage only; the tool
+        # The Boundaries and Initial stages have 3-D view controls; the tool
         # stack has one page per stage, in the order of STAGES.
+        viewers = {"bcb": self.bcb_panel, "icb": self.icb_panel}
         for key, _label, _icon, _tip in STAGES:
             self.tool_stack.addWidget(
-                self.bcb_panel.view_tools() if key == "bcb" else QWidget())
+                viewers[key].view_tools() if key in viewers else QWidget())
 
         root.addWidget(self._build_status_strip())
 
@@ -243,7 +247,8 @@ class AtlasMainWindow(QWidget):
             ("Save As", self.save_ini_as, "save-as", None,
              "Write the case file to a new path"),
             ("Load Mesh", self.load_mesh_dialog, "mesh", None,
-             "Open a Tecplot or Plot3D multiblock mesh for the boundary stage"),
+             "Open a Tecplot or Plot3D multiblock mesh: the Boundaries and "
+             "Initial stages draw it"),
         ]:
             lay.addWidget(kit.button(text, slot, ico, role, tip=tip,
                                      compactable=True))
@@ -483,13 +488,14 @@ class AtlasMainWindow(QWidget):
         self.issue_list.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.issue_list.itemDoubleClicked.connect(self._goto_issue)
+        self.issue_list.currentItemChanged.connect(self._show_issue_section)
         self.issue_list.setToolTip(
-            "What the GUI can check without running the tools. "
-            "Double-click an entry to go to it.")
+            "What the GUI can check without running the tools. Click an entry "
+            "to see its section in the INI, double-click it to open it.")
         checks.body.addWidget(self.issue_list, 1)
         checks.body.addWidget(kit.hint(
-            "GPB and BCB run their own checks too; these are the ones that can "
-            "be made from the file alone."))
+            "GPB, BCB and ICB run their own checks too; these are the ones the "
+            "GUI can make from the case file and, once it is loaded, the mesh."))
         splitter.addWidget(checks)
 
         preview = Card()
@@ -506,6 +512,51 @@ class AtlasMainWindow(QWidget):
         splitter.setSizes([kit.px(420), kit.px(900)])
         lay.addWidget(splitter)
         return page
+
+    def _section_of(self, target):
+        """The header of the INI section an issue of *target* is about, as the
+        preview writes it (a prefix for the BCB blocks), or None."""
+        stage, index = target
+        icb = self.doc.icb
+        if stage == "case":
+            return "[ATLAS-Parameters]"
+        if stage == "gpb":
+            return f"[GPB-Phase{index + 1}]" if isinstance(index, int) else None
+        if stage == "bcb":
+            return "[BCB-Block"
+        if stage != "icb" or index is None:
+            return None
+        if isinstance(index, tuple):
+            return f"[{index[1]}]"
+        if index != "*" and index in icb.blocks:
+            return f"[ICB-Block{index}]"
+        return "[ICB-Block*]" if icb.wildcard is not None else None
+
+    def _show_issue_section(self, item, _previous=None):
+        """Bring the section of the issue *item* into the preview, marked."""
+        target = item.data(Qt.ItemDataRole.UserRole) if item is not None else None
+        header = self._section_of(target) if target else None
+        selections = []
+        lines = self.preview.toPlainText().split("\n")
+        start = next((n for n, line in enumerate(lines)
+                      if header and line.strip().startswith(header)), None)
+        if start is not None:
+            end = start + 1
+            while end < len(lines) and lines[end].strip() and \
+                    not lines[end].lstrip().startswith("["):
+                end += 1
+            document = self.preview.document()
+            for n in range(start, end):
+                selection = QTextEdit.ExtraSelection()
+                selection.cursor = QTextCursor(document.findBlockByNumber(n))
+                selection.format.setBackground(QColor(self._theme["accent_soft"]))
+                selection.format.setProperty(QTextFormat.Property.FullWidthSelection, True)
+                selections.append(selection)
+            # the header near the top: from the end, the view scrolls up to it
+            self.preview.moveCursor(QTextCursor.MoveOperation.End)
+            self.preview.setTextCursor(
+                QTextCursor(document.findBlockByNumber(max(start - 1, 0))))
+        self.preview.setExtraSelections(selections)
 
     def _goto_issue(self, item):
         target = item.data(Qt.ItemDataRole.UserRole)
@@ -565,7 +616,7 @@ class AtlasMainWindow(QWidget):
         self.stack.setCurrentIndex(index)
         self.tool_stack.setCurrentIndex(index)
         # A stacked widget is as wide as its widest page: only the stage's own
-        # view tools count, so the header is not held wide by Boundaries'.
+        # view tools count, so the header is not held wide by another stage's.
         for i in range(self.tool_stack.count()):
             policy = (QSizePolicy.Policy.Preferred if i == index
                       else QSizePolicy.Policy.Ignored)
@@ -851,14 +902,37 @@ class AtlasMainWindow(QWidget):
         self.issue_list.clear()
         issues = self._issues()
         order = {"error": 0, "warning": 1, "info": 2}
-        for level, target, message in sorted(issues, key=lambda i: order[i[0]]):
-            item = QListWidgetItem(f"  {message}")
-            item.setIcon(icons.dot(self._theme[LEVEL_COLORS[level]], 10))
-            item.setData(Qt.ItemDataRole.UserRole, target)
-            item.setToolTip(f"{level}: {message}")
-            self.issue_list.addItem(item)
+        # grouped by the stage that fixes them, in the order the tools run
+        group_font = QFont(self.issue_list.font())
+        group_font.setWeight(QFont.Weight.DemiBold)
+        group_font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 1.2)
+        for stage, label, _icon, _tip in STAGES:
+            mine = sorted((i for i in issues if i[1][0] == stage),
+                          key=lambda i: order[i[0]])
+            if not mine:
+                continue
+            counts = []
+            for level, name in (("error", "error"), ("warning", "warning"),
+                                ("info", "note")):
+                n = sum(1 for lv, _t, _m in mine if lv == level)
+                if n:
+                    counts.append(f"{n} {name}" + ("s" if n > 1 else ""))
+            header = QListWidgetItem(f"{label.upper()}   ·   {', '.join(counts)}")
+            header.setFlags(Qt.ItemFlag.NoItemFlags)
+            header.setFont(group_font)
+            header.setForeground(QBrush(QColor(self._theme["muted"])))
+            # room above the group, its title at the bottom of it
+            header.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
+            header.setSizeHint(QSize(0, int(QFontMetrics(group_font).height() * 2.1)))
+            self.issue_list.addItem(header)
+            for level, target, message in mine:
+                item = QListWidgetItem(message)
+                item.setIcon(icons.dot(self._theme[LEVEL_COLORS[level]], 10))
+                item.setData(Qt.ItemDataRole.UserRole, target)
+                item.setToolTip(f"{level} ({STAGE_LABELS[stage]}): {message}")
+                self.issue_list.addItem(item)
         if not issues:
-            item = QListWidgetItem("  Nothing to report")
+            item = QListWidgetItem("Nothing to report")
             item.setForeground(QBrush(QColor(self._theme["muted"])))
             self.issue_list.addItem(item)
         errors = sum(1 for level, _t, _m in issues if level == "error")
@@ -999,7 +1073,7 @@ class AtlasMainWindow(QWidget):
     # ----------------------------------------------------------- responsive
     def _header_needs(self):
         """Width the header takes with its button labels, measured for the
-        current stage (Boundaries adds its view tools) and size."""
+        current stage (Boundaries and Initial add their view tools) and size."""
         key = (self.current_stage, self.ui_scale)
         if key not in self._header_widths:
             # Nothing is painted before the state is put back.
@@ -1063,6 +1137,7 @@ class AtlasMainWindow(QWidget):
                     event.ignore()
                     return
         self.bcb_panel.close_viewport()
+        self.icb_panel.close_viewport()
         super().closeEvent(event)
 
 

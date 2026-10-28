@@ -260,12 +260,6 @@ def nozzle_rows(cells, state):
     return rows <= first + 1, rows >= first + 1
 
 
-def plenum_mask(cells, state):
-    """The cells of the plenum rows a nozzle *state* writes."""
-    rows = nozzle_rows(cells, state)[0]
-    return np.broadcast_to(rows.reshape(-1, 1, 1), cells.shape)
-
-
 class ZoneCoverage:
     """One zone of a block on the mesh."""
 
@@ -292,7 +286,10 @@ class BlockCoverage:
     * ``plenum_overwrites`` -- ``[(zone, count, earlier)]``: the cells a
       nozzle plenum and another zone both write (ICB warns, the order decides);
     * ``written_after`` -- the gas cells written once each zone is done, the
-      count ICB lists when it stops on unwritten cells.
+      count ICB lists when it stops on unwritten cells;
+    * ``writer``    -- per cell, the order (from 1) of the zone that writes its
+      gas last, the plenum rows included, 0 where none does;
+    * ``rest``      -- the cells a nozzle zone writes last as plenum, at rest.
     """
 
     def __init__(self, cells, block, zones_by_name, kinds):
@@ -310,6 +307,7 @@ class BlockCoverage:
         turbulent = np.zeros(cells.shape, dtype=bool)
         models = set()
         last_writer = np.zeros(cells.shape, dtype=np.int32)  # 1-based zone order
+        rest = np.zeros(cells.shape, dtype=bool)             # left at rest by a plenum
         for order, (number, ref) in enumerate(
                 zip(block.zone_numbers(), block.zone_refs()), start=1):
             state = zones_by_name.get(ref.section)
@@ -320,8 +318,12 @@ class BlockCoverage:
                 continue
             mask = range_mask(cells, direction, values)
             plenum = None
+            still = None
             if nozzle_law(state, kinds):
-                rows = plenum_mask(cells, state)
+                plenum_rows, law_rows = nozzle_rows(cells, state)
+                rows = np.broadcast_to(plenum_rows.reshape(-1, 1, 1), cells.shape)
+                still = np.broadcast_to((plenum_rows & ~law_rows).reshape(-1, 1, 1),
+                                        cells.shape)
                 plenum = rows & ~mask
             zone = ZoneCoverage(number, ref.section, state, mask, plenum)
             zone.overwrites = int((mask & written).sum())
@@ -340,6 +342,10 @@ class BlockCoverage:
             written |= mask
             gas_written |= mask
             last_writer[mask] = order
+            # in its range a nozzle zone leaves the plenum rows the law skips at rest
+            rest[mask] = still[mask] if still is not None else False
+            if plenum is not None:
+                rest[plenum] = True
             if kinds & {"IG", "RF"}:
                 model = icmodel.turbulence_model(state)
                 if model:
@@ -350,6 +356,8 @@ class BlockCoverage:
                     turbulent |= mask
             self.zones.append(zone)
             self.written_after.append(int(gas_written.sum()))
+        self.writer = last_writer
+        self.rest = rest
         for order, zone in enumerate(self.zones, start=1):
             if zone.mask is not None:
                 zone.kept = int((last_writer == order).sum())
@@ -365,6 +373,53 @@ class BlockCoverage:
     @property
     def complete(self):
         return not self.unwritten
+
+
+class StateMap:
+    """The state ICB writes into every cell of one mesh block, for the 3-D view.
+
+    * ``targets`` -- the sections those states are edited in, as the rows of
+      the Initial stage name them: ``"*"`` or the block index for a block
+      state, ``(owner, section)`` for a zone (one entry per zone, in the order
+      ICB writes them);
+    * ``writer``  -- per cell, the index in ``targets`` of the state written
+      there last (for the gas, the plenum rows of nozzle zones included), -1
+      where none is;
+    * ``rest``    -- the cells a nozzle state leaves at rest, its plenum;
+    * ``placed``  -- False when the zones cannot be placed (no direction, or
+      letters ICB refuses): no cell has a writer then.
+    """
+
+    def __init__(self, targets, writer, rest, placed=True):
+        self.targets = targets
+        self.writer = writer
+        self.rest = rest
+        self.placed = placed
+
+
+def state_map(doc, b, cells, phases):
+    """The :class:`StateMap` of mesh block *b* (from 1), whose cells are
+    *cells*, under the ICB deck *doc*."""
+    writer = np.full(cells.shape, -1, dtype=np.int32)
+    rest = np.zeros(cells.shape, dtype=bool)
+    block = doc.block(b)
+    if block is None:
+        return StateMap([], writer, rest)
+    owner = block.index
+    kinds = icmodel.block_kinds(block, phases)
+    if not block.is_split:
+        writer[...] = 0
+        if nozzle_law(block, kinds) and not cells.nozzle().problem:
+            plenum, law = nozzle_rows(cells, block)
+            rest[...] = (plenum & ~law).reshape(-1, 1, 1)
+        return StateMap([owner], writer, rest)
+    direction = block.direction
+    if not direction or any(c not in LETTERS for c in direction) or \
+            len(direction) > MAX_LETTERS:
+        return StateMap([], writer, rest, placed=False)
+    cover = BlockCoverage(cells, block, doc.zones, kinds)
+    targets = [(owner, zone.section) for zone in cover.zones]
+    return StateMap(targets, cover.writer - 1, cover.rest)
 
 
 def _cells(mesh, cache):

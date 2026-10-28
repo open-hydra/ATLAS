@@ -58,8 +58,8 @@ The rail on the left follows the order the tools run in.
 | **Case** | Where the case lives, the mesh, `[ATLAS-Parameters]`, and an overview of what is set up |
 | **Phases** | GPB: one card per `[GPB-PhaseN]`, with an editor that follows the phase type |
 | **Boundaries** | BCB: the mesh in 3-D, its blocks and faces, and the BCs assigned to them |
-| **Initial** | ICB: the initial state of every block, `[ICB-Block*]` and `[ICB-BlockN]` |
-| **Review** | The INI as it will be written, plus every check the GUI can make on it |
+| **Initial** | ICB: the initial state of every block, `[ICB-Block*]` and `[ICB-BlockN]`, and the mesh in 3-D with the state every cell takes |
+| **Review** | The INI as it will be written, plus every check the GUI can make on it, by stage |
 
 Sections belonging to tools the GUI does not edit yet (`[STB-*]`, `[MDB-*]`,
 `[KAnT-*]`) are carried through a save untouched, so a shared case file never
@@ -263,6 +263,29 @@ numbering of the zones (ICB stops reading at the first missing number), a zone
 whose range holds no cell, a zone every cell of which a later zone takes, and
 zones that set different turbulence models.
 
+### The 3-D view
+
+Right of the editor, the mesh is drawn with every cell in the colour of the
+state ICB writes into it last: All blocks, the state of a block of its own, each
+zone, in the order ICB writes them. The legend under the view names the colours
+and counts the cells of each. The plenum a nozzle flow leaves at rest takes a
+lighter tint of its state's colour, with an entry of its own. The cells no
+state writes are drawn grey, **outlined in red** and counted as *No state: ICB
+stops*: a gap between the ranges of the zones shows before ICB runs. A 3-D
+block shows the cells along its six faces, a 2-D block every cell.
+
+The state selected in the list is in full colour and the others are dimmed; in
+3-D, a selected block or zone shows the other blocks see-through, so a block
+inside the mesh can be seen. A **click on a cell** names it — its block, its
+index, its centre and the state it takes — and opens that state; a click on a
+legend entry opens its state too. While the stage is open, the header holds the
+view controls: Iso, XY, XZ, YZ and Fit; **Mesh lines**, the edges of the cells
+(off at first: on a fine mesh they hide the colours); **Focus**, off for every
+state in full colour. A mesh of 2-D blocks opens face on (XY).
+
+A state keeps its colour as others are added or moved. The seven colours come
+round again past the seventh state; the legend and a click tell them apart.
+
 ---
 
 ## Files
@@ -301,11 +324,19 @@ once. A value that does not resolve is marked in the editor and listed in
 
 ## Review
 
-The left column lists what the GUI can check without running anything:
-required keys, allowed values, per-material value counts, temperature ranges,
-duplicate phase names, faces with no BC, files that are not where the key says
-they are. Double-click an entry to jump to it.
-The right column is the file itself, updated as you edit.
+The left column lists what the GUI can check without running anything, grouped
+by the stage that fixes it, in the order the tools run, each group with its
+count of errors, warnings and notes: required keys, allowed values,
+per-material value counts, temperature ranges, duplicate phase names, faces with
+no BC, the initial states ICB would stop on, files that are not where the key
+says they are. With the mesh loaded it adds what only the mesh shows: the cells
+no zone writes, a nozzle flow on a block that is not a nozzle, a profile table
+that misses cells.
 
-GPB and BCB run their own, deeper checks when they build the case; the GUI's
-checks are the ones that can be made from the file alone.
+The right column is the file itself, updated as you edit. A **click** on an
+entry brings its section into view and marks it; a **double click** opens the
+entry in its stage.
+
+GPB, BCB and ICB run their own, deeper checks when they build the case; the
+GUI's checks are the ones that can be made from the file and, once it is
+loaded, the mesh.

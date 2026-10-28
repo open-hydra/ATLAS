@@ -23,6 +23,12 @@ checks say which cells no zone writes, as ICB would (``icgeom``).
 A value ICB can read cell by cell has a profile button: the profile dialog
 (``icbdialogs``) gives it from a table along a letter or a Tecplot field, and
 the checks read those files as ICB does (``icprofile``).
+
+Right of the editor, the 3-D view paints every cell of the mesh in the colour
+of the state ICB writes into it last (``icgeom.state_map``): the zones, the
+plenum of a nozzle at rest in a lighter tint, the cells no state writes
+outlined in the error colour.  The selected state is in full colour, the rest
+dimmed; a click on a cell opens the state it takes.
 """
 
 from __future__ import annotations
@@ -33,10 +39,10 @@ from collections import OrderedDict
 
 import numpy as np
 
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QButtonGroup, QComboBox, QDialog, QFormLayout,
+    QAbstractItemView, QButtonGroup, QComboBox, QDialog, QFormLayout, QFrame,
     QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMenu, QMessageBox, QSizePolicy, QSplitter,
     QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
@@ -49,6 +55,7 @@ from .gpbdialogs import AdvancedKeysDialog
 from .icbdialogs import LETTER_TIPS, LETTER_UNITS, NozzlePlot, ProfileDialog, SplitDialog
 from .icmodel import (GAS_PAIRS, REAL_FLUID_PAIRS, TURBULENCE_MODELS,
                       block_label)
+from .viewport import StateViewport
 from .widgets import Card, clear_layout
 
 # The unit each value is given in (ICB reads every value in SI).
@@ -98,6 +105,21 @@ LAW_LABELS = OrderedDict([
 
 STATUS_TOKENS = {"own": "accent", "inherited": "muted", "missing": "danger",
                  "error": "danger", "warning": "warning", "split": "accent"}
+
+# The colours of the states in the 3-D view: the categorical hues of the
+# data-viz palette in their fixed order, stepped for a light and for a dark
+# background (they pass its colour-blindness checks on the backgrounds of every
+# theme).  Its red is left out: it reads as the error colour, which outlines the
+# cells no state writes -- those are told by the outline and their legend
+# entry, never by a hue.  Past seven states the hues come round again; the
+# legend and a click on a cell tell them apart.
+STATE_HUES = {
+    "light": ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6"),
+    "dark": ("#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9"),
+}
+REST_TINT = 0.5        # a plenum at rest: its state's colour, this far towards white
+DIM = 0.5              # a cell out of the selection: this far towards the background
+SEE_THROUGH = 0.12     # opacity of a 3-D block a selected block or zone leaves out
 
 # A range that holds every cell, for a letter added before the mesh is loaded.
 UNBOUNDED = {"x": (-1e9, 1e9), "y": (-1e9, 1e9), "z": (-1e9, 1e9),
@@ -160,6 +182,18 @@ class ICBPanel(QWidget):
         self._choices = weakref.WeakKeyDictionary()   # state -> {what: choice}
         self._cells = {}           # mesh block -> icgeom.BlockCells
         self._profiles = icprofile.Cache()
+        self._maps = {}            # mesh block -> its icgeom.StateMap, as drawn
+        self._hues = {}            # state key -> the slot of its colour
+        self._hues_doc = None      # the document those slots are for
+        self._view_mesh = None     # the mesh the 3-D view holds
+        self._view_theme = None
+        self._view_stale = True
+        self._focus = True
+        self._picked = None        # (mesh block, cell) last clicked in the view
+        self._view_timer = QTimer(self)
+        self._view_timer.setSingleShot(True)
+        self._view_timer.setInterval(80)
+        self._view_timer.timeout.connect(self._refresh_view)
         self._build_ui()
 
     # -- document access -------------------------------------------------
@@ -367,9 +401,12 @@ class ICBPanel(QWidget):
         splitter.setHandleWidth(9)
         splitter.addWidget(self._build_list_panel())
         splitter.addWidget(self._build_editor_panel())
+        splitter.addWidget(self._build_view_panel())
+        # the editor and the view share the width; past the editor's widest, the view
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([self.kit.px(330), self.kit.px(1000)])
+        splitter.setStretchFactor(2, 1)
+        splitter.setSizes([self.kit.px(300), self.kit.px(640), self.kit.px(560)])
         root.addWidget(splitter)
 
     def _build_list_panel(self):
@@ -383,6 +420,7 @@ class ICBPanel(QWidget):
         self.block_list.setSelectionMode(
             QAbstractItemView.SelectionMode.SingleSelection)
         self.block_list.currentRowChanged.connect(lambda _row: self._rebuild_editor())
+        self.block_list.currentRowChanged.connect(lambda _row: self._view_timer.start())
         card.body.addWidget(self.block_list, 1)
         card.body.addWidget(kit.hint(
             "All blocks is [ICB-Block*]: the state of every block without a "
@@ -401,9 +439,68 @@ class ICBPanel(QWidget):
         self.editor_layout = QVBoxLayout(self.editor_host)
         self.editor_layout.setContentsMargins(0, 0, 0, 0)
         self.editor_layout.setSpacing(10)
-        outer_layout.addWidget(self.editor_host, 6)
-        outer_layout.addStretch(1)
-        return self.kit.scrollable(outer)
+        outer_layout.addWidget(self.editor_host)
+        area = self.kit.scrollable(outer)
+        self.kit.sized(area.setMaximumWidth, 900)    # the editor and its scroll bar
+        return area
+
+    def _build_view_panel(self):
+        card = Card()
+        kit = self.kit
+        kit.sized(card.setMinimumWidth, 320)
+        card.body.addLayout(kit.panel_header("cube", "3-D VIEW"))
+        frame = QFrame()
+        frame.setObjectName("ViewportFrame")
+        lay = QVBoxLayout(frame)
+        lay.setContentsMargins(3, 3, 3, 3)
+        self.view = StateViewport()
+        self.view.cell_picked.connect(self._on_cell_picked)
+        lay.addWidget(self.view)
+        card.body.addWidget(frame, 1)
+        card.body.addWidget(kit.section_label("STATE OF EVERY CELL"))
+        self.legend = QListWidget()
+        self.legend.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.legend.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.legend.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.legend.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+        self.legend.setToolTip("The state ICB writes last into the cells of each colour, "
+                               "and how many cells take it. Click one to open it.")
+        self.legend.itemClicked.connect(self._on_legend_clicked)
+        card.body.addWidget(self.legend)
+        self.pick_label = kit.hint("Click a cell to open the state ICB writes into it.")
+        card.body.addWidget(self.pick_label)
+        return card
+
+    def view_tools(self):
+        """The 3-D view controls, shown in the shell header for this stage."""
+        bar = QWidget()
+        kit = self.kit
+        lay = QHBoxLayout(bar)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(8)
+        seg = QHBoxLayout()
+        seg.setSpacing(0)
+        for text, slot, pos in [("Iso", self.view.view_isometric, "left"),
+                                ("XY", self.view.view_xy, "mid"),
+                                ("XZ", self.view.view_xz, "mid"),
+                                ("YZ", self.view.view_yz, "right")]:
+            seg.addWidget(kit.button(text, slot, None, None, seg=pos, tip=f"{text} view"))
+        lay.addLayout(seg)
+        lay.addWidget(kit.button("Fit", self.view.reset_camera, "fit", "ghost",
+                                 tip="Fit the mesh in the view", compactable=True))
+        lay.addWidget(kit.vdivider())
+        lay.addWidget(kit.toggle(
+            "Mesh lines", self.view.set_edges, "mesh", self.view.edges,
+            tip="Draw the edges of the cells."))
+        lay.addWidget(kit.toggle(
+            "Focus", self._set_focus, "target", True,
+            tip="The cells of the selected state in full colour, the others dimmed; "
+                "in 3-D, a selected block or zone shows the other blocks see-through."))
+        return bar
+
+    def close_viewport(self):
+        self._view_timer.stop()
+        self.view.close()
 
     # -------------------------------------------------------------- refresh
     def refresh(self):
@@ -412,6 +509,201 @@ class ICBPanel(QWidget):
         self._issues = self.validate()
         self._refresh_list()
         self._rebuild_editor()
+        self._refresh_view()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if self._view_stale:
+            self._view_timer.start()
+
+    # ------------------------------------------------------------- 3-D view
+    @staticmethod
+    def _state_key(target):
+        """What a state's colour follows: its section."""
+        return target[1] if isinstance(target, tuple) else ("block", target)
+
+    @staticmethod
+    def _key_label(key):
+        return block_label(key[1]) if isinstance(key, tuple) else f"zone [{key}]"
+
+    def _hue(self, key, hues):
+        """The colour of state *key*: the first free slot when first seen,
+        then the same slot for as long as the document is open."""
+        if self._hues_doc is not self.shell.doc:
+            self._hues_doc, self._hues = self.shell.doc, {}
+        if key not in self._hues:
+            self._hues[key] = len(self._hues)
+        return hues[self._hues[key] % len(hues)]
+
+    def _set_focus(self, on):
+        self._focus = bool(on)
+        self._refresh_view()
+
+    def _focus_mask(self, b, smap, writer):
+        """The cells of mesh block *b* the selected row's state writes, or
+        None when nothing is singled out."""
+        target = self.current_target()
+        if not self._focus or target is None or (target == "*" and self.icb.wildcard is None):
+            return None
+        block = self.icb.block(b)
+        if target == "*":
+            return np.full(writer.size, block is not None and block.is_wildcard)
+        if not isinstance(target, tuple):
+            return np.full(writer.size, b == target)
+        picked = [n for n, t in enumerate(smap.targets) if t == target]
+        return np.isin(writer, picked)
+
+    def _refresh_view(self):
+        """Paint every cell of the mesh with the state ICB writes into it."""
+        self._view_timer.stop()
+        if not self.isVisible():
+            self._view_stale = True
+            return
+        self._view_stale = False
+        theme = self.shell.theme
+        if self._view_theme is not theme:
+            self._view_theme = theme
+            self.view.apply_theme(theme)
+        mesh = self.mesh_blocks()
+        if mesh is not self._view_mesh:
+            self._view_mesh = mesh
+            self._picked = None
+            self.view.set_mesh(mesh)
+        self._maps = {}
+        dark = QColor(theme["viewport_bg"]).lightnessF() < 0.5
+        hues = STATE_HUES["dark" if dark else "light"]
+        for target in self._targets:          # new states take their slots in list order
+            if isinstance(target, tuple) or (self._owner_section(target) is not None
+                                             and not self._owner_section(target).is_split):
+                self._hue(self._state_key(target), hues)
+        background = _rgb(theme["viewport_bg"])
+        void = 0.5 * (_rgb(theme["unassigned"]) + background)
+        three_d = any(m.nk > 2 for m in mesh)
+        legend = OrderedDict()               # key -> [colour, cells, at rest, target]
+        unwritten, unplaced = 0, []
+        for b, block in enumerate(mesh, start=1):
+            cells = self._cells_of(b)
+            smap = self._maps[b] = icgeom.state_map(self.icb, b, cells, self._phases)
+            writer = smap.writer.ravel(order="F")
+            rest = smap.rest.ravel(order="F")
+            written = writer >= 0
+            colours = np.array([_rgb(self._hue(self._state_key(t), hues))
+                                for t in smap.targets] or [void])
+            rgb = np.empty((writer.size, 3))
+            rgb[written] = colours[writer[written]]
+            rgb[rest] += (255.0 - rgb[rest]) * REST_TINT
+            rgb[~written] = void if smap.placed else _rgb(theme["unassigned"])
+            focus = self._focus_mask(b, smap, writer)
+            opacity = 1.0
+            if focus is not None:
+                rgb[~focus] += (background - rgb[~focus]) * DIM
+                # All blocks reaches most of a mesh: only one block opens it up
+                if three_d and not focus.any() and self.current_target() != "*":
+                    opacity = SEE_THROUGH
+            self.view.set_colors(b - 1, np.clip(np.rint(rgb), 0, 255).astype(np.uint8))
+            self.view.set_block_opacity(b - 1, opacity)
+            missing = np.flatnonzero(~written) if smap.placed else []
+            self.view.set_outline(b - 1, missing, theme["danger"])
+            if not smap.placed:
+                unplaced.append(b)
+            unwritten += len(missing)
+            for n, target in enumerate(smap.targets):
+                mine = writer == n
+                if not mine.any():
+                    continue
+                key = self._state_key(target)
+                entry = legend.setdefault(key, [self._hue(key, hues), 0, 0, target])
+                entry[1] += int(mine.sum())
+                entry[2] += int((mine & rest).sum())
+        self.view.redraw()
+        self._fill_legend(legend, unwritten, unplaced)
+        self.pick_label.setText(self._describe_pick()[0])
+
+    def _fill_legend(self, legend, unwritten, unplaced):
+        self.legend.clear()
+        try:
+            self._legend_items(legend, unwritten, unplaced)
+        finally:
+            # as tall as its rows, up to eight: the view keeps the rest
+            rows = min(max(self.legend.count(), 1), 8)
+            frame = 2 * self.legend.frameWidth() + 4
+            self.legend.setFixedHeight(rows * max(self.legend.sizeHintForRow(0), 1) + frame)
+
+    def _legend_items(self, legend, unwritten, unplaced):
+        if not self._view_mesh:
+            item = QListWidgetItem("  Load the mesh to see the state of every cell")
+            item.setForeground(QBrush(QColor(self.kit.color("muted"))))
+            self.legend.addItem(item)
+            return
+        for key, (colour, count, rest, target) in legend.items():
+            item = QListWidgetItem(f"  {self._key_label(key)}   · {count:,} cell"
+                                   + ("" if count == 1 else "s"))
+            item.setIcon(icons.dot(colour, 11))
+            item.setData(Qt.ItemDataRole.UserRole, target)
+            item.setToolTip(f"{self._key_label(key)}: ICB writes it last into {count:,} "
+                            "cell(s). Click to open it.")
+            self.legend.addItem(item)
+            if rest:
+                tint = "#%02x%02x%02x" % tuple(
+                    int(round(c + (255 - c) * REST_TINT)) for c in _rgb(colour))
+                item = QListWidgetItem(f"      plenum at rest, p0 and T0   · {rest:,} "
+                                       "of them")
+                item.setIcon(icons.dot(tint, 11))
+                item.setData(Qt.ItemDataRole.UserRole, target)
+                item.setToolTip("The rows of cells upstream of nozzle-threshold: the "
+                                "nozzle law leaves them at rest.")
+                self.legend.addItem(item)
+        if unwritten:
+            item = QListWidgetItem(f"  No state: ICB stops   · {unwritten:,} cell"
+                                   + ("" if unwritten == 1 else "s"))
+            item.setIcon(self.kit.icon("alert", "danger", 14))
+            item.setToolTip("Cells no zone writes, outlined in the view. The checks "
+                            "name the first of them.")
+            self.legend.addItem(item)
+        if unplaced:
+            names = ", ".join(str(b) for b in unplaced)
+            item = QListWidgetItem(f"  Zones not placed: block {names}")
+            item.setIcon(self.kit.icon("alert", "warning", 14))
+            item.setToolTip("Their direction letters are not ones ICB reads: see the checks.")
+            self.legend.addItem(item)
+
+    def _on_legend_clicked(self, item):
+        target = item.data(Qt.ItemDataRole.UserRole)
+        if target is not None:
+            self.select_target(target)
+
+    def _describe_pick(self):
+        """``(text, target)``: the cell last clicked and the state it takes
+        now, or the invitation to click one."""
+        idle = ("Click a cell to open the state ICB writes into it.", None)
+        if self._picked is None:
+            return idle
+        b, flat = self._picked
+        smap, cells = self._maps.get(b), self._cells_of(b)
+        if smap is None or cells is None:
+            return idle
+        i, j, k = (int(n) for n in np.unravel_index(flat, cells.shape, order="F"))
+        letters = "xy" if cells.pure_2d else "xyz"
+        where = ", ".join(f"{c} = {float(cells.coordinate(c)[i, j, k]):.4g}" for c in letters)
+        writer = int(smap.writer[i, j, k])
+        block = self.icb.block(b)
+        if writer >= 0:
+            target = smap.targets[writer]
+            what = self._key_label(self._state_key(target))
+            if smap.rest[i, j, k]:
+                what += ", plenum at rest"
+        else:
+            target = block.index if block is not None else b
+            what = ("no state: ICB stops on it" if smap.placed
+                    else "the zones are not placed")
+        return f"Block {b}, cell ({i + 1}, {j + 1}, {k + 1}) at {where}: {what}", target
+
+    def _on_cell_picked(self, b0, flat):
+        self._picked = (b0 + 1, flat)
+        text, target = self._describe_pick()
+        self.pick_label.setText(text)
+        if target is not None:
+            self.select_target(target)
 
     def select_target(self, target):
         """Show block *target* (an index, or ``"*"``)."""
@@ -560,6 +852,7 @@ class ICBPanel(QWidget):
                 self._refresh_row(target)
             self._refresh_checks()
             self._refresh_layout_stats()
+        self._view_timer.start()
         self.changed.emit()
 
     def _set(self, key, value):
@@ -2210,3 +2503,9 @@ class ICBPanel(QWidget):
         if dialog.exec() == QDialog.DialogCode.Accepted:
             dialog.apply_to_phase()
             self._edited(rebuild=True)
+
+
+def _rgb(hex_colour):
+    """``#rrggbb`` as an array of three floats from 0 to 255."""
+    colour = QColor(hex_colour)
+    return np.array([colour.red(), colour.green(), colour.blue()], dtype=float)
