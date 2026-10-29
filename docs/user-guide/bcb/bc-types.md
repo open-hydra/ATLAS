@@ -714,7 +714,9 @@ block = 3
 face  = 2
 ```
 
-Output ID: `501`; the payload is the source `block, face` pair, written as two integers (the solvers read them as integers).
+Output ID: `501`; the payload is the source `block, face` pair, written as two integers.
+
+MOSE does not apply type `501`: it stops at set-up on a `bc.txt` with a record of this type.
 
 ---
 
@@ -732,6 +734,9 @@ the keys present in the section, so the key set *is* the model selection.
 | [Pyrolysis + surface reactions](#gsi-pyrolysis-surface-reactions) | `pyrolysis-model` **and** `surface-reactions` **and** `qrad` | `506` |
 
 The variants are tested in the order above and the first match wins.
+
+MOSE does not apply type `506`: it stops at set-up on a `bc.txt` with a record of this type; for MOSE use the pyrolysis (`504`)
+or the surface-reactions (`505`) variant.
 
 !!! warning "Solid propellant is the fallback"
     A section matching none of the four model combinations is built as a
