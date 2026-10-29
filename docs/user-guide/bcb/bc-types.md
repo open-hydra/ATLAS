@@ -284,14 +284,16 @@ tables or `T0` above one grid step below their top, with a message that asks to 
 the tables: every record that BCB writes satisfies them, except a `g` above `G*` or one
 of these states outside the tables given by hand in the trio, which BCB writes with a
 `[WARNING]` when `thermo.dat` is loaded (without it, BCB does not check the trio).
-Between `psup` and `psub` the kernels impose the mass flux `g` and the stagnation enthalpy
-and leave `p0` free: this is the exact closure while a normal shock stands inside the
-divergent part (subsonic exit, part of `p0` lost), and an approximation in the
-over-expanded part of the band next to `psup`, where the real exit stays supersonic at
-`psup` with oblique shocks outside it: there the kernel returns the state of mass flux
-`g` and stagnation enthalpy at the boundary-cell pressure (a Fanno-type state, supersonic
-with an entropy rise) instead of the design exit state; the boundary-cell pressure is
-not a far-field back-pressure.
+MOSE takes the design exit state for every boundary-cell pressure below both `psub` and
+`p_shock`, the pressure behind a normal shock standing at the exit of the design flow,
+which it computes at set-up from `T0`, `p0`, `g` and the composition (the record has no
+extra field: `g = G*/Ae_At` carries the area ratio), as the real exit does: supersonic,
+with oblique shocks outside it down to `psup` (over-expanded) and expansion waves below it
+(under-expanded). From `p_shock` up to `psub` it imposes the mass flux `g` and the
+stagnation enthalpy and leaves `p0` free, the exact closure while a normal shock stands
+inside the divergent part (subsonic exit, part of `p0` lost). `psup` selects no regime of
+MOSE: it is checked with `psub` and `p0`. The boundary-cell pressure is not a far-field
+back-pressure.
 The `line-file` mapping of a `410` inlet samples the unwrapped record at the face
 cell centres (point sampling): on a face much coarser than the record it is not
 conservative (the flux of the mapped record differs from the record's).
@@ -474,9 +476,11 @@ tables, which must cover the expansion from `T0` down to the supersonic exit
 state, with `T0` at most one grid step below the top of the table because the
 solvers' interpolation clamps there), or prescribe the exit pressures together with the mass flux. Both forms need the stagnation state
 `p0`, `T0` (explicit, or from `eq-CEA-file`: an explicit value always wins).
-The solvers switch on the boundary-cell pressure `p`: `psub <= p < p0` subsonic
-inflow from (`T0`, `p0`), `psup <= p < psub` choked inflow with the mass flux
-`g`, `p < psup` supersonic inflow — so an explicit trio must satisfy
+MOSE switches on the boundary-cell pressure `p`: `psub <= p < p0` subsonic
+inflow from (`T0`, `p0`), `p_shock <= p < psub` choked inflow with the mass flux
+`g`, `p` below both, the design supersonic exit state, `p_shock` being the pressure
+behind a normal shock at the exit of the design flow, which MOSE computes from the
+record (see the physical envelope of the `420` above). An explicit trio must satisfy
 `0 < psup <= psub < p0` (`psub` is the exit pressure of the just-choked subsonic
 solution, `psup` the design supersonic exit pressure); BCB stops otherwise.
 The record is steady (no `p0-time-file`, no `time-file`):
