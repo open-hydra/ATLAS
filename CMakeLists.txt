@@ -67,11 +67,11 @@ endmacro()
 # directory that holds files but no repository of its own is an error. Only a FiNeR inside this tree is
 # managed: an external FINER_PATH (--include-finer) keeps the dependencies its owner gave it.
 set(ATLAS_FINER_DEPENDENCIES
-  "PENF=34e10af852f81822bac0df7c5f73936e0655f54f"
-  "StringiFor=77b75b1d7f7012d2984135b231008f751ab32dda"
-  "FACE=95226cd6135b9daeb8ff2c748d2065deee230358"
-  "FLAP=7f5ec8e1f26be5e2a263fdd2118501b340c0d461"
-  "BeFoR64=40d19c5f6127088126606b90448e99e02d8b641c")
+  "PENF=4cb9d326c08f109ed5126d83c27e8e70c98b7eaa"
+  "StringiFor=b12f62bab32dde9fed99b697ef6eff4c120d77ec"
+  "FACE=da7b7407b51e56257a09970099997098e3a52d99"
+  "FLAP=a3741e61f360addf4772833d078619cb8b72e0e1"
+  "BeFoR64=c90ce9507a24e166ebaeed53d67bf26512bb9263")
 macro(ensure_finer_dependencies FINER_ROOT)
   file(REAL_PATH "${FINER_ROOT}" _fd_root)
   file(REAL_PATH "${CMAKE_SOURCE_DIR}" _fd_top)
