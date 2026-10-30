@@ -308,8 +308,9 @@ All five IDs are produced by the single `gsi` marker; BCB selects the variant
 from the keys present in the section (see [BC Types](./bc-types.md#gsi)).
 
 They are written in the fluid's file. In a dispersed phase's file a gsi face is a `300` record (no payload), or,
-on a solid-propellant grain (`502`) whose section gives inlet keys of that phase, a `401`–`403` record with the
-inlet payload (see [Dispersed phase on a gsi face](./bc-types.md#dispersed-phase-on-a-gsi-face)).
+on a solid-propellant grain (`502`) whose section gives inlet keys of that phase, a `401` record with the inlet
+payload; the grain's `502` record then carries `a × (1 − krho_tot)`, the gas flow left by the dispersed phases
+entering through the cell (see [Dispersed phase on a gsi face](./bc-types.md#dispersed-phase-on-a-gsi-face)).
 
 | ID | Variant | Payload fields (in order) | Payload length |
 |----|---------|---------------------------|----------------|

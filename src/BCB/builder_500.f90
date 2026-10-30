@@ -201,7 +201,8 @@ contains
   !> A face of the 500 family seen by the dispersed phase `phase`, in its slot k: a symmetry (300, no payload),
   !> since the phase neither follows a manifold nor takes part in a gas-surface interaction, except the
   !> solid-propellant grain (gsi, BC 502) of a section that gives the phase's inlet keys: that face injects the
-  !> phase as an inlet does (401-403, from the same keys and defaults, build_inflow_outflow_dp). The phase's inlet
+  !> phase as an inlet does, from the same keys and defaults (build_inflow_outflow_dp), as a 401 record -- a fraction
+  !> krho of the grain's flow, the gas keeping the rest (correct_grain_flux); a mass flux (402/403) is refused. The phase's inlet
   !> keys on any other face of the family are refused, or reported once with strict-keys = false (the face then
   !> a symmetry). A manifold keeps its 501 in the fluid's file; write_dp_bc prints the slot's 300 for the phase.
   module procedure build_special_dp
@@ -222,6 +223,16 @@ contains
     if (dp_inlet_key_given(sourceini, section, phase, key)) then
       if (id == 502) then
         call self % build_inflow_outflow_dp(k, sourceini, section, phase)
+        ! The grain gives the phase a fraction of its flow, krho, and the gas the rest (correct_grain_flux): a
+        ! mass flux (gp, BC 402/403) cannot be taken out of the burn-rate law, which the solver evaluates
+        if (self % dp(k) % id /= 401) then
+          write(id_txt,'(I0)') self % dp(k) % id
+          write(*,'(A)') '[ERROR] key '//trim(prefix(phase))//'gp of section ['//trim(self % name)//']: not honoured by '// &
+            'BC 502 (gsi): a solid-propellant grain injects the dispersed phase '//trim(phase % name)//' with '// &
+            trim(prefix(phase))//'krho, a fraction of its flow (the gas takes the rest, a x (1 - krho)), not with a '// &
+            'mass flux (BC '//trim(id_txt)//')'
+          stop 1
+        endif
         return
       endif
       write(id_txt,'(I0)') id
@@ -240,6 +251,15 @@ contains
 
   contains
 
+    !> The prefix of the phase's keys: '<name>-', or none for an unnamed phase.
+    function prefix(ph) result(pn)
+      implicit none
+      type(phase_t), intent(in) :: ph
+      character(len=:), allocatable :: pn
+      pn = ''
+      if (len_trim(ph % name) > 0) pn = trim(adjustl(ph % name))//'-'
+    end function prefix
+
     !> One [WARNING] per (section, key) tag.
     subroutine warn_dp_key_once(tag, text)
       implicit none
@@ -254,6 +274,34 @@ contains
     end subroutine warn_dp_key_once
 
   end procedure build_special_dp
+
+
+  !> The gas flow of a solid-propellant grain (gsi, BC 502) that also injects dispersed phases: the propellant's
+  !> flow is shared, the phases take krho_tot of it -- the sum of krho over every (material, population) pair of
+  !> every dispersed phase entering through the cell (their 401 slots) -- and the gas the rest. The record's a,
+  !> the propellant mass flux at pRef and the only factor of the gas flow (MOSE: mdot = a (p/pRef)^n), is
+  !> multiplied by 1 - krho_tot. Called once per face cell, after every phase of the block has been built on it.
+  module procedure correct_grain_flux
+    implicit none
+    real(R8) :: krho_tot
+    character(len=24) :: txt
+    integer :: k
+
+    if (self % ig_id /= 502 .or. .not. allocated(self % dp)) return
+    krho_tot = 0.0_R8
+    do k = 1, size(self % dp)
+      if (self % dp(k) % id == 401) krho_tot = krho_tot + self % dp(k) % krho_sum
+    enddo
+    if (krho_tot == 0.0_R8) return
+    if (.not. (krho_tot < 1.0_R8)) then
+      write(txt,'(ES12.5)') krho_tot
+      write(*,'(A)') '[ERROR] section ['//trim(self % name)//'] (gsi, BC 502): the dispersed phases entering the grain take '// &
+        'krho = '//trim(adjustl(txt))//' of its flow, 1 or more: no gas is left (the gas flow is a x (1 - krho))'
+      stop 1
+    endif
+    self % ig_properties(2) = self % ig_properties(2) * (1.0_R8 - krho_tot)
+
+  end procedure correct_grain_flux
 
 
 

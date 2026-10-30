@@ -753,8 +753,16 @@ A dispersed phase sees a gsi face as a symmetry: its `<phase>-bc.txt` carries `3
 the variant. The exception is the solid-propellant grain (`502`) of a section that also gives inlet keys of that
 phase (`<phase>-krho`, `<phase>-gp`, `<phase>-Vp`, `<phase>-Tp`, `<phase>-dp`, ..., the keys of
 [the dispersed-phase inlet](#dispersed-phase), or `<phase>-krho-file`): that face injects the phase as an `inlet`
-face would, with the same keys, defaults and variants (`401`–`403`, the inlet payload). The fluid's record is the
-same with or without them.
+face would, with the same keys and defaults, as a `401` record (the inlet payload).
+
+The grain's flow is then shared: every (material, population) pair of every dispersed phase entering through the
+face takes the fraction `krho` of it, and the gas the rest. BCB writes the `502` record with
+`a × (1 − krho_tot)`, `krho_tot` the sum of those `krho` on the cell (a `krho` profile file is summed cell by cell);
+`a` is the only factor of the gas flow the solver computes from the record (MOSE: `ṁ = a (p/pRef)^n`). A phase
+given with a mass flux (`<phase>-gp`, records `402`/`403`) cannot be taken out of the burn-rate law and stops BCB
+(`[ERROR] key <phase>-gp of section [<s>]: not honoured by BC 502 (gsi): ...`), and so does a `krho_tot` of 1 or
+more (`[ERROR] section [<s>] (gsi, BC 502): the dispersed phases entering the grain take krho = ... of its flow, 1
+or more: no gas is left ...`).
 
 ```ini
 [grain]
@@ -764,7 +772,7 @@ pRef          = 4.829e6
 a             = 0.0052
 n             = 0.35
 rhoGrain      = 1750.0
-alumina-krho  = 0.2      ; alumina-bc.txt: 401 on this face
+alumina-krho  = 0.2      ; alumina-bc.txt: 401 on this face; the gas: a x (1 - 0.2)
 alumina-kV    = 0.9
 alumina-kT    = 1.0
 alumina-dp    = 2.0e-5
