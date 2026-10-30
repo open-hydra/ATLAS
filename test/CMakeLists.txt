@@ -2190,6 +2190,67 @@ set_tests_properties(IG-transport-CEA-species-without-data PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : IG-transport-CEA-nasa-names (transport = CEA with the names of nasa9.yaml, the default thermo database: Ar and He take their CEApolynomials records like N2, with no simplified law and no WARNING; transport.dat holds the NASA CEA fits of lib/cea/data/trans.inp, at their 200 K value below 200 K. Reference: the product of GPB, equal to those fits within the print precision) -------------
+add_test(
+    NAME    IG-transport-CEA-nasa-names
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && { ! grep -F '[WARNING] GPB: transport = CEA' gpb.log; } && diff fromATLAStoSolver/transport.dat reference/transport.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-transport-CEA-nasa-names"
+)
+set_tests_properties(IG-transport-CEA-nasa-names PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-transport-CEA-aliases (transport = CEA with the capital names AR and HE of a Chemkin-style mechanism file, with the thermo records of the file and with thermo = Burcat: AR and HE take the records Ar and He through their aliases, with no WARNING; their columns equal those of Ar and He in IG-transport-CEA-nasa-names. Reference: the product of GPB, a regression witness for the other columns) -------------
+add_test(
+    NAME    IG-transport-CEA-aliases
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-file-thermo && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && { ! grep -F '[WARNING] GPB: transport = CEA' gpb.log; } && diff fromATLAStoSolver/transport.dat reference/transport.dat && bash check_columns.sh fromATLAStoSolver/transport.dat AR ../IG-transport-CEA-nasa-names/reference/transport.dat Ar && bash check_columns.sh fromATLAStoSolver/transport.dat HE ../IG-transport-CEA-nasa-names/reference/transport.dat He && mv fromATLAStoSolver _run-file-thermo && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input burcat.ini > gpb-burcat.log 2>&1 || { cat gpb-burcat.log; false; }; } && { ! grep -F '[WARNING] GPB: transport = CEA' gpb-burcat.log; } && diff fromATLAStoSolver/transport.dat reference/transport.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-transport-CEA-aliases"
+)
+set_tests_properties(IG-transport-CEA-aliases PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-transport-CEA-exact-names (transport = CEA with carbon monoxide CO and cobalt Co, NASA names that differ only in case, from a mechanism file: CO takes its CEApolynomials record and Co, which has none, the simplified law with its WARNING; the one WARNING of the run is that of Co) -------------
+add_test(
+    NAME    IG-transport-CEA-exact-names
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && { grep -q -F \"[WARNING] GPB: transport = CEA: no CEApolynomials record for species 'Co': simplified law applied\" gpb.log && test $(grep -c -F '[WARNING] GPB: transport = CEA' gpb.log) -eq 1 || { cat gpb.log; false; }; }"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-transport-CEA-exact-names"
+)
+set_tests_properties(IG-transport-CEA-exact-names PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : GPB-cea-transport-records (the index of the CEApolynomials records, without Cantera: on the database of the tree a name finds its record by name or alias, character by character (AR finds Ar, Co finds no record and not CO); a malformed record and a name or alias given twice are refused with their messages) -------------
+add_test(
+    NAME    GPB-cea-transport-records
+    COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/tools/cea_transport_records_check.py ${CMAKE_SOURCE_DIR}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tools"
+)
+set_tests_properties(GPB-cea-transport-records PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : database-cea-transport (database/transport/CEApolynomials.yaml equal to the transport file of NASA CEA, lib/cea/data/trans.inp: the same names, intervals and coefficients, except the fits ATLAS defines itself, listed in ATLAS_RECORDS of test/tools/cea_trans_inp_check.py, where a new record absent from trans.inp is added; no name or alias twice; not run (exit 77) without the CEA submodule) -------------
+add_test(
+    NAME    database-cea-transport
+    COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/tools/cea_trans_inp_check.py ${CMAKE_SOURCE_DIR}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tools"
+)
+set_tests_properties(database-cea-transport PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- GPB : CP-tmin-noninteger (a non-integer Tmin of a condensed phase is refused naming the key; the products of the ideal-gas phase before it, with an integer Tmin = 300, are not left behind) -------------
 add_test(
     NAME    CP-tmin-noninteger

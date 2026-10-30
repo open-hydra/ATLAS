@@ -8,7 +8,8 @@ from .cea_compat import CEA
 from ini import *
 from PiNeR import get
 import os, sys, re
-from config import setup_cantera_dirs, CEA_TRANS_FILE, CHEMISTRY_DIR
+from config import setup_cantera_dirs, CEA_TRANS_FILE, CHEMISTRY_DIR, ATLASDIR
+from cea_transport_records import index_records, RecordError
 
 setup_cantera_dirs()
 CEAtransdir = CEA_TRANS_FILE
@@ -191,7 +192,13 @@ def build(inifile,section):
     # ---------------------------------------------------
     if phase_model is None:
         if transport_model == 'CEA' or CEA_equilibrium:
-            CEAdata = IG_IO.read_yaml_file(CEAtransdir)
+            # Name or alias -> record (cea_transport_records.py): a malformed record or a name or alias given twice stops GPB here,
+            # before any product is written
+            try:
+                CEAdata = index_records(IG_IO.read_yaml_file(CEAtransdir), os.path.relpath(CEAtransdir, ATLASDIR))
+            except RecordError as e:
+                print(f"[ERROR] GPB: {e}")
+                sys.exit(1)
     else:
         # phase = <file> takes thermo, transport and reactions from the yaml file: say which keys are ignored
         ignored = [k for k, v in (('thermo', thermo_model), ('transport', transport_model), ('reactions', reaction_model)) if v is not None]
