@@ -300,10 +300,16 @@ Example (DP inlet, `id = 402`, LogNormal, `ds` unset):
 
 `block`, `face` = source block/face index from which the manifold draws its conditions; 
 
+In a dispersed phase's file the face is a `300` record (no payload).
+
 ### `502`–`506` — Gas-surface interaction (GSI) { #gsi-ids }
 
 All five IDs are produced by the single `gsi` marker; BCB selects the variant
 from the keys present in the section (see [BC Types](./bc-types.md#gsi)).
+
+They are written in the fluid's file. In a dispersed phase's file a gsi face is a `300` record (no payload), or,
+on a solid-propellant grain (`502`) whose section gives inlet keys of that phase, a `401`–`403` record with the
+inlet payload (see [Dispersed phase on a gsi face](./bc-types.md#dispersed-phase-on-a-gsi-face)).
 
 | ID | Variant | Payload fields (in order) | Payload length |
 |----|---------|---------------------------|----------------|

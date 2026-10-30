@@ -1238,6 +1238,40 @@ set_tests_properties(DP-axis-refused PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-gsi-manifold (a dispersed phase on the faces of the 500 family) ----------
+# IG-ablation's mesh with a gas phase and a dispersed phase (drop): face 1 a manifold drawing on face 2, faces 3
+# and 4 one patch per gsi variant (502 with and without drop's inlet keys, 503, 504, 505, 506). drop-bc.txt
+# carries 300 on the manifold and on every gsi patch but the grain that gives drop's keys, which injects drop as an
+# inlet does (401). gas-bc.txt is the fluid's file without drop: its reference was written by the BCB of 3fc73f4
+# on the deck without drop and its keys (with drop that BCB stopped on the manifold, allocating its record twice).
+# check_codes.py pins the codes per face and patch and the 401 payload, independently of the references.
+add_test(
+    NAME    DP-gsi-manifold
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/gas-bc.txt reference/gas-bc.txt && diff fromATLAStoSolver/drop-bc.txt reference/drop-bc.txt && python3 -B check_codes.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-gsi-manifold"
+)
+set_tests_properties(DP-gsi-manifold PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-gsi-keys-refused (an inlet key of drop on a 500 face that does not inject it) ----------
+# DP-gsi-manifold's deck with drop-krho in its surface-reactions patch [abl] (505): exit 1, the message naming the
+# key, the section, the BC and the face's role for drop, no drop-bc.txt. _run-lenient: strict-keys = false, one
+# WARNING for the twelve cells of the patch, the files of DP-gsi-manifold. _run-manifold: the key in [man] (501)
+# instead, refused alike.
+add_test(
+    NAME    DP-gsi-keys-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-lenient _run-manifold && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && mkdir _run-lenient && cp input.ini mesh.tec gas-phase.txt drop-phase.txt _run-lenient/ && cd _run-lenient && sed -i 's/^strict-keys = .*/strict-keys = false/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null) && test $(grep -c -F '[WARNING] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\") -eq 1 && diff fromATLAStoSolver/drop-bc.txt ../../DP-gsi-manifold/reference/drop-bc.txt && diff fromATLAStoSolver/gas-bc.txt ../../DP-gsi-manifold/reference/gas-bc.txt && cd .. && mkdir _run-manifold && cp input.ini mesh.tec gas-phase.txt drop-phase.txt _run-manifold/ && cd _run-manifold && sed -i -e '/^drop-krho         = 0.2$/d' -e 's/^face  = 2$/face  = 2\\ndrop-krho = 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [man]: not honoured by BC 501 (manifold)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-gsi-keys-refused"
+)
+set_tests_properties(DP-gsi-keys-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-plate-keys -------------
 # IG-multipatch-file's injector plate with its two plate keys written out (full-plate = F, z-hydra = 1.0, the
 # defaults): the plate mapping reads them, so the deck passes the key check and writes the same bc.txt.

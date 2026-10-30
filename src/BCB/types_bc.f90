@@ -56,6 +56,7 @@ module bc_mod
     procedure, pass(self)      :: build_periodic
     procedure, pass(self)      :: build_manifold
     procedure, pass(self)      :: build_gsi_ig
+    procedure, pass(self)      :: build_special_dp
 
   end type bc_t
 
@@ -113,6 +114,16 @@ module bc_mod
     module subroutine build_gsi_ig(self, sourceini, section, phase)
       class(bc_t),          intent(inout) :: self
       type(file_ini),       intent(inout) :: sourceini
+      character(len=*),     intent(in)    :: section
+      type(phase_t),        intent(in)    :: phase
+    end subroutine
+
+    !> A face of the 500 family (manifold, gsi) seen by one dispersed phase, in its slot k: a symmetry,
+    !> or an inlet on a solid-propellant grain that gives the phase's inlet keys (builder_500)
+    module subroutine build_special_dp(self, k, sourceini, section, phase)
+      class(bc_t),          intent(inout) :: self
+      integer,              intent(in)    :: k
+      type(file_ini),       intent(in)    :: sourceini
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
     end subroutine
@@ -192,7 +203,15 @@ contains
       return
 
     case(trim(MARKER_MANIFOLD))
-      call build_manifold(self, sourceini, section, phase)
+      ! A dispersed phase does not follow a manifold: a symmetry in its own slot (write_dp_bc prints the slot's
+      ! id where the fluid's file keeps 501). The fluid's record is built by the fluid phase alone: built
+      ! again for a dispersed phase of the block, its allocation stopped BCB.
+      if (phase % type == 'DP') then
+        k = self % dp_slot(phase % name)
+        call build_special_dp(self, k, sourceini, section, phase)
+      else
+        call build_manifold(self, sourceini, section, phase)
+      endif
       return
 
      ! case default
@@ -241,6 +260,9 @@ contains
 
       case (trim(MARKER_INLET), trim(MARKER_OUTLET))
         call build_inflow_outflow_dp(self, k, sourceini, section, phase)
+
+      case (trim(MARKER_GSI))
+        call build_special_dp(self, k, sourceini, section, phase)
 
       ! case default
       !   write(*,*) '[ERROR] BC definition ', trim(self % definition), ' not implemented for dispersed phase'
