@@ -49,9 +49,10 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                     mu = solution.viscosity
                     k = solution.thermal_conductivity
                 elif (model=='CEA'):
-                    for species in kwargs["database"]:
-                        if species['element'] == solution.species(n).name:
-                            mu, k = CEA_polynomials(T,species)
+                    # the record whose name or one of whose aliases is the species name, character by character
+                    record = kwargs["database"].get(species_name)
+                    if record is not None:
+                        mu, k = CEA_polynomials(T,record)
                 elif (model=='constant'):
                     mu = kwargs['mil'][n]
                     k = kwargs['kl'][n]
