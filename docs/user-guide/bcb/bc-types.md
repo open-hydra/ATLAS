@@ -808,6 +808,7 @@ the face stays a symmetry for that phase.
 | `a`, `n`, `pRef` | APN burn-rate law coefficients, `r = a (p/pRef)^n`: `a` the linear burn rate at `pRef` [m/s] |
 | `rhoGrain` | Propellant grain density |
 | `SF` | Geometric scale factor of the mass flux (default 1) |
+| `grain-bc` | How the solver applies the grain: `wall` (default), a wall that blows the products in; `inflow`, an inlet |
 | `eq-CEA-file` | CEA equilibrium file supplying flame temperature and composition |
 | `y<species>` | Injected species mass fractions |
 
@@ -824,10 +825,17 @@ BCB with the list of valid options.
 #### `gsi` — Solid propellant
 
 Grain burning with an APN burn-rate law, `r = a (p/pRef)^n`, `a` the linear burn rate at `pRef` [m/s]. BCB
-writes the propellant mass flux at `pRef`, `a × rhoGrain × SF` [kg m⁻² s⁻¹], as the second field of the `502`
-record: the solver takes the gas mass flux `ṁ″ = (a rhoGrain SF) (p/pRef)^n` from it (MOSE does not multiply by
-`rhoGrain` or `SF`, which follow in the record). The adiabatic flame
-temperature and the injected composition come from the CEA equilibrium file.
+writes the propellant mass flux at `pRef`, `a × rhoGrain × SF` [kg m⁻² s⁻¹], as the first field of the `502`
+record: the solver takes the gas mass flux `ṁ″ = (a rhoGrain SF) (p/pRef)^n` from it (`rhoGrain` and `SF` are not
+written: the solver does not use them). The adiabatic flame temperature and the injected composition come from the
+CEA equilibrium file: without `eq-CEA-file` BCB writes `Taf = 0` with a `[WARNING]`, and MOSE refuses the record.
+
+`grain-bc` sets how the solver applies the grain, the mode of the record: `wall` (the default, mode 1) a wall that
+blows the products in at `Taf`; `inflow` (mode 2) an inlet, the mass-flux inlet at the static temperature `Taf`
+with the mass flux of the burn law, which takes the turbulence keys of the section (`nuTilde`; `k`, `omega`; `Rij`,
+`omega`) as an inlet does. BCB stops on `grain-bc = inflow` with `a = 0` (an inflow without a mass flux: a surface
+that does not burn is `grain-bc = wall` with `a = 0`), on `grain-bc = inflow` on a 2D mesh (x,y file), which Q2D
+reads (Q2D applies a grain as the blowing wall alone), and on a value other than `wall` and `inflow`.
 
 ```ini
 [grain]

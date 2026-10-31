@@ -75,6 +75,7 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exce
 | pRef | 1.0 |  |  no | Reference pressure for the burn law. |
 | rhoGrain | 0.0 |  |  no | Solid propellant density. |
 | SF | 1.0 |  |  no | Scale factor for the grain propellant. |
+| grain-bc | wall | wall, inflow |  no | How the solver applies a grain (BC 502, the mode of its record): wall, a wall that blows the products in at Taf; inflow, the mass-flux inlet at the static Taf with the mass flux of the burn law and the turbulence keys of the section. |
 | mach | 0.0 |  |  no | Ideal-gas Mach number. |
 | p0 | 0.0 |  |  no | Ideal-gas stagnation pressure. |
 | T0 | 0.0 |  |  no | Ideal-gas stagnation temperature. |
@@ -141,8 +142,6 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exce
 | n-file |  |  |  no | ASCII file providing varying values for n. |
 | pRef-file |  |  |  no | ASCII file providing varying values for pRef. |
 | rhoGrain-file |  |  |  no | ASCII file providing varying values for rhoGrain. |
-| Taf-file |  |  |  no | ASCII file providing varying values for Taf. |
-| SFgeo-file |  |  |  no | ASCII file providing varying values for SFgeo. |
 | SF-file |  |  |  no | ASCII file providing varying values for SF. |
 | mach-file |  |  |  no | ASCII file providing varying values for mach. |
 | p-file |  |  |  no | ASCII file providing varying values for p. |

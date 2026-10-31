@@ -314,16 +314,17 @@ the dispersed phases entering through the cell (see [Dispersed phase on a gsi fa
 
 | ID | Variant | Payload fields (in order) | Payload length |
 |----|---------|---------------------------|----------------|
-| `502` | Solid propellant | `Taf, a·rhoGrain·SF, n, pRef, rhoGrain, SF, massf(1:ns) [, turb…]` | `6 + ns [+ nrans]` |
+| `502` | Solid propellant | `a·rhoGrain·SF, n, pRef, Taf, mode, massf(1:ns) [, turb…]` | `5 + ns [+ nrans]` |
 | `503` | Melting | `cp, Tm, Ti, dh, qrad, eps, massf(1:ns)` | `6 + ns` |
 | `504` | Pyrolysis | `pyro, qrad, eps, massf(1:ns)` | `3 + ns` |
 | `505` | Surface reactions | `surf, qrad, eps` | `3` |
 | `506` | Pyrolysis + surface reactions | `pyro, surf, qrad, eps, massf(1:ns)` | `4 + ns` |
 
-Field key: `Taf` = adiabatic flame temperature [K]; `a·rhoGrain·SF` = the propellant mass flux at `pRef` [kg m⁻² s⁻¹], `a` the linear burn rate coefficient [m s⁻¹] (times `1 − krho_tot` with dispersed phases); `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `rhoGrain` = propellant grain density [kg m⁻³]; `SF` = geometric scale factor (default 1); `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
+Field key: `a·rhoGrain·SF` = the propellant mass flux at `pRef` [kg m⁻² s⁻¹], `a` the linear burn rate coefficient [m s⁻¹], `rhoGrain` the propellant grain density [kg m⁻³], `SF` the geometric scale factor (default 1) (times `1 − krho_tot` with dispersed phases); `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `Taf` = adiabatic flame temperature [K], of the `eq-CEA-file` (0 without it, which MOSE refuses); `mode` = `1` (`grain-bc = wall`), a wall that blows the products in, or `2` (`grain-bc = inflow`), an inlet; `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
 
-Only `502` carries a turbulence suffix, using the same layout as the inlet IDs
-(depends on `nrans`). `505` is the only GSI variant that writes **no** mass
+Only `502` in mode 2 (`grain-bc = inflow`) carries a turbulence suffix, using the same layout as the inlet IDs
+(depends on `nrans`); in mode 1 the solver sets the wall values itself. Mode 2 is refused on a 2D mesh (x,y file),
+which Q2D reads: Q2D applies a grain as the blowing wall alone. `505` is the only GSI variant that writes **no** mass
 fractions.
 
 !!! note "Model codes"

@@ -104,14 +104,15 @@ contains
 
 
     subroutine build_srm_ig
+      use grid_mod, only: mesh_cfg, MESH_PURE_2D
       implicit none
       real(R8) :: nuTilde, k, omega, Rij
-      real(R8) :: T0, a_srm, n_srm, pRef_srm, rhoGrain_srm, SFgeo_srm
+      real(R8) :: T0, a_srm, n_srm, pRef_srm, rhoGrain_srm, SFgeo_srm, mode
       integer  :: dim, start, nrans
 
       self%ig_id = 502
 
-      dim = 6
+      dim = 5
 
       self % ig_species = phase % species
       if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
@@ -129,6 +130,31 @@ contains
       rhoGrain_srm = cfg%rhoGrain
       SFgeo_srm = cfg%SF
 
+      ! grain-bc: how the solver applies the grain, the mode of the record. inflow carries the turbulence variables of
+      ! the section (an inlet of the solver); wall none (the solver sets the wall values)
+      select case (trim(adjustl(cfg%grain_bc)))
+      case ('wall')
+        mode = 1.0_R8
+        nrans = 0
+      case ('inflow')
+        mode = 2.0_R8
+        ! Q2D, the reader of the 2D meshes (x,y file), applies a grain as the blowing wall alone
+        if (mesh_cfg%meshType == MESH_PURE_2D) then
+          write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): grain-bc = inflow on a 2D mesh (x,y '// &
+            'file), which Q2D reads: its BC 502 is the wall that blows the products in alone (grain-bc = wall)'
+          stop 1
+        endif
+        if (.not. (a_srm > 0.0_R8)) then
+          write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): grain-bc = inflow needs a burn rate a > 0 '// &
+            '(an inflow with no mass flux; a surface that does not burn is grain-bc = wall with a = 0)'
+          stop 1
+        endif
+      case default
+        write(*,'(A)') '[ERROR] key grain-bc of section ['//trim(self%name)//']: "'//trim(cfg%grain_bc)// &
+          '" is neither wall (a wall that blows the products in) nor inflow (an inlet)'
+        stop 1
+      end select
+
       self % ig_n = dim + self % ig_species % n + nrans
       allocate(self % ig_properties(1:self % ig_n))
       allocate(self % ig_time(1:self % ig_n))
@@ -144,21 +170,20 @@ contains
       call check_composition(sourceini, section, self%ig_species, 'section ['//trim(self%name)//']')
       T0 = CEAT0
       if (T0 <= 0.0_R8 .and. first_warning(trim(self%name))) write(*,'(A)') '[WARNING] '//trim(self%name)// &
-        ' (gsi, BC 502): no eq-CEA-file, the adiabatic flame temperature Taf is written as 0 (the solver reads it'// &
-        ' as the grain gas temperature)'
+        ' (gsi, BC 502): no eq-CEA-file, the adiabatic flame temperature Taf is written as 0, which MOSE refuses'// &
+        ' (the grain gas enters at Taf): give the section its eq-CEA-file'
 
-      ! Property layout:
-      !   [1]      Taf        - adiabatic flame temperature [K]
-      !   [2]      a*rhoGrain*SF - the propellant mass flux at pRef [kg/(m2 s)]: a the linear burn rate
+      ! Property layout (MOSE: IO_BC, record 502):
+      !   [1]      a*rhoGrain*SF - the propellant mass flux at pRef [kg/(m2 s)]: a the linear burn rate
       !                           coefficient [m/s] of r = a (p/pRef)^n; the solver takes the mass flux as it is
-      !                           (MOSE: mdot = [2] (p/pRef)^n), times 1 - krho_tot with dispersed phases
+      !                           (MOSE: mdot = [1] (p/pRef)^n), times 1 - krho_tot with dispersed phases
       !                           (correct_grain_flux)
-      !   [3]      n          - burn rate pressure exponent
-      !   [4]      pRef       - reference pressure [Pa]
-      !   [5]      rhoGrain   - grain density [kg/m3]
-      !   [6]      SF         - scale factor (default 1)
-      !   [7..6+ns]           - species mass fractions
-      !   following           - turbulence variables
+      !   [2]      n          - burn rate pressure exponent
+      !   [3]      pRef       - reference pressure [Pa]
+      !   [4]      Taf        - adiabatic flame temperature [K], of the eq-CEA-file
+      !   [5]      mode       - 1 (grain-bc = wall): a wall that blows the products in; 2 (inflow): an inlet
+      !   [6..5+ns]           - species mass fractions
+      !   following           - with mode 2 only, the turbulence variables of the section
 
       if (n_srm == 0._R8) then
         write(*,*) '[ERROR] Burn rate exponent n required for SRM grain BC.'
@@ -169,12 +194,11 @@ contains
         stop 1
       endif
 
-      self%ig_properties(1) = T0            ! Taf: adiabatic flame temperature
-      self%ig_properties(2) = a_srm*rhoGrain_srm*SFgeo_srm   ! the propellant mass flux at pRef [kg/(m2 s)]
-      self%ig_properties(3) = n_srm         ! burn rate pressure exponent
-      self%ig_properties(4) = pRef_srm      ! reference pressure [Pa]
-      self%ig_properties(5) = rhoGrain_srm  ! grain density [kg/m3]
-      self%ig_properties(6) = SFgeo_srm     ! geometric safety factor
+      self%ig_properties(1) = a_srm*rhoGrain_srm*SFgeo_srm   ! the propellant mass flux at pRef [kg/(m2 s)]
+      self%ig_properties(2) = n_srm         ! burn rate pressure exponent
+      self%ig_properties(3) = pRef_srm      ! reference pressure [Pa]
+      self%ig_properties(4) = T0            ! Taf: adiabatic flame temperature
+      self%ig_properties(5) = mode          ! 1 a wall that blows the products in, 2 an inlet
 
       ! Mass fractions
       self % ig_properties(dim+1:dim+self % ig_species % n) = self % ig_species % massf
@@ -282,8 +306,8 @@ contains
   !> The gas flow of a solid-propellant grain (gsi, BC 502) that also injects dispersed phases: the propellant's
   !> flow is shared, the phases take krho_tot of it -- the sum of krho over every (material, population) pair of
   !> every dispersed phase entering through the cell (their 401 slots) -- and the gas the rest. The record's
-  !> second field, a*rhoGrain*SF, the propellant mass flux at pRef and the only factor of the gas flow (MOSE:
-  !> mdot = [2] (p/pRef)^n), is multiplied by 1 - krho_tot. Called once per face cell, after every phase of the
+  !> first field, a*rhoGrain*SF, the propellant mass flux at pRef and the only factor of the gas flow (MOSE:
+  !> mdot = [1] (p/pRef)^n), is multiplied by 1 - krho_tot. Called once per face cell, after every phase of the
   !> block has been built on it.
   module procedure correct_grain_flux
     implicit none
@@ -303,7 +327,7 @@ contains
         'krho = '//trim(adjustl(txt))//' of its flow, 1 or more: no gas is left (the gas takes 1 - krho of it)'
       stop 1
     endif
-    self % ig_properties(2) = self % ig_properties(2) * (1.0_R8 - krho_tot)
+    self % ig_properties(1) = self % ig_properties(1) * (1.0_R8 - krho_tot)
 
   end procedure correct_grain_flux
 

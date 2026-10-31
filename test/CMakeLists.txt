@@ -1244,9 +1244,10 @@ set_tests_properties(DP-axis-refused PROPERTIES
 # carries 300 on the manifold and on every gsi patch but the grain that gives drop's keys, which injects drop as an
 # inlet does (401). gas-bc.txt is the fluid's file without drop -- what the BCB of 3fc73f4 writes for the deck
 # without drop and its keys (with drop that BCB stopped on the manifold, allocating its record twice) but for the
-# second field of the 502 records, the propellant mass flux a*rhoGrain*SF (that BCB wrote a), times 1 - 0.2 on the
-# grain with drop's keys: computed, compared at 1e-12. check_codes.py pins the codes per face and patch, that
-# field and the 401 payload, independently of the references.
+# 502 records, mdot_ref n pRef Taf mode and the mass fractions (that BCB wrote Taf a n pRef rhoGrain SF and the mass
+# fractions): mdot_ref the propellant mass flux a*rhoGrain*SF (that BCB wrote a), times 1 - 0.2 on the grain with
+# drop's keys, mode 1: computed, compared at 1e-12. check_codes.py pins the codes per face and patch, that field,
+# the mode and the length of the 502 line, and the 401 payload, independently of the references.
 add_test(
     NAME    DP-gsi-manifold
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && diff fromATLAStoSolver/drop-bc.txt reference/drop-bc.txt && python3 -B check_codes.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/drop-bc.txt"
@@ -1279,12 +1280,15 @@ set_tests_properties(DP-gsi-keys-refused PROPERTIES
 # phase file: three (material, population) pairs). The gas of a solid-propellant grain (502) takes the flow left by
 # every pair of every phase entering through it: the record's propellant mass flux a*rhoGrain*SF (0.0052 x 1750 x SF)
 # times 1 - krho_tot, 0.8 with drop alone (face 3), 0.63 with drop and ash's 0.05 0.1 0.02 on a grain of SF 1.25
-# (face 4). check_flows.py checks that field and the 401 records of both phases, one krho per copy of ash's table.
+# (face 4). check_flows.py checks that field, the rest of the 502 line (n pRef Taf, mode 1, the mass fractions, no
+# turbulence variable) and the 401 records of both phases, one krho per copy of ash's table.
 # _run-full: ash's krho raised to a krho_tot of 1.1, refused, no file; _run-gp: drop-gp (a mass flux, BC 403) on
-# the grain, refused, no file.
+# the grain, refused, no file; _run-inflow: grain-bc = inflow and nuTilde in both grains: mode 2 and nuTilde after
+# the mass fractions, the same mass fluxes; _run-inflow-a0: an inflow grain with a = 0, refused, no file;
+# _run-grain-bc: grain-bc = inflw, refused by the allowed values of the key, no file.
 add_test(
     NAME    DP-gsi-grain-flow
-    COMMAND bash -c "rm -rf fromATLAStoSolver _run-full _run-gp && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_flows.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/drop-bc.txt fromATLAStoSolver/ash-bc.txt && mkdir _run-full && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-full/ && cd _run-full && sed -i 's/^ash-krho  = 0.05 0.1 0.02$/ash-krho  = 0.4 0.3 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] section [grain-both] (gsi, BC 502): the dispersed phases entering the grain take krho = 1.10000E+00' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-gp && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-gp/ && cd _run-gp && sed -i '0,/^drop-krho = 0.2$/s//drop-gp   = 10.0/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-gp of section [grain-drop]: not honoured by BC 502 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-full _run-gp _run-inflow _run-inflow-a0 _run-grain-bc && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_flows.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/drop-bc.txt fromATLAStoSolver/ash-bc.txt && mkdir _run-full && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-full/ && cd _run-full && sed -i 's/^ash-krho  = 0.05 0.1 0.02$/ash-krho  = 0.4 0.3 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] section [grain-both] (gsi, BC 502): the dispersed phases entering the grain take krho = 1.10000E+00' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-gp && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-gp/ && cd _run-gp && sed -i '0,/^drop-krho = 0.2$/s//drop-gp   = 10.0/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-gp of section [grain-drop]: not honoured by BC 502 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-inflow && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-inflow/ && cd _run-inflow && sed -i 's/^rhoGrain  = 1750.0$/rhoGrain  = 1750.0\\ngrain-bc  = inflow\\nnuTilde   = 1.5e-5/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_flows.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/drop-bc.txt fromATLAStoSolver/ash-bc.txt --inflow 1.5e-5 && cd .. && mkdir _run-inflow-a0 && cp _run-inflow/input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-inflow-a0/ && cd _run-inflow-a0 && sed -i '0,/^a         = 0.0052$/s//a         = 0.0/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] section [grain-drop] (gsi, BC 502): grain-bc = inflow needs a burn rate a > 0' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-grain-bc && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-grain-bc/ && cd _run-grain-bc && sed -i '0,/^rhoGrain  = 1750.0$/s//rhoGrain  = 1750.0\\ngrain-bc  = inflw/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key grain-bc of section [grain-drop]: value inflw not allowed (allowed: wall, inflow)' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-gsi-grain-flow"
 )
 set_tests_properties(DP-gsi-grain-flow PROPERTIES
@@ -1452,6 +1456,21 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D-inlet-408-refused"
 )
 set_tests_properties(IG-2D-inlet-408-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-2D-grain-inflow-refused (a grain with grain-bc = inflow on a pure 2-D mesh stops BCB: Q2D, which reads 2-D meshes, applies BC 502 as the blowing wall alone; nothing is written) -------------
+# IG-2D-inlet-408-refused's mesh and phase, face 1 a solid-propellant grain (gsi) with grain-bc = inflow and nuTilde.
+# _run-wall: the grain without grain-bc (wall, the default) writes 502 on every cell of face 1, a line of 6 fields
+# (mdot_ref = 0.0052 x 1750, n, pRef, Taf, mode 1, the mass fraction of O2), no turbulence variable.
+add_test(
+    NAME    IG-2D-grain-inflow-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-wall; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] section [grain] (gsi, BC 502): grain-bc = inflow on a 2D mesh (x,y file), which Q2D reads: its BC 502 is the wall that blows the products in alone (grain-bc = wall)' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt && mkdir _run-wall && cp input.ini mesh.tec phase.txt _run-wall/ && cd _run-wall && sed -i '/^grain-bc = inflow$/d' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk '/^ *[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +502 *$/ {getline; gsub(\",\", \" \"); n = split($0, t, \" \"); if (n == 6 && t[1] + 0 == 9.1 && t[5] + 0 == 1) ok = 1; else bad = 1} END {exit !(ok && !bad)}' fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D-grain-inflow-refused"
+)
+set_tests_properties(IG-2D-grain-inflow-refused PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
