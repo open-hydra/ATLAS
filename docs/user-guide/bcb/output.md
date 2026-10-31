@@ -323,8 +323,8 @@ the dispersed phases entering through the cell (see [Dispersed phase on a gsi fa
 Field key: `a·rhoGrain·SF` = the propellant mass flux at `pRef` [kg m⁻² s⁻¹], `a` the linear burn rate coefficient [m s⁻¹], `rhoGrain` the propellant grain density [kg m⁻³], `SF` the geometric scale factor (default 1) (times `1 − krho_tot` with dispersed phases); `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `Taf` = adiabatic flame temperature [K], of the `eq-CEA-file` (0 without it, which MOSE refuses), the total temperature of the products for the solver; `mode` = `1` (`grain-bc = wall`), a wall that blows the products in, or `2` (`grain-bc = inflow`), an inlet; `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
 
 Only `502` in mode 2 (`grain-bc = inflow`) carries a turbulence suffix, using the same layout as the inlet IDs
-(depends on `nrans`); in mode 1 the solver sets the wall values itself. Mode 2 is refused on a 2D mesh (x,y file),
-which Q2D reads: Q2D applies a grain as the blowing wall alone. `505` is the only GSI variant that writes **no** mass
+(depends on `nrans`; 5 bands of a Reynolds-stress model on a 2D mesh, x,y file, as the inlets); in mode 1 the solver
+sets the wall values itself. `505` is the only GSI variant that writes **no** mass
 fractions.
 
 !!! note "Model codes"

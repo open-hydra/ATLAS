@@ -836,8 +836,8 @@ the products, in both modes (they enter with the total enthalpy h(`Taf`), that o
 blows the products in; `inflow` (mode 2) an inlet, the mass-flux inlet with the mass flux of the burn law, which takes
 the turbulence keys of the section (`nuTilde`; `k`, `omega`; `Rij`, `omega`) as an inlet does. BCB stops on
 `grain-bc = inflow` with `a = 0` (an inflow without a mass flux: a surface that does not burn is `grain-bc = wall`
-with `a = 0`), on `grain-bc = inflow` on a 2D mesh (x,y file), which Q2D reads (Q2D applies a grain as the blowing
-wall alone), and on a value other than `wall` and `inflow`.
+with `a = 0`) and on a value other than `wall` and `inflow`. MOSE and Q2D (the solver of the 2D meshes, x,y file)
+read both modes.
 
 ```ini
 [grain]

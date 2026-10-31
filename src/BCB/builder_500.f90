@@ -138,12 +138,9 @@ contains
         nrans = 0
       case ('inflow')
         mode = 2.0_R8
-        ! Q2D, the reader of the 2D meshes (x,y file), applies a grain as the blowing wall alone
-        if (mesh_cfg%meshType == MESH_PURE_2D) then
-          write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): grain-bc = inflow on a 2D mesh (x,y '// &
-            'file), which Q2D reads: its BC 502 is the wall that blows the products in alone (grain-bc = wall)'
-          stop 1
-        endif
+        ! the 5 bands of an inflow of Q2D, the reader of the 2D meshes (x,y file), as BC 401-404 (build_400ig):
+        ! R11 R22 R33 R12 omega
+        if (nrans == 7 .and. mesh_cfg%meshType == MESH_PURE_2D) nrans = 5
         if (.not. (a_srm > 0.0_R8)) then
           write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): grain-bc = inflow needs a burn rate a > 0 '// &
             '(an inflow with no mass flux; a surface that does not burn is grain-bc = wall with a = 0)'
@@ -213,10 +210,11 @@ contains
         self%ig_properties(start+1) = k
         self%ig_properties(start+2) = omega
 
-      elseif (nrans==7) then
+      elseif (nrans==7 .or. nrans==5) then
+        ! 7 bands: R11 R22 R33 R12 R13 R23 omega; 5 bands (pure-2D mesh, mode 2): R11 R22 R33 R12 omega
         self%ig_properties(start+1:start+3) = Rij
-        self%ig_properties(start+4:start+6) = 1d-8
-        self%ig_properties(start+7) = omega
+        self%ig_properties(start+4:start+nrans-1) = 1d-8
+        self%ig_properties(start+nrans) = omega
 
       endif
 

@@ -1461,16 +1461,17 @@ set_tests_properties(IG-2D-inlet-408-refused PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- BCB : IG-2D-grain-inflow-refused (a grain with grain-bc = inflow on a pure 2-D mesh stops BCB: Q2D, which reads 2-D meshes, applies BC 502 as the blowing wall alone; nothing is written) -------------
-# IG-2D-inlet-408-refused's mesh and phase, face 1 a solid-propellant grain (gsi) with grain-bc = inflow and nuTilde.
-# _run-wall: the grain without grain-bc (wall, the default) writes 502 on every cell of face 1, a line of 6 fields
-# (mdot_ref = 0.0052 x 1750, n, pRef, Taf, mode 1, the mass fraction of O2), no turbulence variable.
+# ---- BCB : IG-2D-grain-inflow (a grain on a pure 2-D mesh, which Q2D reads, in both modes) -------------
+# IG-2D-inlet-408-refused's mesh and phase, face 1 a solid-propellant grain (gsi) with grain-bc = inflow and nuTilde:
+# 502 on the three cells of face 1, mode 2 (mdot_ref = 0.0052 x 1750, n, pRef, Taf, 2, the mass fraction of O2,
+# nuTilde); _run-rsm: Rij and omega instead, the 5 bands of an inflow of Q2D (R11 R22 R33 R12 omega); _run-wall:
+# grain-bc left out (wall), mode 1, 6 fields, no turbulence variable although the deck gives nuTilde (check_2d.py).
 add_test(
-    NAME    IG-2D-grain-inflow-refused
-    COMMAND bash -c "rm -rf fromATLAStoSolver _run-wall; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] section [grain] (gsi, BC 502): grain-bc = inflow on a 2D mesh (x,y file), which Q2D reads: its BC 502 is the wall that blows the products in alone (grain-bc = wall)' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt && mkdir _run-wall && cp input.ini mesh.tec phase.txt _run-wall/ && cd _run-wall && sed -i '/^grain-bc = inflow$/d' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk '/^ *[0-9]+ +[0-9]+ +[0-9]+ +[0-9]+ +502 *$/ {getline; gsub(\",\", \" \"); n = split($0, t, \" \"); if (n == 6 && t[1] + 0 == 9.1 && t[5] + 0 == 1) ok = 1; else bad = 1} END {exit !(ok && !bad)}' fromATLAStoSolver/bc.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D-grain-inflow-refused"
+    NAME    IG-2D-grain-inflow
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-rsm _run-wall && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_2d.py fromATLAStoSolver/bc.txt 2 1.5e-5 && mkdir _run-rsm && cp input.ini mesh.tec phase.txt _run-rsm/ && cd _run-rsm && sed -i 's/^nuTilde  = 1.5e-5$/Rij      = 1.0e-3\\nomega    = 1.0e3/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 2 1e-3 1e-3 1e-3 1e-8 1e3 && cd .. && mkdir _run-wall && cp input.ini mesh.tec phase.txt _run-wall/ && cd _run-wall && sed -i '/^grain-bc = inflow$/d' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 1"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D-grain-inflow"
 )
-set_tests_properties(IG-2D-grain-inflow-refused PROPERTIES
+set_tests_properties(IG-2D-grain-inflow PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
