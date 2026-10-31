@@ -171,7 +171,7 @@ contains
       T0 = CEAT0
       if (T0 <= 0.0_R8 .and. first_warning(trim(self%name))) write(*,'(A)') '[WARNING] '//trim(self%name)// &
         ' (gsi, BC 502): no eq-CEA-file, the adiabatic flame temperature Taf is written as 0, which MOSE refuses'// &
-        ' (the grain gas enters at Taf): give the section its eq-CEA-file'
+        ' (the total temperature of the grain gas): give the section its eq-CEA-file'
 
       ! Property layout (MOSE: IO_BC, record 502):
       !   [1]      a*rhoGrain*SF - the propellant mass flux at pRef [kg/(m2 s)]: a the linear burn rate
@@ -180,7 +180,8 @@ contains
       !                           (correct_grain_flux)
       !   [2]      n          - burn rate pressure exponent
       !   [3]      pRef       - reference pressure [Pa]
-      !   [4]      Taf        - adiabatic flame temperature [K], of the eq-CEA-file
+      !   [4]      Taf        - adiabatic flame temperature [K], of the eq-CEA-file: the solver takes it as the total
+      !                           temperature of the products (MOSE: they enter with the total enthalpy h(Taf))
       !   [5]      mode       - 1 (grain-bc = wall): a wall that blows the products in; 2 (inflow): an inlet
       !   [6..5+ns]           - species mass fractions
       !   following           - with mode 2 only, the turbulence variables of the section

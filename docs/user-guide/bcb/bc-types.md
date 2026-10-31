@@ -829,13 +829,15 @@ writes the propellant mass flux at `pRef`, `a × rhoGrain × SF` [kg m⁻² s⁻
 record: the solver takes the gas mass flux `ṁ″ = (a rhoGrain SF) (p/pRef)^n` from it (`rhoGrain` and `SF` are not
 written: the solver does not use them). The adiabatic flame temperature and the injected composition come from the
 CEA equilibrium file: without `eq-CEA-file` BCB writes `Taf = 0` with a `[WARNING]`, and MOSE refuses the record.
+The flame temperature of the equilibrium is that of the gas at rest: MOSE takes `Taf` as the **total** temperature of
+the products, in both modes (they enter with the total enthalpy h(`Taf`), that of the propellant).
 
 `grain-bc` sets how the solver applies the grain, the mode of the record: `wall` (the default, mode 1) a wall that
-blows the products in at `Taf`; `inflow` (mode 2) an inlet, the mass-flux inlet at the static temperature `Taf`
-with the mass flux of the burn law, which takes the turbulence keys of the section (`nuTilde`; `k`, `omega`; `Rij`,
-`omega`) as an inlet does. BCB stops on `grain-bc = inflow` with `a = 0` (an inflow without a mass flux: a surface
-that does not burn is `grain-bc = wall` with `a = 0`), on `grain-bc = inflow` on a 2D mesh (x,y file), which Q2D
-reads (Q2D applies a grain as the blowing wall alone), and on a value other than `wall` and `inflow`.
+blows the products in; `inflow` (mode 2) an inlet, the mass-flux inlet with the mass flux of the burn law, which takes
+the turbulence keys of the section (`nuTilde`; `k`, `omega`; `Rij`, `omega`) as an inlet does. BCB stops on
+`grain-bc = inflow` with `a = 0` (an inflow without a mass flux: a surface that does not burn is `grain-bc = wall`
+with `a = 0`), on `grain-bc = inflow` on a 2D mesh (x,y file), which Q2D reads (Q2D applies a grain as the blowing
+wall alone), and on a value other than `wall` and `inflow`.
 
 ```ini
 [grain]

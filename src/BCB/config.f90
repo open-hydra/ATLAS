@@ -1237,8 +1237,9 @@ contains
       call bcb_registry%add('bc-section', 'rhoGrain', gsi_cfg%rhoGrain, '0.0', 'Solid propellant density.', '', .false.)
       call bcb_registry%add('bc-section', 'SF', gsi_cfg%SF, '1.0',  'Scale factor for the grain propellant.', '', .false.)
       call bcb_registry%add('bc-section', 'grain-bc', gsi_cfg%grain_bc, 'wall', 'How the solver applies a grain (BC 502, '// &
-        'the mode of its record): wall, a wall that blows the products in at Taf; inflow, the mass-flux inlet at the '// &
-        'static Taf with the mass flux of the burn law and the turbulence keys of the section.', 'wall, inflow', .false.)
+        'the mode of its record): wall, a wall that blows the products in; inflow, the mass-flux inlet with the mass '// &
+        'flux of the burn law and the turbulence keys of the section. Taf is the total temperature of the products in '// &
+        'both.', 'wall, inflow', .false.)
     end subroutine add_gsi_entries
 
     subroutine add_variable_file_entries()
