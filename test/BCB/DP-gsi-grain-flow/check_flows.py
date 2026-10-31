@@ -4,14 +4,15 @@
     check_flows.py <gas-bc.txt> <drop-bc.txt> <ash-bc.txt>
 
 One block of 50 x 20 cells and one layer (IG-ablation's mesh). gas-bc.txt: 502 on faces 3 and 4, whose second
-field a is 0.0052 x (1 - krho_tot): 0.8 on face 3 (drop 0.2), 0.63 on face 4 (drop 0.2, ash 0.05 + 0.1 + 0.02).
+field, the propellant mass flux a*rhoGrain*SF = 0.0052 x 1750 x 1, is times 1 - krho_tot: 0.8 on face 3 (drop 0.2),
+0.63 on face 4 (drop 0.2, ash 0.05 + 0.1 + 0.02), whose grain has SF = 1.25.
 drop-bc.txt (one copy of the table): 401 with krho 0.2 on faces 3 and 4. ash-bc.txt (three copies: alumina's two
 populations, then water's): 300 on face 3, 401 on face 4 with krho 0.05, 0.1, 0.02 in copies 1, 2, 3. Faces 1
 and 2 are symmetries (300) and faces 5 and 6 null (0) in every file.
 """
 import sys
 
-A = 0.0052
+A = 0.0052 * 1750.0        # a*rhoGrain*SF: the propellant mass flux at pRef [kg/(m2 s)]
 NCELL = 2 * 20 + 2 * 50 + 2 * 1000          # the boundary cells of one copy of the table
 
 
@@ -48,9 +49,9 @@ def main(gas_path, drop_path, ash_path):
             bad.append(f"gas face {f} i={i} j={j}: {code}, expected {want}")
         elif code == 502:
             a = float(fields(pay[0])[1])
-            ref = A * (1.0 - 0.2) if f == 3 else A * (1.0 - (0.2 + 0.05 + 0.1 + 0.02))
+            ref = A * (1.0 - 0.2) if f == 3 else A * 1.25 * (1.0 - (0.2 + 0.05 + 0.1 + 0.02))
             if abs(a - ref) > 1e-12 * ref:
-                bad.append(f"gas face {f} i={i}: a = {a!r}, expected {ref!r}")
+                bad.append(f"gas face {f} i={i}: a*rhoGrain*SF = {a!r}, expected {ref!r}")
 
     def check_dp(name, recs, copy, krho_face3, krho_face4):
         for (i, j, k, f, code, pay) in recs:
@@ -76,7 +77,7 @@ def main(gas_path, drop_path, ash_path):
     if bad:
         print(f"[FAIL] {len(bad)} record(s)")
         return 1
-    print("gas a: face 3 = 0.0052 x 0.8, face 4 = 0.0052 x 0.63 (50 cells each); drop 401 on faces 3-4; "
+    print("gas a*rhoGrain*SF: face 3 = 9.1 x 0.8, face 4 = 9.1 x 1.25 x 0.63 (50 cells each); drop 401 on faces 3-4; "
           "ash 300 on face 3, 401 on face 4 with krho 0.05 / 0.1 / 0.02 in its three copies [PASS]")
     return 0
 

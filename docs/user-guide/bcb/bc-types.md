@@ -756,9 +756,10 @@ phase (`<phase>-krho`, `<phase>-gp`, `<phase>-Vp`, `<phase>-Tp`, `<phase>-dp`, .
 face would, with the same keys and defaults, as a `401` record (the inlet payload).
 
 The grain's flow is then shared: every (material, population) pair of every dispersed phase entering through the
-face takes the fraction `krho` of it, and the gas the rest. BCB writes the `502` record with
-`a × (1 − krho_tot)`, `krho_tot` the sum of those `krho` on the cell (a `krho` profile file is summed cell by cell);
-`a` is the only factor of the gas flow the solver computes from the record (MOSE: `ṁ = a (p/pRef)^n`). A phase
+face takes the fraction `krho` of it, and the gas the rest. BCB writes the propellant mass flux of the `502`
+record ([Solid propellant](#gsi-solid-propellant)) times `1 − krho_tot`, `krho_tot` the sum of those `krho` on the
+cell (a `krho` profile file is summed cell by cell): it is the only factor of the gas flow the solver takes from the
+record. A phase
 given with a mass flux (`<phase>-gp`, records `402`/`403`) cannot be taken out of the burn-rate law and stops BCB
 (`[ERROR] key <phase>-gp of section [<s>]: not honoured by BC 502 (gsi): ...`), and so does a `krho_tot` of 1 or
 more (`[ERROR] section [<s>] (gsi, BC 502): the dispersed phases entering the grain take krho = ... of its flow, 1
@@ -804,9 +805,9 @@ the face stays a symmetry for that phase.
 | `T` | Melting temperature |
 | `Ti` | Ignition (initial) temperature |
 | `dh` | Heat of reaction (negative for an exothermic surface) |
-| `a`, `n`, `pRef` | APN burn-rate law coefficients, `r = a (p/pRef)^n` |
+| `a`, `n`, `pRef` | APN burn-rate law coefficients, `r = a (p/pRef)^n`: `a` the linear burn rate at `pRef` [m/s] |
 | `rhoGrain` | Propellant grain density |
-| `SF` | Geometric scale factor |
+| `SF` | Geometric scale factor of the mass flux (default 1) |
 | `eq-CEA-file` | CEA equilibrium file supplying flame temperature and composition |
 | `y<species>` | Injected species mass fractions |
 
@@ -822,7 +823,10 @@ BCB with the list of valid options.
 
 #### `gsi` — Solid propellant
 
-Grain burning with an APN burn-rate law, `r = a (p/pRef)^n`. The adiabatic flame
+Grain burning with an APN burn-rate law, `r = a (p/pRef)^n`, `a` the linear burn rate at `pRef` [m/s]. BCB
+writes the propellant mass flux at `pRef`, `a × rhoGrain × SF` [kg m⁻² s⁻¹], as the second field of the `502`
+record: the solver takes the gas mass flux `ṁ″ = (a rhoGrain SF) (p/pRef)^n` from it (MOSE does not multiply by
+`rhoGrain` or `SF`, which follow in the record). The adiabatic flame
 temperature and the injected composition come from the CEA equilibrium file.
 
 ```ini

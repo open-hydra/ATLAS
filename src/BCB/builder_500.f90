@@ -149,7 +149,10 @@ contains
 
       ! Property layout:
       !   [1]      Taf        - adiabatic flame temperature [K]
-      !   [2]      a          - burn rate pre-exponential coefficient
+      !   [2]      a*rhoGrain*SF - the propellant mass flux at pRef [kg/(m2 s)]: a the linear burn rate
+      !                           coefficient [m/s] of r = a (p/pRef)^n; the solver takes the mass flux as it is
+      !                           (MOSE: mdot = [2] (p/pRef)^n), times 1 - krho_tot with dispersed phases
+      !                           (correct_grain_flux)
       !   [3]      n          - burn rate pressure exponent
       !   [4]      pRef       - reference pressure [Pa]
       !   [5]      rhoGrain   - grain density [kg/m3]
@@ -167,7 +170,7 @@ contains
       endif
 
       self%ig_properties(1) = T0            ! Taf: adiabatic flame temperature
-      self%ig_properties(2) = a_srm         ! burn rate coefficient
+      self%ig_properties(2) = a_srm*rhoGrain_srm*SFgeo_srm   ! the propellant mass flux at pRef [kg/(m2 s)]
       self%ig_properties(3) = n_srm         ! burn rate pressure exponent
       self%ig_properties(4) = pRef_srm      ! reference pressure [Pa]
       self%ig_properties(5) = rhoGrain_srm  ! grain density [kg/m3]
@@ -229,7 +232,7 @@ contains
           write(id_txt,'(I0)') self % dp(k) % id
           write(*,'(A)') '[ERROR] key '//trim(prefix(phase))//'gp of section ['//trim(self % name)//']: not honoured by '// &
             'BC 502 (gsi): a solid-propellant grain injects the dispersed phase '//trim(phase % name)//' with '// &
-            trim(prefix(phase))//'krho, a fraction of its flow (the gas takes the rest, a x (1 - krho)), not with a '// &
+            trim(prefix(phase))//'krho, a fraction of its flow (the gas takes the rest), not with a '// &
             'mass flux (BC '//trim(id_txt)//')'
           stop 1
         endif
@@ -278,9 +281,10 @@ contains
 
   !> The gas flow of a solid-propellant grain (gsi, BC 502) that also injects dispersed phases: the propellant's
   !> flow is shared, the phases take krho_tot of it -- the sum of krho over every (material, population) pair of
-  !> every dispersed phase entering through the cell (their 401 slots) -- and the gas the rest. The record's a,
-  !> the propellant mass flux at pRef and the only factor of the gas flow (MOSE: mdot = a (p/pRef)^n), is
-  !> multiplied by 1 - krho_tot. Called once per face cell, after every phase of the block has been built on it.
+  !> every dispersed phase entering through the cell (their 401 slots) -- and the gas the rest. The record's
+  !> second field, a*rhoGrain*SF, the propellant mass flux at pRef and the only factor of the gas flow (MOSE:
+  !> mdot = [2] (p/pRef)^n), is multiplied by 1 - krho_tot. Called once per face cell, after every phase of the
+  !> block has been built on it.
   module procedure correct_grain_flux
     implicit none
     real(R8) :: krho_tot
@@ -296,7 +300,7 @@ contains
     if (.not. (krho_tot < 1.0_R8)) then
       write(txt,'(ES12.5)') krho_tot
       write(*,'(A)') '[ERROR] section ['//trim(self % name)//'] (gsi, BC 502): the dispersed phases entering the grain take '// &
-        'krho = '//trim(adjustl(txt))//' of its flow, 1 or more: no gas is left (the gas flow is a x (1 - krho))'
+        'krho = '//trim(adjustl(txt))//' of its flow, 1 or more: no gas is left (the gas takes 1 - krho of it)'
       stop 1
     endif
     self % ig_properties(2) = self % ig_properties(2) * (1.0_R8 - krho_tot)

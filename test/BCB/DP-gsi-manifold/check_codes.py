@@ -8,7 +8,8 @@ drawing on face 2, face 2 a symmetry, face 3 (j = 1) the grain with drop's keys 
 i 26-50, face 4 (j = 20) melting i 1-12, pyrolysis 13-25, surface reactions 26-37, both 38-50; faces 5 and 6
 (the layer's planes) are null. Expected:
   gas-bc.txt   501 (payload: block 1, face 2), 300, 502 on all of face 3, 503/504/505/506 on face 4, 0; the 502
-               record's a (its second field) 0.0052 x (1 - 0.2) on the grain with drop's keys, 0.0052 without
+               record's second field, the propellant mass flux a*rhoGrain*SF = 0.0052 x 1750 x 1, times 1 - 0.2 on
+               the grain with drop's keys
   drop-bc.txt  300 on faces 1, 2 and 4 and on the grain without drop's keys, 401 on the grain with them
                (krho 0.2, kV 0.9, normal direction, kT 1.0, rp 1e-5 from drop-dp 2e-5, sigmap 0, Dirac,
                ds 0), 0 on faces 5 and 6; no payload but the 401's.
@@ -67,9 +68,9 @@ def main(gas_path, dp_path):
             bad += 1
         if cg == 502:
             a = float(pg[0].replace(",", " ").split()[1])
-            want = 0.0052 * (1.0 - 0.2) if i <= 25 else 0.0052
+            want = 0.0052 * 1750.0 * (1.0 - 0.2) if i <= 25 else 0.0052 * 1750.0
             if abs(a - want) > 1e-12 * want:
-                print(f"[FAIL] 502 at i={i}: a = {a!r}, expected {want!r}")
+                print(f"[FAIL] 502 at i={i}: a*rhoGrain*SF = {a!r}, expected {want!r}")
                 bad += 1
         if cg == 501 and [int(v) for v in pg[0].replace(",", " ").split()] != [1, 2]:
             print(f"[FAIL] manifold payload {pg}")
