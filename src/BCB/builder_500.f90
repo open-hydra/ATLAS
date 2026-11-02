@@ -130,6 +130,14 @@ contains
       rhoGrain_srm = cfg%rhoGrain
       SFgeo_srm = cfg%SF
 
+      ! a: required, the key a or an a-file whose range holds the cell (detect_bc_files gives the cell its value). A grain
+      ! without it was written with a = 0, a surface that does not burn, in silence; a = 0 given stays that surface
+      if (.not. cfg%has_a) then
+        write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): no burn rate coefficient a (the key a, '// &
+          'or an a-file whose range holds the face cell); a = 0 is a surface that does not burn (grain-bc = wall)'
+        stop 1
+      endif
+
       ! grain-bc: how the solver applies the grain, the mode of the record. inflow carries the turbulence variables of
       ! the section (an inlet of the solver); wall none (the solver sets the wall values)
       select case (trim(adjustl(cfg%grain_bc)))
@@ -201,21 +209,27 @@ contains
       ! Mass fractions
       self % ig_properties(dim+1:dim+self % ig_species % n) = self % ig_species % massf
 
-      ! Turbulence
+      ! Turbulence (mode 2 only, nrans = 0 in mode 1): a zero band under a model is reported, as on the inlets 401-404
       start = dim + self%ig_species%n
       if     (nrans==1) then
         self%ig_properties(start+1) = nuTilde
-
+        if (nuTilde <= 0._R8) &
+          call warn_turbulence_zero(self, 'gsi, BC 502, grain-bc = inflow', 'nuTilde', 'Spalart-Allmaras (nrans = 1)', &
+                                    'nuTilde')
       elseif (nrans==2) then
         self%ig_properties(start+1) = k
         self%ig_properties(start+2) = omega
-
+        if (k <= 0._R8 .or. omega <= 0._R8) &
+          call warn_turbulence_zero(self, 'gsi, BC 502, grain-bc = inflow', 'k or omega', 'k-omega (nrans = 2)', &
+                                    'k and omega')
       elseif (nrans==7 .or. nrans==5) then
         ! 7 bands: R11 R22 R33 R12 R13 R23 omega; 5 bands (pure-2D mesh, mode 2): R11 R22 R33 R12 omega
         self%ig_properties(start+1:start+3) = Rij
         self%ig_properties(start+4:start+nrans-1) = 1d-8
         self%ig_properties(start+nrans) = omega
-
+        if (Rij <= 0._R8 .or. omega <= 0._R8) &
+          call warn_turbulence_zero(self, 'gsi, BC 502, grain-bc = inflow', 'Rij or omega', &
+                                    'Reynolds-stress (nrans = 7)', 'Rij and omega')
       endif
 
     end subroutine build_srm_ig

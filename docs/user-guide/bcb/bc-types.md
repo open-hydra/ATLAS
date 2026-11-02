@@ -790,7 +790,7 @@ the face stays a symmetry for that phase.
 
 !!! warning "Solid propellant is the fallback"
     A section matching none of the four model combinations is built as a
-    propellant grain, and then fails on the missing `n`/`rhoGrain` checks rather
+    propellant grain, and then fails on the missing `a`/`n`/`rhoGrain` checks rather
     than reporting the unrecognised key set. If you meant to configure a
     pyrolysis or ablation surface and see a burn-rate error, check that `qrad`
     is set — every variant except solid propellant requires it.
@@ -805,7 +805,7 @@ the face stays a symmetry for that phase.
 | `T` | Melting temperature |
 | `Ti` | Ignition (initial) temperature |
 | `dh` | Heat of reaction (negative for an exothermic surface) |
-| `a`, `n`, `pRef` | APN burn-rate law coefficients, `r = a (p/pRef)^n`: `a` the linear burn rate at `pRef` [m/s] |
+| `a`, `n`, `pRef` | APN burn-rate law coefficients, `r = a (p/pRef)^n`: `a` the linear burn rate at `pRef` [m/s], required (`a = 0`: a surface that does not burn) |
 | `rhoGrain` | Propellant grain density |
 | `SF` | Geometric scale factor of the mass flux (default 1) |
 | `grain-bc` | How the solver applies the grain: `wall` (default), a wall that blows the products in; `inflow`, an inlet |
@@ -836,8 +836,9 @@ the products, in both modes (they enter with the total enthalpy h(`Taf`), that o
 blows the products in; `inflow` (mode 2) an inlet, the mass-flux inlet with the mass flux of the burn law, which takes
 the turbulence keys of the section (`nuTilde`; `k`, `omega`; `Rij`, `omega`) as an inlet does. BCB stops on
 `grain-bc = inflow` with `a = 0` (an inflow without a mass flux: a surface that does not burn is `grain-bc = wall`
-with `a = 0`) and on a value other than `wall` and `inflow`. MOSE and Q2D (the solver of the 2D meshes, x,y file)
-read both modes.
+with `a = 0`) and on a value other than `wall` and `inflow`. With `grain-bc = inflow` a turbulence band written as 0
+under a model (the keys of the model not given, `nrans` set) is reported with a `[WARNING]`, as on the inlets
+401–404. MOSE and Q2D (the solver of the 2D meshes, x,y file) read both modes.
 
 ```ini
 [grain]
@@ -879,7 +880,8 @@ N2 28.014000
 CEA-mixture 56.478204
 ```
 
-`n` and `rhoGrain` are mandatory — BCB stops if either is left at `0`.
+`a`, `n` and `rhoGrain` are mandatory. BCB stops on a grain without `a`, the key or an `a-file` whose range holds the
+face cell (`a = 0` given is a surface that does not burn, with `grain-bc = wall`), and on `n` or `rhoGrain` left at `0`.
 
 #### `gsi` — Melting
 

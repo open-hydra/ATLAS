@@ -1464,14 +1464,31 @@ set_tests_properties(IG-2D-inlet-408-refused PROPERTIES
 # ---- BCB : IG-2D-grain-inflow (a grain on a pure 2-D mesh, which Q2D reads, in both modes) -------------
 # IG-2D-inlet-408-refused's mesh and phase, face 1 a solid-propellant grain (gsi) with grain-bc = inflow and nuTilde:
 # 502 on the three cells of face 1, mode 2 (mdot_ref = 0.0052 x 1750, n, pRef, Taf, 2, the mass fraction of O2,
-# nuTilde); _run-rsm: Rij and omega instead, the 5 bands of an inflow of Q2D (R11 R22 R33 R12 omega); _run-wall:
-# grain-bc left out (wall), mode 1, 6 fields, no turbulence variable although the deck gives nuTilde (check_2d.py).
+# nuTilde), no WARNING of a zero turbulence band; _run-rsm: Rij and omega instead, the 5 bands of an inflow of Q2D
+# (R11 R22 R33 R12 omega); _run-wall: grain-bc left out (wall), mode 1, 6 fields, no turbulence variable although the
+# deck gives nuTilde (check_2d.py); _run-noturb: nrans = 1 in place of nuTilde, the band written as 0 with the WARNING
+# of the inlets 401-404.
 add_test(
     NAME    IG-2D-grain-inflow
-    COMMAND bash -c "rm -rf fromATLAStoSolver _run-rsm _run-wall && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_2d.py fromATLAStoSolver/bc.txt 2 1.5e-5 && mkdir _run-rsm && cp input.ini mesh.tec phase.txt _run-rsm/ && cd _run-rsm && sed -i 's/^nuTilde  = 1.5e-5$/Rij      = 1.0e-3\\nomega    = 1.0e3/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 2 1e-3 1e-3 1e-3 1e-8 1e3 && cd .. && mkdir _run-wall && cp input.ini mesh.tec phase.txt _run-wall/ && cd _run-wall && sed -i '/^grain-bc = inflow$/d' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 1"
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-rsm _run-wall _run-noturb && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && ! grep -q -F 'written into the inlet record' <<< \"$out\" && python3 -B check_2d.py fromATLAStoSolver/bc.txt 2 1.5e-5 && mkdir _run-rsm && cp input.ini mesh.tec phase.txt _run-rsm/ && cd _run-rsm && sed -i 's/^nuTilde  = 1.5e-5$/Rij      = 1.0e-3\\nomega    = 1.0e3/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 2 1e-3 1e-3 1e-3 1e-8 1e3 && cd .. && mkdir _run-wall && cp input.ini mesh.tec phase.txt _run-wall/ && cd _run-wall && sed -i '/^grain-bc = inflow$/d' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 1 && cd .. && mkdir _run-noturb && cp input.ini mesh.tec phase.txt _run-noturb/ && cd _run-noturb && sed -i 's/^nuTilde  = 1.5e-5$/nrans    = 1/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] grain (gsi, BC 502, grain-bc = inflow): nuTilde = 0 written into the inlet record under Spalart-Allmaras (nrans = 1)' <<< \"$out\" && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 2 0"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D-grain-inflow"
 )
 set_tests_properties(IG-2D-grain-inflow PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-grain-a-missing-refused (a solid-propellant grain without its burn rate coefficient a) -------------
+# IG-2D-grain-inflow's mesh and phase, face 1 a grain (gsi) as a wall (grain-bc left out) without a: BCB stops naming
+# the key and writes no bc.txt (the grain was written with a = 0, a surface that does not burn, in silence); _run-a0:
+# the same deck with a = 0 given, that surface: 502 on the three cells of face 1, mdot_ref 0, mode 1 (check_mdot.py).
+add_test(
+    NAME    IG-grain-a-missing-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-a0; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] section [grain] (gsi, BC 502): no burn rate coefficient a (the key a, or an a-file whose range holds the face cell)' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt && mkdir _run-a0 && cp input.ini mesh.tec phase.txt _run-a0/ && cd _run-a0 && sed -i 's/^n        = 0.35$/a        = 0.0\\nn        = 0.35/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_mdot.py fromATLAStoSolver/bc.txt 0 1"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-grain-a-missing-refused"
+)
+set_tests_properties(IG-grain-a-missing-refused PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
