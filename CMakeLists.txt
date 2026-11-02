@@ -22,10 +22,30 @@ if (NOT DEFINED FINER_PATH)
   set(FINER_PATH "${CMAKE_SOURCE_DIR}/lib/third_party/FiNeR" CACHE PATH "Path to FiNeR submodule")
 endif()
 
+# -------- Releases ATLAS is tested with --------
+# lib/cea and lib/third_party/FiNeR are pinned by their gitlinks; these releases are checked against the CEA
+# and FiNeR actually configured, CEA_PATH and FINER_PATH included (cmake/AddLibraries.cmake). Bump each
+# together with its submodule.
+set(ATLAS_CEA_VERSION "3.3.4")     # nasa/cea tag v3.3.4
+set(ATLAS_FINER_VERSION "2.3.0")   # szaghi/FiNeR tag v2.3.0
+# FiNeR's own dependencies (cmake/FiNeRDependencies.cmake). FREE fetches them as FiNeR's author does
+# (`fobis fetch`: the default branch of each); BACKUP checks out the releases below, which ATLAS builds
+# and passes its tests with. When an upstream change breaks ATLAS, set BACKUP here and commit it, or
+# configure one build with -DATLAS_FINER_DEPS=BACKUP (kept in its cache until -UATLAS_FINER_DEPS).
+if (NOT DEFINED ATLAS_FINER_DEPS)
+  set(ATLAS_FINER_DEPS "FREE")
+endif()
+set(ATLAS_FINER_BACKUP_PINS   # the releases MOSE and FUSS share (hydra sync of October 2026)
+  "PENF=v2.0.1"
+  "StringiFor=v1.8.0"
+  "FACE=v1.1.17"
+  "FLAP=v2.5.3"
+  "BeFoR64=v1.2.4")
+
 # This INCLUDE statement executes code that sets the compile flags for DEBUG,
-# RELEASE, and TESTING. You should  review this file and make sure the flags 
+# RELEASE, and TESTING. You should  review this file and make sure the flags
 # are to your liking.
-INCLUDE(${CMAKE_MODULE_PATH}/SetFortranFlags.cmake) 
+INCLUDE(${CMAKE_MODULE_PATH}/SetFortranFlags.cmake)
 # Locate and set parallelization libraries. There are some CMake peculiarities
 # taken care of here, such as the fact that the FindOpenMP routine doesn't know
 # about Fortran.
@@ -35,274 +55,18 @@ INCLUDE(${CMAKE_MODULE_PATH}/SetParallelizationLibrary.cmake)
 # Add the needed libraries and special compiler flags
 #####################################################
 
-# -------- Helper: initialize a git submodule from the correct git root --------
-macro(ensure_submodule_initialized SUBMOD_PATH)
-  if (NOT EXISTS "${SUBMOD_PATH}/CMakeLists.txt")
-    message(STATUS "Submodule at ${SUBMOD_PATH} not initialized. Attempting git submodule update --init...")
-    get_filename_component(_sm_parent "${SUBMOD_PATH}" DIRECTORY)
-    execute_process(
-      COMMAND git rev-parse --show-toplevel
-      WORKING_DIRECTORY "${_sm_parent}"
-      OUTPUT_VARIABLE _sm_git_root
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-      RESULT_VARIABLE _sm_git_result)
-    if(_sm_git_result EQUAL 0)
-      file(RELATIVE_PATH _sm_rel "${_sm_git_root}" "${SUBMOD_PATH}")
-      execute_process(
-        COMMAND git submodule update --init "${_sm_rel}"
-        WORKING_DIRECTORY "${_sm_git_root}"
-        RESULT_VARIABLE _sm_init_result)
-      if(NOT _sm_init_result EQUAL 0)
-        message(FATAL_ERROR "Failed to initialize submodule: ${SUBMOD_PATH}")
-      endif()
-    else()
-      message(FATAL_ERROR "Could not find git root for submodule: ${SUBMOD_PATH}")
-    endif()
-  endif()
-endmacro()
-
-# -------- Helper: check out FiNeR's dependencies at the commits ATLAS pins --------
-# FiNeR tracks none of the five libraries its CMakeLists adds from src/third_party/: each is cloned from
-# https://github.com/szaghi/<dep> if absent and moved to its pin if checked out at another commit; a
-# directory that holds files but no repository of its own is an error. Only a FiNeR inside this tree is
-# managed: an external FINER_PATH (--include-finer) keeps the dependencies its owner gave it.
-set(ATLAS_FINER_DEPENDENCIES
-  "PENF=4cb9d326c08f109ed5126d83c27e8e70c98b7eaa"
-  "StringiFor=b12f62bab32dde9fed99b697ef6eff4c120d77ec"
-  "FACE=da7b7407b51e56257a09970099997098e3a52d99"
-  "FLAP=a3741e61f360addf4772833d078619cb8b72e0e1"
-  "BeFoR64=c90ce9507a24e166ebaeed53d67bf26512bb9263")
-macro(ensure_finer_dependencies FINER_ROOT)
-  file(REAL_PATH "${FINER_ROOT}" _fd_root)
-  file(REAL_PATH "${CMAKE_SOURCE_DIR}" _fd_top)
-  file(RELATIVE_PATH _fd_rel "${_fd_top}" "${_fd_root}")
-  if ("${_fd_rel}" MATCHES "^\\.\\.")
-    message(STATUS "External FiNeR at ${_fd_root}: its dependencies are not managed by ATLAS")
-  else()
-    foreach(_fd_entry ${ATLAS_FINER_DEPENDENCIES})
-      string(REPLACE "=" ";" _fd_entry "${_fd_entry}")
-      list(GET _fd_entry 0 _fd_dep)
-      list(GET _fd_entry 1 _fd_pin)
-      set(_fd_dir "${_fd_root}/src/third_party/${_fd_dep}")
-      set(_fd_url "https://github.com/szaghi/${_fd_dep}")
-      set(_fd_files "")
-      if (EXISTS "${_fd_dir}")
-        file(GLOB _fd_files "${_fd_dir}/*" "${_fd_dir}/.*")
-      endif()
-      if (NOT _fd_files)
-        message(STATUS "FiNeR dependency ${_fd_dep} missing. Cloning ${_fd_url} at ${_fd_pin}...")
-        execute_process(COMMAND git clone "${_fd_url}" "${_fd_dir}" RESULT_VARIABLE _fd_result)
-        if (NOT _fd_result EQUAL 0)
-          message(FATAL_ERROR "Failed to clone FiNeR dependency ${_fd_dep} into ${_fd_dir}")
-        endif()
-      else()
-        execute_process(COMMAND git rev-parse --show-toplevel WORKING_DIRECTORY "${_fd_dir}"
-                        OUTPUT_VARIABLE _fd_git_root RESULT_VARIABLE _fd_result
-                        OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-        if (_fd_result EQUAL 0)
-          file(REAL_PATH "${_fd_git_root}" _fd_git_root)
-        endif()
-        if (NOT _fd_result EQUAL 0 OR NOT "${_fd_git_root}" STREQUAL "${_fd_dir}")
-          message(FATAL_ERROR "FiNeR dependency ${_fd_dir} exists but is not a git checkout: "
-                              "remove it to let ATLAS clone ${_fd_dep} at ${_fd_pin}.")
-        endif()
-      endif()
-      execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${_fd_dir}"
-                      OUTPUT_VARIABLE _fd_head OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-      if (NOT "${_fd_head}" STREQUAL "${_fd_pin}")
-        message(STATUS "FiNeR dependency ${_fd_dep} at '${_fd_head}', moving it to ${_fd_pin}...")
-        execute_process(COMMAND git cat-file -e "${_fd_pin}^{commit}" WORKING_DIRECTORY "${_fd_dir}"
-                        RESULT_VARIABLE _fd_result ERROR_QUIET)
-        if (NOT _fd_result EQUAL 0)
-          execute_process(COMMAND git fetch "${_fd_url}" "${_fd_pin}" WORKING_DIRECTORY "${_fd_dir}"
-                          RESULT_VARIABLE _fd_result)
-          if (NOT _fd_result EQUAL 0)
-            message(FATAL_ERROR "Failed to fetch ${_fd_pin} of FiNeR dependency ${_fd_dep} from ${_fd_url}")
-          endif()
-        endif()
-        execute_process(COMMAND git -c advice.detachedHead=false checkout --detach "${_fd_pin}"
-                        WORKING_DIRECTORY "${_fd_dir}" RESULT_VARIABLE _fd_result)
-        execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${_fd_dir}"
-                        OUTPUT_VARIABLE _fd_head OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-        if (NOT _fd_result EQUAL 0 OR NOT "${_fd_head}" STREQUAL "${_fd_pin}")
-          message(FATAL_ERROR "Failed to check out FiNeR dependency ${_fd_dep} at ${_fd_pin} in ${_fd_dir}")
-        endif()
-      endif()
-    endforeach()
-  endif()
-endmacro()
-
-# CEA
-# Release of nasa/cea ATLAS is tested with the tag lib/cea is pinned to.
-set(ATLAS_CEA_VERSION "3.3.4")
-set(ATLAS_CEA_TARGET "")
-set(ATLAS_CEA_SOURCE_DIR "")
-
-macro(ensure_cea_data_link)
-  if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/data")
-    message(STATUS "CEA data directory not found in ATLAS source; attempting to link from CEA source")
-    message(STATUS "CEA source directory: ${ATLAS_CEA_SOURCE_DIR}")
-    message(STATUS "CEA data directory: ${CEA_PATH}/data")
-    file(CREATE_LINK "${ATLAS_CEA_SOURCE_DIR}/data" "${CMAKE_CURRENT_SOURCE_DIR}/data" SYMBOLIC)
-    message(STATUS "Linked ATLAS data -> CEA data for compatibility")
-  endif()
-endmacro()
-
-if (NOT TARGET cea_core)
-  # Newer CEA/fbasics requires C abort-support symbols at link time.
-  set(CEA_ENABLE_BIND_C ON CACHE BOOL "Enable C language bindings" FORCE)
-  if (NOT DEFINED CEA_ENABLE_BIND_CXX)
-    set(CEA_ENABLE_BIND_CXX OFF CACHE BOOL "Enable C++ language bindings" FORCE)
-  endif()
-  if (NOT DEFINED CEA_ENABLE_BIND_PYTHON)
-    set(CEA_ENABLE_BIND_PYTHON OFF CACHE BOOL "Enable Python language bindings" FORCE)
-  endif()
-  if (NOT DEFINED CEA_ENABLE_BIND_MATLAB)
-    set(CEA_ENABLE_BIND_MATLAB OFF CACHE BOOL "Enable MatLab language bindings" FORCE)
-  endif()
-  if (NOT DEFINED CEA_ENABLE_BIND_EXCEL)
-    set(CEA_ENABLE_BIND_EXCEL OFF CACHE BOOL "Enable Excel language bindings" FORCE)
-  endif()
-
-  if (DEFINED CEA_PATH AND NOT "${CEA_PATH}" STREQUAL "")
-    set(ATLAS_CEA_SOURCE_DIR "${CEA_PATH}")
-    ensure_cea_data_link()
-    add_subdirectory("${CEA_PATH}" "${CMAKE_BINARY_DIR}/lib/cea")
-  elseif (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/lib/cea/CMakeLists.txt")
-    ensure_submodule_initialized("${CMAKE_CURRENT_SOURCE_DIR}/lib/cea")
-    set(ATLAS_CEA_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/cea")
-    ensure_cea_data_link()
-    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/lib/cea" "${CMAKE_BINARY_DIR}/lib/cea")
-  else()
-    message(FATAL_ERROR
-      "Could not find a CEA provider. Set CEA_PATH or initialize lib/cea.")
-  endif()
-endif()
-
-if (TARGET cea_core)
-  set(ATLAS_CEA_TARGET cea_core)
-else()
-  message(FATAL_ERROR "No supported CEA target was configured.")
-endif()
-
-# ORION
-if (NOT TARGET ORION)
-  if (DEFINED ORION_PATH AND NOT "${ORION_PATH}" STREQUAL "")
-    ensure_submodule_initialized("${ORION_PATH}")
-    set(orionD "${ORION_PATH}" "${CMAKE_BINARY_DIR}/lib/ORION")
-    add_subdirectory(${orionD})
-  else()
-    message(WARNING "ORION_PATH not defined; skipping ORION submodule initialization")
-  endif()
-endif()
-
-# FiNeR
-if (NOT TARGET FiNeR)
-  if (DEFINED FINER_PATH AND NOT "${FINER_PATH}" STREQUAL "")
-    ensure_submodule_initialized("${FINER_PATH}")
-    ensure_finer_dependencies("${FINER_PATH}")
-    set(finerD "${FINER_PATH}" "${CMAKE_BINARY_DIR}/lib/third_party/FiNeR")
-    add_subdirectory(${finerD})
-  else()
-    message(WARNING "FINER_PATH not defined; skipping FiNeR submodule initialization")
-  endif()
-endif()
+# CEA, ORION and FiNeR (with FiNeR's dependencies), then the check of their pins and releases
+INCLUDE(${CMAKE_MODULE_PATH}/AddLibraries.cmake)
 
 ############################################
 # Define the actual files and building rules
 ############################################
-
-# Check that each bundled submodule is checked out at the commit this ATLAS
-# commit records (a mismatch typically follows `git checkout <branch>` without
-# `git submodule update`): ATLAS would compile against a library version it was
-# not tested with. Example: with an ORION older than a770748 ICB reads no
-# variable names from the unquoted headers ATLAS writes, so the turbulence of an
-# ATLAS-written old solution is silently not adopted. Read-only git queries;
-# nothing is checked for tarballs, plain copies or paths outside this tree (for
-# CEA the version check below covers those). The hint syncs before updating: a
-# clone made before a submodule changed URL (lib/cea, from the MarcoGrossi92 fork
-# to nasa/cea) still fetches from the old one, which lacks the new pin.
-find_package(Git QUIET)
-# a mismatch is fatal; to build against a
-# work-in-progress checkout of a submodule (an ORION PR under test) configure with -DATLAS_PIN_CHECK=WARNING.
-set(ATLAS_PIN_CHECK "FATAL_ERROR" CACHE STRING "Severity of a submodule checkout that differs from the recorded pin: FATAL_ERROR (default) or WARNING")
-if (NOT ATLAS_PIN_CHECK STREQUAL "FATAL_ERROR" AND NOT ATLAS_PIN_CHECK STREQUAL "WARNING")
-  message(FATAL_ERROR "ATLAS_PIN_CHECK must be FATAL_ERROR or WARNING (got '${ATLAS_PIN_CHECK}')")
-endif()
-function(atlas_check_submodule_pin SUBMOD_PATH)
-  if (NOT GIT_FOUND OR "${SUBMOD_PATH}" STREQUAL "" OR NOT EXISTS "${SUBMOD_PATH}/.git")
-    return()
-  endif()
-  file(REAL_PATH "${SUBMOD_PATH}" _abs)
-  file(REAL_PATH "${CMAKE_SOURCE_DIR}" _top)
-  file(RELATIVE_PATH _rel "${_top}" "${_abs}")
-  if ("${_rel}" STREQUAL "" OR "${_rel}" MATCHES "^\\.\\.")
-    return()
-  endif()
-  set(_git ${CMAKE_COMMAND} -E env GIT_OPTIONAL_LOCKS=0 ${GIT_EXECUTABLE})
-  execute_process(COMMAND ${_git} ls-files -s -- "${_rel}" WORKING_DIRECTORY "${_top}"
-                  OUTPUT_VARIABLE _entry RESULT_VARIABLE _r1 ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-  execute_process(COMMAND ${_git} rev-parse --show-toplevel HEAD WORKING_DIRECTORY "${_abs}"
-                  OUTPUT_VARIABLE _head RESULT_VARIABLE _r2 ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-  if (NOT _r1 EQUAL 0 OR NOT _r2 EQUAL 0 OR NOT "${_entry}" MATCHES "^160000 ([0-9a-f]+) ")
-    return()   # not a registered submodule (gitlink) of this checkout
-  endif()
-  set(_pin "${CMAKE_MATCH_1}")
-  string(REPLACE "\n" ";" _head "${_head}")
-  list(LENGTH _head _n)
-  if (NOT _n EQUAL 2)
-    return()
-  endif()
-  list(GET _head 0 _root)
-  list(GET _head 1 _sha)
-  file(REAL_PATH "${_root}" _root)
-  if (NOT "${_root}" STREQUAL "${_abs}")
-    return()   # the directory has no repository of its own
-  endif()
-  if (NOT "${_sha}" STREQUAL "${_pin}")
-    # Name each commit by its nearest tag (v3.3.4, v3.3.0-6-g9ecd696); a pin not fetched yet stays a sha
-    string(SUBSTRING "${_pin}" 0 7 _pin_name)
-    string(SUBSTRING "${_sha}" 0 7 _sha_name)
-    execute_process(COMMAND ${_git} describe --tags "${_pin}" WORKING_DIRECTORY "${_abs}"
-                    OUTPUT_VARIABLE _pin_tag RESULT_VARIABLE _r3 ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-    execute_process(COMMAND ${_git} describe --tags "${_sha}" WORKING_DIRECTORY "${_abs}"
-                    OUTPUT_VARIABLE _sha_tag RESULT_VARIABLE _r4 ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-    if (_r3 EQUAL 0)
-      set(_pin_name "${_pin_tag}")
-    endif()
-    if (_r4 EQUAL 0)
-      set(_sha_name "${_sha_tag}")
-    endif()
-    message(${ATLAS_PIN_CHECK} "${_rel} is checked out at ${_sha_name}, but this ATLAS commit records ${_pin_name}. "
-                    "ATLAS would be built against a library version it was not tested with. "
-                    "Run `git submodule sync --recursive && git submodule update --init --recursive` and configure again "
-                    "(or configure with -DATLAS_PIN_CHECK=WARNING to build against this checkout on purpose).")
-  endif()
-endfunction()
-foreach(_sm "${ORION_PATH}" "${FINER_PATH}" "${ATLAS_CEA_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/lib/PiNeR")
-  atlas_check_submodule_pin("${_sm}")
-endforeach()
-
-# CEA from CEA_PATH (--include-cea) need not be this tree's submodule, so the check above may skip it:
-# compare the version its project() declares with the release ATLAS pins. Run for lib/cea too, so a
-# gitlink bumped without ATLAS_CEA_VERSION is caught. A cea_core provided by a parent project is its own.
-if (NOT "${ATLAS_CEA_SOURCE_DIR}" STREQUAL "")
-  get_directory_property(_cea_version DIRECTORY "${ATLAS_CEA_SOURCE_DIR}" DEFINITION CEA_VERSION)
-  if (NOT "${_cea_version}" VERSION_EQUAL "${ATLAS_CEA_VERSION}")
-    message(${ATLAS_PIN_CHECK} "CEA at ${ATLAS_CEA_SOURCE_DIR} is version '${_cea_version}', but ATLAS pins CEA ${ATLAS_CEA_VERSION}. "
-                    "ATLAS would be built against a library version it was not tested with. "
-                    "Point CEA_PATH to CEA ${ATLAS_CEA_VERSION} (nasa/cea tag v${ATLAS_CEA_VERSION}); if lib/cea was bumped on purpose, "
-                    "set ATLAS_CEA_VERSION in CMakeLists.txt to its version "
-                    "(or configure with -DATLAS_PIN_CHECK=WARNING to build against this CEA on purpose).")
-  endif()
-endif()
 
 include(GNUInstallDirs)
 
 # Set directories
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
 set (CMAKE_Fortran_MODULE_DIRECTORY "${PROJECT_BINARY_DIR}/modules")
-set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 
 # Compiling
 add_subdirectory(src)
