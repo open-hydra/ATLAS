@@ -11,7 +11,7 @@ file `ATLAS GPB BCB ICB` reads — and the runs of GPB, BCB and ICB on it.
 | Case | `mainwindow.py` | case directory, mesh, `[ATLAS-Parameters]`, overview |
 | Phases | `gpbpanel.py` | `[GPB-PhaseN]`: gas, condensed/solid, real fluid |
 | Boundaries | `bcbpanel.py` | `[BCB-BlockN]` + the named BC sections, on the 3-D mesh |
-| Initial | `icbpanel.py` | `[ICB-Block*]`, `[ICB-BlockN]`: the initial state of every block, and the state of every cell in 3-D |
+| Initial | `icbpanel.py` | `[ICB-Block*]`, `[ICB-BlockN]`: the initial state of every block, and in 3-D the state of every cell or the field ICB wrote |
 | Review | `mainwindow.py` | the INI as it will be written, and the checks on it |
 | Run | `runpanel.py` | runs GPB, BCB and ICB on the saved INI: their log and what they write |
 
@@ -65,6 +65,20 @@ the plenum rows of nozzle zones included -- and which cells a plenum leaves at
 rest. The Initial stage paints it on `viewport.StateViewport`, the outer
 surfaces of the blocks with a colour per cell; a click on a cell opens its
 state.
+
+After a run, the view shows the field ICB wrote instead (**Field**):
+`icfield.py` reads `fromATLAStoSolver/<phase>-ic.tec` (ASCII Tecplot, cell
+values, a zone `B<n>-<kind>` per mesh block) or `<phase>-ic.vtm` (its `.vts`
+blocks, with pyvista) and derives what a gas's bands imply -- ρ, Y, T from the
+molar masses of the phase file, |V| and the Mach number from the cp(T) of its
+`thermo.dat`, as ICB computes them. `fieldcolors.py` holds the scales (the
+reference blue ramp for a magnitude, blue and red arms of equal lightness about
+a neutral grey for a signed quantity, built in OKLab and flipped on a dark
+background), `fieldview.py` the controls and the colour bar. Focus never dims a
+field's colours. `GUI/tests/test_icfield.py` (CTest `GUI-icfield`) checks the
+scales and reads back fields ICB writes from decks of the suite, in both
+formats: p, T from total conditions, Mach under a variable cp, Y come back as
+the deck set them.
 
 A value can come from a profile file instead (`<key>-file`, with
 `<key>-direction` for a table): `icprofile.py` reads a table line by line as

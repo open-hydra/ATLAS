@@ -67,7 +67,7 @@ The rail on the left follows the order the tools run in.
 | **Case** | Where the case lives, the mesh, `[ATLAS-Parameters]`, and an overview of what is set up |
 | **Phases** | GPB: one card per `[GPB-PhaseN]`, with an editor that follows the phase type |
 | **Boundaries** | BCB: the mesh in 3-D, its blocks and faces, and the BCs assigned to them |
-| **Initial** | ICB: the initial state of every block, `[ICB-Block*]` and `[ICB-BlockN]`, and the mesh in 3-D with the state every cell takes |
+| **Initial** | ICB: the initial state of every block, `[ICB-Block*]` and `[ICB-BlockN]`, and the mesh in 3-D with the state every cell takes, or the field ICB wrote (p, T, Mach, …) |
 | **Review** | The INI as it will be written, plus every check the GUI can make on it, by stage |
 | **Run** | GPB, BCB and ICB run on the case: what the run will do first, the log of every tool, the files written into `fromATLAStoSolver/` |
 
@@ -311,6 +311,45 @@ state in full colour. A mesh of 2-D blocks opens face on (XY).
 
 A state keeps its colour as others are added or moved. The seven colours come
 round again past the seventh state; the legend and a click tell them apart.
+
+### The initial field
+
+**States | Field**, at the top of the view, switches from the states of the
+deck to the field ICB wrote (Run stage), read from `fromATLAStoSolver/`:
+`<phase>-ic.tec` (`IC-format = tec`, the default) or `<phase>-ic.vtm` with its
+`vtk/` blocks (`IC-format = vtk`); a binary `.szplt` is not read. Every cell is
+coloured by the quantity chosen under the view, with one field per phase when
+ICB wrote several. For a gas the list starts with what is read most:
+
+| Quantity | From |
+|----------|------|
+| p, u, v, w, the turbulence bands, the partial densities | the file, as the solver reads them |
+| ρ, the mass fractions Y | the partial densities (one per species of `<phase>-phase.txt`) |
+| T | `p / (ρ R)`, R the gas constant of the mixture, from the molar masses of `<phase>-phase.txt` |
+| \|V\|, Mach | the speed of sound `√(γ R T)`, γ from the mixture's cp(T) of `<phase>-thermo.dat` |
+
+These are ICB's own thermodynamics: the temperature ICB reached from total
+conditions, the Mach number a block was given, come back as they were set.
+Without the phase file there is no T; without `thermo.dat`, no Mach number
+(a note under the bar says so). A solid shows T and its material, a real fluid
+its bands and speed, a dispersed phase its bands.
+
+A magnitude takes one hue, light to dark (dark to light on a dark background);
+a quantity with values on both sides of zero (a velocity component) takes two
+hues about a neutral grey at zero, blue below and red above, on a scale
+symmetric about zero. The bar under the view gives the scale, its end values
+and the range of the values; a **click on a cell** gives its values — the
+quantity shown, p, T and the Mach number — and the state it takes. **Focus**
+leaves the colours as they are (a dimmed colour would read as another value):
+a selected block or zone shows the other blocks see-through. A block the
+field has nothing for (another phase is built there) is grey.
+
+Under the bar the view says which file it shows and when ICB wrote it, and
+warns when the INI was saved after it or the case has changes not saved: the
+field is then that of an earlier case, and running ICB again updates it (the
+view reads the file again whenever ICB has written it). A field whose blocks
+do not have the cells of the mesh on the screen is not drawn on them. From
+the Run stage, **Field** on ICB's row opens this view.
 
 ---
 

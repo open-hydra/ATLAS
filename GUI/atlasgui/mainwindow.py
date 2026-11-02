@@ -715,6 +715,11 @@ class AtlasMainWindow(QWidget):
     def stop_tools(self):
         self.run_panel.stop()
 
+    def show_initial_field(self):
+        """The Initial stage, its view showing the field ICB wrote."""
+        self.set_stage("icb")
+        self.icb_panel.set_view_mode("field")
+
     def _running_changed(self, running):
         self.run_header_button.setVisible(not running)
         self.stop_header_button.setVisible(running)
@@ -733,8 +738,9 @@ class AtlasMainWindow(QWidget):
         self.run_dot.setPixmap(icons.dot_pixmap(self.kit.color(token), self.kit.px(10)))
 
     def run_finished(self, ok):
-        """A run ended: the phase files and the outputs may be new."""
+        """A run ended: the phase files, the outputs and the field may be new."""
         self.icb_panel.reload_phases()
+        self.icb_panel.field_changed()
         self.refresh_status()
         self.refresh_run_state()
         if self.current_stage == "review":
@@ -805,9 +811,19 @@ class AtlasMainWindow(QWidget):
         undefined = self.doc.bcb.undefined_faces()
         if (missing or undefined) and not self._confirm_missing(missing, undefined):
             return
+        text = self.doc.to_ini()
         try:
-            with open(self.ini_path, "w") as handle:
-                handle.write(self.doc.to_ini())
+            # the same text is not written again: the date of the file says
+            # when the case last changed (the Initial stage compares it with
+            # the field ICB wrote)
+            with open(self.ini_path) as handle:
+                same = handle.read() == text
+        except OSError:
+            same = False
+        try:
+            if not same:
+                with open(self.ini_path, "w") as handle:
+                    handle.write(text)
         except OSError as exc:
             QMessageBox.critical(self, "Save failed", str(exc))
             return

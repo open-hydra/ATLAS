@@ -29,6 +29,12 @@ of the state ICB writes into it last (``icgeom.state_map``): the zones, the
 plenum of a nozzle at rest in a lighter tint, the cells no state writes
 outlined in the error colour.  The selected state is in full colour, the rest
 dimmed; a click on a cell opens the state it takes.
+
+Once ICB has run, the view shows the field it wrote instead (**Field**): the
+cells coloured by a quantity of ``fromATLAStoSolver/<phase>-ic.tec`` or
+``.vtm`` (``icfield``: p, T, the Mach number, ... of a gas) on the scales of
+``fieldcolors``, under them the colour bar and what to know about the file
+(``fieldview``), and a click gives the values of the cell.
 """
 
 from __future__ import annotations
@@ -43,14 +49,15 @@ import numpy as np
 from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QButtonGroup, QComboBox, QDialog, QFormLayout, QFrame,
-    QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
+    QAbstractItemView, QApplication, QButtonGroup, QComboBox, QDialog, QFormLayout,
+    QFrame, QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMenu, QMessageBox, QSizePolicy, QSplitter,
-    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QStackedWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
-from . import database, filekeys, icgeom, icmodel, icons, icprofile
+from . import database, fieldcolors, filekeys, icfield, icgeom, icmodel, icons, icprofile
 from .bcmodel import KEYWORD_BCS
+from .fieldview import FieldControls, format_value
 from .filewidgets import STATE_ICON, STATE_TOKEN, pick_value
 from .gpbdialogs import AdvancedKeysDialog
 from .icbdialogs import LETTER_TIPS, LETTER_UNITS, NozzlePlot, ProfileDialog, SplitDialog
@@ -191,6 +198,11 @@ class ICBPanel(QWidget):
         self._view_stale = True
         self._focus = True
         self._picked = None        # (mesh block, cell) last clicked in the view
+        self._mode = "states"      # what the view shows: "states" or "field"
+        self._ic_field = None         # the icfield.Field shown, as read
+        self._field_key = None     # (path, mtime, size) it was read from
+        self._field_error = None   # why the file could not be read
+        self._field_fits = set()   # the mesh blocks it fits
         self._view_timer = QTimer(self)
         self._view_timer.setSingleShot(True)
         self._view_timer.setInterval(80)
@@ -457,7 +469,28 @@ class ICBPanel(QWidget):
         card = Card()
         kit = self.kit
         kit.sized(card.setMinimumWidth, 320)
-        card.body.addLayout(kit.panel_header("cube", "3-D VIEW"))
+        self.mode_buttons = {}
+        group = QButtonGroup(card)
+        segments = []
+        for key, text, pos, tip in (
+                ("states", "States", "left", "Every cell in the colour of the state ICB "
+                 "writes into it, from the deck"),
+                ("field", "Field", "right", "Every cell coloured by a quantity of the "
+                 "initial field ICB wrote (fromATLAStoSolver/)")):
+            button = kit.button(text, lambda _c=False, k=key: self.set_view_mode(k), None,
+                                None, seg=pos, tip=tip)
+            button.setCheckable(True)
+            button.setChecked(key == self._mode)
+            group.addButton(button)
+            self.mode_buttons[key] = button
+            segments.append(button)
+        mode = QHBoxLayout()
+        mode.setSpacing(0)
+        for button in segments:
+            mode.addWidget(button)
+        header = kit.panel_header("cube", "3-D VIEW")
+        header.addLayout(mode)
+        card.body.addLayout(header)
         frame = QFrame()
         frame.setObjectName("ViewportFrame")
         lay = QVBoxLayout(frame)
@@ -466,7 +499,12 @@ class ICBPanel(QWidget):
         self.view.cell_picked.connect(self._on_cell_picked)
         lay.addWidget(self.view)
         card.body.addWidget(frame, 1)
-        card.body.addWidget(kit.section_label("STATE OF EVERY CELL"))
+        self.view_info = QStackedWidget()
+        states = QWidget()
+        states_lay = QVBoxLayout(states)
+        states_lay.setContentsMargins(0, 0, 0, 0)
+        states_lay.setSpacing(6)
+        states_lay.addWidget(kit.section_label("STATE OF EVERY CELL"))
         self.legend = QListWidget()
         self.legend.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.legend.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -475,7 +513,16 @@ class ICBPanel(QWidget):
         self.legend.setToolTip("The state ICB writes last into the cells of each colour, "
                                "and how many cells take it. Click one to open it.")
         self.legend.itemClicked.connect(self._on_legend_clicked)
-        card.body.addWidget(self.legend)
+        states_lay.addWidget(self.legend)
+        self.view_info.addWidget(states)
+        self.field_controls = FieldControls(kit)
+        self.field_controls.changed.connect(self._field_choice_changed)
+        self.field_controls.run_button.clicked.connect(lambda: self.shell.set_stage("run"))
+        self.view_info.addWidget(self.field_controls)
+        # as tall as the page shown: the view keeps the rest
+        self.view_info.currentChanged.connect(self._fit_view_info)
+        self._fit_view_info(0)
+        card.body.addWidget(self.view_info)
         self.pick_label = kit.hint("Click a cell to open the state ICB writes into it.")
         card.body.addWidget(self.pick_label)
         return card
@@ -588,6 +635,7 @@ class ICBPanel(QWidget):
         background = _rgb(theme["viewport_bg"])
         void = 0.5 * (_rgb(theme["unassigned"]) + background)
         three_d = any(m.nk > 2 for m in mesh)
+        field = self._field_colours(mesh, dark, void) if self._mode == "field" else None
         legend = OrderedDict()               # key -> [colour, cells, at rest, target]
         unwritten, unplaced = 0, []
         for b, block in enumerate(mesh, start=1):
@@ -598,20 +646,27 @@ class ICBPanel(QWidget):
             written = writer >= 0
             colours = np.array([_rgb(self._hue(self._state_key(t), hues))
                                 for t in smap.targets] or [void])
-            rgb = np.empty((writer.size, 3))
-            rgb[written] = colours[writer[written]]
-            rgb[rest] += (255.0 - rgb[rest]) * REST_TINT
-            rgb[~written] = void if smap.placed else _rgb(theme["unassigned"])
+            if field is not None:
+                rgb = field.get(b)
+                if rgb is None:                  # a block the field has nothing for
+                    rgb = np.tile(void, (writer.size, 1))
+            else:
+                rgb = np.empty((writer.size, 3))
+                rgb[written] = colours[writer[written]]
+                rgb[rest] += (255.0 - rgb[rest]) * REST_TINT
+                rgb[~written] = void if smap.placed else _rgb(theme["unassigned"])
             focus = self._focus_mask(b, smap, writer)
             opacity = 1.0
             if focus is not None:
-                rgb[~focus] += (background - rgb[~focus]) * DIM
+                if field is None:
+                    # a field's colour is its value: it is never dimmed
+                    rgb[~focus] += (background - rgb[~focus]) * DIM
                 # All blocks reaches most of a mesh: only one block opens it up
                 if three_d and not focus.any() and self.current_target() != "*":
                     opacity = SEE_THROUGH
             self.view.set_colors(b - 1, np.clip(np.rint(rgb), 0, 255).astype(np.uint8))
             self.view.set_block_opacity(b - 1, opacity)
-            missing = np.flatnonzero(~written) if smap.placed else []
+            missing = np.flatnonzero(~written) if smap.placed and field is None else []
             self.view.set_outline(b - 1, missing, theme["danger"])
             if not smap.placed:
                 unplaced.append(b)
@@ -625,8 +680,162 @@ class ICBPanel(QWidget):
                 entry[1] += int(mine.sum())
                 entry[2] += int((mine & rest).sum())
         self.view.redraw()
-        self._fill_legend(legend, unwritten, unplaced)
+        if field is None:
+            self._fill_legend(legend, unwritten, unplaced)
         self.pick_label.setText(self._describe_pick()[0])
+
+    # ---------------------------------------------------------- the field
+    def set_view_mode(self, mode):
+        """Show the states of the deck (``states``) or the field ICB wrote
+        (``field``) on the cells."""
+        self._mode = mode
+        button = self.mode_buttons[mode]
+        if not button.isChecked():
+            button.setChecked(True)
+        self.view_info.setCurrentIndex(1 if mode == "field" else 0)
+        self._refresh_view()
+
+    def field_changed(self):
+        """ICB may have written the field again: read it when it is shown."""
+        if self._mode == "field":
+            self._refresh_view()
+
+    def _fit_view_info(self, index=None):
+        index = self.view_info.currentIndex() if index is None else index
+        for n in range(self.view_info.count()):
+            policy = QSizePolicy.Policy.Preferred if n == index else QSizePolicy.Policy.Ignored
+            self.view_info.widget(n).setSizePolicy(QSizePolicy.Policy.Preferred, policy)
+        self.view_info.adjustSize()
+
+    def _field_choice_changed(self):
+        self._refresh_view()
+
+    def _load_field(self):
+        """The field to show: the file chosen (a gas first), read again when
+        ICB has written it since.  None, with ``_field_error`` saying why,
+        when there is none to show."""
+        case_dir = self.case_dir
+        files = icfield.field_files(case_dir) if case_dir else []
+        controls = self.field_controls
+        current = controls.file()
+        if current not in [f.path for f in files]:
+            readable = [f for f in files if f.format != "szplt"] or files
+            current = readable[0].path if readable else None
+        controls.set_files(files, current)
+        if current is None:
+            self._ic_field, self._field_key, self._field_error = None, None, None
+            return None
+        try:
+            info = os.stat(current)
+            key = (current, info.st_mtime_ns, info.st_size)
+        except OSError as exc:
+            self._ic_field, self._field_key, self._field_error = None, None, str(exc)
+            return None
+        if key != self._field_key:
+            self._field_key = key
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            try:
+                self._ic_field = icfield.derive(icfield.read_field(current), case_dir)
+                self._field_error = None
+            except (icfield.FieldError, OSError, ValueError) as exc:
+                self._ic_field, self._field_error = None, str(exc)
+            finally:
+                QApplication.restoreOverrideCursor()
+        return self._ic_field
+
+    def _field_notes(self, field):
+        """``(warnings, notes)`` about the field shown: whether the case has
+        changed since ICB wrote it, what of the mesh it does not fit."""
+        import datetime
+        warnings, notes = [], []
+        written = os.path.getmtime(field.path)
+        ini = self.shell.ini_path
+        try:
+            newer = bool(ini) and os.path.getmtime(ini) > written + 1
+        except OSError:
+            newer = False
+        if newer:
+            warnings.append("The INI was saved after ICB wrote this field: run ICB again "
+                            "to see the case as it is now.")
+        elif self.shell._dirty:
+            warnings.append("The case has changes ICB has not run on: the field is the one "
+                            "of the INI as last saved and run.")
+        notes.append(f"{field.label}, written by ICB {datetime.datetime.fromtimestamp(written):%d %b %H:%M}")
+        return warnings, notes
+
+    def _field_colours(self, mesh, dark, void):
+        """``{mesh block: (cells, 3) colours}`` of the quantity chosen, and the
+        controls under the view filled; ``{}`` when there is nothing to show."""
+        controls = self.field_controls
+        if not mesh:
+            controls.show_empty("Load the mesh to see the field on its cells.", run=False)
+            self._fit_view_info()
+            return {}
+        field = self._load_field()
+        if field is None:
+            if self._field_error:
+                controls.show_empty(f"{os.path.basename(self._field_key[0]) if self._field_key else 'The field'}: "
+                                    f"{self._field_error}")
+            else:
+                controls.show_empty(f"ICB has written no initial field in "
+                                    f"{icfield.OUTPUT_DIR}/ yet: run it to see the field "
+                                    "on the cells.")
+            self._field_fits = set()
+            self._fit_view_info()
+            return {}
+        items = icfield.quantities(field)
+        controls.set_quantities(items, controls.name() or (items[0][0] if items else None))
+        name = controls.name()
+        shapes = [self._cells_of(b).shape for b in range(1, len(mesh) + 1)]
+        fits, issues = icfield.fit_issues(field, shapes)
+        self._field_fits = fits
+        warnings, notes = self._field_notes(field)
+        if issues:
+            warnings.insert(0, "The field does not fit the mesh on the screen: "
+                            + "; ".join(issues[:3]) + ("; …" if len(issues) > 3 else ""))
+        notes += field.notes
+        bounds = icfield.value_range(field, name, fits) if name else None
+        if bounds is None:
+            controls.show_empty("No value of this quantity in the blocks of the mesh.",
+                                warnings, run=False)
+            self._fit_view_info()
+            return {}
+        low, high = bounds
+        signed = fieldcolors.is_signed(low, high)
+        table = fieldcolors.diverging(dark) if signed else fieldcolors.sequential(dark)
+        label, unit = icfield.describe(name)
+        absent = [b for b in range(1, len(mesh) + 1) if b not in field.blocks]
+        if absent:
+            notes.append(f"Block {', '.join(map(str, absent[:8]))}{', …' if len(absent) > 8 else ''}: "
+                         f"no {icfield.KIND_LABELS.get(field.kind, 'field')} there (grey)")
+        controls.show_field(table, low, high, signed, f"{label} [{unit}]" if unit else label,
+                            (low, high), warnings, notes)
+        self._fit_view_info()
+        colours = {}
+        for b in fits:
+            values = field.values(b, name)
+            if values is not None:
+                colours[b] = fieldcolors.colours(values, low, high, table, signed,
+                                                 missing=void).astype(float)
+        return colours
+
+    def _field_values(self, b, flat):
+        """The values of cell *flat* of mesh block *b*: the quantity shown,
+        then the pressure, temperature and Mach number when they are others."""
+        field = self._ic_field
+        if field is None or b not in self._field_fits:
+            return ""
+        shown = self.field_controls.name()
+        parts = []
+        for name in [shown] + [n for n in ("p", "T", "Mach") if n != shown]:
+            values = field.values(b, name) if name else None
+            if values is None or flat >= len(values):
+                continue
+            label, unit = icfield.describe(name)
+            symbol = "Mach" if name == "Mach" else label.split(" · ")[0]
+            parts.append(f"{symbol} = {format_value(float(values[flat]))}"
+                         + (f" {unit}" if unit and unit != "–" else ""))
+        return " · ".join(parts)
 
     def _fill_legend(self, legend, unwritten, unplaced):
         self.legend.clear()
@@ -684,7 +893,9 @@ class ICBPanel(QWidget):
     def _describe_pick(self):
         """``(text, target)``: the cell last clicked and the state it takes
         now, or the invitation to click one."""
-        idle = ("Click a cell to open the state ICB writes into it.", None)
+        idle = ("Click a cell for its values and the state ICB writes into it."
+                if self._mode == "field" else
+                "Click a cell to open the state ICB writes into it.", None)
         if self._picked is None:
             return idle
         b, flat = self._picked
@@ -705,6 +916,10 @@ class ICBPanel(QWidget):
             target = block.index if block is not None else b
             what = ("no state: ICB stops on it" if smap.placed
                     else "the zones are not placed")
+        if self._mode == "field":
+            values = self._field_values(b, flat)
+            if values:
+                what = f"{values}  ({what})"
         return f"Block {b}, cell ({i + 1}, {j + 1}, {k + 1}) at {where}: {what}", target
 
     def _on_cell_picked(self, b0, flat):

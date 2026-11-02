@@ -127,6 +127,12 @@ class ToolRow(QFrame):
                                        "alert", "ghost",
                                        tip=f"Show the first error {tool.name} printed")
         foot.addWidget(self.error_button)
+        self.field_button = None
+        if tool.name == "ICB":
+            self.field_button = kit.button(
+                "Field", lambda: panel.shell.show_initial_field(), "initial", "ghost",
+                tip="The field ICB wrote, on the cells of the mesh (Initial stage)")
+            foot.addWidget(self.field_button)
         foot.addWidget(self.log_button)
         lay.addLayout(foot)
         self.state_key = "waiting"
@@ -169,6 +175,9 @@ class ToolRow(QFrame):
         ran = result is not None and result.status not in ("waiting", "skipped")
         self.log_button.setVisible(ran)
         self.error_button.setVisible(ran and result.errors > 0)
+        if self.field_button is not None:
+            self.field_button.setVisible(result is not None and result.status == "done"
+                                         and bool(result.files))
 
 
 class RunPanel(QWidget):

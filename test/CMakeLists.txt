@@ -2120,6 +2120,22 @@ set_tests_properties(GUI-icgeom PROPERTIES
 # ----       the phase tables, ICB run by the GUI writes what ATLAS ICB writes, and GPB then ICB run as a chain when
 # ----       this Python has Cantera; the errors and warnings of a run land on the section, file, GPB phase or ICB block
 # ----       they name, also as BCB and ICB print them on two refused decks of the suite) -------------
+# ---- GUI : GUI-icfield (the initial field the GUI reads back from ICB: the colour scales, one hue running one way for a
+# ----       magnitude and two arms of equal lightness about a grey for a signed quantity; on fields ICB writes from decks of
+# ----       the suite, ASCII Tecplot and VTK alike, every zone on its block and the deck given back -- p, T from total
+# ----       conditions, the Mach number under a variable cp, the mass fractions; numpy; skipped (77) without numpy) ------
+add_test(
+    NAME    GUI-icfield
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_icfield.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-icfield PROPERTIES
+    LABELS           "GUI;regression"
+    TIMEOUT          300
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT      "${_TEST_ENV}"
+)
+
 add_test(
     NAME    GUI-runner
     COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_runner.py"
