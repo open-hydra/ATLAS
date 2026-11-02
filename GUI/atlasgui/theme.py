@@ -537,7 +537,6 @@ QDialogButtonBox QPushButton { min-width: 88px; }
     background-color: %(bg_alt)s; border: 1px solid %(border)s; border-radius: 12px; }
 #HeaderBar { padding: 2px; }
 #Brand { color: %(text)s; font-size: 17px; font-weight: 800; letter-spacing: 0.5px; }
-#BrandSub { color: %(accent_text)s; font-size: 11px; font-weight: 800; letter-spacing: 2.4px; }
 #VDivider { background-color: %(border)s; min-width: 1px; max-width: 1px; border: none; }
 #HDivider { background-color: %(border)s; min-height: 1px; max-height: 1px; border: none; }
 
@@ -602,7 +601,7 @@ QComboBox QAbstractItemView {
     border-radius: 12px; }
 QPushButton[role="stage"] { background-color: transparent;
     border: 1px solid transparent; border-radius: 9px; text-align: left;
-    padding: 8px 10px; color: %(muted)s; font-weight: 700; }
+    padding: 8px 10px; color: %(muted)s; font-weight: 700; icon-size: 19px; }
 QPushButton[role="stage"]:hover { background-color: %(surface_hi)s;
     color: %(text)s; }
 QPushButton[role="stage"]:checked { background-color: %(accent_soft)s;

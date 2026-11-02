@@ -499,7 +499,7 @@ class ICBPanel(QWidget):
                                  tip="Fit the mesh in the view", compactable=True))
         lay.addWidget(kit.vdivider())
         lay.addWidget(kit.toggle(
-            "Mesh lines", self.view.set_edges, "mesh", self.view.edges,
+            "Mesh lines", self.view.set_edges, "grid", self.view.edges,
             tip="Draw the edges of the cells."))
         lay.addWidget(kit.toggle(
             "Focus", self._set_focus, "target", True,
@@ -1223,7 +1223,7 @@ class ICBPanel(QWidget):
         kit = self.kit
         head = QHBoxLayout()
         head.setSpacing(8)
-        head.addWidget(kit.icon_label("thermo", "accent", 16))
+        head.addWidget(kit.icon_label("initial", "accent", 16))
         section = "[ICB-Block*]" if target == "*" else f"[ICB-Block{target}]"
         head.addWidget(kit.section_label(f"{block_label(target).upper()}  ·  {section}"))
         head.addStretch(1)

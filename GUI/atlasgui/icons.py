@@ -323,6 +323,77 @@ def _thermo(p, c):
         _poly(p, [(16.8, y), (19.2, y)])
 
 
+def _grid(p, c):
+    """A structured block, its grid lines bent over a bump of the wall: the
+    mesh."""
+    def point(u, v):
+        x = 3.0 + 18.0 * u
+        y = 20.5 - 16.5 * v - 5.0 * math.sin(math.pi * u) * (1.0 - v) ** 1.3
+        return QPointF(x, y)
+
+    def line(points):
+        path = QPainterPath(points[0])
+        for q in points[1:]:
+            path.lineTo(q)
+        p.drawPath(path)
+
+    steps = [n / 12 for n in range(13)]
+    _stroke(p, c, 1.25)
+    for k in (1, 2):
+        line([point(k / 3, t) for t in steps])
+        line([point(t, k / 3) for t in steps])
+    _stroke(p, c, 1.8)
+    outline = ([point(t, 0) for t in steps] + [point(1, t) for t in steps[1:]]
+               + [point(1 - t, 1) for t in steps[1:]] + [point(0, 1 - t) for t in steps[1:]])
+    line(outline)
+
+
+def _case(p, c):
+    """A briefcase: the case and what it holds."""
+    _stroke(p, c)
+    p.drawRoundedRect(QRectF(3, 7.5, 18, 12.5), 2.2, 2.2)
+    _poly(p, [(9, 7.5), (9, 5.4), (10.3, 4.1), (13.7, 4.1), (15, 5.4), (15, 7.5)])
+    _poly(p, [(3, 12.9), (10.4, 12.9)])
+    _poly(p, [(13.6, 12.9), (21, 12.9)])
+    _stroke(p, c, 1.6)
+    p.drawRoundedRect(QRectF(10.4, 11.4, 3.2, 3.0), 0.6, 0.6)
+
+
+def _boundary(p, c):
+    """A block with one face shaded: the boundary conditions on its faces."""
+    shade = QColor(c)
+    shade.setAlphaF(0.4)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(shade)
+    _poly(p, [(12, 12), (20, 8), (20, 16), (12, 20)], True)
+    _stroke(p, c, 1.7)
+    _poly(p, [(4, 8), (12, 4), (20, 8), (20, 16), (12, 20), (4, 16)], True)
+    _poly(p, [(4, 8), (12, 12), (20, 8)])
+    _poly(p, [(12, 12), (12, 20)])
+
+
+def _initial(p, c):
+    """A stopwatch at zero: the state the run starts from, at t = 0."""
+    _stroke(p, c)
+    p.drawEllipse(QRectF(4.5, 6.6, 15, 15))
+    _poly(p, [(12, 6.6), (12, 3.8)])
+    _poly(p, [(9.8, 3.3), (14.2, 3.3)])
+    _poly(p, [(18.1, 7.9), (19.7, 6.3)])
+    _stroke(p, c, 2.1)
+    _poly(p, [(12, 14.1), (12, 9.7)])
+    _fill(p, c)
+    p.drawEllipse(QRectF(10.85, 12.95, 2.3, 2.3))
+
+
+def _review(p, c):
+    """A page and a check mark: the file as written, and what was checked."""
+    _stroke(p, c)
+    _poly(p, [(14, 3), (5.5, 3), (5.5, 21), (18.5, 21), (18.5, 7.5)], True)
+    _poly(p, [(14, 3), (14, 7.5), (18.5, 7.5)])
+    _stroke(p, c, 2.1)
+    _poly(p, [(8.6, 14.4), (11, 16.8), (15.6, 11.3)])
+
+
 DRAW = {
     "mesh": _mesh, "cube": _cube, "open": _open, "save": _save,
     "save-as": _save_as, "fit": _fit, "tag": _tag, "eye": _eye,
@@ -334,6 +405,8 @@ DRAW = {
     "nozzle": _nozzle,
     "circle": _circle, "file": _file, "alert": _alert, "gear": _gear,
     "reset": _reset, "type": _type, "thermo": _thermo,
+    "grid": _grid, "case": _case, "boundary": _boundary, "initial": _initial,
+    "review": _review,
 }
 
 

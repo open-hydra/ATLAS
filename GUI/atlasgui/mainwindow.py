@@ -43,11 +43,11 @@ from .icmodel import block_label
 from .widgets import Card, UIKit
 
 STAGES = [
-    ("case", "Case", "sliders", "Where the case lives and what it contains"),
+    ("case", "Case", "case", "Where the case lives and what it contains"),
     ("gpb", "Phases", "layers", "GPB: the phases and their property tables"),
-    ("bcb", "Boundaries", "cube", "BCB: boundary conditions on the mesh"),
-    ("icb", "Initial", "thermo", "ICB: the initial state of every block"),
-    ("review", "Review", "code", "The INI file and what can be checked in it"),
+    ("bcb", "Boundaries", "boundary", "BCB: boundary conditions on the mesh"),
+    ("icb", "Initial", "initial", "ICB: the initial state of every block"),
+    ("review", "Review", "review", "The INI file and what can be checked in it"),
 ]
 
 STAGE_LABELS = {key: label for key, label, _icon, _tip in STAGES}
@@ -226,16 +226,9 @@ class AtlasMainWindow(QWidget):
         kit.sized(lambda size, w=brand_icon: w.setPixmap(
             icons.app_icon(self._theme["accent"]).pixmap(size, size)), 30)
         lay.addWidget(brand_icon)
-        title_box = QVBoxLayout()
-        title_box.setSpacing(0)
         brand = QLabel("ATLAS")
         brand.setObjectName("Brand")
-        sub = QLabel("CASE SETUP")
-        sub.setObjectName("BrandSub")
-        kit._compact_labels.append(sub)
-        title_box.addWidget(brand)
-        title_box.addWidget(sub)
-        lay.addLayout(title_box)
+        lay.addWidget(brand)
         lay.addSpacing(6)
         lay.addWidget(kit.vdivider())
 
@@ -246,7 +239,7 @@ class AtlasMainWindow(QWidget):
              "Write the case file"),
             ("Save As", self.save_ini_as, "save-as", None,
              "Write the case file to a new path"),
-            ("Load Mesh", self.load_mesh_dialog, "mesh", None,
+            ("Load Mesh", self.load_mesh_dialog, "grid", None,
              "Open a Tecplot or Plot3D multiblock mesh: the Boundaries and "
              "Initial stages draw it"),
         ]:
@@ -399,7 +392,7 @@ class AtlasMainWindow(QWidget):
         where.body.addWidget(self.case_mesh_label)
         mesh_row = QHBoxLayout()
         mesh_row.setSpacing(7)
-        mesh_row.addWidget(kit.button("Load mesh…", self.load_mesh_dialog, "mesh"))
+        mesh_row.addWidget(kit.button("Load mesh…", self.load_mesh_dialog, "grid"))
         mesh_row.addStretch(1)
         where.body.addLayout(mesh_row)
         left.addWidget(where)
@@ -436,7 +429,7 @@ class AtlasMainWindow(QWidget):
             "[ATLAS-Parameters] section."))
 
         overview = Card()
-        overview.body.addLayout(kit.panel_header("layers", "CASE OVERVIEW"))
+        overview.body.addLayout(kit.panel_header("case", "CASE OVERVIEW"))
         self.overview_row = QHBoxLayout()
         self.overview_row.setSpacing(10)
         overview.body.addLayout(self.overview_row)
@@ -785,7 +778,7 @@ class AtlasMainWindow(QWidget):
             "layers", "PHASES", str(nphases),
             ", ".join(self.doc.gpb.names()) or "none defined yet", "gpb"))
         self.overview_row.addWidget(self._overview_tile(
-            "cube", "BLOCKS", str(nblocks),
+            "boundary", "BLOCKS", str(nblocks),
             f"{done} of {total} faces assigned" if total else "no mesh loaded",
             "bcb"))
         count = self.icb_panel.block_count()
@@ -797,10 +790,10 @@ class AtlasMainWindow(QWidget):
         else:
             note = "no block known yet"
         self.overview_row.addWidget(self._overview_tile(
-            "thermo", "INITIAL STATE", f"{started} / {count}" if count else "—",
+            "initial", "INITIAL STATE", f"{started} / {count}" if count else "—",
             note, "icb"))
         self.overview_row.addWidget(self._overview_tile(
-            "check", "CHECKS", str(errors),
+            "review", "CHECKS", str(errors),
             "error(s) to fix before running" if errors else "nothing blocking",
             "review"))
         self.overview_row.addStretch(1)
