@@ -1,8 +1,49 @@
-# CEA, ORION and FiNeR (with FiNeR's dependencies), each from its path variable or bundled submodule,
-# then the check of their pins and releases against those set in CMakeLists.txt.
+# ORION and FiNeR (with FiNeR's dependencies) as CMakeLists.txt required them with semver_dependency, checked
+# first, so that a clone of another release stops the configure at once; then CEA (the submodule lib/cea, or
+# CEA_PATH). Each is checked against the commit or the release ATLAS requires.
 
 include(${CMAKE_CURRENT_LIST_DIR}/SubmodulePins.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/FiNeRDependencies.cmake)
+
+# ORION: a release selected by SemVerDeps satisfies the requirement; an external clone (local) only warns there,
+# so ATLAS checks its version, the newest vX.Y.Z tag of its HEAD as SemVerDeps found it
+get_property(_orion_source GLOBAL PROPERTY SEMVER_ORION_SOURCE)
+if (_orion_source STREQUAL "local")
+  get_property(_orion_version GLOBAL PROPERTY SEMVER_ORION_VERSION)
+  set(_ok FALSE)
+  if (_orion_version)
+    _semver_satisfies("${_orion_version}" _ok ${ATLAS_ORION_VERSION})
+  else()
+    set(_orion_version "of no release (no vX.Y.Z tag in its history)")
+  endif()
+  if (NOT _ok)
+    _semver_range("${ATLAS_ORION_VERSION}" _min _max)
+    message(${ATLAS_PIN_CHECK} "ORION at ${FETCHCONTENT_SOURCE_DIR_ORION} is ${_orion_version}, but ATLAS requires "
+                    "ORION ${ATLAS_ORION_VERSION} (${_min} up to ${_max} excluded). Give a clone of such a release, or "
+                    "build the release ATLAS selects (without FETCHCONTENT_SOURCE_DIR_ORION), or configure with "
+                    "-DATLAS_PIN_CHECK=WARNING to build this ORION on purpose.")
+  endif()
+endif()
+
+# FiNeR: its dependencies before its CMakeLists adds them. Those of the checkout of ATLAS are fetched; an
+# external clone is built as it is, its dependencies only checked. Its release is in its VERSION file (v2.3.0):
+# its project() still declares 2.0.3
+if (FETCHCONTENT_SOURCE_DIR_FINER)
+  set(ATLAS_FINER_SOURCE_DIR "${FETCHCONTENT_SOURCE_DIR_FINER}")
+  ensure_finer_dependencies("${ATLAS_FINER_SOURCE_DIR}" FALSE)
+else()
+  set(ATLAS_FINER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/third_party/FiNeR")   # SOURCE_DIR of its semver_dependency
+  ensure_finer_dependencies("${ATLAS_FINER_SOURCE_DIR}" TRUE)
+endif()
+set(_finer_version "")
+if (EXISTS "${ATLAS_FINER_SOURCE_DIR}/VERSION")
+  file(STRINGS "${ATLAS_FINER_SOURCE_DIR}/VERSION" _finer_version LIMIT_COUNT 1)
+  string(REGEX REPLACE "^[ \t]*v" "" _finer_version "${_finer_version}")
+endif()
+string(REGEX REPLACE "^v" "" _finer_pinned "${ATLAS_FINER_TAG}")
+string(CONCAT _hint "Give FETCHCONTENT_SOURCE_DIR_FINER a clone of FiNeR ${ATLAS_FINER_TAG}, or build the release "
+                    "ATLAS checks out (without it)")
+atlas_check_version(FiNeR "${ATLAS_FINER_SOURCE_DIR}" "${_finer_version}" "${_finer_pinned}" "${_hint}")
 
 # CEA
 set(ATLAS_CEA_TARGET "")
@@ -55,33 +96,10 @@ else()
   message(FATAL_ERROR "No supported CEA target was configured.")
 endif()
 
-# ORION
-if (NOT TARGET ORION)
-  if (DEFINED ORION_PATH AND NOT "${ORION_PATH}" STREQUAL "")
-    ensure_submodule_initialized("${ORION_PATH}")
-    set(orionD "${ORION_PATH}" "${CMAKE_BINARY_DIR}/lib/ORION")
-    add_subdirectory(${orionD})
-  else()
-    message(WARNING "ORION_PATH not defined; skipping ORION submodule initialization")
-  endif()
-endif()
+FetchContent_MakeAvailable(ORION FiNeR)
 
-# FiNeR
-set(ATLAS_FINER_SOURCE_DIR "")
-if (NOT TARGET FiNeR)
-  if (DEFINED FINER_PATH AND NOT "${FINER_PATH}" STREQUAL "")
-    ensure_submodule_initialized("${FINER_PATH}")
-    ensure_finer_dependencies("${FINER_PATH}")
-    set(ATLAS_FINER_SOURCE_DIR "${FINER_PATH}")
-    set(finerD "${FINER_PATH}" "${CMAKE_BINARY_DIR}/lib/third_party/FiNeR")
-    add_subdirectory(${finerD})
-  else()
-    message(WARNING "FINER_PATH not defined; skipping FiNeR submodule initialization")
-  endif()
-endif()
-
-# Pins: each bundled submodule at the commit this ATLAS commit records
-foreach(_sm "${ORION_PATH}" "${FINER_PATH}" "${ATLAS_CEA_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/lib/PiNeR")
+# Pins: the submodules lib/cea and lib/PiNeR at the commit this ATLAS commit records
+foreach(_sm "${ATLAS_CEA_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/lib/PiNeR")
   atlas_check_submodule_pin("${_sm}")
 endforeach()
 
@@ -91,17 +109,4 @@ if (NOT "${ATLAS_CEA_SOURCE_DIR}" STREQUAL "")
   string(CONCAT _hint "Point CEA_PATH to CEA ${ATLAS_CEA_VERSION} (nasa/cea tag v${ATLAS_CEA_VERSION}); "
                       "if lib/cea was bumped on purpose, set ATLAS_CEA_VERSION in CMakeLists.txt to its version")
   atlas_check_version(CEA "${ATLAS_CEA_SOURCE_DIR}" "${_cea_version}" "${ATLAS_CEA_VERSION}" "${_hint}")
-endif()
-
-# FiNeR's is in the VERSION file of its release (v2.3.0): its project() still declares 2.0.3
-if (NOT "${ATLAS_FINER_SOURCE_DIR}" STREQUAL "")
-  set(_finer_version "")
-  if (EXISTS "${ATLAS_FINER_SOURCE_DIR}/VERSION")
-    file(STRINGS "${ATLAS_FINER_SOURCE_DIR}/VERSION" _finer_version LIMIT_COUNT 1)
-    string(REGEX REPLACE "^[ \t]*v" "" _finer_version "${_finer_version}")
-  endif()
-  string(CONCAT _hint "Point FINER_PATH to FiNeR ${ATLAS_FINER_VERSION} (szaghi/FiNeR tag v${ATLAS_FINER_VERSION}); "
-                      "if lib/third_party/FiNeR was bumped on purpose, set ATLAS_FINER_VERSION in CMakeLists.txt "
-                      "to its version and check that ATLAS_FINER_BACKUP_PINS still build with it")
-  atlas_check_version(FiNeR "${ATLAS_FINER_SOURCE_DIR}" "${_finer_version}" "${ATLAS_FINER_VERSION}" "${_hint}")
 endif()

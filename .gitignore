@@ -22,6 +22,11 @@ build
 scripts/setvars.sh
 CMakePresets.json
 
+# Releases of ORION and FiNeR checked out by the configure (cmake/SemVerDeps.cmake), and the one of ORION selected
+deps.lock
+lib/ORION
+lib/third_party/FiNeR
+
 # Executables
 bin
 

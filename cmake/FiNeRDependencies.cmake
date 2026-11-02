@@ -1,27 +1,26 @@
 # FiNeR's dependencies. FiNeR tracks none of the libraries its CMakeLists adds from src/third_party/: its
 # author fetches them with `fobis fetch`, which clones each [dependencies] entry of FiNeR's fobos that is
-# absent (a plain URL: its default branch) and leaves an existing clone as it is. ensure_finer_dependencies
-# does the same without FoBiS, as ATLAS_FINER_DEPS (set in CMakeLists.txt) chooses:
+# absent (a plain URL: its default branch) and leaves an existing clone as it is.
+#
+#   ensure_finer_dependencies(<FiNeR folder> <manage>)
+#
+# With <manage> TRUE (the checkout of FiNeR that ATLAS selected) it does the same without FoBiS, as
+# ATLAS_FINER_DEPS (set in CMakeLists.txt) chooses:
 #   FREE    as `fobis fetch`, reading the list from FiNeR's fobos; a clone left detached (by BACKUP) goes back
 #           to its branch, wherever that stands (nothing is fetched). Delete src/third_party/<dep> to take its
 #           latest commit.
 #   BACKUP  each dependency at its release in ATLAS_FINER_BACKUP_PINS, as `fobis fetch --frozen` with a lock;
 #           a release the clone lacks is fetched from the URL in the fobos.
-# A directory that holds files but no repository of its own is an error. Only a FiNeR inside this tree is
-# managed: an external FINER_PATH (--include-finer) keeps the dependencies its owner gave it.
+# A directory that holds files but no repository of its own is an error.
+# With <manage> FALSE (an external clone, FETCHCONTENT_SOURCE_DIR_FINER) nothing is cloned or moved, as for the
+# clone itself: every dependency must be there, and with BACKUP at its release (ATLAS_PIN_CHECK otherwise).
 
 if (NOT ATLAS_FINER_DEPS STREQUAL "FREE" AND NOT ATLAS_FINER_DEPS STREQUAL "BACKUP")
   message(FATAL_ERROR "ATLAS_FINER_DEPS must be FREE or BACKUP (got '${ATLAS_FINER_DEPS}')")
 endif()
 
-function(ensure_finer_dependencies FINER_ROOT)
+function(ensure_finer_dependencies FINER_ROOT MANAGE)
   file(REAL_PATH "${FINER_ROOT}" _root)
-  file(REAL_PATH "${CMAKE_SOURCE_DIR}" _top)
-  file(RELATIVE_PATH _rel "${_top}" "${_root}")
-  if ("${_rel}" MATCHES "^\\.\\.")
-    message(STATUS "External FiNeR at ${_root}: its dependencies are not managed by ATLAS")
-    return()
-  endif()
 
   # [dependencies] of FiNeR's fobos: deps_dir and one `NAME = URL` line per dependency
   set(_deps_dir "src/third_party")
@@ -72,51 +71,69 @@ function(ensure_finer_dependencies FINER_ROOT)
     if (EXISTS "${_dir}")
       file(GLOB _files "${_dir}/*" "${_dir}/.*")
     endif()
-    if (NOT _files)
+    if (NOT _files AND NOT MANAGE)
+      message(FATAL_ERROR "FiNeR at ${_root} has no dependency ${_dep} in ${_deps_dir}: fetch its dependencies "
+                          "there (fobis fetch --no-build), or build the FiNeR that ATLAS checks out "
+                          "(without FETCHCONTENT_SOURCE_DIR_FINER).")
+    elseif (NOT _files)
       message(STATUS "FiNeR dependency ${_dep} missing. Cloning ${_url}...")
       execute_process(COMMAND git clone "${_url}" "${_dir}" RESULT_VARIABLE _result)
       if (NOT _result EQUAL 0)
         message(FATAL_ERROR "Failed to clone FiNeR dependency ${_dep} into ${_dir}")
       endif()
-    else()
-      execute_process(COMMAND git rev-parse --show-toplevel WORKING_DIRECTORY "${_dir}"
-                      OUTPUT_VARIABLE _git_root RESULT_VARIABLE _result
-                      OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-      if (_result EQUAL 0)
-        file(REAL_PATH "${_git_root}" _git_root)
+    endif()
+    # A repository of its own: git commands in a plain copy would answer for the repository around it (FiNeR's)
+    set(_own_repo FALSE)
+    execute_process(COMMAND git rev-parse --show-toplevel WORKING_DIRECTORY "${_dir}"
+                    OUTPUT_VARIABLE _git_root RESULT_VARIABLE _result
+                    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if (_result EQUAL 0)
+      file(REAL_PATH "${_git_root}" _git_root)
+      if ("${_git_root}" STREQUAL "${_dir}")
+        set(_own_repo TRUE)
       endif()
-      if (NOT _result EQUAL 0 OR NOT "${_git_root}" STREQUAL "${_dir}")
-        message(FATAL_ERROR "FiNeR dependency ${_dir} exists but is not a git checkout: "
-                            "remove it to let ATLAS clone ${_dep} from ${_url}.")
-      endif()
+    endif()
+    if (MANAGE AND NOT _own_repo)
+      message(FATAL_ERROR "FiNeR dependency ${_dir} exists but is not a git checkout: "
+                          "remove it to let ATLAS clone ${_dep} from ${_url}.")
     endif()
 
     if (NOT _release STREQUAL "")
-      # BACKUP: detached at the commit of the release tag
+      # BACKUP: detached at the commit of the release tag (a clone of ATLAS fetches a tag it lacks)
       set(_tag "refs/tags/${_release}")
-      execute_process(COMMAND git cat-file -e "${_tag}" WORKING_DIRECTORY "${_dir}" RESULT_VARIABLE _result ERROR_QUIET)
-      if (NOT _result EQUAL 0)
-        execute_process(COMMAND git fetch "${_url}" "${_tag}:${_tag}" WORKING_DIRECTORY "${_dir}"
-                        RESULT_VARIABLE _result)
-        if (NOT _result EQUAL 0)
-          message(FATAL_ERROR "Failed to fetch release ${_release} of FiNeR dependency ${_dep} from ${_url}")
+      set(_commit "")
+      set(_head "")
+      if (_own_repo)
+        execute_process(COMMAND git cat-file -e "${_tag}" WORKING_DIRECTORY "${_dir}" RESULT_VARIABLE _result ERROR_QUIET)
+        if (NOT _result EQUAL 0 AND MANAGE)
+          execute_process(COMMAND git fetch "${_url}" "${_tag}:${_tag}" WORKING_DIRECTORY "${_dir}"
+                          RESULT_VARIABLE _result)
+          if (NOT _result EQUAL 0)
+            message(FATAL_ERROR "Failed to fetch release ${_release} of FiNeR dependency ${_dep} from ${_url}")
+          endif()
         endif()
-      endif()
-      execute_process(COMMAND git rev-parse "${_tag}^{commit}" WORKING_DIRECTORY "${_dir}"
-                      OUTPUT_VARIABLE _commit OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-      execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${_dir}"
-                      OUTPUT_VARIABLE _head OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-      if (NOT "${_head}" STREQUAL "${_commit}")
-        message(STATUS "FiNeR dependency ${_dep} at '${_head}', moving it to its backup release ${_release}...")
-        execute_process(COMMAND git -c advice.detachedHead=false checkout --detach "${_tag}"
-                        WORKING_DIRECTORY "${_dir}" RESULT_VARIABLE _result)
+        execute_process(COMMAND git rev-parse "${_tag}^{commit}" WORKING_DIRECTORY "${_dir}"
+                        OUTPUT_VARIABLE _commit OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
         execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${_dir}"
                         OUTPUT_VARIABLE _head OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-        if (NOT _result EQUAL 0 OR "${_commit}" STREQUAL "" OR NOT "${_head}" STREQUAL "${_commit}")
-          message(FATAL_ERROR "Failed to check out FiNeR dependency ${_dep} at ${_release} in ${_dir}")
+      endif()
+      if ("${_commit}" STREQUAL "" OR NOT "${_head}" STREQUAL "${_commit}")
+        if (NOT MANAGE)
+          message(${ATLAS_PIN_CHECK} "FiNeR dependency ${_dep} in ${_dir} is not at ${_release}, its backup release "
+                  "(ATLAS_FINER_DEPS=BACKUP). Check the release out there (git -C ${_dir} checkout ${_release}), or "
+                  "configure with -DATLAS_PIN_CHECK=WARNING to build it as it is.")
+        else()
+          message(STATUS "FiNeR dependency ${_dep} at '${_head}', moving it to its backup release ${_release}...")
+          execute_process(COMMAND git -c advice.detachedHead=false checkout --detach "${_tag}"
+                          WORKING_DIRECTORY "${_dir}" RESULT_VARIABLE _result)
+          execute_process(COMMAND git rev-parse HEAD WORKING_DIRECTORY "${_dir}"
+                          OUTPUT_VARIABLE _head OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+          if (NOT _result EQUAL 0 OR "${_commit}" STREQUAL "" OR NOT "${_head}" STREQUAL "${_commit}")
+            message(FATAL_ERROR "Failed to check out FiNeR dependency ${_dep} at ${_release} in ${_dir}")
+          endif()
         endif()
       endif()
-    else()
+    elseif (MANAGE)
       # FREE: on the branch `git clone` gave it, wherever that branch stands (no fetch, as fobis without --update)
       execute_process(COMMAND git symbolic-ref -q HEAD WORKING_DIRECTORY "${_dir}"
                       RESULT_VARIABLE _attached OUTPUT_QUIET ERROR_QUIET)
@@ -136,10 +153,17 @@ function(ensure_finer_dependencies FINER_ROOT)
       endif()
     endif()
 
-    execute_process(COMMAND git describe --tags --always HEAD WORKING_DIRECTORY "${_dir}"
-                    OUTPUT_VARIABLE _version OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    set(_version "(not a git checkout)")
+    if (_own_repo)
+      execute_process(COMMAND git describe --tags --always HEAD WORKING_DIRECTORY "${_dir}"
+                      OUTPUT_VARIABLE _version OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    endif()
     list(APPEND _report "${_dep} ${_version}")
   endforeach()
   list(JOIN _report ", " _report)
-  message(STATUS "FiNeR dependencies (ATLAS_FINER_DEPS=${ATLAS_FINER_DEPS}): ${_report}")
+  if (MANAGE)
+    message(STATUS "FiNeR dependencies (ATLAS_FINER_DEPS=${ATLAS_FINER_DEPS}): ${_report}")
+  else()
+    message(STATUS "FiNeR dependencies of ${_root}, as they are (ATLAS_FINER_DEPS=${ATLAS_FINER_DEPS}): ${_report}")
+  endif()
 endfunction()

@@ -1,11 +1,12 @@
-# Helpers for the git submodules ATLAS builds from (lib/cea, lib/ORION, lib/third_party/FiNeR, lib/PiNeR):
-# initialize them, and check that they are at the commit and release this ATLAS commit was tested with.
+# Helpers for the libraries ATLAS builds from: initialize a git submodule (lib/cea, lib/PiNeR), and check that
+# a library is at the commit or the release this ATLAS commit was tested with.
 
 find_package(Git QUIET)
 
-# A checkout that differs from its pin is fatal; to build against a work-in-progress checkout of a
-# submodule (an ORION PR under test) configure with -DATLAS_PIN_CHECK=WARNING.
-set(ATLAS_PIN_CHECK "FATAL_ERROR" CACHE STRING "Severity of a submodule checkout that differs from the recorded pin: FATAL_ERROR (default) or WARNING")
+# A library that differs from what ATLAS requires (a submodule at another commit, an external clone of
+# another release) is fatal; to build against a work-in-progress checkout on purpose (a CEA or ORION branch
+# under test) configure with -DATLAS_PIN_CHECK=WARNING.
+set(ATLAS_PIN_CHECK "FATAL_ERROR" CACHE STRING "Severity of a library that differs from the commit or release ATLAS requires: FATAL_ERROR (default) or WARNING")
 if (NOT ATLAS_PIN_CHECK STREQUAL "FATAL_ERROR" AND NOT ATLAS_PIN_CHECK STREQUAL "WARNING")
   message(FATAL_ERROR "ATLAS_PIN_CHECK must be FATAL_ERROR or WARNING (got '${ATLAS_PIN_CHECK}')")
 endif()
@@ -38,10 +39,8 @@ endmacro()
 
 # -------- Check that a bundled submodule is at the commit this ATLAS commit records --------
 # A mismatch typically follows `git checkout <branch>` without `git submodule update`: ATLAS would
-# compile against a library version it was not tested with. Example: with an ORION older than a770748
-# ICB reads no variable names from the unquoted headers ATLAS writes, so the turbulence of an
-# ATLAS-written old solution is silently not adopted. Read-only git queries; nothing is checked for
-# tarballs, plain copies or paths outside this tree (atlas_check_version covers those for CEA and FiNeR).
+# compile against a library version it was not tested with. Read-only git queries; nothing is checked for
+# tarballs, plain copies or paths outside this tree (atlas_check_version covers those for CEA).
 # The hint syncs before updating: a clone made before a submodule changed URL (lib/cea, from the
 # MarcoGrossi92 fork to nasa/cea) still fetches from the old one, which lacks the new pin.
 function(atlas_check_submodule_pin SUBMOD_PATH)
@@ -96,9 +95,9 @@ function(atlas_check_submodule_pin SUBMOD_PATH)
 endfunction()
 
 # -------- Check the release of a library against the one ATLAS pins --------
-# A library from a path outside this tree (CEA_PATH, FINER_PATH) is not this tree's submodule, so
-# atlas_check_submodule_pin skips it. Called for the bundled submodule too, so a gitlink bumped without
-# its ATLAS_<LIB>_VERSION is caught. HINT says how to get the pinned release.
+# A library from a path outside this tree (CEA_PATH, FETCHCONTENT_SOURCE_DIR_FINER) is not this tree's
+# submodule, so atlas_check_submodule_pin skips it. Called for the bundled library too, so a gitlink or tag
+# bumped without its ATLAS_<LIB>_VERSION is caught. HINT says how to get the pinned release.
 function(atlas_check_version NAME SOURCE_DIR FOUND PINNED HINT)
   if (NOT "${FOUND}" VERSION_EQUAL "${PINNED}")
     message(${ATLAS_PIN_CHECK} "${NAME} at ${SOURCE_DIR} is version '${FOUND}', but ATLAS pins ${NAME} ${PINNED}. "
