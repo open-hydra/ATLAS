@@ -11,7 +11,9 @@ what was last applied, Apply and OK store it (:mod:`atlasgui.preferences`).
   derived colours a theme may set itself, a live preview with the WCAG
   contrast of the pairs that carry text, and the user's themes (duplicate,
   rename, delete, import, export).  A built-in theme is never changed: the
-  first edit makes a copy of it.
+  first edit makes a copy of it;
+* **Tools** -- how the Run stage starts the tools: the ATLAS directory, the
+  Python GPB runs with, the OpenMP threads.
 
 A page is a widget with ``refresh()`` -- show the dialog's state -- and
 ``restore_defaults()``; a new page is one more line of
@@ -20,20 +22,22 @@ A page is a widget with ``refresh()`` -- show the dialog's state -- and
 
 from __future__ import annotations
 
+import datetime
 import os
+import sys
 
 from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from PyQt6.QtGui import (QColor, QFont, QFontMetrics, QIcon, QKeySequence,
                          QLinearGradient, QPainter, QPainterPath, QPen,
                          QPolygonF)
 from PyQt6.QtWidgets import (
-    QAbstractButton, QButtonGroup, QColorDialog, QComboBox, QDialog,
+    QAbstractButton, QApplication, QButtonGroup, QColorDialog, QComboBox, QDialog,
     QDialogButtonBox, QFileDialog, QGridLayout, QHBoxLayout, QInputDialog,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QMenu, QMessageBox,
-    QPushButton, QSlider, QStackedWidget, QVBoxLayout, QWidget,
+    QPushButton, QSlider, QSpinBox, QStackedWidget, QVBoxLayout, QWidget,
 )
 
-from . import icons, preferences
+from . import icons, preferences, runner
 from . import theme as thememod
 from .widgets import Card
 
@@ -636,12 +640,169 @@ CONTRAST_PAIRS = [
 
 
 # ------------------------------------------------------------------- dialog
+class ToolsPage(QWidget):
+    """Where the ATLAS tools come from and how the Run stage starts them."""
+
+    title = "Tools"
+    scrolls = True
+    blurb = ("How the Run stage starts GPB, BCB and ICB. Left empty, a choice "
+             "is made for you, as shown under it.")
+
+    def __init__(self, dialog):
+        super().__init__()
+        self.dialog = dialog
+        kit = dialog.kit
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+
+        where = Card()
+        where.body.addLayout(kit.panel_header("open", "ATLAS DIRECTORY"))
+        row = QHBoxLayout()
+        row.setSpacing(7)
+        self.root_edit = QLineEdit()
+        self.root_edit.setPlaceholderText(runner.atlas_root())
+        self.root_edit.setToolTip("The ATLAS installation whose ATLAS.sh and bin/ the "
+                                  "runs use; empty: the one this GUI belongs to")
+        self.root_edit.textEdited.connect(lambda text: self._set("atlas-dir", text.strip()))
+        row.addWidget(self.root_edit, 1)
+        row.addWidget(kit.button("Browse…", self._browse_root, "open"))
+        where.body.addLayout(row)
+        self.root_status = QVBoxLayout()
+        self.root_status.setSpacing(3)
+        where.body.addLayout(self.root_status)
+        layout.addWidget(where)
+
+        python = Card()
+        python.body.addLayout(kit.panel_header("code", "PYTHON FOR GPB"))
+        row = QHBoxLayout()
+        row.setSpacing(7)
+        self.python_edit = QLineEdit()
+        self.python_edit.setPlaceholderText("automatic")
+        self.python_edit.setToolTip("The interpreter GPB runs with (ATLAS_PYTHON): it needs "
+                                    "Cantera, CoolProp, numpy and PyYAML")
+        self.python_edit.textEdited.connect(lambda text: self._set("python", text.strip()))
+        row.addWidget(self.python_edit, 1)
+        row.addWidget(kit.button("Browse…", self._browse_python, "open"))
+        row.addWidget(kit.button("Check", self._check_python, "check",
+                                 tip="Ask the interpreter whether it imports Cantera"))
+        python.body.addLayout(row)
+        self.python_how = kit.hint("")
+        python.body.addWidget(self.python_how)
+        self.python_check = QLabel("")
+        python.body.addWidget(self.python_check)
+        layout.addWidget(python)
+
+        threads = Card()
+        threads.body.addLayout(kit.panel_header("sliders", "THREADS"))
+        row = QHBoxLayout()
+        row.setSpacing(10)
+        self.threads_spin = QSpinBox()
+        self.threads_spin.setRange(0, 1024)
+        self.threads_spin.setSpecialValueText("as the environment says")
+        self.threads_spin.valueChanged.connect(lambda value: self._set("threads", value))
+        kit.sized(self.threads_spin.setMinimumWidth, 220)
+        row.addWidget(self.threads_spin)
+        row.addStretch(1)
+        threads.body.addLayout(row)
+        threads.body.addWidget(kit.hint(
+            f"OMP_NUM_THREADS of BCB and ICB, which share a block's cells among threads "
+            f"(this computer has {os.cpu_count() or '?'} cores)."))
+        layout.addWidget(threads)
+        layout.addStretch(1)
+
+    def _set(self, key, value):
+        self.dialog.tools[key] = value
+        self.python_check.setText("")
+        self.refresh()
+
+    def _browse_root(self):
+        path = QFileDialog.getExistingDirectory(
+            self, "ATLAS directory", self.dialog.tools["atlas-dir"] or runner.atlas_root())
+        if path:
+            self.root_edit.setText(path)
+            self._set("atlas-dir", path)
+
+    def _browse_python(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Python for GPB", os.path.dirname(self.dialog.tools["python"] or sys.executable))
+        if path:
+            self.python_edit.setText(path)
+            self._set("python", path)
+
+    def _check_python(self):
+        python, _how = runner.gpb_python(self.dialog.tools["python"])
+        if python is None:
+            self.python_check.setText("ATLAS.sh activates conda: not checked here")
+            self.python_check.setProperty("check", "")
+        else:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            try:
+                ok = runner.has_cantera(python)
+            finally:
+                QApplication.restoreOverrideCursor()
+            self.python_check.setText("imports Cantera" if ok else "does not import Cantera")
+            self.python_check.setProperty("check", "pass" if ok else "fail")
+        self.python_check.style().unpolish(self.python_check)
+        self.python_check.style().polish(self.python_check)
+
+    def refresh(self):
+        tools = self.dialog.tools
+        for edit, key in ((self.root_edit, "atlas-dir"), (self.python_edit, "python")):
+            if edit.text().strip() != tools[key]:
+                edit.setText(tools[key])
+        if self.threads_spin.value() != tools["threads"]:
+            self.threads_spin.blockSignals(True)
+            self.threads_spin.setValue(tools["threads"])
+            self.threads_spin.blockSignals(False)
+
+        root = runner.atlas_root(tools["atlas-dir"])
+        lines = []
+        if os.path.isfile(runner.launcher(root)):
+            lines.append(("pass", "ATLAS.sh found"))
+        else:
+            lines.append(("fail", "no ATLAS.sh here: this is not an ATLAS directory"))
+        for name in runner.TOOL_NAMES:
+            exe = runner.binary(root, name)
+            if exe is None:
+                continue
+            if os.access(exe, os.X_OK):
+                stamp = datetime.datetime.fromtimestamp(os.path.getmtime(exe))
+                lines.append(("pass", f"{name} built {stamp:%d %b %Y %H:%M}"))
+            else:
+                lines.append(("fail", f"{name} not built: ./install.sh build"))
+        while self.root_status.count():
+            item = self.root_status.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        for state, text in lines:
+            label = QLabel(text)
+            label.setProperty("check", state)
+            self.root_status.addWidget(label)
+
+        python, how = runner.gpb_python(tools["python"])
+        if how == "conda":
+            self.python_how.setText(
+                "Automatic: neither this GUI's Python nor ATLAS_PYTHON has Cantera, so "
+                "ATLAS.sh activates its conda environment (ct-env, or ATLAS_CONDA_ENV).")
+        elif tools["python"]:
+            self.python_how.setText(f"GPB runs with {python}.")
+        else:
+            self.python_how.setText(f"Automatic: {python} ({how}).")
+
+    def restore_defaults(self):
+        self.dialog.tools = dict(preferences.TOOL_DEFAULTS)
+        self.python_check.setText("")
+        self.refresh()
+
+
 class SettingsDialog(QDialog):
     """Settings of the GUI.  Works on a copy of the user's choices, previews
     them on the application as they change, and stores them on Apply/OK."""
 
     PAGES = [("appearance", AppearancePage, "contrast"),
-             ("colours", ColoursPage, "palette")]
+             ("colours", ColoursPage, "palette"),
+             ("tools", ToolsPage, "play")]
 
     def __init__(self, shell, page="appearance"):
         super().__init__(shell)
@@ -655,6 +816,7 @@ class SettingsDialog(QDialog):
         self.theme_name = shell._theme_name
         self.text_size = shell._text_size
         self._applied = (_copy_specs(self.themes), self.theme_name, self.text_size)
+        self.tools = preferences.tool_settings(shell.settings)
         self._preview_timer = QTimer(self)
         self._preview_timer.setSingleShot(True)
         self._preview_timer.setInterval(120)
@@ -757,9 +919,11 @@ class SettingsDialog(QDialog):
     def _on_page(self, index):
         self.stack.setCurrentIndex(index)
         key = self.PAGES[index][0]
-        self.restore_button.setToolTip(
-            "Back to the Dark Blue theme at 100 % text size" if key == "appearance"
-            else "Undo every change of this theme, back to its base theme")
+        self.restore_button.setToolTip({
+            "appearance": "Back to the Dark Blue theme at 100 % text size",
+            "colours": "Undo every change of this theme, back to its base theme",
+            "tools": "Back to the ATLAS of this GUI, the automatic Python and the "
+                     "environment's threads"}[key])
 
     def refresh(self):
         for page in self.pages.values():
@@ -913,6 +1077,7 @@ class SettingsDialog(QDialog):
                                  f"The themes could not be saved: {exc}")
             return False
         thememod.set_custom_themes(_copy_specs(self.themes))
+        preferences.save_tool_settings(self.tools, self.shell.settings)
         self._preview_timer.stop()
         self.shell.set_appearance(self.theme_name, self.text_size)
         self._applied = (_copy_specs(self.themes), self.theme_name, self.text_size)

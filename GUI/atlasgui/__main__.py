@@ -10,11 +10,12 @@ import sys
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="atlasgui",
-        description="Interactive case setup for ATLAS: GPB phases and BCB "
-                    "boundary conditions in one input.ini.")
+        description="The ATLAS case in one window: the GPB phases, the BCB "
+                    "boundary conditions and the ICB initial state of one "
+                    "input.ini, and the runs of the tools on it.")
     parser.add_argument("mesh", nargs="?", help="mesh file to load on startup")
     parser.add_argument("--ini", help="existing ATLAS input.ini to open on startup")
-    parser.add_argument("--stage", choices=["case", "gpb", "bcb", "review"],
+    parser.add_argument("--stage", choices=["case", "gpb", "bcb", "icb", "review", "run"],
                         help="stage to open on (default: case, or boundaries "
                              "when a mesh is given)")
     args = parser.parse_args(argv)

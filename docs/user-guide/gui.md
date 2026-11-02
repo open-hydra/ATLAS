@@ -1,9 +1,12 @@
-# ATLAS GUI — case setup
+# ATLAS GUI
 
-The **ATLAS GUI** sets up a case the way the tools read it: one `input.ini`
-holding the GPB phases, the BCB boundary conditions and the shared
-`[ATLAS-Parameters]`. It is the same file `ATLAS GPB BCB ICB` consumes, so the
-GUI is an editor for the case, not a separate project format.
+The **ATLAS GUI** sets up a case the way the tools read it and runs them on
+it. The case is one `input.ini` holding the GPB phases, the BCB boundary
+conditions, the ICB initial state and the shared `[ATLAS-Parameters]`: the same
+file `ATLAS GPB BCB ICB` consumes, so the GUI is an editor for the case, not a
+separate project format. The **Run** stage then runs GPB, BCB and ICB on it,
+as `ATLAS GPB BCB ICB` would from the case directory, with their log and the
+files they write.
 
 ```bash
 ATLAS GUI                      # the whole case
@@ -28,6 +31,12 @@ change shows on the application at once; **Apply** or **OK** keep it,
 **Cancel** puts back what was there, **Restore Defaults** resets the page.
 
 * **Appearance** — pick the theme from previews of each one, and the text size.
+* **Tools** — how the Run stage starts the tools: the ATLAS directory (empty:
+  the one the GUI belongs to; the page says whether `ATLAS.sh` is there and
+  when BCB and ICB were built), the Python GPB runs with (empty: the GUI's own
+  if it has Cantera, else `ATLAS_PYTHON`, else the conda environment
+  `ATLAS.sh` activates; **Check** asks it for Cantera) and the OpenMP threads
+  of BCB and ICB (empty: as the environment says).
 * **Colours** — the theme editor. The *base colours* (background, panels,
   text, accent, the status colours, the 3-D view) set the look; the *derived
   colours* (borders, hover, selection, labels, the INI preview, …) follow them
@@ -60,6 +69,7 @@ The rail on the left follows the order the tools run in.
 | **Boundaries** | BCB: the mesh in 3-D, its blocks and faces, and the BCs assigned to them |
 | **Initial** | ICB: the initial state of every block, `[ICB-Block*]` and `[ICB-BlockN]`, and the mesh in 3-D with the state every cell takes |
 | **Review** | The INI as it will be written, plus every check the GUI can make on it, by stage |
+| **Run** | GPB, BCB and ICB run on the case: what the run will do first, the log of every tool, the files written into `fromATLAStoSolver/` |
 
 Sections belonging to tools the GUI does not edit yet (`[STB-*]`, `[MDB-*]`,
 `[KAnT-*]`) are carried through a save untouched, so a shared case file never
@@ -353,6 +363,57 @@ The right column is the file itself, updated as you edit. A **click** on an
 entry brings its section into view and marks it; a **double click** opens the
 entry in its stage.
 
-GPB, BCB and ICB run their own, deeper checks when they build the case; the
-GUI's checks are the ones that can be made from the file and, once it is
-loaded, the mesh.
+GPB, BCB and ICB run their own, deeper checks when they build the case (the
+**Run** stage runs them); the GUI's checks are the ones that can be made from
+the file and, once it is loaded, the mesh.
+
+---
+
+## Run
+
+**Run** — in the stage, or in the header from any stage (Cmd+R on macOS,
+Ctrl+R elsewhere) — saves the case and runs the selected tools on it, one after
+the other in the order GPB, BCB, ICB, each as `ATLAS <TOOL> --input <ini>` in
+the case directory. A tool that fails stops the run: the next ones are
+skipped, as in `ATLAS GPB BCB ICB`. **Stop** ends the tool that runs (the tool
+itself, not only `ATLAS.sh`) and skips the others; the `filelist.txt` and the
+GPB staging directory a stopped tool leaves are removed.
+
+| Card | What it shows |
+|------|---------------|
+| **Tools** | GPB, BCB and ICB, each with what it builds from the deck (*2 phases: gas, drop*, *3 blocks, 5 boundary conditions*, *All blocks, Block 2*) or why it has nothing to build, a box to leave it out of the run, its state, and once it has run its time, the files it wrote and the errors and warnings it printed; **Log** and **First error** jump to them |
+| **Before the run** | What the run does first and what would stop it, from the case alone (below); **Tools…** opens Settings → Tools |
+| **Log** | The output of the tools as they run: ▶ a tool starts, ✔ it is done, ✖ it failed, ■ it was stopped, › what the run does besides; errors and warnings in their colours. **Save log…** writes it to a file |
+| **fromATLAStoSolver/** | The files there, those of the last run first, in bold, with the tool that wrote them; a double click opens one |
+
+The status bar shows the tool that runs, or how the last run ended, and the
+window's title the INI and whether it has unsaved changes.
+
+### Before the run
+
+BCB and ICB read what they need from the case directory under fixed names;
+two of them a GUI case does not always have there, and the run provides them,
+saying so in the log:
+
+* **The mesh.** BCB and ICB read `mesh.tec`, `mesh.p3d` or `mesh.szplt`, the
+  first that exists. A mesh loaded under another name (`chamber.p3d`) is
+  linked under the default name of its format (`mesh.p3d → chamber.p3d`)
+  before BCB or ICB runs. When another default mesh comes first (a
+  `mesh.tec` next to the `mesh.p3d` on the screen), the run warns that the
+  tools read that one.
+* **The phase files.** BCB and ICB read the `*phase.txt` of the case
+  directory, with their `thermo.dat` or `properties.dat`; GPB writes them into
+  `fromATLAStoSolver/`. With **Give BCB and ICB the phase tables GPB writes**
+  (on by default, remembered), the tables GPB has just written are copied into
+  the case directory after GPB, before BCB and ICB; its other products
+  (`transport.dat`, `composition.txt`, ...) are for the solver and stay where
+  they are. Without GPB in the run, the list names the phase files BCB and ICB
+  will read, and warns when one is older than GPB's last, when one belongs to
+  no phase of the deck, and when there is none (the tools then assume one
+  ideal gas).
+
+The list also says when the INI is saved first, when a tool is not built or
+GPB has no Python with Cantera (the run cannot start), when a `filelist.txt` in
+the case directory decides the phase files instead (`ATLAS.sh` keeps a file it
+did not make), and when the checks of **Review** find errors in the stage of a
+tool that runs (the run asks before it starts).

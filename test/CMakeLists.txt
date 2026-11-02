@@ -2112,3 +2112,20 @@ set_tests_properties(GUI-icgeom PROPERTIES
     SKIP_RETURN_CODE 77
     ENVIRONMENT      "${_TEST_ENV}"
 )
+
+# ---- GUI : GUI-runner (how the GUI runs the tools: the checks before a run -- the mesh BCB and ICB read and the link to
+# ----       the mesh on the screen, the phase files they read and the hand-off of GPB's tables, filelist.txt, a tool not
+# ----       built, the GUI's errors by stage -- with the standard library only; with PyQt6, a chain stops at the tool that
+# ----       fails, Stop ends the tool the launcher started and removes the filelist.txt it made, the hand-off copies only
+# ----       the phase tables, ICB run by the GUI writes what ATLAS ICB writes, and GPB then ICB run as a chain when
+# ----       this Python has Cantera) -------------
+add_test(
+    NAME    GUI-runner
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_runner.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-runner PROPERTIES
+    LABELS      "GUI;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)

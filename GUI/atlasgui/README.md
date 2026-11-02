@@ -1,8 +1,8 @@
-# ATLAS case-setup GUI
+# ATLAS GUI
 
 One window over one `input.ini`: the GPB phases, the BCB boundary conditions,
 the ICB initial state and the `[ATLAS-Parameters]` the tools share — the same
-file `ATLAS GPB BCB ICB` reads.
+file `ATLAS GPB BCB ICB` reads — and the runs of GPB, BCB and ICB on it.
 
 ## Stages
 
@@ -13,6 +13,7 @@ file `ATLAS GPB BCB ICB` reads.
 | Boundaries | `bcbpanel.py` | `[BCB-BlockN]` + the named BC sections, on the 3-D mesh |
 | Initial | `icbpanel.py` | `[ICB-Block*]`, `[ICB-BlockN]`: the initial state of every block, and the state of every cell in 3-D |
 | Review | `mainwindow.py` | the INI as it will be written, and the checks on it |
+| Run | `runpanel.py` | runs GPB, BCB and ICB on the saved INI: their log and what they write |
 
 Sections of tools not edited here (`[STB-*]`, `[MDB-*]`, `[KAnT-*]`)
 are preserved verbatim through a save, as is `[BCB-Block*]` until a mesh says
@@ -82,6 +83,38 @@ the state `icgeom.state_map` gives every cell is the one ICB writes there
 (nozzle zones and their plenums included), that `icprofile` finds the cells a
 zone's table misses as ICB does, and that the GUI refuses the nozzle flow where
 ICB refuses it and finds the plenum rows ICB writes.
+
+## What the Run stage knows
+
+`runner.py` runs the tools as a user would from the case directory, `ATLAS
+<TOOL> --input <ini>` through `ATLAS.sh`, one process after the other in the
+order GPB, BCB, ICB, and stops at the first that fails (`RunSession`, QtCore
+only). Each process is its own process group (a `setsid` before `exec`), so
+Stop reaches the tool `ATLAS.sh` started; the `filelist.txt` `ATLAS.sh` made
+and the staging directory of a stopped GPB are removed after it. The output is
+read unbuffered (`PYTHONUNBUFFERED`, `GFORTRAN_UNBUFFERED_PRECONNECTED`), the
+environment is the GUI's with `ATLASDIR`, the CEA tables of the build as
+`scripts/setvars.sh` sets them, the Python of GPB (`ATLAS_PYTHON`) and the
+threads of Settings → Tools (`preferences.tool_settings`).
+
+A chained run needs two things the tools do not do, and the run does them:
+BCB and ICB read the mesh under a default name (`read_mesh.f90`: `mesh.tec`,
+`mesh.p3d`, `mesh.szplt`, the first that exists), so a mesh loaded under
+another name is linked under the one of its format (`mesh_plan`); and they read
+the `*phase.txt`, `*thermo.dat` and `*properties.dat` of the case directory,
+where GPB does not write, so the tables GPB has just written are copied there
+after it (the hand-off). `preflight` says beforehand what a run does and what
+stops it, from the case alone: the INI to save, a tool not built, a Python
+without Cantera, the mesh and the phase files BCB and ICB will read (stale,
+older than GPB's, missing, or chosen by a `filelist.txt`), the GUI's own errors
+in the stage of a tool that runs. What each tool wrote is the difference of
+`fromATLAStoSolver/` before and after it.
+
+`GUI/tests/test_runner.py` (CTest `GUI-runner`) checks the preflight with the
+standard library only, and with PyQt6 the runs: a chain on a stand-in
+launcher (order, failure, the hand-off of the tables alone, the mesh link),
+Stop ending the launcher's child, ICB run by the GUI writing what `ATLAS ICB`
+typed in a shell writes, and GPB then ICB when the Python has Cantera.
 
 ## What the GPB panel knows
 

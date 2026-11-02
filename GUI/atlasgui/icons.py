@@ -394,6 +394,30 @@ def _review(p, c):
     _poly(p, [(8.6, 14.4), (11, 16.8), (15.6, 11.3)])
 
 
+def _play(p, c):
+    """A triangle pointing on: run."""
+    _stroke(p, c)
+    path = QPainterPath(QPointF(8, 5.2))
+    path.lineTo(QPointF(18.6, 12))
+    path.lineTo(QPointF(8, 18.8))
+    path.closeSubpath()
+    p.drawPath(path)
+
+
+def _stop(p, c):
+    """A square: stop the run."""
+    _stroke(p, c)
+    p.drawRoundedRect(QRectF(6, 6, 12, 12), 2.2, 2.2)
+
+
+def _terminal(p, c):
+    """A window with a prompt: the log of a tool."""
+    _stroke(p, c)
+    p.drawRoundedRect(QRectF(3, 4.5, 18, 15), 2.4, 2.4)
+    _poly(p, [(7, 9.6), (10, 12.2), (7, 14.8)])
+    _poly(p, [(12.2, 15.2), (16.6, 15.2)])
+
+
 DRAW = {
     "mesh": _mesh, "cube": _cube, "open": _open, "save": _save,
     "save-as": _save_as, "fit": _fit, "tag": _tag, "eye": _eye,
@@ -406,7 +430,7 @@ DRAW = {
     "circle": _circle, "file": _file, "alert": _alert, "gear": _gear,
     "reset": _reset, "type": _type, "thermo": _thermo,
     "grid": _grid, "case": _case, "boundary": _boundary, "initial": _initial,
-    "review": _review,
+    "review": _review, "play": _play, "stop": _stop, "terminal": _terminal,
 }
 
 

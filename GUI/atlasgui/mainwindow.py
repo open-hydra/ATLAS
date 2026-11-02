@@ -11,7 +11,10 @@ document, in the order the tools run:
 * **Initial** -- ICB: the initial state of every block;
 * **Review** -- the INI as it will be written, with everything the GUI can
   check about it, grouped by stage; an entry shows its section in the INI, a
-  double click opens it in its stage.
+  double click opens it in its stage;
+* **Run** -- GPB, BCB and ICB run on the case, their log and the files they
+  write (:mod:`atlasgui.runpanel`).  Run and Stop are in the header too, for
+  every stage.
 """
 
 from __future__ import annotations
@@ -20,7 +23,7 @@ import os
 import sys
 
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import (QActionGroup, QBrush, QColor, QFont, QFontMetrics, QKeySequence,
+from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QFont, QFontMetrics, QKeySequence,
                          QSyntaxHighlighter, QTextCharFormat, QTextCursor,
                          QTextFormat)
 from PyQt6.QtWidgets import (
@@ -40,6 +43,7 @@ from .filewidgets import FileColumn
 from .gpbpanel import GPBPanel
 from .icbpanel import ICBPanel
 from .icmodel import block_label
+from .runpanel import RunPanel
 from .widgets import Card, UIKit
 
 STAGES = [
@@ -48,6 +52,7 @@ STAGES = [
     ("bcb", "Boundaries", "boundary", "BCB: boundary conditions on the mesh"),
     ("icb", "Initial", "initial", "ICB: the initial state of every block"),
     ("review", "Review", "review", "The INI file and what can be checked in it"),
+    ("run", "Run", "play", "GPB, BCB and ICB on the case: their log and what they write"),
 ]
 
 STAGE_LABELS = {key: label for key, label, _icon, _tip in STAGES}
@@ -126,7 +131,7 @@ class AtlasMainWindow(QWidget):
         self.kit = UIKit(self)
 
         self.setObjectName("Root")
-        self.setWindowTitle("ATLAS — case setup")
+        self.setWindowTitle("ATLAS")
         self._apply_stylesheet()
         self._build_ui()
         self._fit_to_screen()
@@ -195,11 +200,13 @@ class AtlasMainWindow(QWidget):
         self.bcb_panel = BCBPanel(self)
         self.icb_panel = ICBPanel(self)
         self.review_page = self._build_review_stage()
+        self.run_panel = RunPanel(self)
+        self.run_panel.running_changed.connect(self._running_changed)
         for panel in (self.gpb_panel, self.bcb_panel, self.icb_panel):
             panel.changed.connect(self.document_changed)
         pages = {"case": self.case_page, "gpb": self.gpb_panel,
                  "bcb": self.bcb_panel, "icb": self.icb_panel,
-                 "review": self.review_page}
+                 "review": self.review_page, "run": self.run_panel}
         for key, _label, _icon, _tip in STAGES:
             self.stack.addWidget(pages[key])
         body.addWidget(self.stack, 1)
@@ -245,6 +252,23 @@ class AtlasMainWindow(QWidget):
         ]:
             lay.addWidget(kit.button(text, slot, ico, role, tip=tip,
                                      compactable=True))
+
+        lay.addWidget(kit.vdivider())
+        native = QKeySequence.SequenceFormat.NativeText
+        run_keys = QKeySequence("Ctrl+R").toString(native)
+        self.run_header_button = kit.button(
+            "Run", self.run_tools, "play", None, compactable=True,
+            tip=f"Save the case and run GPB, BCB and ICB on it ({run_keys})")
+        self.stop_header_button = kit.button(
+            "Stop", self.stop_tools, "stop", "danger", compactable=True,
+            tip="End the tool that runs; the others do not start")
+        self.stop_header_button.setVisible(False)
+        lay.addWidget(self.run_header_button)
+        lay.addWidget(self.stop_header_button)
+        run_action = QAction("Run", self)
+        run_action.setShortcut(QKeySequence("Ctrl+R"))     # Cmd+R on macOS
+        run_action.triggered.connect(self.run_tools)
+        self.addAction(run_action)
 
         lay.addWidget(kit.vdivider())
         self.tool_stack = QStackedWidget()
@@ -600,6 +624,16 @@ class AtlasMainWindow(QWidget):
         lay.addWidget(self.faces_label)
 
         lay.addStretch(1)
+        self.run_dot = QLabel()
+        self.run_state = QLabel()
+        self.run_state.setProperty("role", "value")
+        self.run_state.setToolTip("The last run of the tools (Run stage)")
+        for widget in (self.run_dot, self.run_state):
+            widget.setVisible(False)
+            lay.addWidget(widget)
+        self.run_divider = kit.vdivider()
+        self.run_divider.setVisible(False)
+        lay.addWidget(self.run_divider)
         self.issues_label = QLabel("no issues")
         self.issues_label.setProperty("role", "muted")
         lay.addWidget(self.issues_label)
@@ -635,6 +669,46 @@ class AtlasMainWindow(QWidget):
         elif key == "case":
             self.icb_panel.reload_phases()
             self.refresh_case()
+        elif key == "run":
+            self.run_panel.refresh()
+
+    # ----------------------------------------------------------------- runs
+    def run_tools(self):
+        """Run the selected tools on the case, from any stage: the Run stage
+        shows their log."""
+        if self.run_panel.running():
+            return
+        self.set_stage("run")
+        self.run_panel.run()
+
+    def stop_tools(self):
+        self.run_panel.stop()
+
+    def _running_changed(self, running):
+        self.run_header_button.setVisible(not running)
+        self.stop_header_button.setVisible(running)
+        self.refresh_run_state()
+
+    def refresh_run_state(self):
+        """The run in the status bar: the tool that runs, or how the last
+        run ended."""
+        state = self.run_panel.state_text()
+        for widget in (self.run_dot, self.run_state, self.run_divider):
+            widget.setVisible(state is not None)
+        if state is None:
+            return
+        text, token = state
+        self.run_state.setText(text)
+        self.run_dot.setPixmap(icons.dot_pixmap(self.kit.color(token), self.kit.px(10)))
+
+    def run_finished(self, ok):
+        """A run ended: the phase files and the outputs may be new."""
+        self.icb_panel.reload_phases()
+        self.refresh_status()
+        self.refresh_run_state()
+        if self.current_stage == "review":
+            self.refresh_review()
+        QApplication.alert(self)        # the Dock icon bounces if the window is behind
 
     # ------------------------------------------------------------ file ops
     def set_case_dir(self, path):
@@ -757,6 +831,8 @@ class AtlasMainWindow(QWidget):
         self.refresh_case()
         self.refresh_review()
         self.refresh_status()
+        if self.current_stage == "run":
+            self.run_panel.refresh()
 
     def refresh_case(self):
         from .widgets import clear_layout
@@ -955,6 +1031,8 @@ class AtlasMainWindow(QWidget):
         self.status.setText(
             os.path.basename(self.ini_path) if self.ini_path else "new case")
         self.status.setToolTip(self.ini_path or "not written to a file yet")
+        name = os.path.basename(self.ini_path) if self.ini_path else "new case"
+        self.setWindowTitle(f"{name}{' (unsaved)' if self._dirty else ''} — ATLAS")
         issues = self._issues()
         errors = sum(1 for level, _t, _m in issues if level == "error")
         warnings = sum(1 for level, _t, _m in issues if level == "warning")
@@ -1020,6 +1098,8 @@ class AtlasMainWindow(QWidget):
         self.kit.retint()
         self.highlighter.set_theme(self._theme)
         self.bcb_panel.restyle()
+        self.run_panel.restyle()
+        self.refresh_run_state()
         self.gpb_panel.refresh()
         self.icb_panel.refresh()
         self.refresh_review()
@@ -1118,6 +1198,16 @@ class AtlasMainWindow(QWidget):
             self._restyle()
 
     def closeEvent(self, event):
+        if self.run_panel.running():
+            reply = QMessageBox.question(
+                self, "Run in progress",
+                f"{self.run_panel.session.running} is running on the case.\n"
+                "Stop it and close?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
+            if reply != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+            self.run_panel.stop_and_wait()
         if self._dirty:
             reply = QMessageBox.question(
                 self, "Unsaved changes",

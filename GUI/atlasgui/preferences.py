@@ -2,9 +2,9 @@
 
 Two stores, found in one place:
 
-* the **settings** -- theme, text size, and whatever later pages add -- in the
-  platform's own store, through QSettings (a plist on macOS, an INI file on
-  Linux, the registry on Windows);
+* the **settings** -- theme, text size, how the tools are run, and whatever
+  later pages add -- in the platform's own store, through QSettings (a plist
+  on macOS, an INI file on Linux, the registry on Windows);
 * the **colour themes** the user made, one JSON file each in
   ``<config>/ATLAS/themes/``, so that a theme can be handed to a colleague or
   kept with a project.  ``<config>`` is ``~/.config`` on Linux and
@@ -129,3 +129,30 @@ def save_themes(specs):
         os.remove(path)
     for name, spec in specs.items():
         write_theme_file(spec, os.path.join(directory, files[name]))
+
+
+# ------------------------------------------------------------------- tools
+# How the Run stage starts the tools (Settings → Tools): "" and 0 are the
+# automatic choices (see atlasgui.runner).
+TOOL_DEFAULTS = {"atlas-dir": "", "python": "", "threads": 0}
+
+
+def tool_settings(store=None):
+    """``{"atlas-dir", "python", "threads"}`` as the user set them."""
+    store = settings() if store is None else store
+    values = {}
+    for key, default in TOOL_DEFAULTS.items():
+        value = store.value(f"tools/{key}", default)
+        if isinstance(default, int):
+            try:
+                value = max(int(value), 0)
+            except (TypeError, ValueError):
+                value = default
+        values[key] = value or default
+    return values
+
+
+def save_tool_settings(values, store=None):
+    store = settings() if store is None else store
+    for key, default in TOOL_DEFAULTS.items():
+        store.setValue(f"tools/{key}", values.get(key, default))

@@ -27,7 +27,7 @@ Usage:
 Hydra pre-processing tools:
    ATLAS GPB
    ATLAS BCB
-   ATLAS GUI        (case setup: GPB phases + BCB boundary conditions)
+   ATLAS GUI        (the case: GPB, BCB and ICB sections, and their runs)
    ATLAS BCB-GUI    (the same GUI, opened on the boundaries stage)
    ATLAS ICB
    ATLAS STB
