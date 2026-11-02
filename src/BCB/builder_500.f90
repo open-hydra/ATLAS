@@ -130,11 +130,11 @@ contains
       rhoGrain_srm = cfg%rhoGrain
       SFgeo_srm = cfg%SF
 
-      ! a: required, the key a or an a-file whose range holds the cell (detect_bc_files gives the cell its value). A grain
+      ! a: required, the key a or an a-file (builder_face gives the cell the value of the file as the key a). A grain
       ! without it was written with a = 0, a surface that does not burn, in silence; a = 0 given stays that surface
       if (.not. cfg%has_a) then
-        write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): no burn rate coefficient a (the key a, '// &
-          'or an a-file whose range holds the face cell); a = 0 is a surface that does not burn (grain-bc = wall)'
+        write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): no burn rate coefficient a (the key a '// &
+          'or an a-file); a = 0 is a surface that does not burn (grain-bc = wall)'
         stop 1
       endif
 

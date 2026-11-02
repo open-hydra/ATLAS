@@ -880,8 +880,8 @@ N2 28.014000
 CEA-mixture 56.478204
 ```
 
-`a`, `n` and `rhoGrain` are mandatory. BCB stops on a grain without `a`, the key or an `a-file` whose range holds the
-face cell (`a = 0` given is a surface that does not burn, with `grain-bc = wall`), and on `n` or `rhoGrain` left at `0`.
+`a`, `n` and `rhoGrain` are mandatory. BCB stops on a grain without `a`, the key or an `a-file` (`a = 0` given is a
+surface that does not burn, with `grain-bc = wall`), and on `n` or `rhoGrain` left at `0`.
 
 #### `gsi` — Melting
 

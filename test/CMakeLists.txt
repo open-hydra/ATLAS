@@ -1482,10 +1482,12 @@ set_tests_properties(IG-2D-grain-inflow PROPERTIES
 # ---- BCB : IG-grain-a-missing-refused (a solid-propellant grain without its burn rate coefficient a) -------------
 # IG-2D-grain-inflow's mesh and phase, face 1 a grain (gsi) as a wall (grain-bc left out) without a: BCB stops naming
 # the key and writes no bc.txt (the grain was written with a = 0, a surface that does not burn, in silence); _run-a0:
-# the same deck with a = 0 given, that surface: 502 on the three cells of face 1, mdot_ref 0, mode 1 (check_mdot.py).
+# the same deck with a = 0 given, that surface: 502 on the three cells of face 1, mdot_ref 0, mode 1 (check_mdot.py);
+# _run-afile: no key a, an a-file along y (a.dat, a = 0.004 + 0.02 y) over the face: mdot_ref = 1750 a at the
+# three cell centres, y = 0.025, 0.075, 0.125.
 add_test(
     NAME    IG-grain-a-missing-refused
-    COMMAND bash -c "rm -rf fromATLAStoSolver _run-a0; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] section [grain] (gsi, BC 502): no burn rate coefficient a (the key a, or an a-file whose range holds the face cell)' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt && mkdir _run-a0 && cp input.ini mesh.tec phase.txt _run-a0/ && cd _run-a0 && sed -i 's/^n        = 0.35$/a        = 0.0\\nn        = 0.35/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_mdot.py fromATLAStoSolver/bc.txt 0 1"
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-a0 _run-afile; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] section [grain] (gsi, BC 502): no burn rate coefficient a (the key a or an a-file)' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt && mkdir _run-a0 && cp input.ini mesh.tec phase.txt _run-a0/ && cd _run-a0 && sed -i 's/^n        = 0.35$/a        = 0.0\\nn        = 0.35/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_mdot.py fromATLAStoSolver/bc.txt 1 0 && cd .. && mkdir _run-afile && cp input.ini mesh.tec phase.txt a.dat _run-afile/ && cd _run-afile && echo 'direction = y' >> input.ini && echo 'a-file    = a.dat' >> input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_mdot.py fromATLAStoSolver/bc.txt 1 7.875 9.625 11.375"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-grain-a-missing-refused"
 )
 set_tests_properties(IG-grain-a-missing-refused PROPERTIES

@@ -1232,7 +1232,7 @@ contains
       call bcb_registry%add('bc-section', 'dh', gsi_cfg%dh, '0.0', 'GSI boundary heat of reaction.', '', .false.)
       call add_turbulence_registry_entries(bcb_registry, 'bc-section', gsi_cfg%turbulence, boundary=.true.)
       call bcb_registry%add('bc-section', 'a', gsi_cfg%a, '0.0', 'Burn-rate coefficient a of r = a (p/pRef)^n [m/s] '// &
-        'of a solid-propellant grain (BC 502), required: the key or an a-file covering the face; a = 0 is a surface '// &
+        'of a solid-propellant grain (BC 502), required: the key or an a-file; a = 0 is a surface '// &
         'that does not burn (grain-bc = wall).', '', .false.)
       call bcb_registry%add('bc-section', 'n', gsi_cfg%n, '0.0', 'Burn-rate pressure exponent.', '', .false.)
       call bcb_registry%add('bc-section', 'pRef', gsi_cfg%pRef, '1.0', 'Reference pressure for the burn law.', '', .false.)
