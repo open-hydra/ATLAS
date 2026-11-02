@@ -93,9 +93,9 @@ ATLAS hosts two language stacks that coexist in the same CMake build tree:
 |---------|------|--------|
 | [Cantera](https://github.com/Cantera/cantera) | Thermodynamic & chemical kinetics evaluation (GPB, KAnT); 3.0 or later (`ct-env.yaml`; tested with 3.0.1) | conda / pip |
 | [CoolProp](http://www.coolprop.org) | Real-fluid equations of state (GPB real-fluid phase) | conda / pip |
-| [CEA](https://github.com/nasa/cea) | NASA CEA chemical equilibrium solver (GPB, BCB, ICB) | Bundled submodule |
-| [ORION](https://github.com/MarcoGrossi92/ORION) | Multi-format I/O — Tecplot, VTK, Plot3D (BCB, ICB, STB) | Bundled submodule |
-| [FiNeR](https://github.com/szaghi/FiNeR) | Fortran INI configuration file parser (BCB, ICB, STB) | Bundled submodule |
+| [CEA](https://github.com/nasa/cea) | NASA CEA chemical equilibrium solver (GPB, BCB, ICB) | Bundled submodule (v3.3.4) |
+| [ORION](https://github.com/MarcoGrossi92/ORION) | Multi-format I/O — Tecplot, VTK, Plot3D (BCB, ICB, STB) | Release 2.x, checked out by the configure |
+| [FiNeR](https://github.com/szaghi/FiNeR) | Fortran INI configuration file parser (BCB, ICB, STB) | Release v2.3.0, checked out by the configure |
 | [PiNeR](https://github.com/MarcoGrossi92/PiNeR) | Python INI configuration file parser (GPB, KAnT) | conda / pip |
 
 ### Optional libraries

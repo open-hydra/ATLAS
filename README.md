@@ -79,7 +79,9 @@ See the [Quick Start](docs/getting-started/quick-start.md) for a full walkthroug
 
 ## Dependencies
 
-ATLAS uses companion libraries, typically managed as Git submodules:
+ATLAS uses companion libraries: CEA and PiNeR are Git submodules; ORION (2.x) and FiNeR (v2.3.0) are required by
+release and checked out by the configure, or given as external clones (see
+[Versioning](docs/development/versioning.md#how-atlas-requires-its-libraries)):
 
 | Library | Role |
 |---|---|
@@ -99,7 +101,7 @@ ATLAS/
 |- docs/                 # MkDocs documentation source
 |- test/                 # Reference and regression cases
 |- scripts/              # Build and workflow helpers
-|- lib/                  # Dependencies/submodules
+|- lib/                  # Submodules (cea, PiNeR) and the releases of ORION and FiNeR
 |- bin/                  # Built executables (after build)
 |- install.sh            # Build helper script
 |- CMakeLists.txt

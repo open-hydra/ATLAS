@@ -23,9 +23,9 @@ ATLAS/
 │
 ├── lib/                    # Library code
 │   ├── cea/                # CEA (Chemical Equilibrium & Applications)
-│   ├── ORION/              # ORION multi-format I/O toolkit
+│   ├── ORION/              # ORION multi-format I/O toolkit (a release, checked out by the configure)
 │   ├── PiNeR/              # PiNeR Python INI parser
-│   └── third_party/FiNeR/  # FiNeR Fortran INI reader
+│   └── third_party/FiNeR/  # FiNeR Fortran INI reader (a release, checked out by the configure)
 │
 ├── test/                   # Test cases, one folder per case
 │   ├── CMakeLists.txt      # Registers every case with CTest

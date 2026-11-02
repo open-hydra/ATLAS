@@ -83,17 +83,22 @@ Performs a clean configure and build cycle, writes `CMakePresets.json`, sets she
 # skip conda env creation
 ./install.sh build --no-conda
 
-# use external dependency paths instead of bundled submodule paths
+# external clones in place of the releases of ORION and FiNeR (checked against what ATLAS requires)
 ./install.sh build \
   --include-orion=/path/to/ORION \
   --include-finer=/path/to/FiNeR
+
+# select again the newest release of ORION that ATLAS accepts (deps.lock)
+./install.sh build --update-deps
 ```
 
 Options supported by `build`:
 
 - `--compilers=<gnu|intel>`
+- `--include-cea=<path>`
 - `--include-orion=<path>`
 - `--include-finer=<path>`
+- `--update-deps`
 - `--use-openmp`
 - `--use-tecio`
 - `--no-conda`
@@ -104,14 +109,16 @@ If you prefer manual control, run the equivalent CMake commands directly.
 
 ```bash
 cmake -B build \
-  -DORION_PATH=$(pwd)/lib/ORION/ \
-  -DFINER_PATH=$(pwd)/lib/third_party/FiNeR/ \
   -DUSE_TECIO=false \
   -DUSE_OPENMP=false \
   -DCMAKE_BUILD_TYPE=RELEASE
 
 cmake --build build
 ```
+
+The first configure clones the releases of ORION and FiNeR into `lib/` (it needs the network). External clones
+replace them with `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>` and `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>`; see
+[Libraries: releases, pins and external clones](../development/build.md#libraries-releases-pins-and-external-clones).
 
 ## Conda Environment Created By Installer
 
@@ -128,7 +135,6 @@ The created environment name is `ct-env`. It includes:
 - editable installs of:
   - `lib/PiNeR`
   - `lib/cea`
-  - `lib/ORION`
 
 ## Verification
 
