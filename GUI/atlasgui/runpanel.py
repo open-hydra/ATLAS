@@ -9,6 +9,10 @@
   coloured, with what the run does besides (``›``);
 * **fromATLAStoSolver/** -- the files there, those of the last run first.
 
+When a tool ends, its errors and warnings are read from its output
+(:func:`atlasgui.runlog.messages`), each on the section it names: Review lists
+them with the GUI's own checks, and shows each one's line in the log.
+
 The run itself is a :class:`atlasgui.runner.RunSession`; the shell saves the
 INI before it starts, and its header has Run and Stop for every stage.
 """
@@ -28,7 +32,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from . import icons, preferences, runner
+from . import icons, preferences, runlog, runner
 from .widgets import Card, clear_layout
 
 LEVEL_COLORS = {"error": "danger", "warning": "warning", "action": "accent",
@@ -181,6 +185,9 @@ class RunPanel(QWidget):
         self.results = {}                       # the last run's ToolResult by tool
         self.selected = {name: True for name in runner.TOOL_NAMES}
         self._anchors = {}                      # tool -> (first line, first error line)
+        self._out_blocks = {}                   # tool -> the log line of each line it printed
+        self.messages = {}                      # tool -> its runlog.Message of the last run
+        self.run_ini = None                     # (INI path, its text, time) of the last run
         store = shell.settings
         self.handoff = str(store.value("run/hand-off", "true")).lower() != "false"
         self._build()
@@ -227,8 +234,16 @@ class RunPanel(QWidget):
         self.busy.setRange(0, 0)
         self.busy.setVisible(False)
         tools.body.addWidget(self.busy)
+        summary = QHBoxLayout()
+        summary.setSpacing(6)
         self.summary = kit.hint("")
-        tools.body.addWidget(self.summary)
+        summary.addWidget(self.summary, 1)
+        self.review_button = kit.button(
+            "", lambda: self.shell.set_stage("review"), "review", "ghost",
+            tip="The errors and warnings the tools printed, on the sections they name")
+        self.review_button.setVisible(False)
+        summary.addWidget(self.review_button)
+        tools.body.addLayout(summary)
         column.addWidget(tools)
 
         before = Card()
@@ -403,6 +418,11 @@ class RunPanel(QWidget):
                 self.summary.setText(f"Last run: {what}, at {stamp}")
         else:
             self.summary.setText("Not run yet in this window.")
+        told = self.tool_messages()
+        self.review_button.setVisible(bool(told) and not self.running())
+        if told:
+            n = len(told)
+            self.review_button.setText(f"  {n} message{'s' * (n != 1)} in Review")
 
     def refresh_outputs(self):
         out = os.path.join(self.shell.case_dir, runner.OUTPUT_DIR)
@@ -489,6 +509,9 @@ class RunPanel(QWidget):
             handoff=self.handoff and "GPB" in names, parent=self)
         self.results = self.session.results
         self._anchors = {}
+        self._out_blocks = {}
+        self.messages = {}
+        self.run_ini = (shell.ini_path, shell.doc.to_ini(), datetime.datetime.now())
         self.session.line.connect(self._line)
         self.session.tool_started.connect(lambda _n: self.refresh())
         self.session.tool_finished.connect(self._tool_finished)
@@ -523,6 +546,8 @@ class RunPanel(QWidget):
             text = MARKS["gui"] + text
         self.console.appendPlainText(text)
         line = self.console.document().blockCount() - 1
+        if kind == "out":
+            self._out_blocks.setdefault(name, []).append(line)
         first, error = self._anchors.get(name, (None, None))
         if kind == "head" and first is None:
             first = line
@@ -530,9 +555,42 @@ class RunPanel(QWidget):
             error = line
         self._anchors[name] = (first, error)
 
-    def _tool_finished(self, _name):
+    def _tool_finished(self, name):
+        result = self.session.results[name]
+        if result.status in ("done", "failed", "stopped"):
+            self.messages[name] = runlog.messages(name, result.lines, self.shell.doc,
+                                                  failed=result.status == "failed")
         self.refresh()
         self.shell.refresh_run_state()
+        if self.shell.current_stage == "review":
+            self.shell.refresh_review()
+
+    # ------------------------------------------------------- the messages
+    def tool_messages(self):
+        """The errors and warnings of the last run, tool by tool, while the
+        case is the one it ran on."""
+        if self.run_ini is None or self.run_ini[0] != self.shell.ini_path:
+            return []
+        return [m for name in runner.TOOL_NAMES for m in self.messages.get(name, [])]
+
+    def messages_stale(self):
+        """True when the case has changed since the run its messages are of."""
+        return self.run_ini is not None and self.shell.doc.to_ini() != self.run_ini[1]
+
+    def run_time(self):
+        return self.run_ini[2] if self.run_ini else None
+
+    def show_log_line(self, name, index):
+        """Show line *index* of what tool *name* printed, in the log."""
+        blocks = self._out_blocks.get(name, [])
+        result = self.results.get(name)
+        if index is None or result is None or not 0 <= index < len(blocks):
+            return False
+        block = self.console.document().findBlockByNumber(blocks[index])
+        if not block.isValid() or block.text() != result.lines[index]:
+            return False                        # the log was cleared or trimmed since
+        self._scroll_to(block)
+        return True
 
     def _finished(self, ok):
         self._clock.stop()
@@ -572,8 +630,10 @@ class RunPanel(QWidget):
         if line is None:
             return
         block = self.console.document().findBlockByNumber(line)
-        if not block.isValid():
-            return
+        if block.isValid():
+            self._scroll_to(block)
+
+    def _scroll_to(self, block):
         # from the end, the view scrolls up to the line and shows it at the top
         self.console.moveCursor(QTextCursor.MoveOperation.End)
         cursor = QTextCursor(block)
@@ -584,6 +644,7 @@ class RunPanel(QWidget):
     def clear_log(self):
         self.console.clear()
         self._anchors = {}
+        self._out_blocks = {}
 
     def save_log(self):
         start = os.path.join(self.shell.case_dir, "atlas-run.log")

@@ -58,6 +58,9 @@ STAGES = [
 STAGE_LABELS = {key: label for key, label, _icon, _tip in STAGES}
 LEVEL_COLORS = {"error": "danger", "warning": "warning", "info": "muted"}
 LEVEL_ICONS = {"error": "info", "warning": "info", "info": "info"}
+# what a Review entry holds besides its target (Qt.ItemDataRole.UserRole)
+ISSUE_LOG = Qt.ItemDataRole.UserRole + 1     # (tool, line) of a tool's message
+ISSUE_KEY = Qt.ItemDataRole.UserRole + 2     # the key it names
 
 
 class IniHighlighter(QSyntaxHighlighter):
@@ -506,13 +509,17 @@ class AtlasMainWindow(QWidget):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.issue_list.itemDoubleClicked.connect(self._goto_issue)
         self.issue_list.currentItemChanged.connect(self._show_issue_section)
+        self.issue_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.issue_list.customContextMenuRequested.connect(self._issue_menu)
         self.issue_list.setToolTip(
-            "What the GUI can check without running the tools. Click an entry "
-            "to see its section in the INI, double-click it to open it.")
+            "What the GUI checks in the case, and what the tools said in the last "
+            "run. Click an entry to see its section in the INI, double-click it to "
+            "open it; right-click a tool's message to see it in the log.")
         checks.body.addWidget(self.issue_list, 1)
         checks.body.addWidget(kit.hint(
-            "GPB, BCB and ICB run their own checks too; these are the ones the "
-            "GUI can make from the case file and, once it is loaded, the mesh."))
+            "Entries marked GPB, BCB or ICB are the errors and warnings the tools "
+            "printed in the last run (Run stage); the others are the checks the GUI "
+            "makes from the case file and, once it is loaded, the mesh."))
         splitter.addWidget(checks)
 
         preview = Card()
@@ -550,8 +557,10 @@ class AtlasMainWindow(QWidget):
         return "[ICB-Block*]" if icb.wildcard is not None else None
 
     def _show_issue_section(self, item, _previous=None):
-        """Bring the section of the issue *item* into the preview, marked."""
+        """Bring the section of the issue *item* into the preview, marked, and
+        the line of the key a tool's message names more strongly."""
         target = item.data(Qt.ItemDataRole.UserRole) if item is not None else None
+        key = item.data(ISSUE_KEY) if item is not None else None
         header = self._section_of(target) if target else None
         selections = []
         lines = self.preview.toPlainText().split("\n")
@@ -566,7 +575,9 @@ class AtlasMainWindow(QWidget):
             for n in range(start, end):
                 selection = QTextEdit.ExtraSelection()
                 selection.cursor = QTextCursor(document.findBlockByNumber(n))
-                selection.format.setBackground(QColor(self._theme["accent_soft"]))
+                named = key and lines[n].split("=", 1)[0].strip() == key
+                colour = "accent_soft" if named or not key else "accent_wash"
+                selection.format.setBackground(QColor(self._theme[colour]))
                 selection.format.setProperty(QTextFormat.Property.FullWidthSelection, True)
                 selections.append(selection)
             # the header near the top: from the end, the view scrolls up to it
@@ -574,6 +585,26 @@ class AtlasMainWindow(QWidget):
             self.preview.setTextCursor(
                 QTextCursor(document.findBlockByNumber(max(start - 1, 0))))
         self.preview.setExtraSelections(selections)
+
+    def _issue_menu(self, pos):
+        item = self.issue_list.itemAt(pos)
+        if item is None or not item.data(Qt.ItemDataRole.UserRole):
+            return
+        menu = QMenu(self.issue_list)
+        target = item.data(Qt.ItemDataRole.UserRole)
+        menu.addAction(f"Open in {STAGE_LABELS[target[0]]}", lambda: self._goto_issue(item))
+        where = item.data(ISSUE_LOG)
+        if where:
+            menu.addAction("Show in the log", lambda: self._show_in_log(*where))
+        menu.addAction("Copy", lambda: QApplication.clipboard().setText(
+            item.toolTip() or item.text()))
+        menu.exec(self.issue_list.viewport().mapToGlobal(pos))
+
+    def _show_in_log(self, tool, line):
+        self.set_stage("run")
+        if not self.run_panel.show_log_line(tool, line):
+            self.warn("Show in the log", "The log no longer holds this line: it was "
+                      "cleared since the run.")
 
     def _goto_issue(self, item):
         target = item.data(Qt.ItemDataRole.UserRole)
@@ -976,7 +1007,20 @@ class AtlasMainWindow(QWidget):
         self.preview.setPlainText(self.doc.to_ini())
         self.issue_list.clear()
         issues = self._issues()
+        told = self.run_panel.tool_messages()
+        stale = bool(told) and self.run_panel.messages_stale()
         order = {"error": 0, "warning": 1, "info": 2}
+        if told:
+            tools = sorted({m.tool for m in told}, key=lambda t: "GPB BCB ICB".find(t))
+            note = (f"{', '.join(tools)}: what the tools printed in the run at "
+                    f"{self.run_panel.run_time():%H:%M:%S}")
+            if stale:
+                note += " — the case has changed since: run again to update it"
+            banner = QListWidgetItem(note)
+            banner.setFlags(Qt.ItemFlag.NoItemFlags)
+            banner.setIcon(self.kit.icon("terminal", "warning" if stale else "muted", 14))
+            banner.setForeground(QBrush(QColor(self._theme["muted"])))
+            self.issue_list.addItem(banner)
         # grouped by the stage that fixes them, in the order the tools run
         group_font = QFont(self.issue_list.font())
         group_font.setWeight(QFont.Weight.DemiBold)
@@ -984,12 +1028,15 @@ class AtlasMainWindow(QWidget):
         for stage, label, _icon, _tip in STAGES:
             mine = sorted((i for i in issues if i[1][0] == stage),
                           key=lambda i: order[i[0]])
-            if not mine:
+            theirs = sorted((m for m in told if m.target[0] == stage),
+                            key=lambda m: order[m.level])
+            if not mine and not theirs:
                 continue
             counts = []
             for level, name in (("error", "error"), ("warning", "warning"),
                                 ("info", "note")):
                 n = sum(1 for lv, _t, _m in mine if lv == level)
+                n += sum(1 for m in theirs if m.level == level)
                 if n:
                     counts.append(f"{n} {name}" + ("s" if n > 1 else ""))
             header = QListWidgetItem(f"{label.upper()}   ·   {', '.join(counts)}")
@@ -1006,13 +1053,36 @@ class AtlasMainWindow(QWidget):
                 item.setData(Qt.ItemDataRole.UserRole, target)
                 item.setToolTip(f"{level} ({STAGE_LABELS[stage]}): {message}")
                 self.issue_list.addItem(item)
-        if not issues:
+            for m in theirs:
+                self.issue_list.addItem(self._message_item(m, stale))
+        if not issues and not told:
             item = QListWidgetItem("Nothing to report")
             item.setForeground(QBrush(QColor(self._theme["muted"])))
             self.issue_list.addItem(item)
         errors = sum(1 for level, _t, _m in issues if level == "error")
-        self.issue_badge.setText(str(len(issues)))
+        errors += sum(1 for m in told if m.level == "error")
+        self.issue_badge.setText(str(len(issues) + len(told)))
         self.issue_badge.setToolTip(f"{errors} error(s)")
+
+    def _message_item(self, message, stale):
+        """The Review entry of a tool's message: the tool, what it said, how
+        many times; its lines and the run in the tooltip."""
+        text = f"{message.tool} · {message.text}"
+        if message.count > 1:
+            text += f"   (×{message.count})"
+        item = QListWidgetItem(text)
+        item.setIcon(self.kit.icon("terminal", LEVEL_COLORS[message.level], 14))
+        item.setData(Qt.ItemDataRole.UserRole, message.target)
+        item.setData(ISSUE_LOG, (message.tool, message.line))
+        item.setData(ISSUE_KEY, message.key)
+        tip = [f"{message.level} printed by {message.tool}"
+               + (f", {message.count} times" if message.count > 1 else "") + ":",
+               message.text] + message.details
+        if stale:
+            tip.append("(the case has changed since this run)")
+            item.setForeground(QBrush(QColor(self._theme["muted"])))
+        item.setToolTip("\n".join(tip))
+        return item
 
     def refresh_status(self):
         total, done = self._coverage()

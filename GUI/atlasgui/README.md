@@ -110,8 +110,21 @@ older than GPB's, missing, or chosen by a `filelist.txt`), the GUI's own errors
 in the stage of a tool that runs. What each tool wrote is the difference of
 `fromATLAStoSolver/` before and after it.
 
-`GUI/tests/test_runner.py` (CTest `GUI-runner`) checks the preflight with the
-standard library only, and with PyQt6 the runs: a chain on a stand-in
+`runlog.py` reads what a tool printed into its errors and warnings
+(`messages`), each placed on a target of the GUI as its own checks are
+(`(stage, index)`): the section the message names (`key K of section [S]`
+first, then `section [S]`, then a bracketed name the deck holds), else the
+section that names a file the message names, else what the tool was building
+(GPB announces each phase, ICB each block), else the phase files (GPB's stage)
+or the tool's stage. Lines indented under a message go with it, a repeated
+message is counted once, a traceback or a Fortran runtime error is one error,
+and a failure without a message gets one. The Run stage reads a tool's lines
+when it ends; Review lists the messages of the last run with the checks of
+their stage while the case is the one that ran, greyed once it has changed.
+
+`GUI/tests/test_runner.py` (CTest `GUI-runner`) checks the preflight and the
+messages with the standard library only (and the messages of two refused decks
+of the suite as BCB and ICB print them today), and with PyQt6 the runs: a chain on a stand-in
 launcher (order, failure, the hand-off of the tables alone, the mesh link),
 Stop ending the launcher's child, ICB run by the GUI writing what `ATLAS ICB`
 typed in a shell writes, and GPB then ICB when the Python has Cantera.

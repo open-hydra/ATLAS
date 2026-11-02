@@ -14,6 +14,15 @@ only them) before BCB, after the mesh is linked; ICB runs through ATLAS.sh on
 a deck of the suite and writes what ATLAS ICB typed in a shell writes
 (skipped when ICB is not built) and, when this Python has
 Cantera, GPB and ICB run as a chain, ICB reading the phase GPB has just built.
+
+The messages of a run (runlog) need no Qt: every error and warning lands on
+the section it names (a key of a BC, a zone of an ICB block, a GPB phase,
+[ATLAS-Parameters]), on the section naming the file it names, or on what the
+tool was building when it spoke (GPB's phase, ICB's block); a message goes on
+over the lines indented under it, a repeated one is counted once, a Python
+traceback and a Fortran runtime error are one error, a failure without a
+message gets one.  Two refused decks of the suite run through BCB and ICB
+check the same on what the tools print today.
 """
 
 import os
@@ -29,7 +38,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from atlasgui import runner  # noqa: E402
+from atlasgui import runlog, runner  # noqa: E402
 from atlasgui.document import AtlasDocument  # noqa: E402
 
 ATLAS = runner.ATLAS_ROOT
@@ -425,6 +434,173 @@ class TestRuns(CaseDir):
         self.assertTrue(session.ok, "\n".join(t for _n, _k, t in lines))
         self.assertIn("air-phase.txt", os.listdir(self.case))
         self.assertEqual(session.results["ICB"].files, ["air-ic.tec"])
+
+
+# ------------------------------------------------------------- messages
+ZONES = """
+    [GPB-Phase1]
+    name = gas
+    [GPB-Phase2]
+    name = drop
+    type = condensed-dispersed
+
+    [ATLAS-Parameters]
+    IC-format = tec
+
+    [BCB-Block1]
+    face1 = isoth
+    face2 = injOX
+
+    [isoth]
+    type = wall
+    direction = xt
+    T-file = Twall.dat
+
+    [injOX]
+    type = inlet
+
+    [ICB-Block*]
+    p = 1e5
+    T = 300
+
+    [ICB-Block2]
+    direction = x
+    zone1 = lo
+    range1 = 0 0.5
+    zone2 = hi
+    range2 = 0.5 1
+
+    [lo]
+    p = 2e5
+    T = 400
+
+    [hi]
+    p = 1e5
+    T = 300
+"""
+
+
+class TestMessages(unittest.TestCase):
+
+    def setUp(self):
+        self.doc = doc_of(ZONES)
+
+    def one(self, tool, *lines, failed=False):
+        found = runlog.messages(tool, list(lines), self.doc, failed=failed)
+        self.assertEqual(len(found), 1, found)
+        return found[0]
+
+    def test_section_and_key(self):
+        m = self.one("BCB", "[ERROR] key rhoK of section [isoth]: unknown key (a boundary "
+                     "takes the specific k)")
+        self.assertEqual((m.level, m.target, m.section, m.key), ("error", ("bcb", "isoth"),
+                                                                  "isoth", "rhoK"))
+        self.assertTrue(m.text.startswith("key rhoK of section [isoth]"))
+        m = self.one("ICB", "[ERROR] keys k and rhoK of section [ICB-Block2]: one quantity given twice")
+        self.assertEqual((m.target, m.key), (("icb", 2), "k"))
+        m = self.one("ICB", "[ERROR] key yN2 of section [ICB-Block1] (or [ICB-Block*]): no species N2")
+        self.assertEqual(m.target, ("icb", 1))        # ICB names the section it looked in first
+
+    def test_sections_of_every_stage(self):
+        for tool, line, target in (
+                ("BCB", "[ERROR] key strict-keys of section [ATLAS-Parameters]: value Tomato is "
+                 "not a logical (T or F)", ("case", None)),
+                ("GPB", "[ERROR] [GPB-Phase2] FOO(L): not in nasa9.yaml, and no cp is given",
+                 ("gpb", 1)),
+                ("BCB", "[ERROR] composition of section [injOX] (keys yO2 yCH4): the mass "
+                 "fractions sum to 9.9E-01", ("bcb", "injOX")),
+                ("BCB", "[WARNING] section [BCB-Block1] has a key no tool reads", ("bcb", None)),
+                ("ICB", "[ERROR] key type of section [hi]: value 1D-centcomp not allowed",
+                 ("icb", (2, "hi"))),
+                ("ICB", "[ERROR] block 1 (section [lo]): the plenum rows of this nozzle zone",
+                 ("icb", (2, "lo"))),
+                ("BCB", "[ERROR] section [noz] of deck.ini: declared twice", ("bcb", None))):
+            self.assertEqual(self.one(tool, line).target, target, line)
+
+    def test_icb_blocks(self):
+        # block 2 has a section; block 1 takes the state of [ICB-Block*]
+        self.assertEqual(self.one("ICB", "[ERROR] build_IC block 2, IG phase: 8 of 32 cells are "
+                                  "initialised by no zone").target, ("icb", 2))
+        self.assertEqual(self.one("ICB", "[ERROR] build_IG_field block 1: the initial field is "
+                                  "not physical at cell (1,1,1)").target, ("icb", "*"))
+        m = self.one("ICB", "  - Initialization block n. =            2",
+                     "[WARNING] the turbulence of the source is not read")
+        self.assertEqual(m.target, ("icb", 2))
+
+    def test_gpb_phases_in_order(self):
+        found = runlog.messages("GPB", [
+            " - Ideal-gas phase: gas", "",
+            "[WARNING] GPB: transport = CEA: no CEApolynomials record for species 'Ar'",
+            " - Condensed-dispersed phase: drop",
+            "[WARNING] GPB: a warning about drop"], self.doc)
+        self.assertEqual([m.target for m in found], [("gpb", 0), ("gpb", 1)])
+        self.assertTrue(found[0].text.startswith("transport = CEA"))   # "GPB:" is the entry's tag
+
+    def test_files_and_phase_files(self):
+        m = self.one("BCB", " [ERROR] BC file Twall.dat refused: its coordinate column is not monotone")
+        self.assertEqual((m.target, m.section), (("bcb", "isoth"), "isoth"))
+        m = self.one("BCB", " [WARNING] thermo file, thermo.dat not found")
+        self.assertEqual(m.target, ("gpb", None))
+        m = self.one("BCB", "[ERROR] face 6: not aligned with a Cartesian axis on any block")
+        self.assertEqual(m.target, ("bcb", None))
+
+    def test_continuation_and_repeats(self):
+        found = runlog.messages("ICB", [
+            "[ERROR] build_IC block 2, IG phase: 8 of 32 cells are initialised by no zone",
+            "        after [lo]:  (IG) 12 of 32 cells written",
+            "        (check the zone ranges)",
+            "  IC writing",
+            "        indented, but after a line that is not a message"], self.doc)
+        self.assertEqual(found[0].details, ["after [lo]:  (IG) 12 of 32 cells written",
+                                            "(check the zone ranges)"])
+        self.assertEqual(found[0].lines, [0, 1, 2])
+        found = runlog.messages("ICB", ["[WARNING] same thing"] * 3
+                                + ["[INFO] not a warning", "[LOG] nor this"], self.doc)
+        self.assertEqual([(m.text, m.count, m.line) for m in found], [("same thing", 3, 0)])
+
+    def test_crashes(self):
+        m = self.one("GPB", "Traceback (most recent call last):",
+                     '  File "src/GPB/__main__.py", line 36, in <module>',
+                     "    phase_definitions = load_phase_definitions(inifile)",
+                     "KeyError: 'mixture'", "")
+        self.assertEqual((m.level, m.text), ("error", "crashed: KeyError: 'mixture'"))
+        self.assertEqual(len(m.details), 3)
+        m = self.one("ICB", "At line 120 of file builder.f90",
+                     "Fortran runtime error: Index '0' of dimension 1 of array 'x' below lower bound")
+        self.assertEqual(m.level, "error")
+        self.assertEqual(runner.line_level("Fortran runtime error: End of file"), "error")
+        m = self.one("BCB", "  Done!", "STOP 1", failed=True)
+        self.assertEqual((m.level, m.target), ("error", ("bcb", None)))
+        self.assertIn("printed no error message", m.text)
+        self.assertEqual(runlog.messages("BCB", ["  Done!"], self.doc, failed=False), [])
+
+
+@unittest.skipUnless(all(os.access(os.path.join(ATLAS, "bin", t), os.X_OK) for t in ("BCB", "ICB")),
+                     "BCB and ICB are not built")
+class TestToolMessages(CaseDir):
+    """What BCB and ICB print today lands where the deck says."""
+
+    def run_tool(self, tool, deck):
+        source = os.path.join(ATLAS, "test", tool, deck)
+        for name in os.listdir(source):
+            if os.path.isfile(os.path.join(source, name)):
+                shutil.copy(os.path.join(source, name), self.case)
+        done = subprocess.run(["bash", runner.launcher(ATLAS), tool], cwd=self.case,
+                              capture_output=True, text=True, env=runner.environment(ATLAS),
+                              timeout=120)
+        with open(os.path.join(self.case, "input.ini")) as handle:
+            doc = AtlasDocument.from_ini(handle.read())
+        return runlog.messages(tool, (done.stdout + done.stderr).splitlines(), doc,
+                               failed=done.returncode != 0)
+
+    def test_icb_zone_type(self):
+        errors = [m for m in self.run_tool("ICB", "ICB-type-refused") if m.level == "error"]
+        self.assertEqual([(m.target, m.key) for m in errors], [(("icb", (1, "hi")), "type")])
+
+    def test_bcb_composition(self):
+        errors = [m for m in self.run_tool("BCB", "IG-composition-sum-refused")
+                  if m.level == "error"]
+        self.assertEqual([m.target for m in errors], [("bcb", "injOX")])
 
 
 if __name__ == "__main__":

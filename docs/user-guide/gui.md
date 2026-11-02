@@ -363,9 +363,25 @@ The right column is the file itself, updated as you edit. A **click** on an
 entry brings its section into view and marks it; a **double click** opens the
 entry in its stage.
 
-GPB, BCB and ICB run their own, deeper checks when they build the case (the
-**Run** stage runs them); the GUI's checks are the ones that can be made from
-the file and, once it is loaded, the mesh.
+GPB, BCB and ICB run their own, deeper checks when they build the case. After a
+run (**Run** stage), the errors and warnings they printed are listed here too,
+marked with the tool (`BCB · key rhoK of section [isoth]: unknown key …`), in
+the group of the stage that fixes them, each on what it names:
+
+| The message names | The entry opens |
+|-------------------|-----------------|
+| a section: `key T0 of section [noz]`, `composition of section [injOX]`, `[GPB-Phase1] …`, `section [ICB-Block2]` | that section: the BC, the GPB phase, the ICB block or the zone of a block, `[ATLAS-Parameters]` in Case; a click marks the key it names in the file |
+| a file: `table file Twall.dat: …` | the section whose key names the file |
+| nothing of the deck, while GPB builds a phase or ICB a block | that phase, that block (`- Ideal-gas phase: gas`, `- Initialization block n. = 2` precede the messages about them) |
+| the phase files: `thermo file, thermo.dat not found` | Phases, where GPB builds them |
+
+A message the tool printed again (once per block, per cell) is one entry with
+its count; the lines indented under it (a hint, the values involved) are in its
+tooltip. A Python traceback is one error, its last line; a tool that fails
+without an error message gets one that says so. **Right-click → Show in the
+log** shows an entry's line in the log of the Run stage. The entries stay until
+the next run; when the case changes after the run, they are greyed and the
+first line of the list says so.
 
 ---
 
@@ -381,7 +397,7 @@ GPB staging directory a stopped tool leaves are removed.
 
 | Card | What it shows |
 |------|---------------|
-| **Tools** | GPB, BCB and ICB, each with what it builds from the deck (*2 phases: gas, drop*, *3 blocks, 5 boundary conditions*, *All blocks, Block 2*) or why it has nothing to build, a box to leave it out of the run, its state, and once it has run its time, the files it wrote and the errors and warnings it printed; **Log** and **First error** jump to them |
+| **Tools** | GPB, BCB and ICB, each with what it builds from the deck (*2 phases: gas, drop*, *3 blocks, 5 boundary conditions*, *All blocks, Block 2*) or why it has nothing to build, a box to leave it out of the run, its state, and once it has run its time, the files it wrote and the errors and warnings it printed; **Log** and **First error** jump to them, **… messages in Review** lists them on the sections they name ([Review](#review)) |
 | **Before the run** | What the run does first and what would stop it, from the case alone (below); **Tools…** opens Settings → Tools |
 | **Log** | The output of the tools as they run: ▶ a tool starts, ✔ it is done, ✖ it failed, ■ it was stopped, › what the run does besides; errors and warnings in their colours. **Save log…** writes it to a file |
 | **fromATLAStoSolver/** | The files there, those of the last run first, in bold, with the tool that wrote them; a double click opens one |

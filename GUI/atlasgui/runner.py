@@ -437,7 +437,9 @@ def _phase_checks(doc, case_dir, gpb_runs, handoff, who):
 
 
 # ------------------------------------------------------------------- runs
-_LEVEL_RE = re.compile(r"\[(ERROR|WARNING)\]|^\s*(ERROR|WARNING)\s*:|^Traceback ", re.I)
+_LEVEL_RE = re.compile(r"\[(ERROR|WARNING)\]|^\s*(ERROR|WARNING)\s*:|^Traceback |"
+                       r"Fortran runtime error|^\s*forrtl: severe|Program received signal|"
+                       r"Segmentation fault", re.I)
 
 
 def line_level(text):
@@ -458,6 +460,7 @@ class ToolResult:
     seconds: float = 0.0
     exit_code: int | None = None
     files: list = field(default_factory=list)
+    lines: list = field(default_factory=list)      # what it printed
     errors: int = 0
     warnings: int = 0
     started: float = 0.0
@@ -588,6 +591,7 @@ if QObject is not object:
 
         def _tool_line(self, text):
             result = self.results[self.running]
+            result.lines.append(text)
             level = line_level(text)
             if level == "error":
                 result.errors += 1
