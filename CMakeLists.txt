@@ -133,6 +133,8 @@ macro(ensure_finer_dependencies FINER_ROOT)
 endmacro()
 
 # CEA
+# Release of nasa/cea ATLAS is tested with the tag lib/cea is pinned to.
+set(ATLAS_CEA_VERSION "3.3.4")
 set(ATLAS_CEA_TARGET "")
 set(ATLAS_CEA_SOURCE_DIR "")
 
@@ -216,7 +218,10 @@ endif()
 # not tested with. Example: with an ORION older than a770748 ICB reads no
 # variable names from the unquoted headers ATLAS writes, so the turbulence of an
 # ATLAS-written old solution is silently not adopted. Read-only git queries;
-# nothing is checked for tarballs, plain copies or paths outside this tree.
+# nothing is checked for tarballs, plain copies or paths outside this tree (for
+# CEA the version check below covers those). The hint syncs before updating: a
+# clone made before a submodule changed URL (lib/cea, from the MarcoGrossi92 fork
+# to nasa/cea) still fetches from the old one, which lacks the new pin.
 find_package(Git QUIET)
 # a mismatch is fatal; to build against a
 # work-in-progress checkout of a submodule (an ORION PR under test) configure with -DATLAS_PIN_CHECK=WARNING.
@@ -255,17 +260,42 @@ function(atlas_check_submodule_pin SUBMOD_PATH)
     return()   # the directory has no repository of its own
   endif()
   if (NOT "${_sha}" STREQUAL "${_pin}")
-    string(SUBSTRING "${_pin}" 0 7 _pin7)
-    string(SUBSTRING "${_sha}" 0 7 _sha7)
-    message(${ATLAS_PIN_CHECK} "${_rel} is checked out at ${_sha7}, but this ATLAS commit records ${_pin7}. "
+    # Name each commit by its nearest tag (v3.3.4, v3.3.0-6-g9ecd696); a pin not fetched yet stays a sha
+    string(SUBSTRING "${_pin}" 0 7 _pin_name)
+    string(SUBSTRING "${_sha}" 0 7 _sha_name)
+    execute_process(COMMAND ${_git} describe --tags "${_pin}" WORKING_DIRECTORY "${_abs}"
+                    OUTPUT_VARIABLE _pin_tag RESULT_VARIABLE _r3 ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+    execute_process(COMMAND ${_git} describe --tags "${_sha}" WORKING_DIRECTORY "${_abs}"
+                    OUTPUT_VARIABLE _sha_tag RESULT_VARIABLE _r4 ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if (_r3 EQUAL 0)
+      set(_pin_name "${_pin_tag}")
+    endif()
+    if (_r4 EQUAL 0)
+      set(_sha_name "${_sha_tag}")
+    endif()
+    message(${ATLAS_PIN_CHECK} "${_rel} is checked out at ${_sha_name}, but this ATLAS commit records ${_pin_name}. "
                     "ATLAS would be built against a library version it was not tested with. "
-                    "Run `git submodule update --init --recursive` and configure again "
+                    "Run `git submodule sync --recursive && git submodule update --init --recursive` and configure again "
                     "(or configure with -DATLAS_PIN_CHECK=WARNING to build against this checkout on purpose).")
   endif()
 endfunction()
 foreach(_sm "${ORION_PATH}" "${FINER_PATH}" "${ATLAS_CEA_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/lib/PiNeR")
   atlas_check_submodule_pin("${_sm}")
 endforeach()
+
+# CEA from CEA_PATH (--include-cea) need not be this tree's submodule, so the check above may skip it:
+# compare the version its project() declares with the release ATLAS pins. Run for lib/cea too, so a
+# gitlink bumped without ATLAS_CEA_VERSION is caught. A cea_core provided by a parent project is its own.
+if (NOT "${ATLAS_CEA_SOURCE_DIR}" STREQUAL "")
+  get_directory_property(_cea_version DIRECTORY "${ATLAS_CEA_SOURCE_DIR}" DEFINITION CEA_VERSION)
+  if (NOT "${_cea_version}" VERSION_EQUAL "${ATLAS_CEA_VERSION}")
+    message(${ATLAS_PIN_CHECK} "CEA at ${ATLAS_CEA_SOURCE_DIR} is version '${_cea_version}', but ATLAS pins CEA ${ATLAS_CEA_VERSION}. "
+                    "ATLAS would be built against a library version it was not tested with. "
+                    "Point CEA_PATH to CEA ${ATLAS_CEA_VERSION} (nasa/cea tag v${ATLAS_CEA_VERSION}); if lib/cea was bumped on purpose, "
+                    "set ATLAS_CEA_VERSION in CMakeLists.txt to its version "
+                    "(or configure with -DATLAS_PIN_CHECK=WARNING to build against this CEA on purpose).")
+  endif()
+endif()
 
 include(GNUInstallDirs)
 
