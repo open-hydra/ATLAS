@@ -17,6 +17,11 @@ module bc_mod
     character(llen), allocatable :: distribution(:,:)  ! material x population
     real(8),       allocatable :: ds(:,:)              ! material x population (meters)
     real(8)                    :: krho_sum = 0.0d0     ! a 401 record: the sum of its krho over the (material, population) pairs
+    real(8)                    :: krho_min = 0.0d0     ! a 401 record: its smallest krho, or 0
+    real(8)                    :: gp_sum = 0.0d0       ! a 402/403 record: the sum of its gp over the (material, population) pairs
+    real(8)                    :: gp_min = 0.0d0       ! a 402/403 record: its smallest gp, or 0
+    real(8)                    :: g_fixed = 0.0d0      ! a 401 record: G, the sum of gp over the 402/403 records of the cell
+    logical                    :: mixed = .false.      ! a 401 record: krho divided by 1 - krho_tot already (mix_dp_inlets)
   end type dp_slot_t
 
   type, public:: bc_t
@@ -59,6 +64,7 @@ module bc_mod
     procedure, pass(self)      :: build_gsi_ig
     procedure, pass(self)      :: build_special_dp
     procedure, pass(self)      :: correct_grain_flux
+    procedure, pass(self)      :: mix_dp_inlets
 
   end type bc_t
 
@@ -133,6 +139,12 @@ module bc_mod
     !> The gas flow of a solid-propellant grain that injects dispersed phases, once every phase of the block
     !> is built on the cell (builder_500)
     module subroutine correct_grain_flux(self)
+      class(bc_t),          intent(inout) :: self
+    end subroutine
+
+    !> The mixture rule of the 401 inlet across the dispersed phases of the cell, once every phase of the block is
+    !> built on it (builder_400dp)
+    module subroutine mix_dp_inlets(self)
       class(bc_t),          intent(inout) :: self
     end subroutine
 

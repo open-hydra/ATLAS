@@ -597,11 +597,19 @@ the 7-band tail (`R11 R22 R33 R12 R13 R23 omega`) is written on 3-D meshes only.
 | `gp` | Particle mass flux |
 | `Vp` | Velocity magnitude; or give `up`, `vp`, `wp` components and BCB computes it |
 | `Tp` | Particle temperature |
-| `krho`, `kV`, `kT` | Density / velocity / temperature scaling wrt the gas phase (variant `401`) |
+| `krho`, `kV`, `kT` | Density / velocity / temperature scaling wrt the gas phase (variant `401`): `krho` the fraction of the flow of the mixture (gas and every dispersed phase) that the (material, population) takes |
 | `alphap`, `betap` | Injection direction angles |
 | `dp`, `rp`, `sigmap` | Particle diameter, radius and distribution width |
 | `distribution` | Size-distribution law (`Dirac`, `Normal`, `LogNormal`, `RosinRammler`), or the path of a file of size classes, one per line: particle radius [m] and mass fraction, normalised by the solver and read as a histogram (format in [Output Files](./output.md#id-reference), records `401`–`403`). With `sigmap = 0` a law name gives `Dirac`; a file is kept whatever `sigmap` is |
 | `ds` | Injection-point spacing [cm] |
+
+Several dispersed phases may enter through one inlet cell: `krho` is a fraction of the flow of the mixture, the
+sum `krho_tot` over every (material, population) of every phase given by `krho` (`401`) on the cell, and the phases
+given by a mass flux (`gp`, `402`/`403`) add their fixed flow `G A`. BCB writes `krho/(1 - krho_tot)` in place of
+`krho` and `G` after `ds` in every `401` record of the cell, and the solvers inject
+`krho/(1 - krho_tot) (mdot_gas + G A)` ([Output Files](./output.md#id-reference)). BCB stops on a cell whose
+`krho_tot` is 1 or more (an infinite or negative flow), on a negative `krho` and on a negative `gp`
+(`[ERROR] section [<s>] (inlet of the dispersed phases, BC 401): ...`).
 
 ```ini
 [dp_in]
@@ -753,7 +761,9 @@ A dispersed phase sees a gsi face as a symmetry: its `<phase>-bc.txt` carries `3
 the variant. The exception is the solid-propellant grain (`502`) of a section that also gives inlet keys of that
 phase (`<phase>-krho`, `<phase>-gp`, `<phase>-Vp`, `<phase>-Tp`, `<phase>-dp`, ..., the keys of
 [the dispersed-phase inlet](#dispersed-phase), or `<phase>-krho-file`): that face injects the phase as an `inlet`
-face would, with the same keys and defaults, as a `401` record (the inlet payload).
+face would, with the same keys and defaults, as a `401` record (the inlet payload). A grain applied as an inlet
+(`grain-bc = inflow`) is an inlet also for a phase it does not inject, as the other inlets are: a `401` record with
+`krho` 0, through which the solvers inject nothing of that phase (its particles leave the domain there).
 
 The grain's flow is then shared: every (material, population) pair of every dispersed phase entering through the
 face takes the fraction `krho` of it, and the gas the rest. BCB writes the propellant mass flux of the `502`

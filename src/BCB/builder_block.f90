@@ -188,8 +188,9 @@ contains
           endif
         endif
 
-        ! A solid-propellant grain that injects dispersed phases leaves the gas the rest of its flow: applied once
-        ! every phase of the block has been built on the face (correct_grain_flux, builder_500)
+        ! A solid-propellant grain that injects dispersed phases leaves the gas the rest of its flow, and the 401
+        ! records of a cell follow the mixture rule across the dispersed phases: applied once every phase of the block
+        ! has been built on the face (correct_grain_flux, builder_500; mix_dp_inlets, builder_400dp)
         call correct_grain_flows(blk%face(ff))
 
       enddo
@@ -199,7 +200,7 @@ contains
   end subroutine build_BC
 
 
-  !> correct_grain_flux on every cell of a face.
+  !> correct_grain_flux and mix_dp_inlets on every cell of a face (the first takes the raw krho sum).
   subroutine correct_grain_flows(face)
     use bc_block_mod, only: obj_face
     implicit none
@@ -209,6 +210,7 @@ contains
     do n = 1, face%Nn
       do m = 1, face%Nm
         call face%center(m,n)%bc%correct_grain_flux()
+        call face%center(m,n)%bc%mix_dp_inlets()
       enddo
     enddo
 

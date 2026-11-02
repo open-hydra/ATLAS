@@ -9,8 +9,11 @@ times 1 - krho_tot: 0.8 on face 3 (drop 0.2), 0.63 on face 4 (drop 0.2, ash 0.05
 SF = 1.25; mode 1 and no turbulence variable, or with --inflow (grain-bc = inflow, nuTilde = NU in both grains)
 mode 2 and the turbulence variable NU after the mass fractions.
 drop-bc.txt (one copy of the table): 401 with krho 0.2 on faces 3 and 4. ash-bc.txt (three copies: alumina's two
-populations, then water's): 300 on face 3, 401 on face 4 with krho 0.05, 0.1, 0.02 in copies 1, 2, 3. Faces 1
-and 2 are symmetries (300) and faces 5 and 6 null (0) in every file.
+populations, then water's): on face 3, without ash's keys, 300 (a grain as a wall), or 401 with krho 0 with --inflow
+(a grain as an inlet is one also for a phase it does not inject); 401 on face 4 with krho 0.05, 0.1, 0.02 in copies
+1, 2, 3. A 401 record carries krho/(1 - krho_tot) of its face (the mixture rule over the phases of the cell:
+krho_tot 0.2 on face 3, 0.37 on face 4), within 1e-15 relative (the order of the sum and the division), and G = 0
+last (no 402/403). Faces 1 and 2 are symmetries (300) and faces 5 and 6 null (0) in every file.
 """
 import sys
 
@@ -61,6 +64,8 @@ def main(gas_path, drop_path, ash_path, nu=None):
             if len(t) != len(want_t) or any(abs(x - y) > 1e-12 * abs(y) for x, y in zip(t[1:], want_t[1:])):
                 bad.append(f"gas face {f} i={i}: {t}, expected {want_t}")
 
+    ktot = {3: 0.2, 4: 0.2 + 0.05 + 0.1 + 0.02}       # krho_tot of the cells of faces 3 and 4, over drop and ash
+
     def check_dp(name, recs, copy, krho_face3, krho_face4):
         for (i, j, k, f, code, pay) in recs:
             if f in (1, 2):
@@ -73,12 +78,15 @@ def main(gas_path, drop_path, ash_path, nu=None):
                 want, krho = 0, None
             if code != want:
                 bad.append(f"{name} copy {copy} face {f} i={i}: {code}, expected {want}")
-            elif code == 401 and float(fields(pay[0])[0]) != krho:
-                bad.append(f"{name} copy {copy} face {f} i={i}: krho {fields(pay[0])[0]}, expected {krho}")
+            elif code == 401:
+                t, kk = fields(pay[0]), krho / (1.0 - ktot[f])
+                if abs(float(t[0]) - kk) > 1e-15 * kk or float(t[-1]) != 0.0 or len(t) != 10:
+                    bad.append(f"{name} copy {copy} face {f} i={i}: {t[0]} ... {t[-1]} ({len(t)} fields), "
+                               f"expected krho/(1 - krho_tot) {kk!r}, G 0, 10 fields")
 
     check_dp("drop", drop, 1, 0.2, 0.2)
     for c, krho in enumerate((0.05, 0.1, 0.02)):
-        check_dp("ash", ash[c * NCELL:(c + 1) * NCELL], c + 1, None, krho)
+        check_dp("ash", ash[c * NCELL:(c + 1) * NCELL], c + 1, 0.0 if nu is not None else None, krho)
 
     for b in bad[:20]:
         print("[FAIL] " + b)
@@ -86,7 +94,8 @@ def main(gas_path, drop_path, ash_path, nu=None):
         print(f"[FAIL] {len(bad)} record(s)")
         return 1
     print("gas a*rhoGrain*SF: face 3 = 9.1 x 0.8, face 4 = 9.1 x 1.25 x 0.63 (50 cells each); drop 401 on faces 3-4; "
-          "ash 300 on face 3, 401 on face 4 with krho 0.05 / 0.1 / 0.02 in its three copies [PASS]")
+          f"ash {'401 krho 0' if nu is not None else '300'} on face 3, 401 on face 4 with krho 0.05 / 0.1 / 0.02 in "
+          "its three copies, krho/(1 - krho_tot) and G 0 [PASS]")
     return 0
 
 
