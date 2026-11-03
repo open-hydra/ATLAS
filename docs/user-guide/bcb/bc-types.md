@@ -762,7 +762,7 @@ the variant. The exception is the solid-propellant grain (`502`) of a section th
 phase (`<phase>-krho`, `<phase>-gp`, `<phase>-Vp`, `<phase>-Tp`, `<phase>-dp`, ..., the keys of
 [the dispersed-phase inlet](#dispersed-phase), or `<phase>-krho-file`): that face injects the phase as an `inlet`
 face would, with the same keys and defaults, as a `401` record (the inlet payload). A grain applied as an inlet
-(`grain-bc = inflow`) is an inlet also for a phase it does not inject, as the other inlets are: a `401` record with
+(`grain-wall = F`, the default) is an inlet also for a phase it does not inject, as the other inlets are: a `401` record with
 `krho` 0, through which the solvers inject nothing of that phase (its particles leave the domain there).
 
 The grain's flow is then shared: every (material, population) pair of every dispersed phase entering through the
@@ -818,7 +818,7 @@ the face stays a symmetry for that phase.
 | `a`, `n`, `pRef` | APN burn-rate law coefficients, `r = a (p/pRef)^n`: `a` the linear burn rate at `pRef` [m/s], required (`a = 0`: a surface that does not burn) |
 | `rhoGrain` | Propellant grain density |
 | `SF` | Geometric scale factor of the mass flux (default 1) |
-| `grain-bc` | How the solver applies the grain: `wall` (default), a wall that blows the products in; `inflow`, an inlet |
+| `grain-wall` | Logical: how the solver applies the grain. `T` (`.true.`), a wall that blows the products in; `F` (the default), an inlet |
 | `eq-CEA-file` | CEA equilibrium file supplying flame temperature and composition |
 | `y<species>` | Injected species mass fractions |
 
@@ -842,13 +842,15 @@ CEA equilibrium file: without `eq-CEA-file` BCB writes `Taf = 0` with a `[WARNIN
 The flame temperature of the equilibrium is that of the gas at rest: MOSE takes `Taf` as the **total** temperature of
 the products, in both modes (they enter with the total enthalpy h(`Taf`), that of the propellant).
 
-`grain-bc` sets how the solver applies the grain, the mode of the record: `wall` (the default, mode 1) a wall that
-blows the products in; `inflow` (mode 2) an inlet, the mass-flux inlet with the mass flux of the burn law, which takes
-the turbulence keys of the section (`nuTilde`; `k`, `omega`; `Rij`, `omega`) as an inlet does. BCB stops on
-`grain-bc = inflow` with `a = 0` (an inflow without a mass flux: a surface that does not burn is `grain-bc = wall`
-with `a = 0`) and on a value other than `wall` and `inflow`. With `grain-bc = inflow` a turbulence band written as 0
-under a model (the keys of the model not given, `nrans` set) is reported with a `[WARNING]`, as on the inlets
-401–404. MOSE and Q2D (the solver of the 2D meshes, x,y file) read both modes.
+`grain-wall` sets how the solver applies the grain, the mode of the record: `grain-wall = T` (`.true.`, mode 1) a
+wall that blows the products in; without the key or with `F` (the default, mode 2) an inlet, the mass-flux inlet with
+the mass flux of the burn law, which takes the turbulence keys of the section (`nuTilde`; `k`, `omega`; `Rij`,
+`omega`) as an inlet does, and MOSE and Q2D impose them on the face as on a `404` inlet. BCB stops on an inlet grain
+with `a = 0` (an inflow without a mass flux: a surface that does not burn is `grain-wall = T` with `a = 0`) and on a
+value of `grain-wall` that is not a logical. With the grain an inlet a turbulence band written as 0 under a model (the
+keys of the model not given, `nrans` set) is reported with a `[WARNING]`, as on the inlets 401–404. MOSE and Q2D (the
+solver of the 2D meshes, x,y file) read both modes. `grain-bc`, the string key `grain-wall` replaced (`wall`, its
+default, or `inflow`), stops BCB in any `strict-keys` mode: ignored, it would turn a wall into an inlet.
 
 ```ini
 [grain]
@@ -891,7 +893,7 @@ CEA-mixture 56.478204
 ```
 
 `a`, `n` and `rhoGrain` are mandatory. BCB stops on a grain without `a`, the key or an `a-file` (`a = 0` given is a
-surface that does not burn, with `grain-bc = wall`), and on `n` or `rhoGrain` left at `0`.
+surface that does not burn, with `grain-wall = T`), and on `n` or `rhoGrain` left at `0`.
 
 #### `gsi` — Melting
 
