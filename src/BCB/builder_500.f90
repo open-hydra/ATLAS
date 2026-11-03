@@ -130,14 +130,6 @@ contains
       rhoGrain_srm = cfg%rhoGrain
       SFgeo_srm = cfg%SF
 
-      ! grain-bc: the string key grain-wall replaced (wall, its default): refused in any strict-keys mode, since the
-      ! grain without it is now an inlet
-      if (cfg%has_grain_bc) then
-        write(*,'(A)') '[ERROR] key grain-bc of section ['//trim(self%name)//']: replaced by the logical grain-wall '// &
-          '(T: the grain is a wall that blows the products in, mode 1; F, the default: an inlet, mode 2)'
-        stop 1
-      endif
-
       ! a: required, the key a or an a-file (builder_face gives the cell the value of the file as the key a). A grain
       ! without it was written with a = 0, a surface that does not burn, in silence; a = 0 given stays that surface
       if (.not. cfg%has_a) then

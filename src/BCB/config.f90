@@ -111,9 +111,8 @@ module bcb_config_mod
     real(R8) :: SF = 1.0_R8
     logical  :: has_a = .false.
     ! how the solver applies the grain (the mode of the 502 record): grain-wall = T, a wall that blows the gas in (mode 1);
-    ! F, the default, an inlet (mode 2). has_grain_bc: the deck gives grain-bc, the string key grain-wall replaced
+    ! F, the default, an inlet (mode 2)
     logical  :: grain_wall = .false.
-    logical  :: has_grain_bc = .false.
     type(config_turbulence_t) :: turbulence
   end type bcb_gsi_fluid_config_t
 
@@ -654,7 +653,6 @@ contains
     type(bcb_gsi_fluid_config_t), intent(out) :: cfg
 
     integer :: error
-    character(len=64) :: retired
 
     call load_shared_turbulence_config(sourceini, cfg%turbulence, section, boundary=.true.)
 
@@ -670,12 +668,10 @@ contains
     call sourceini%get(section_name=section, option_name='SF', val=cfg%SF, error=error)
     if (error /= 0) cfg%SF = 1.0_R8
     ! grain-wall: T the grain is a wall that blows the products in (mode 1); F, the default, an inlet (mode 2).
-    ! grain-bc, the string key it replaced (default wall), is refused by the builder in any strict-keys mode: ignored
-    ! with a WARNING it would turn a wall into an inlet
+    ! grain-bc, the string key it replaced (default wall), is an unknown key as any other (input_keys: an ERROR, or a
+    ! WARNING with strict-keys = F, whose hint names grain-wall)
     call sourceini%get(section_name=section, option_name='grain-wall', val=cfg%grain_wall, error=error)
     if (error /= 0) cfg%grain_wall = .false.
-    call sourceini%get(section_name=section, option_name='grain-bc', val=retired, error=error)
-    cfg%has_grain_bc = error == 0
 
     call sourceini%get(section_name=section, option_name='T', val=cfg%T, error=error)
     cfg%has_T = error == 0

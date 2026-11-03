@@ -850,7 +850,9 @@ with `a = 0` (an inflow without a mass flux: a surface that does not burn is `gr
 value of `grain-wall` that is not a logical. With the grain an inlet a turbulence band written as 0 under a model (the
 keys of the model not given, `nrans` set) is reported with a `[WARNING]`, as on the inlets 401–404. MOSE and Q2D (the
 solver of the 2D meshes, x,y file) read both modes. `grain-bc`, the string key `grain-wall` replaced (`wall`, its
-default, or `inflow`), stops BCB in any `strict-keys` mode: ignored, it would turn a wall into an inlet.
+default, or `inflow`), is an unknown key as any other: BCB stops on it with `strict-keys = T` (the default), the
+message naming `grain-wall`; with `strict-keys = F` it is reported with a `[WARNING]` and ignored, so a deck that gave
+`grain-bc = wall` must say `grain-wall = T`, or its grain is an inlet.
 
 ```ini
 [grain]
