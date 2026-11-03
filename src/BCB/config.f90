@@ -667,9 +667,7 @@ contains
     if (error /= 0) cfg%rhoGrain = 0.0_R8
     call sourceini%get(section_name=section, option_name='SF', val=cfg%SF, error=error)
     if (error /= 0) cfg%SF = 1.0_R8
-    ! grain-wall: T the grain is a wall that blows the products in (mode 1); F, the default, an inlet (mode 2).
-    ! grain-bc, the string key it replaced (default wall), is an unknown key as any other (input_keys: an ERROR, or a
-    ! WARNING with strict-keys = F, whose hint names grain-wall)
+    ! grain-wall: T the grain is a wall that blows the products in (mode 1); F, the default, an inlet (mode 2)
     call sourceini%get(section_name=section, option_name='grain-wall', val=cfg%grain_wall, error=error)
     if (error /= 0) cfg%grain_wall = .false.
 
@@ -1245,7 +1243,7 @@ contains
       call bcb_registry%add('bc-section', 'grain-wall', gsi_cfg%grain_wall, 'F', 'How the solver applies a grain (BC 502, '// &
         'the mode of its record): T, a wall that blows the products in (mode 1); F, the default, the mass-flux inlet '// &
         '(mode 2) with the mass flux of the burn law and the turbulence keys of the section (nuTilde; k, omega; Rij, '// &
-        'omega), as the inlets 401-404. Taf is the total temperature of the products in both. Replaces grain-bc.', '', .false.)
+        'omega), as the inlets 401-404. Taf is the total temperature of the products in both.', '', .false.)
     end subroutine add_gsi_entries
 
     subroutine add_variable_file_entries()
