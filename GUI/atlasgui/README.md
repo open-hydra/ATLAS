@@ -222,6 +222,43 @@ python GUI/ATLAS_GUI.py [mesh] [--ini input.ini] [--stage case|gpb|bcb|review]
 python -m atlasgui ...
 ```
 
+## What the tools wrote, drawn
+
+Each stage draws what its tool wrote, and a case opens from its INI or from a
+folder of those files alone (`mainwindow.open_case`: the folder's INI if it
+has one, the mesh the tools read there, else its one mesh file; the cases
+opened last are kept by `preferences.recent_cases`). The files are those of
+`fromATLAStoSolver/`, or of the folder itself when it has none
+(`tables.output_dir`: a set of files copied out of a run).
+
+* **Phases.** `tables.py` reads the ASCII Tecplot tables GPB writes -- the
+  1-D zones of a gas, a condensed or a solid phase, the (p, h) grid of a real
+  fluid (BLOCK, p fastest) -- into the sheets the stage offers: the
+  thermodynamics and the transport of a gas as one, its diffusion, its rates
+  (the reactions named from `chemistry-info.txt`), the properties of a
+  condensed or solid phase, the grid of a real fluid. `plotview.py` draws
+  them with QPainter: `XYPlot` curves against T (one y axis, the categorical
+  palette in its fixed order, a colour kept per curve while it is drawn,
+  hover crosshair, drag to zoom), `MapPlot` a map with its iso-lines
+  (`contour_segments`, marching squares) on the scales of `fieldcolors.py`.
+  `tableview.py` is the stage's card.
+* **Boundaries.** `bcfile.py` reads `<phase>-bc[<L>].txt`: every record line
+  (4, 5 or 6 integers) wherever the payload lines in between, the BC id of
+  every cell of every face in arrays the shape of the face's cells (m
+  fastest, as BCB counts them), the copies of a dispersed phase, the payload
+  of a cell decoded by name (`decode`), the blocks of a phase placed on the
+  mesh by the deck's `phase` keys or by size (`block_map`), a multigrid
+  level drawn over the cells it covers (`fine_ids`). `bcview.py` gives every
+  cell its colour (the categorical palette by id; interfaces and null grey)
+  and `viewport.MeshViewport.set_written` draws them in place of the faces.
+* **Initial.** The field ICB wrote, above.
+
+`GUI/tests/test_outputs.py` (CTest `GUI-outputs`, numpy) reads tables and
+boundary files of every form, checks the plot scales and the recent cases,
+compares GPB's cp of O2 with Cantera's, and runs BCB on a suite deck to find,
+face by face, the id the deck's section implies (and the connection BCB makes
+where another block meets a face).
+
 ## Dependencies
 
 `numpy`, `PyQt6`, `pyvista`, `pyvistaqt` — in `ct-env.yaml` (`pyqt`, `pyvista`,
@@ -253,11 +290,15 @@ python -m atlasgui ...
 | `icons.py` | vector icons drawn with QPainter; the app icon from `assets/` |
 | `filewidgets.py` | the file field, the browse column, the files-of-a-section dialog |
 | `gpbpanel.py`, `gpbdialogs.py`, `bcbpanel.py`, `bcbdialogs.py`, `icbpanel.py`, `icbdialogs.py` | the stage panels and their dialogs |
-| `mainwindow.py` | the shell: stages, file actions, status, Case and Review (the checks by stage, each tied to its INI section) |
+| `runner.py`, `runpanel.py`, `runlog.py` | the runs of the tools, the Run stage, their messages placed on the sections they name |
+| `icfield.py`, `fieldcolors.py`, `fieldview.py` | the field ICB wrote, the colour scales, the colour bar |
+| `tables.py`, `plotview.py`, `tableview.py` | the tables GPB wrote, their plots, the Phases stage's card |
+| `bcfile.py`, `bcview.py` | the boundary files BCB wrote, the Boundaries stage's written view |
+| `mainwindow.py` | the shell: stages, opening a case (INI, folder, recent), status, Case and Review (the checks by stage, each tied to its INI section) |
 | `__main__.py` | CLI entry point / dependency guards |
 
 `mesh_io.py`, `faces.py`, `bcmodel.py`, `gpbmodel.py`, `icmodel.py`, `icgeom.py`,
-`icprofile.py`, `document.py` and `filekeys.py` carry no GUI dependency and can be imported and tested headlessly;
+`icprofile.py`, `icfield.py`, `tables.py`, `bcfile.py`, `document.py` and `filekeys.py` carry no GUI dependency and can be imported and tested headlessly;
 `preferences.py` needs QtCore only.
 
 ## Face numbering (fixed by BCB)

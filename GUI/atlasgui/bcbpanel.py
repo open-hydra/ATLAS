@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QFormLayout, QFrame, QGridLayout,
-    QGroupBox, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QListWidget,
-    QListWidgetItem, QMessageBox, QPushButton, QSplitter, QTableWidget,
-    QTableWidgetItem, QTabWidget, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
-    QWidget,
+    QAbstractItemView, QButtonGroup, QComboBox, QDialog, QFormLayout, QFrame,
+    QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QInputDialog, QLabel,
+    QListWidget, QListWidgetItem, QMessageBox, QPushButton, QSplitter,
+    QTableWidget, QTableWidgetItem, QTabWidget, QTreeWidget, QTreeWidgetItem,
+    QVBoxLayout, QWidget,
 )
 from PyQt6.QtGui import QBrush, QColor, QFont, QIcon
 
@@ -25,6 +25,7 @@ from .bcmodel import (
     file_keys_of, suggested_keys,
 )
 from .bcbdialogs import NewBCDialog
+from .bcview import WrittenView
 from .filewidgets import FileColumn, FilesDialog
 from .viewport import MeshViewport
 from .widgets import Card
@@ -67,6 +68,7 @@ class BCBPanel(QWidget):
         self._editing_section = None   # name loaded in the section editor
         self._name_colors = {}
         self.color_mode = "bc"         # "bc" or "block"
+        self.view_mode = "assigned"    # the deck's BCs on the faces, or what BCB "written"
         self._build_ui()
 
     @property
@@ -171,14 +173,86 @@ class BCBPanel(QWidget):
         return card
 
     def _build_center_panel(self):
+        card = Card()
+        kit = self.kit
+        self.mode_buttons = {}
+        group = QButtonGroup(card)
+        mode = QHBoxLayout()
+        mode.setSpacing(0)
+        for key, text, pos, tip in (
+                ("assigned", "Assigned", "left", "Every face in the colour of the BC the deck "
+                 "assigns it; a click picks the face"),
+                ("written", "Written", "right", "Every boundary cell in the colour of the BC "
+                 "BCB wrote for it (fromATLAStoSolver/); a click shows its record")):
+            button = kit.button(text, lambda _c=False, k=key: self.set_view_mode(k), None,
+                                None, seg=pos, tip=tip)
+            button.setCheckable(True)
+            button.setChecked(key == self.view_mode)
+            group.addButton(button)
+            self.mode_buttons[key] = button
+            mode.addWidget(button)
+        header = kit.panel_header("cube", "3-D VIEW")
+        header.addLayout(mode)
+        card.body.addLayout(header)
         frame = QFrame()
         frame.setObjectName("ViewportFrame")
         lay = QVBoxLayout(frame)
         lay.setContentsMargins(3, 3, 3, 3)
         self.viewport = MeshViewport()
         self.viewport.face_picked.connect(self._on_face_picked)
+        self.viewport.cell_picked.connect(self._on_cell_picked)
         lay.addWidget(self.viewport)
-        return frame
+        card.body.addWidget(frame, 1)
+        self.written_view = WrittenView(kit)
+        self.written_view.changed.connect(self._refresh_written)
+        self.written_view.run_requested.connect(lambda: self.shell.set_stage("run"))
+        self.written_view.setVisible(False)
+        card.body.addWidget(self.written_view)
+        self.pick_label = kit.hint("Click a boundary cell for the record BCB wrote for it.")
+        self.pick_label.setVisible(False)
+        card.body.addWidget(self.pick_label)
+        return card
+
+    # -- what BCB wrote --------------------------------------------------
+    def set_view_mode(self, mode):
+        """The deck's BCs on the faces (``assigned``) or the BC of every
+        boundary cell as BCB wrote it (``written``)."""
+        self.view_mode = mode
+        button = self.mode_buttons[mode]
+        if not button.isChecked():
+            button.setChecked(True)
+        written = mode == "written"
+        self.written_view.setVisible(written)
+        self.pick_label.setVisible(written)
+        for widget in (getattr(self, "color_combo", None), getattr(self, "labels_chk", None)):
+            if widget is not None:
+                widget.setEnabled(not written)
+        if written:
+            self.pick_label.setText("Click a boundary cell for the record BCB wrote for it.")
+            self._refresh_written()
+        else:
+            self.viewport.set_written(None)
+            self._refresh_viewport_colors()
+
+    def written_changed(self):
+        """BCB may have written its files again: read them when shown."""
+        if self.view_mode == "written":
+            self._refresh_written()
+
+    def _refresh_written(self):
+        if self.view_mode != "written":
+            return
+        dark = QColor(self.theme["viewport_bg"]).lightnessF() < 0.5
+        faces = self.written_view.update(self.shell.case_dir, self.blocks,
+                                         self.doc if self.doc.nblocks else None,
+                                         self.shell.ini_path, self.shell._dirty, dark)
+        self.viewport.update_labels({})
+        if self.blocks:
+            self.viewport.set_written(faces or {})
+
+    def _on_cell_picked(self, b, f, m, n):
+        self.pick_label.setText(self.written_view.describe(b, f, m, n))
+        self._on_face_picked(b, f)
 
     def _build_right_panel(self):
         card = Card(margins=(4, 2, 4, 4))
@@ -531,6 +605,9 @@ class BCBPanel(QWidget):
                     self.viewport.set_face_color(b, f, self._face_display_color(b, val))
                     if val:
                         label_map[(b, f)] = val
+        if self.view_mode == "written":
+            self._refresh_written()
+            return
         self.viewport.update_labels(label_map)
 
     def _refresh_assign_combo(self):

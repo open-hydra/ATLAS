@@ -200,9 +200,14 @@ class _View(QWidget):
 
 
 class MeshViewport(_View):
-    """The Boundaries stage's view: a face is picked with the mouse."""
+    """The Boundaries stage's view: a face is picked with the mouse.
+
+    It also shows what BCB wrote (:meth:`set_written`): every cell of a face
+    in the colour of its BC, in place of the face; a click on one emits
+    ``cell_picked``."""
 
     face_picked = pyqtSignal(int, int)  # (block_idx, face)
+    cell_picked = pyqtSignal(int, int, int, int)   # (block from 0, face, m, n from 0)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -217,9 +222,16 @@ class MeshViewport(_View):
         self._labels_actor = None
         self._show_labels = True
         self._face_by_addr = {}       # vtk actor address -> (b, f)
+        self.written = {}             # (b, f) -> (grid, actor) of the cells BCB wrote
+        self._written_by_addr = {}    # vtk actor address -> (b, f)
+        self._written_shape = {}      # (b, f) -> cells along m, n
+        self._mark = None             # outline of the cell picked
+        self._written_mode = False
 
     def apply_theme(self, tokens):
         super().apply_theme(tokens)
+        for _grid, actor in self.written.values():
+            actor.prop.edge_color = self.theme["edge"]
         # Restyle existing actors: edges of non-selected faces and context planes.
         for key, actor in self.face_actors.items():
             if key != self.selected:
@@ -242,6 +254,10 @@ class MeshViewport(_View):
         self.block_visible.clear()
         self.block_opacity.clear()
         self._face_by_addr.clear()
+        self.written.clear()
+        self._written_by_addr.clear()
+        self._written_shape.clear()
+        self._mark = None
         self.selected = None
         self._labels_actor = None
 
@@ -297,8 +313,110 @@ class MeshViewport(_View):
             zf[:, :, None].astype(float),
         )
 
+    # -- what BCB wrote --------------------------------------------------
+    def set_written(self, faces):
+        """Show the cells of *faces* ``{(b, f): (M, N, 3) uint8}`` in their
+        colours, in place of the faces; the other faces of the mesh faint.
+        None: the faces again."""
+        for grid, actor in self.written.values():
+            self.plotter.remove_actor(actor, render=False)
+            for b, actors in self.block_actors.items():
+                if actor in actors:
+                    actors.remove(actor)
+        self.written.clear()
+        self._written_by_addr.clear()
+        self._written_shape.clear()
+        self.mark_cell(None)
+        self._written_mode = faces is not None
+        if faces is None:
+            for (b, f), actor in self.face_actors.items():
+                actor.SetVisibility(bool(self.block_visible.get(b, True)))
+                actor.SetPickable(True)
+            self._refresh_opacity()
+            self.plotter.render()
+            return
+        for (b, f), rgb in faces.items():
+            block = self.blocks[b]
+            grid = self._cell_mesh(block, f)
+            if grid is None:
+                continue
+            m_cells, n_cells = rgb.shape[:2]
+            flat = rgb.reshape(-1, 3, order="F")
+            index = grid.cell_data["cell"]
+            if index.max() >= len(flat):
+                continue                      # not the size of the face
+            grid.cell_data["rgb"] = flat[index]
+            edges = not facemod.face_is_degenerate(block, f)
+            actor = self.plotter.add_mesh(
+                grid, scalars="rgb", rgb=True, show_edges=edges,
+                edge_color=self.theme["edge"], line_width=1, pickable=True,
+                name=f"written_{b}_{f}", reset_camera=False, **MATERIAL)
+            actor.SetVisibility(bool(self.block_visible.get(b, True)))
+            self.written[(b, f)] = (grid, actor)
+            self._written_by_addr[_addr(actor)] = (b, f)
+            self._written_shape[(b, f)] = (m_cells, n_cells)
+            self.block_actors.setdefault(b, []).append(actor)
+        for key, actor in self.face_actors.items():
+            shown = key not in self.written
+            actor.SetVisibility(shown and bool(self.block_visible.get(key[0], True)))
+            actor.SetPickable(False)
+        self._refresh_opacity()
+        self.plotter.render()
+
+    @staticmethod
+    def _cell_mesh(block, face):
+        """The cells of *face* of *block*, each carrying ``cell`` = m + n M
+        (m along the first node axis of the face, as BCB counts them)."""
+        xf, yf, zf = facemod.extract_face(block, face)
+        if 1 in xf.shape:
+            # a 2-D block's edge: one tube segment per cell
+            pts = np.column_stack([np.squeeze(a).ravel() for a in (xf, yf, zf)])
+            n = len(pts)
+            if n < 2:
+                return None
+            lines = np.hstack([[2, i, i + 1] for i in range(n - 1)])
+            poly = pv.PolyData(pts.astype(float), lines=lines)
+            poly.cell_data["cell"] = np.arange(n - 1)
+            diag = np.linalg.norm(pts.max(0) - pts.min(0)) or 1.0
+            try:
+                return poly.tube(radius=diag * 0.004)
+            except Exception:
+                return poly
+        grid = pv.StructuredGrid(xf[:, :, None].astype(float), yf[:, :, None].astype(float),
+                                 zf[:, :, None].astype(float))
+        grid.cell_data["cell"] = np.arange(grid.n_cells)    # VTK: m fastest
+        return grid
+
+    def mark_cell(self, key, cell=None):
+        """Outline cell *cell* (m + n M) of written face *key*; None: none."""
+        if self._mark is not None:
+            self.plotter.remove_actor(self._mark, render=False)
+            self._mark = None
+        if key is None or key not in self.written:
+            self.plotter.render()
+            return
+        grid, _actor = self.written[key]
+        ids = np.flatnonzero(grid.cell_data["cell"] == cell)
+        if ids.size:
+            piece = grid.extract_cells(ids)
+            style = "surface" if facemod.face_is_degenerate(self.blocks[key[0]], key[1]) \
+                else "wireframe"
+            self._mark = self.plotter.add_mesh(
+                piece, style=style, color=self.theme["highlight_edge"], line_width=4,
+                pickable=False, name="written_mark", reset_camera=False, lighting=False)
+        self.plotter.render()
+
     # -- picking ---------------------------------------------------------
     def _picked(self, actor, cell):
+        key = self._written_by_addr.get(_addr(actor))
+        if key is not None:
+            grid, _actor = self.written[key]
+            if 0 <= cell < grid.n_cells:
+                flat = int(grid.cell_data["cell"][cell])
+                m_cells = self._written_shape[key][0]
+                self.mark_cell(key, flat)
+                self.cell_picked.emit(key[0], key[1], flat % m_cells, flat // m_cells)
+            return
         key = self._face_by_addr.get(_addr(actor))
         if key is not None:
             self.select_face(key[0], key[1], emit=True)
@@ -347,8 +465,9 @@ class MeshViewport(_View):
 
     def set_block_visible(self, block_idx, visible):
         self.block_visible[block_idx] = visible
+        covered = {self.face_actors[k] for k in self.written if k in self.face_actors}
         for actor in self.block_actors.get(block_idx, []):
-            actor.SetVisibility(bool(visible))
+            actor.SetVisibility(bool(visible) and actor not in covered)
         self.plotter.render()
 
     def set_block_opacity(self, block_idx, opacity):
@@ -382,6 +501,13 @@ class MeshViewport(_View):
         for (b, f), actor in self.context_actors.items():
             base = self.block_opacity.get(b, 1.0) * CONTEXT_ALPHA
             actor.prop.opacity = min(base, REVEAL_OPACITY * CONTEXT_ALPHA) if revealing else base
+        if self._written_mode:
+            # the faces BCB wrote nothing for (another phase's blocks) stay faint
+            for key, actor in self.face_actors.items():
+                if key not in self.written:
+                    actor.prop.opacity = min(self.block_opacity.get(key[0], 1.0), 0.25)
+            for (b, f), (_grid, actor) in self.written.items():
+                actor.prop.opacity = self.block_opacity.get(b, 1.0)
 
     def update_labels(self, label_map):
         """Draw a text label at the centroid of each assigned face.

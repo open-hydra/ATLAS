@@ -12,7 +12,7 @@ the stage's to set (:mod:`atlasgui.icbpanel`).
 from __future__ import annotations
 
 import numpy as np
-from PyQt6.QtCore import QRectF, Qt, pyqtSignal
+from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QFont, QFontMetrics, QImage, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
@@ -40,6 +40,7 @@ class ColourBar(QWidget):
         self.data = None                  # (min, max) of the values
         self.signed = False
         self.title = ""
+        self.marks = []                   # values marked across the bar (iso-lines)
         kit.register_repaint(self._resize)
         self._resize()
 
@@ -48,8 +49,11 @@ class ColourBar(QWidget):
         self.setFixedHeight(2 * metrics.height() + self.kit.px(14) + 10)
         self.update()
 
-    def show_scale(self, table, low, high, signed, title, data=None):
+    def show_scale(self, table, low, high, signed, title, data=None, marks=()):
+        """*marks*: values drawn as ticks across the bar (the iso-lines of a
+        map)."""
         self.table = np.ascontiguousarray(table, dtype=np.uint8)
+        self.marks = list(marks)
         if signed:
             reach = max(abs(low), abs(high))
             low, high = -reach, reach
@@ -91,6 +95,14 @@ class ColourBar(QWidget):
         painter.setClipPath(path)
         painter.drawImage(bar, image)
         painter.restore()
+        if self.marks and self.high > self.low:
+            ink = QColor(kit.color("text"))
+            ink.setAlpha(150)
+            painter.setPen(QPen(ink, 1))
+            for value in self.marks:
+                x = bar.left() + (value - self.low) / (self.high - self.low) * bar.width()
+                if bar.left() < x < bar.right():
+                    painter.drawLine(QPointF(x, bar.top() + 2), QPointF(x, bar.bottom() - 2))
         painter.setPen(QPen(QColor(kit.color("border_strong")), 1))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(path)

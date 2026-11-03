@@ -109,8 +109,9 @@ class FieldFile:
 
 def field_files(case_dir):
     """The fields ICB wrote into ``fromATLAStoSolver/``, a gas first."""
+    from .tables import output_dir
     found = []
-    out = os.path.join(case_dir, OUTPUT_DIR)
+    out = output_dir(case_dir)
     for pattern, fmt in (("*ic.tec", "tec"), ("*ic.vtm", "vtk"), ("*ic.szplt", "szplt")):
         for path in sorted(glob.glob(os.path.join(out, pattern))):
             base = os.path.basename(path)

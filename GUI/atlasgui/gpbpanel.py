@@ -29,6 +29,7 @@ from .gpbdialogs import (AdvancedKeysDialog, ColumnTableDialog, MixtureDialog,
                          pick_from_database)
 from .gpbmodel import (FIXED_GAS_COLUMNS, GAS_SOURCES, GPBPhase,
                        MODEL_COLUMNS, PHASE_TYPES, join_tokens, split_tokens)
+from .tableview import TablesView
 from .widgets import Card, clear_layout
 
 # One hue per phase family, used by the phase list and the stage badges.
@@ -132,9 +133,11 @@ class GPBPanel(QWidget):
         splitter.setHandleWidth(9)
         splitter.addWidget(self._build_list_panel())
         splitter.addWidget(self._build_editor_panel())
+        splitter.addWidget(self._build_tables_panel())
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([self.kit.px(330), self.kit.px(1000)])
+        splitter.setStretchFactor(2, 1)
+        splitter.setSizes([self.kit.px(330), self.kit.px(620), self.kit.px(560)])
         root.addWidget(splitter)
 
     def _build_list_panel(self):
@@ -198,13 +201,41 @@ class GPBPanel(QWidget):
         self.editor_layout.setSpacing(10)
         outer_layout.addWidget(self.editor_host, 6)
         outer_layout.addStretch(1)   # the column hugs the phase list
-        return self.kit.scrollable(outer)
+        area = self.kit.scrollable(outer)
+        self.kit.sized(area.setMaximumWidth, 900)    # the rest goes to the tables
+        return area
+
+    def _build_tables_panel(self):
+        card = Card()
+        kit = self.kit
+        kit.sized(card.setMinimumWidth, 340)
+        card.body.addLayout(kit.panel_header("chart", "TABLES GPB WROTE"))
+        self.tables_view = TablesView(kit)
+        self.tables_view.run_requested.connect(lambda: self.shell.set_stage("run"))
+        card.body.addWidget(self.tables_view, 1)
+        return card
 
     # -------------------------------------------------------------- refresh
     def refresh(self):
         """Rebuild the list and the editor from the document."""
         self._refresh_list()
         self._rebuild_editor()
+
+    def refresh_tables(self):
+        """The tables of the phase selected, as GPB last wrote them."""
+        phase = self.current_phase()
+        self.tables_view.show_case(self.case_dir, prefer=phase.name if phase else None,
+                                   ini_path=self.shell.ini_path, dirty=self.shell._dirty)
+
+    def show_tables(self, name, sheet=None):
+        """Select the deck's phase *name*, if it has one, and draw its tables."""
+        for row, phase in enumerate(self.gpb.phases):
+            if phase.name == name:
+                self._select(row)
+                break
+        else:
+            self.refresh_tables()
+        self.tables_view.select(name, sheet)
 
     def _refresh_list(self):
         index = self.current_index()
@@ -493,6 +524,7 @@ class GPBPanel(QWidget):
     def _rebuild_editor(self):
         clear_layout(self.editor_layout)
         phase = self.current_phase()
+        self.refresh_tables()
         if phase is None:
             empty = Card()
             empty.body.addWidget(self.kit.title("No phase yet"))

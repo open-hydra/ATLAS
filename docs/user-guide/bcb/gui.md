@@ -61,6 +61,9 @@ only faces 1–4 are assignable; BCB fills faces 5/6 automatically.
 - **Auto-reveal** (on by default) makes surrounding geometry transparent while a
   face is selected, so a covered face stays visible.
 - **Colour** switches face colouring between *by BC* and *by block index*.
+- **Assigned | Written**, at the top of the view, shows instead the BC of every
+  boundary cell as BCB wrote it in `fromATLAStoSolver/`, a click giving the
+  record of a cell ([What BCB wrote](../gui.md#what-bcb-wrote)).
 - Selecting a **block** row shows which GPB phases it carries (its `phase`
   key); the chips are the phases defined in the Phases stage.
 - **Theme** selects the colour theme (Dark Blue, Midnight, Graphite, Nord,

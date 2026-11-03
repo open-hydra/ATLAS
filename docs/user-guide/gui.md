@@ -6,18 +6,22 @@ conditions, the ICB initial state and the shared `[ATLAS-Parameters]`: the same
 file `ATLAS GPB BCB ICB` consumes, so the GUI is an editor for the case, not a
 separate project format. The **Run** stage then runs GPB, BCB and ICB on it,
 as `ATLAS GPB BCB ICB` would from the case directory, with their log and the
-files they write.
+files they write; each stage draws what its tool wrote — the property tables
+of the phases, the BC of every boundary cell, the initial field. A case can
+equally be opened from its INI or from a folder of files the tools wrote, to
+look at them.
 
 ```bash
 ATLAS GUI                      # the whole case
 ATLAS GUI -i input.ini         # open an existing case
+ATLAS GUI --case run_folder    # open a case folder: its INI, mesh and files
 ATLAS BCB-GUI                  # the same window, opened on Boundaries
 ```
 
 or directly:
 
 ```bash
-python utils/ATLAS/GUI/ATLAS_GUI.py [mesh] [--ini input.ini] [--stage gpb]
+python utils/ATLAS/GUI/ATLAS_GUI.py [mesh] [--ini input.ini | --case folder] [--stage gpb]
 ```
 
 The window opens fitted to the screen. **Display** (top right) sets the
@@ -64,9 +68,9 @@ The rail on the left follows the order the tools run in.
 
 | Stage | What it holds |
 |-------|---------------|
-| **Case** | Where the case lives, the mesh, `[ATLAS-Parameters]`, and an overview of what is set up |
-| **Phases** | GPB: one card per `[GPB-PhaseN]`, with an editor that follows the phase type |
-| **Boundaries** | BCB: the mesh in 3-D, its blocks and faces, and the BCs assigned to them |
+| **Case** | Where the case lives, the mesh, `[ATLAS-Parameters]`, the cases opened last, what the tools wrote, and an overview of what is set up |
+| **Phases** | GPB: one card per `[GPB-PhaseN]`, with an editor that follows the phase type, and the tables GPB wrote, drawn |
+| **Boundaries** | BCB: the mesh in 3-D, its blocks and faces, and the BCs assigned to them, or the BC of every boundary cell as BCB wrote it |
 | **Initial** | ICB: the initial state of every block, `[ICB-Block*]` and `[ICB-BlockN]`, and the mesh in 3-D with the state every cell takes, or the field ICB wrote (p, T, Mach, …) |
 | **Review** | The INI as it will be written, plus every check the GUI can make on it, by stage |
 | **Run** | GPB, BCB and ICB run on the case: what the run will do first, the log of every tool, the files written into `fromATLAStoSolver/` |
@@ -76,6 +80,29 @@ Sections belonging to tools the GUI does not edit yet (`[STB-*]`, `[MDB-*]`,
 loses another tool's setup. The zone sections of a multizone ICB block
 (`zone1 = plenum` names `[plenum]`) belong to ICB: they are not listed as
 boundary conditions, and a new BC cannot take their name.
+
+### Opening a case
+
+**Open** (header) offers:
+
+* **INI file…** (Cmd/Ctrl+O) — the case of an `input.ini`. The mesh BCB and
+  ICB read in its folder (`mesh.tec`, `mesh.p3d`) is loaded with it, and the
+  stages draw what the tools wrote there.
+* **Case folder…** (Cmd/Ctrl+Shift+O) — a folder: its `input.ini` (or its one
+  INI, or the one you choose when there are several), its mesh — the one the
+  tools read, else the one mesh file there — and the files of its
+  `fromATLAStoSolver/`. A folder with **no INI** opens too: the case is then
+  the files alone, to look at — the tables, the boundary file, the initial
+  field — and a deck written from there is a new one. Choosing a
+  `fromATLAStoSolver/` folder itself opens the case around it; a folder of the
+  tools' files with no `fromATLAStoSolver/` (copied out of a run) is read as
+  it is.
+* **Recent** — the last eight cases opened or saved, an INI or a folder.
+
+Opening a case over one with unsaved changes asks first. The **Case** stage
+offers the same (**Open INI…**, **Open folder…**, the recent cases), and
+**What the tools wrote** lists, tool by tool, the files the case holds, each
+with the button that draws them in its stage.
 
 ---
 
@@ -132,6 +159,40 @@ what that type uses.
     mechanism. With `CEA-file` a gas reads NASA9 only, so only NASA9 is
     offered.
 
+### The tables GPB wrote
+
+Right of the editor, **Tables GPB wrote** draws the tables of the phase
+selected, read from `fromATLAStoSolver/` (or from the case folder, for phase
+files given to BCB and ICB by hand); the menu above the plot shows any other
+phase the case holds, and says when the phase selected has not been written
+yet.
+
+| Phase | Sheets | Drawn as |
+|-------|--------|----------|
+| Ideal gas | *Thermodynamics and transport* (`thermo.dat`, `transport.dat`: cp, h, s, dcp/dT, μ, λ), *Binary diffusion* (`diffusion.dat`), *Reaction rates* (`chemistry-Arrhenius.dat`: kf, kb), *Fall-off rates* (Troe, Lindemann: k∞, k₀, Kc, Fcent) | curves against T, one per species, pair or reaction |
+| Condensed, solid | *Properties* (`properties.dat`: cp, ρ, h or λ and e, psat) | curves against T, one per material |
+| Real fluid | *Property grid* (`thermo.dat` and `transport.dat`: T, ρ, cp, s, a, the derivatives of ρ, μ, λ) | a map over p and h |
+
+A curve keeps its colour while it is drawn: tick the species, materials,
+pairs or reactions under the plot, up to eight (the list is the legend, with
+a filter when it is long); up to four, their names are written at the ends of
+the lines. The reactions are named from `chemistry-info.txt`, as numbered in
+the mechanism (`R4 · 0.5 O2 + H2 ⇌ H2O`, ⇌ where the reaction is reversible).
+Rates and diffusion coefficients open on a logarithmic scale (**Log scale**),
+which reaches 24 decades below the largest value: a rate at 1 K is 1e-300.
+**Hover** for the values at a temperature; **drag** across the plot to zoom
+into a range of T, **double-click** (or **All T**) to see all of it.
+
+The map of a real fluid colours the quantity chosen on the (p, h) grid of the
+table — one hue, light to dark, or blue and red about zero for a derivative
+that changes sign — with its iso-lines at the values the colour bar marks;
+hover gives every property at that (p, h). h and s are counted from 0 at
+(Tmin, pmin), as GPB writes them.
+
+Under the plot: the files and when GPB wrote them, and a warning when the INI
+was saved after them or the case has changes not saved. **Tables** on GPB's
+row of the Run stage opens this view.
+
 ---
 
 ## Boundaries (BCB)
@@ -155,6 +216,39 @@ Selecting a **block** (rather than a face) shows which GPB phases live in it:
 the chips are the phases defined in the Phases stage, and they write the
 block's `phase` key. No chip selected means every phase, which is what BCB
 assumes when the key is absent.
+
+### What BCB wrote
+
+**Assigned | Written**, at the top of the 3-D view, switches from the BCs the
+deck assigns to the faces to the boundary file BCB wrote
+(`fromATLAStoSolver/<phase>-bc.txt`, [BCB output](./bcb/output.md)): every
+cell of every face in the colour of the BC id it was written with. This is
+what the solver reads, which the deck alone does not show: where another
+block meets a face BCB connects the two (`101`) whatever the face was given,
+a chimera face gets its donors, a wall becomes a heat-flux or a temperature
+wall (`301`, `302`) from the keys of its section, an inlet the variant its
+keys select (`401`–`421`).
+
+The BCs take the categorical colours in the order of their ids; the faces
+between blocks — connections, chimera, periodic — and the null BC are neutral
+grey, so the boundaries stand out. The legend under the view names every id
+and counts its cells. A **click on a cell** outlines it and gives its record:
+the block, the face, the cell, the id and what it is, and the values of its
+payload by name (`T = 2000, ks = 0, eps = 0`; the mass fractions by species;
+the neighbour of a connection; the donor counts of a chimera cell); the face
+is selected in the tree, with what the deck assigns it on the right.
+
+The menu over the legend picks the phase, and a multigrid level (`bc2.txt`,
+…, each of its cells drawn over the mesh cells it covers). The blocks of a
+phase are numbered from 1 in its own file: they are placed on the mesh by the
+`phase` keys of the deck, or, with no deck, by their sizes in mesh order; a
+block of another phase stays faint. A dispersed phase writes its table once
+per material and population: the colours are the first copy's, a click shows
+each. The notes say when BCB wrote the file, warn when the INI was saved
+after it or the case has changes not saved, and when the file does not fit
+the mesh on the screen. The faces 5 and 6 of a planar block, which BCB sets
+itself, are not drawn. **Boundaries** on BCB's row of the Run stage opens this
+view.
 
 ---
 
@@ -439,7 +533,7 @@ GPB staging directory a stopped tool leaves are removed.
 | **Tools** | GPB, BCB and ICB, each with what it builds from the deck (*2 phases: gas, drop*, *3 blocks, 5 boundary conditions*, *All blocks, Block 2*) or why it has nothing to build, a box to leave it out of the run, its state, and once it has run its time, the files it wrote and the errors and warnings it printed; **Log** and **First error** jump to them, **… messages in Review** lists them on the sections they name ([Review](#review)) |
 | **Before the run** | What the run does first and what would stop it, from the case alone (below); **Tools…** opens Settings → Tools |
 | **Log** | The output of the tools as they run: ▶ a tool starts, ✔ it is done, ✖ it failed, ■ it was stopped, › what the run does besides; errors and warnings in their colours. **Save log…** writes it to a file |
-| **fromATLAStoSolver/** | The files there, those of the last run first, in bold, with the tool that wrote them; a double click opens one |
+| **fromATLAStoSolver/** | The files there, those of the last run first, in bold, with the tool that wrote them; a double click draws a table, the boundary file or the initial field in its stage, and opens any other file |
 
 The status bar shows the tool that runs, or how the last run ended, and the
 window's title the INI and whether it has unsaved changes.

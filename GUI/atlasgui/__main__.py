@@ -1,4 +1,4 @@
-"""Launch the ATLAS GUI:  python -m atlasgui [mesh] [--ini input.ini]"""
+"""Launch the ATLAS GUI:  python -m atlasgui [mesh] [--ini input.ini | --case folder]"""
 
 from __future__ import annotations
 
@@ -15,6 +15,9 @@ def main(argv=None):
                     "input.ini, and the runs of the tools on it.")
     parser.add_argument("mesh", nargs="?", help="mesh file to load on startup")
     parser.add_argument("--ini", help="existing ATLAS input.ini to open on startup")
+    parser.add_argument("--case", metavar="FOLDER",
+                        help="case folder to open on startup: its INI, its mesh and the "
+                             "files the tools wrote there (a folder of files alone too)")
     parser.add_argument("--stage", choices=["case", "gpb", "bcb", "icb", "review", "run"],
                         help="stage to open on (default: case, or boundaries "
                              "when a mesh is given)")
@@ -57,6 +60,8 @@ def main(argv=None):
     win = AtlasMainWindow()
     if args.ini:
         win.open_ini(args.ini)
+    elif args.case:
+        win.open_case(args.case)
     if args.mesh:
         win.load_mesh(args.mesh)
     win.set_stage(args.stage or ("bcb" if args.mesh else "case"))

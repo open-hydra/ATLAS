@@ -2146,3 +2146,21 @@ set_tests_properties(GUI-runner PROPERTIES
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- GUI : GUI-outputs (what the GUI reads back of GPB and BCB: the tables of a gas, a condensed, a solid phase and the
+# ----       (p, h) grid of a real fluid, the thermodynamics and the transport of a gas as one sheet, the reactions named
+# ----       from chemistry-info.txt; the BC id of every cell of every face of a boundary file whatever the payload lines
+# ----       in between, the tables a dispersed phase repeats, the blocks of a phase placed on the mesh, a multigrid level
+# ----       drawn on its cells; the scales of the plots and the cases remembered (with PyQt6); GPB writes Cantera's cp
+# ----       of O2 (with Cantera) and BCB the id each face of a suite deck implies; numpy; skipped (77) without it) ------
+add_test(
+    NAME    GUI-outputs
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_outputs.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-outputs PROPERTIES
+    LABELS           "GUI;regression"
+    TIMEOUT          300
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT      "${_TEST_ENV}"
+)

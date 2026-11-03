@@ -231,6 +231,15 @@ def _profile(p, c):
     _poly(p, [(6.5, 16.5), (9.5, 13), (12.5, 14.5), (15.5, 8.5), (19, 6)])
 
 
+def _chart(p, c):
+    """Axes and two curves: the tables of a phase."""
+    _stroke(p, c, 1.6)
+    _poly(p, [(4, 3.5), (4, 20), (20.5, 20)])
+    _stroke(p, c, 1.9)
+    _poly(p, [(7, 16.5), (10.5, 13), (14.5, 11.5), (19.5, 6)])
+    _poly(p, [(7, 8.5), (11, 11), (15, 14.5), (19.5, 15.5)])
+
+
 def _nozzle(p, c):
     """A de Laval nozzle in section, the flow through it: the special
     initialisations."""
@@ -426,7 +435,7 @@ DRAW = {
     "layers": _layers, "sliders": _sliders, "code": _code, "info": _info,
     "chevron-down": _chevron_down, "chevron-right": _chevron_right,
     "chevron-up": _chevron_up, "split": _split, "profile": _profile,
-    "nozzle": _nozzle,
+    "nozzle": _nozzle, "chart": _chart,
     "circle": _circle, "file": _file, "alert": _alert, "gear": _gear,
     "reset": _reset, "type": _type, "thermo": _thermo,
     "grid": _grid, "case": _case, "boundary": _boundary, "initial": _initial,

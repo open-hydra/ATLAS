@@ -19,7 +19,9 @@ document, in the order the tools run:
 
 from __future__ import annotations
 
+import glob
 import os
+import re
 import sys
 
 from PyQt6.QtCore import QSize, Qt
@@ -28,13 +30,13 @@ from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QFont, QFontMetr
                          QTextFormat)
 from PyQt6.QtWidgets import (
     QAbstractItemView, QApplication, QButtonGroup, QComboBox, QFileDialog,
-    QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget,
+    QFrame, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit, QListWidget,
     QListWidgetItem, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
     QPushButton, QSizePolicy, QSplitter, QStackedWidget, QTableWidget,
     QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
 )
 
-from . import filekeys, icons, preferences
+from . import bcfile, filekeys, icfield, icons, preferences, runner, tables
 from . import theme as thememod
 from .bcbpanel import BCBPanel
 from .bcmodel import ATLAS_PARAM_KEYS
@@ -242,9 +244,23 @@ class AtlasMainWindow(QWidget):
         lay.addSpacing(6)
         lay.addWidget(kit.vdivider())
 
+        native = QKeySequence.SequenceFormat.NativeText
+        open_keys = QKeySequence("Ctrl+O").toString(native)
+        self.open_button = kit.button(
+            "Open", None, "open", None, compactable=True,
+            tip=f"Open a case: its INI file ({open_keys}), a case folder -- the INI, the "
+                "mesh and the files the tools wrote --, or a recent case")
+        self.open_menu = QMenu(self.open_button)
+        self.open_menu.aboutToShow.connect(self._fill_open_menu)
+        self.open_button.setMenu(self.open_menu)
+        lay.addWidget(self.open_button)
+        for keys, slot in (("Ctrl+O", self.open_ini_dialog),
+                           ("Ctrl+Shift+O", self.open_case_dialog)):
+            action = QAction(self)
+            action.setShortcut(QKeySequence(keys))
+            action.triggered.connect(slot)
+            self.addAction(action)
         for text, slot, ico, role, tip in [
-            ("Open INI", self.open_ini_dialog, "open", None,
-             "Load an existing ATLAS input.ini"),
             ("Save INI", self.save_ini, "save", "primary",
              "Write the case file"),
             ("Save As", self.save_ini_as, "save-as", None,
@@ -257,7 +273,6 @@ class AtlasMainWindow(QWidget):
                                      compactable=True))
 
         lay.addWidget(kit.vdivider())
-        native = QKeySequence.SequenceFormat.NativeText
         run_keys = QKeySequence("Ctrl+R").toString(native)
         self.run_header_button = kit.button(
             "Run", self.run_tools, "play", None, compactable=True,
@@ -282,6 +297,32 @@ class AtlasMainWindow(QWidget):
 
         lay.addWidget(self._build_display_button())
         return bar
+
+    def _fill_open_menu(self):
+        """The Open menu: an INI, a case folder, the cases opened last."""
+        menu = self.open_menu
+        menu.clear()
+        action = menu.addAction(self.kit.icon("file", "text_dim", 16), "INI file…")
+        action.setShortcut(QKeySequence("Ctrl+O"))
+        action.setToolTip("An ATLAS input.ini; the mesh of its folder is loaded with it")
+        action.triggered.connect(self.open_ini_dialog)
+        action = menu.addAction(self.kit.icon("open", "text_dim", 16), "Case folder…")
+        action.setShortcut(QKeySequence("Ctrl+Shift+O"))
+        action.triggered.connect(self.open_case_dialog)
+        menu.setToolTipsVisible(True)
+        recent = preferences.recent_cases(self.settings)
+        if recent:
+            menu.addSection("Recent")
+            for path in recent:
+                action = menu.addAction(_case_title(path))
+                action.setToolTip(path)
+                action.triggered.connect(lambda _c=False, p=path: self.open_recent(p))
+            menu.addSeparator()
+            menu.addAction("Clear the list", self._clear_recent)
+
+    def _clear_recent(self):
+        preferences.clear_recent_cases(self.settings)
+        self.refresh_case()
 
     def _build_display_button(self):
         """One menu for the text size and the colour theme: two combos would
@@ -422,7 +463,34 @@ class AtlasMainWindow(QWidget):
         mesh_row.addWidget(kit.button("Load mesh…", self.load_mesh_dialog, "grid"))
         mesh_row.addStretch(1)
         where.body.addLayout(mesh_row)
+        open_row = QHBoxLayout()
+        open_row.setSpacing(7)
+        open_row.addWidget(kit.button("Open INI…", self.open_ini_dialog, "file",
+                                      tip="An ATLAS input.ini; the mesh of its folder with it"))
+        open_row.addWidget(kit.button("Open folder…", self.open_case_dialog, "open",
+                                      tip="A case folder: its INI if it has one, its mesh, and "
+                                          "the files the tools wrote there"))
+        open_row.addStretch(1)
+        where.body.addWidget(kit.section_label("OPEN A CASE"))
+        where.body.addLayout(open_row)
+        self.recent_list = QListWidget()
+        self.recent_list.setObjectName("RecentCases")
+        self.recent_list.setToolTip("The cases opened last: click one to open it")
+        self.recent_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.recent_list.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+        self.recent_list.itemClicked.connect(
+            lambda item: self.open_recent(item.data(Qt.ItemDataRole.UserRole)))
+        self.recent_label = kit.section_label("RECENT")
+        where.body.addWidget(self.recent_label)
+        where.body.addWidget(self.recent_list)
         left.addWidget(where)
+
+        written = Card()
+        written.body.addLayout(kit.panel_header("chart", "WHAT THE TOOLS WROTE"))
+        self.outputs_rows = QVBoxLayout()
+        self.outputs_rows.setSpacing(6)
+        written.body.addLayout(self.outputs_rows)
+        left.addWidget(written)
 
         params = Card()
         params.body.addLayout(
@@ -715,10 +783,59 @@ class AtlasMainWindow(QWidget):
     def stop_tools(self):
         self.run_panel.stop()
 
-    def show_initial_field(self):
-        """The Initial stage, its view showing the field ICB wrote."""
+    def show_initial_field(self, path=None):
+        """The Initial stage, its view showing the field ICB wrote (*path*,
+        when given)."""
         self.set_stage("icb")
+        if path is not None:
+            controls = self.icb_panel.field_controls
+            index = controls.phase.findData(path)
+            if index < 0:
+                controls.set_files(icfield.field_files(self.case_dir), path)
+            else:
+                controls.phase.setCurrentIndex(index)
         self.icb_panel.set_view_mode("field")
+
+    def show_tables(self, name=None, sheet=None):
+        """The Phases stage, the tables of phase *name* drawn (the one
+        selected, when None)."""
+        self.set_stage("gpb")
+        if name is not None:
+            self.gpb_panel.show_tables(name, sheet)
+
+    def show_written_bcs(self, path=None):
+        """The Boundaries stage, every boundary cell in the colour of the BC
+        BCB wrote (in file *path*, when given)."""
+        self.set_stage("bcb")
+        view = self.bcb_panel.written_view
+        if path is not None:
+            index = view.file.findData(path)
+            if index >= 0:
+                view.file.blockSignals(True)
+                view.file.setCurrentIndex(index)
+                view.file.blockSignals(False)
+        self.bcb_panel.set_view_mode("written")
+
+    def show_output(self, path):
+        """Draw the file *path* of fromATLAStoSolver/ in its stage: a table
+        of GPB, a boundary file of BCB, an initial field of ICB.  False when
+        it is none of them."""
+        name = os.path.basename(path)
+        if bcfile._NAME.match(name):
+            self.show_written_bcs(path)
+            return True
+        if any(f.path == path for f in icfield.field_files(self.case_dir)):
+            self.show_initial_field(path)
+            return True
+        for suffix, role in tables.ROLES.items():
+            stem = name[:-len(suffix)] if name.endswith(suffix) else None
+            if stem is None or (stem and not stem.endswith("-")):
+                continue
+            sheet = {"transport": "thermo", "phase": None, "reactions": "arrhenius",
+                     "composition": None}.get(role, role)
+            self.show_tables(stem[:-1], sheet)
+            return True
+        return False
 
     def _running_changed(self, running):
         self.run_header_button.setVisible(not running)
@@ -741,8 +858,12 @@ class AtlasMainWindow(QWidget):
         """A run ended: the phase files, the outputs and the field may be new."""
         self.icb_panel.reload_phases()
         self.icb_panel.field_changed()
+        self.gpb_panel.refresh_tables()
+        self.bcb_panel.written_changed()
         self.refresh_status()
         self.refresh_run_state()
+        if self.current_stage == "case":
+            self.refresh_case()
         if self.current_stage == "review":
             self.refresh_review()
         QApplication.alert(self)        # the Dock icon bounces if the window is behind
@@ -775,20 +896,61 @@ class AtlasMainWindow(QWidget):
             self.refresh_all()
 
     def open_ini_dialog(self):
+        if not self._confirm_discard():
+            return
         path, _ = QFileDialog.getOpenFileName(
             self, "Open ATLAS INI", self.case_dir,
             "INI files (*.ini);;All files (*)")
         if path:
+            self.open_ini(path, confirm=False)
+
+    def open_case_dialog(self):
+        if not self._confirm_discard():
+            return
+        path = QFileDialog.getExistingDirectory(
+            self, "Open a case folder: its INI, its mesh, the files the tools wrote",
+            self.case_dir)
+        if path:
+            self.open_case(path, confirm=False)
+
+    def open_recent(self, path):
+        if not path or not os.path.exists(path):
+            self.warn("Open", f"{path} is not there any more.")
+            self.refresh_case()
+            return
+        if os.path.isdir(path):
+            self.open_case(path)
+        else:
             self.open_ini(path)
 
-    def open_ini(self, path):
+    def _confirm_discard(self):
+        """True when the case may be replaced: it has no unsaved change, or
+        the user lets them go."""
+        if not self._dirty:
+            return True
+        reply = QMessageBox.question(
+            self, "Unsaved changes",
+            "The case has changes that are not saved. Open another case and lose them?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        return reply == QMessageBox.StandardButton.Yes
+
+    def open_ini(self, path, confirm=True):
+        """Open the case of *path*: the INI, the mesh the tools read in its
+        folder, and what they wrote there."""
+        if confirm and not self._confirm_discard():
+            return False
         try:
             with open(path) as handle:
                 text = handle.read()
         except OSError as exc:
             QMessageBox.critical(self, "Open failed", str(exc))
-            return
+            return False
         new_doc = AtlasDocument.from_ini(text)
+        self.doc = new_doc
+        self.ini_path = path
+        self.set_case_dir(os.path.dirname(os.path.abspath(path)))
+        self._load_case_mesh()
         if self.bcb_panel.blocks:
             if new_doc.bcb.nblocks and \
                     new_doc.bcb.nblocks != len(self.bcb_panel.blocks):
@@ -797,12 +959,69 @@ class AtlasMainWindow(QWidget):
                     f"The file defines {new_doc.bcb.nblocks} block(s) but the "
                     f"loaded mesh has {len(self.bcb_panel.blocks)}. "
                     f"Assignments applied where they fit.")
-        self.doc = new_doc
-        self.ini_path = path
-        self.set_case_dir(os.path.dirname(os.path.abspath(path)))
         self.bcb_panel.sync_blocks_to_mesh()
         self._dirty = False
+        preferences.add_recent_case(path, self.settings)
         self.refresh_all()
+        return True
+
+    def open_case(self, folder, confirm=True):
+        """Open the case in *folder*: its INI (``input.ini``, or the one
+        INI there, or the one chosen), else the files alone -- the mesh and
+        what the tools wrote, to look at."""
+        if confirm and not self._confirm_discard():
+            return False
+        folder = os.path.abspath(os.path.expanduser(folder))
+        if os.path.basename(folder.rstrip(os.sep)) == runner.OUTPUT_DIR:
+            folder = os.path.dirname(folder.rstrip(os.sep))      # the case around it
+        inis = sorted(glob.glob(os.path.join(folder, "*.ini")))
+        chosen = None
+        if os.path.join(folder, "input.ini") in inis:
+            chosen = os.path.join(folder, "input.ini")
+        elif len(inis) == 1:
+            chosen = inis[0]
+        elif inis:
+            names = [os.path.basename(p) for p in inis]
+            name, ok = QInputDialog.getItem(self, "Open a case",
+                                            "The folder has several INI files: which one?",
+                                            names, 0, False)
+            if not ok:
+                return False
+            chosen = os.path.join(folder, name)
+        if chosen is not None:
+            return self.open_ini(chosen, confirm=False)
+        self.doc = AtlasDocument()
+        self.ini_path = None
+        self.set_case_dir(folder)
+        self._load_case_mesh()
+        self.bcb_panel.sync_blocks_to_mesh()
+        self._dirty = False
+        preferences.add_recent_case(folder, self.settings)
+        self.refresh_all()
+        self.status.setText(f"No INI in {os.path.basename(folder)}: the files the tools wrote")
+        return True
+
+    def _load_case_mesh(self):
+        """Load the mesh BCB and ICB read in the case folder, unless it is
+        the one shown."""
+        path = runner.tools_mesh(self.case_dir)
+        if path is None:
+            # a folder copied from a run may keep the mesh under its own name:
+            # the one mesh file there (the run links it as the tools read it)
+            found = [p for ext in runner.MESH_LINK_NAMES if ext != ".dat"
+                     for p in glob.glob(os.path.join(self.case_dir, f"*{ext}"))
+                     if not re.match(r"(.+-)?ic\.", os.path.basename(p))]   # not ICB's field
+            path = found[0] if len(found) == 1 else None
+        if path is None or path.endswith(".szplt"):
+            return False
+        current = self.bcb_panel.mesh_path
+        if current and runner._same_file(current, path):
+            return False
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            return self.bcb_panel.load_mesh(path)
+        finally:
+            QApplication.restoreOverrideCursor()
 
     def save_ini(self):
         if not self.ini_path:
@@ -839,6 +1058,7 @@ class AtlasMainWindow(QWidget):
             self.ini_path = path
             self.set_case_dir(os.path.dirname(os.path.abspath(path)))
             self.save_ini()
+            preferences.add_recent_case(path, self.settings)
 
     def _confirm_missing(self, missing, undefined=()):
         parts = []
@@ -920,6 +1140,66 @@ class AtlasMainWindow(QWidget):
             "error(s) to fix before running" if errors else "nothing blocking",
             "review"))
         self.overview_row.addStretch(1)
+        self._refresh_case_files()
+
+    def _refresh_case_files(self):
+        """The cases opened last, and what the tools wrote in this one."""
+        from .widgets import clear_layout
+        recent = preferences.recent_cases(self.settings)
+        self.recent_list.clear()
+        for path in recent:
+            folder = path if os.path.isdir(path) else os.path.dirname(path)
+            item = QListWidgetItem(self.kit.icon("open" if os.path.isdir(path) else "file",
+                                                 "muted", 15),
+                                   f"{_case_title(path)}    {_home(folder)}")
+            item.setData(Qt.ItemDataRole.UserRole, path)
+            item.setToolTip(path)
+            self.recent_list.addItem(item)
+        for widget in (self.recent_list, self.recent_label):
+            widget.setVisible(bool(recent))
+        if recent:
+            rows = min(len(recent), 5)
+            frame = 2 * self.recent_list.frameWidth() + 4
+            self.recent_list.setFixedHeight(
+                rows * max(self.recent_list.sizeHintForRow(0), 1) + frame)
+
+        clear_layout(self.outputs_rows)
+        case = self.case_dir
+        phases = tables.phase_outputs(case)
+        bcs = [f for f in bcfile.bc_files(case) if f.level == 1]
+        fields = icfield.field_files(case)
+        where = os.path.relpath(tables.output_dir(case), case)
+        where = "the case folder" if where == "." else f"{where}/"
+        rows = [
+            ("GPB", "chart", "Tables",
+             f"{len(phases)} phase{'s' * (len(phases) != 1)}: "
+             + ", ".join(p.name or "(unnamed)" for p in phases) if phases
+             else "no property table yet", bool(phases), lambda: self.show_tables(
+                 phases[0].name if phases and not self.doc.gpb.phases else None)),
+            ("BCB", "boundary", "Boundaries",
+             ", ".join(os.path.basename(f.path) for f in bcs) if bcs
+             else "no boundary file yet", bool(bcs), self.show_written_bcs),
+            ("ICB", "initial", "Field",
+             ", ".join(os.path.basename(f.path) for f in fields) if fields
+             else "no initial field yet", bool(fields), self.show_initial_field),
+        ]
+        for tool, icon_name, action, text, found, slot in rows:
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            row.addWidget(self.kit.icon_label(icon_name, "accent" if found else "muted", 16))
+            label = QLabel(f"<b>{tool}</b>  ·  {text}")
+            label.setWordWrap(True)
+            if not found:
+                label.setProperty("role", "muted")
+            row.addWidget(label, 1)
+            button = self.kit.button(action, lambda _c=False, f=slot: f(), None, "ghost",
+                                     tip=f"Draw what {tool} wrote in its stage")
+            button.setEnabled(found)
+            row.addWidget(button)
+            self.outputs_rows.addLayout(row)
+        self.outputs_rows.addWidget(self.kit.hint(
+            f"In {where}. Run the tools to write them, or open a case folder that holds "
+            "them."))
 
     def _coverage(self):
         total = sum(len(f) for f in self.doc.bcb.block_faces)
@@ -1117,7 +1397,8 @@ class AtlasMainWindow(QWidget):
         self.status.setText(
             os.path.basename(self.ini_path) if self.ini_path else "new case")
         self.status.setToolTip(self.ini_path or "not written to a file yet")
-        name = os.path.basename(self.ini_path) if self.ini_path else "new case"
+        name = os.path.basename(self.ini_path) if self.ini_path else \
+            f"{os.path.basename(self.case_dir)} (no INI)"
         self.setWindowTitle(f"{name}{' (unsaved)' if self._dirty else ''} — ATLAS")
         issues = self._issues()
         errors = sum(1 for level, _t, _m in issues if level == "error")
@@ -1318,3 +1599,15 @@ class AtlasMainWindow(QWidget):
 
 # The window used to be the BCB GUI; keep the old name importable.
 BCBMainWindow = AtlasMainWindow
+
+
+def _case_title(path):
+    """``chamber · input.ini`` for an INI, ``chamber · files`` for a folder."""
+    if os.path.isdir(path):
+        return f"{os.path.basename(path.rstrip(os.sep))} · files"
+    return f"{os.path.basename(os.path.dirname(path))} · {os.path.basename(path)}"
+
+
+def _home(path):
+    home = os.path.expanduser("~")
+    return "~" + path[len(home):] if path.startswith(home) else path

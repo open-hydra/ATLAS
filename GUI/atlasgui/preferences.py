@@ -156,3 +156,29 @@ def save_tool_settings(values, store=None):
     store = settings() if store is None else store
     for key, default in TOOL_DEFAULTS.items():
         store.setValue(f"tools/{key}", values.get(key, default))
+
+
+# The cases opened last (Open → recent): an INI file, or a case folder that
+# has none, the latest first.
+RECENT_CASES = 8
+
+
+def recent_cases(store=None):
+    """The cases opened last that are still there, the latest first."""
+    store = settings() if store is None else store
+    value = store.value("cases/recent", [])
+    if isinstance(value, str):           # QSettings gives a lone entry as a string
+        value = [value]
+    return [p for p in (value or []) if isinstance(p, str) and os.path.exists(p)]
+
+
+def add_recent_case(path, store=None):
+    store = settings() if store is None else store
+    path = os.path.abspath(path)
+    cases = [p for p in recent_cases(store) if os.path.abspath(p) != path]
+    store.setValue("cases/recent", ([path] + cases)[:RECENT_CASES])
+
+
+def clear_recent_cases(store=None):
+    store = settings() if store is None else store
+    store.setValue("cases/recent", [])

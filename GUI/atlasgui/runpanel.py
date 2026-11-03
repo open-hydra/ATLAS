@@ -127,11 +127,19 @@ class ToolRow(QFrame):
                                        "alert", "ghost",
                                        tip=f"Show the first error {tool.name} printed")
         foot.addWidget(self.error_button)
-        self.field_button = None
-        if tool.name == "ICB":
-            self.field_button = kit.button(
+        # what the tool wrote, drawn in its stage
+        self.field_button = {
+            "GPB": lambda: kit.button(
+                "Tables", lambda: panel.shell.show_tables(), "chart", "ghost",
+                tip="The tables GPB wrote, drawn (Phases stage)"),
+            "BCB": lambda: kit.button(
+                "Boundaries", lambda: panel.shell.show_written_bcs(), "boundary", "ghost",
+                tip="The BC of every boundary cell as BCB wrote it (Boundaries stage)"),
+            "ICB": lambda: kit.button(
                 "Field", lambda: panel.shell.show_initial_field(), "initial", "ghost",
-                tip="The field ICB wrote, on the cells of the mesh (Initial stage)")
+                tip="The field ICB wrote, on the cells of the mesh (Initial stage)"),
+        }.get(tool.name, lambda: None)()
+        if self.field_button is not None:
             foot.addWidget(self.field_button)
         foot.addWidget(self.log_button)
         lay.addLayout(foot)
@@ -316,7 +324,8 @@ class RunPanel(QWidget):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
         self.output_tree.itemDoubleClicked.connect(self._open_output)
         self.output_tree.setToolTip("What the tools wrote for the solver. A double click "
-                                    "opens a file.")
+                                    "draws a table, the boundary file or the initial field in "
+                                    "its stage, and opens any other file.")
         outputs.body.addWidget(self.output_tree, 1)
         right.addWidget(outputs)
         right.setStretchFactor(0, 3)
@@ -678,7 +687,7 @@ class RunPanel(QWidget):
 
     def _open_output(self, item, _column=0):
         path = item.data(0, Qt.ItemDataRole.UserRole)
-        if path and os.path.isfile(path):
+        if path and os.path.isfile(path) and not self.shell.show_output(path):
             QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
 
