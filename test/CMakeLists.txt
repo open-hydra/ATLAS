@@ -2164,3 +2164,20 @@ set_tests_properties(GUI-outputs PROPERTIES
     SKIP_RETURN_CODE 77
     ENVIRONMENT      "${_TEST_ENV}"
 )
+
+# ---- GUI : GUI-layout (the window on simulated laptop screens, at three text sizes, as fitted and at its smallest: the
+# ----       stages, the header and the status bar are searched for a widget squeezed below the least it asks for, a label
+# ----       or button narrower than its text, and text printed over text -- on a case with a mechanism of sixty reactions,
+# ----       a real fluid, a mesh, a boundary file and a state; the blocks the Initial counter of the status bar counts;
+# ----       the elided label; offscreen, with PyQt6 and pyvistaqt; skipped (77) without them) -------------------------
+add_test(
+    NAME    GUI-layout
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_layout.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-layout PROPERTIES
+    LABELS           "GUI;regression"
+    TIMEOUT          600
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT      "${_TEST_ENV}"
+)

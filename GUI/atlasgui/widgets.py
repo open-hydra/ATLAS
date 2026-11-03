@@ -9,7 +9,7 @@ through :meth:`UIKit.px`, the way the stylesheet's lengths are scaled.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
     QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QLabel, QPushButton,
@@ -17,6 +17,55 @@ from PyQt6.QtWidgets import (
 )
 
 from . import icons
+
+
+class ElidedLabel(QLabel):
+    """A one-line label that asks for the width of its whole text when there
+    is room, and shows it cut short with an ellipsis (the whole text in its
+    tooltip) when there is not: a long file name or message in a bar must not
+    widen the window or push another label out.  Style and colour are the
+    label's own."""
+
+    def __init__(self, text="", mode=Qt.TextElideMode.ElideRight, keep=12, parent=None):
+        """*keep*: the characters it never gives up (a shorter text is kept whole)."""
+        super().__init__(parent)
+        self._mode = mode
+        self._keep = keep
+        self._full = ""
+        self._tip = ""
+        self.setText(text)
+
+    def setText(self, text):
+        self._full = text
+        self.updateGeometry()
+        self._elide()
+
+    def text(self):
+        return self._full
+
+    def setToolTip(self, tip):
+        self._tip = tip
+        self._elide()
+
+    def sizeHint(self):
+        return QSize(self.fontMetrics().horizontalAdvance(self._full) + 2 * self.margin() + 2,
+                     super().sizeHint().height())
+
+    def minimumSizeHint(self):
+        metrics = self.fontMetrics()
+        least = min(metrics.horizontalAdvance(self._full),
+                    metrics.horizontalAdvance("n" * self._keep))
+        return QSize(least + 2 * self.margin() + 2, super().minimumSizeHint().height())
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._elide()
+
+    def _elide(self):
+        shown = self.fontMetrics().elidedText(
+            self._full, self._mode, max(self.contentsRect().width(), 0))
+        QLabel.setText(self, shown)
+        QLabel.setToolTip(self, self._tip or (self._full if shown != self._full else ""))
 
 
 class Card(QFrame):
@@ -270,13 +319,16 @@ class UIKit:
         line.setFixedHeight(1)
         return line
 
-    def scrollable(self, widget):
-        """Wrap *widget* so a short window scrolls it instead of clipping."""
+    def scrollable(self, widget, horizontal=False):
+        """Wrap *widget* so a short window scrolls it instead of clipping
+        (a narrow one too with *horizontal*, else its width gives way)."""
         area = QScrollArea()
         area.setWidget(widget)
         area.setWidgetResizable(True)
         area.setFrameShape(QFrame.Shape.NoFrame)
-        area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded if horizontal
+            else Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         area.viewport().setAutoFillBackground(False)
         widget.setAutoFillBackground(False)
         return area

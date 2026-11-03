@@ -189,7 +189,7 @@ class _Plot(QWidget):
         super().__init__(parent)
         self.kit = kit
         self.setMouseTracking(True)
-        self.setMinimumHeight(kit.px(220))
+        self.setMinimumHeight(kit.px(170))
         self.empty_text = "Nothing to draw"
         self.hover = None              # QPointF of the cursor over the plot area
         self.drag = None               # x where a drag started

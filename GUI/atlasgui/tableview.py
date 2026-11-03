@@ -16,7 +16,7 @@ import datetime
 import os
 
 import numpy as np
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (QAbstractItemView, QComboBox, QHBoxLayout, QLabel, QLineEdit,
                              QListWidget, QListWidgetItem, QStackedWidget, QVBoxLayout,
@@ -28,6 +28,34 @@ from .plotview import MAX_SERIES, SERIES, MapPlot, XYPlot, nice_ticks
 
 DEFAULT_SERIES = 4              # curves shown at first
 FILTER_FROM = 12                # a list this long gets a filter box
+LIST_ROWS = 7                   # rows the list of curves shows when there is room
+LIST_MIN_ROWS = 3               # and the least it gives way to
+
+
+def shrinkable(combo, chars=10):
+    """*combo* as wide as its text only when there is room: a long label
+    (a reaction mechanism's species, a column name) must not widen the card
+    it sits in."""
+    combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+    combo.setMinimumContentsLength(chars)
+    return combo
+
+
+class RowList(QListWidget):
+    """A list that asks for the rows it holds, up to ``LIST_ROWS``, and gives
+    way to ``LIST_MIN_ROWS`` when the card is short: the plot above takes what
+    is left, and nothing is drawn over anything."""
+
+    def _rows(self, rows):
+        row = max(self.sizeHintForRow(0), 1)
+        return rows * row + 2 * self.frameWidth() + 4
+
+    def sizeHint(self):
+        return QSize(super().sizeHint().width(),
+                     self._rows(min(max(self.count(), 1), LIST_ROWS)))
+
+    def minimumSizeHint(self):
+        return QSize(60, self._rows(min(max(self.count(), 1), LIST_MIN_ROWS)))
 
 
 class TablesView(QWidget):
@@ -55,22 +83,21 @@ class TablesView(QWidget):
         lay.setSpacing(8)
         row = QHBoxLayout()
         row.setSpacing(6)
-        self.phase = QComboBox()
+        self.phase = shrinkable(QComboBox(), 9)
         self.phase.setToolTip("The phase whose tables are drawn: the one selected in the deck, "
                               "or any other GPB wrote")
         self.phase.currentIndexChanged.connect(self._phase_changed)
         row.addWidget(self.phase, 1)
-        self.sheet_combo = QComboBox()
+        self.sheet_combo = shrinkable(QComboBox(), 10)
         self.sheet_combo.setToolTip("Which of its tables")
         self.sheet_combo.currentIndexChanged.connect(self._sheet_changed)
         row.addWidget(self.sheet_combo, 1)
         lay.addLayout(row)
         row = QHBoxLayout()
         row.setSpacing(6)
-        self.quantity = QComboBox()
+        self.quantity = shrinkable(QComboBox(), 12)
         self.quantity.setToolTip("The quantity drawn")
         self.quantity.currentIndexChanged.connect(self._quantity_changed)
-        kit.sized(self.quantity.setMinimumWidth, 200)
         row.addWidget(self.quantity, 1)
         self.log_toggle = kit.toggle("Log scale", self._log_changed, "profile", False,
                                      tip="The values on a logarithmic scale: rates and "
@@ -108,7 +135,7 @@ class TablesView(QWidget):
         kit.sized(self.filter.setMaximumWidth, 180)
         self.series_head.addWidget(self.filter)
         lay.addLayout(self.series_head)
-        self.series = QListWidget()
+        self.series = RowList()
         self.series.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.series.setTextElideMode(Qt.TextElideMode.ElideRight)
         self.series.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
@@ -278,9 +305,7 @@ class TablesView(QWidget):
         if not self.filter.isVisible():
             self.filter.clear()
         if many:
-            rows = min(self.series.count(), 7)
-            frame = 2 * self.series.frameWidth() + 4
-            self.series.setFixedHeight(rows * max(self.series.sizeHintForRow(0), 1) + frame)
+            self.series.updateGeometry()
         self._filter_series(self.filter.text())
 
     def _paint_series(self):

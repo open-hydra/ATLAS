@@ -259,6 +259,39 @@ compares GPB's cp of O2 with Cantera's, and runs BCB on a suite deck to find,
 face by face, the id the deck's section implies (and the connection BCB makes
 where another block meets a face).
 
+## Fitting a window
+
+A page that does not fit the window it is given must scroll, never squeeze: a
+widget below the least it asks for prints one label over another.
+`widgets.UIKit.scrollable(widget, horizontal=False)` wraps a page or a card;
+the Case page, the editors of Phases and Initial, the tables card and the
+Run stage's left column use it. Three rules the pages follow:
+
+* **No explicit minimum smaller than the content.** `setMinimumWidth` on a
+  form hides what its widest row needs: the layout's own minimum applies, and
+  the column scrolls sideways when narrower. A combo box takes
+  `AdjustToMinimumContentsLengthWithIcon` (`tableview.shrinkable`), so a long
+  item does not widen the card; a page of a stacked widget not shown is
+  `Ignored` in both directions.
+* **A long text elides.** `widgets.ElidedLabel` asks for the width of its whole
+  text and shows it cut short with an ellipsis, down to `keep` characters, when
+  there is not that much room (the whole text in its tooltip): the file name,
+  the run message and the issue count of the status bar, the phase rows, the
+  names on the Case page. A list that holds rows takes `tableview.RowList`,
+  which asks for up to seven rows and gives way to three.
+* **The window's minimum follows the text.** `AtlasMainWindow._apply_min_size`
+  is 1080 × 640 scaled by the text size and the screen, capped by what the
+  screen has, and is applied again whenever the text size or the theme change.
+
+`GUI/tests/test_layout.py` (CTest `GUI-layout`; offscreen, PyQt6 and
+pyvistaqt) opens the window on simulated 1280 × 720 and 1440 × 900 screens at
+90, 100 and 125 % text, as fitted and at its smallest, with a mechanism of
+sixty reactions, a real fluid, a mesh, a boundary file and a state, and searches
+every stage, the header and the status bar (a long run message showing) for a
+widget smaller than its minimum size, a label or button narrower than its
+text and two widgets over one another. It also checks the blocks the status
+bar's Initial meter counts (`AtlasMainWindow._initial_coverage`).
+
 ## Dependencies
 
 `numpy`, `PyQt6`, `pyvista`, `pyvistaqt` — in `ct-env.yaml` (`pyqt`, `pyvista`,
@@ -292,7 +325,7 @@ where another block meets a face).
 | `gpbpanel.py`, `gpbdialogs.py`, `bcbpanel.py`, `bcbdialogs.py`, `icbpanel.py`, `icbdialogs.py` | the stage panels and their dialogs |
 | `runner.py`, `runpanel.py`, `runlog.py` | the runs of the tools, the Run stage, their messages placed on the sections they name |
 | `icfield.py`, `fieldcolors.py`, `fieldview.py` | the field ICB wrote, the colour scales, the colour bar |
-| `tables.py`, `plotview.py`, `tableview.py` | the tables GPB wrote, their plots, the Phases stage's card |
+| `tables.py`, `plotview.py`, `tableview.py` | the tables GPB wrote, their plots, the Phases stage's card (a **Tables** switch in the header puts it away) |
 | `bcfile.py`, `bcview.py` | the boundary files BCB wrote, the Boundaries stage's written view |
 | `mainwindow.py` | the shell: stages, opening a case (INI, folder, recent), status, Case and Review (the checks by stage, each tied to its INI section) |
 | `__main__.py` | CLI entry point / dependency guards |

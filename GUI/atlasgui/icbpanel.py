@@ -456,19 +456,19 @@ class ICBPanel(QWidget):
         outer_layout.setContentsMargins(4, 0, 4, 4)
         self.editor_host = QWidget()
         self.kit.sized(self.editor_host.setMaximumWidth, 880)
-        self.kit.sized(self.editor_host.setMinimumWidth, 420)
+        # no explicit minimum: the cards need what their widest row needs, and a
+        # narrower column scrolls sideways rather than cutting the row off
         self.editor_layout = QVBoxLayout(self.editor_host)
         self.editor_layout.setContentsMargins(0, 0, 0, 0)
         self.editor_layout.setSpacing(10)
         outer_layout.addWidget(self.editor_host)
-        area = self.kit.scrollable(outer)
+        area = self.kit.scrollable(outer, horizontal=True)
         self.kit.sized(area.setMaximumWidth, 900)    # the editor and its scroll bar
         return area
 
     def _build_view_panel(self):
         card = Card()
         kit = self.kit
-        kit.sized(card.setMinimumWidth, 320)
         self.mode_buttons = {}
         group = QButtonGroup(card)
         segments = []
@@ -703,8 +703,10 @@ class ICBPanel(QWidget):
     def _fit_view_info(self, index=None):
         index = self.view_info.currentIndex() if index is None else index
         for n in range(self.view_info.count()):
+            # a page not shown asks for no height and no width: the card is as wide
+            # as the page that is shown, not as the widest of them
             policy = QSizePolicy.Policy.Preferred if n == index else QSizePolicy.Policy.Ignored
-            self.view_info.widget(n).setSizePolicy(QSizePolicy.Policy.Preferred, policy)
+            self.view_info.widget(n).setSizePolicy(policy, policy)
         self.view_info.adjustSize()
 
     def _field_choice_changed(self):

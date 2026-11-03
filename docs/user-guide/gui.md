@@ -28,7 +28,10 @@ The window opens fitted to the screen. **Display** (top right) sets the
 **text size** — 100 % is fitted to the screen, and Ctrl/Cmd +, Ctrl/Cmd − and
 Ctrl/Cmd 0 change it from anywhere — and the **colour theme**; both are
 remembered. On a narrow window the header buttons keep only their icons, with
-the label as tooltip.
+the label as tooltip. The window is never smaller than 1080 × 640 at 100 %
+text (more at a larger size, never more than the screen has), and a page that
+does not fit what it is given scrolls — a card is never squeezed over
+another, nor a row cut off.
 
 **Display → Settings…** (Cmd+, on macOS) opens the Settings window. Every
 change shows on the application at once; **Apply** or **OK** keep it,
@@ -74,6 +77,19 @@ The rail on the left follows the order the tools run in.
 | **Initial** | ICB: the initial state of every block, `[ICB-Block*]` and `[ICB-BlockN]`, and the mesh in 3-D with the state every cell takes, or the field ICB wrote (p, T, Mach, …) |
 | **Review** | The INI as it will be written, plus every check the GUI can make on it, by stage |
 | **Run** | GPB, BCB and ICB run on the case: what the run will do first, the log of every tool, the files written into `fromATLAStoSolver/` |
+
+### The status bar
+
+Along the bottom, whatever the stage: the case file (and **unsaved** when it
+has changes), the number of **phases** and **blocks**, then two meters that
+fill as the case is set up and turn green when it is complete —
+**coverage**, the faces of the mesh that have a boundary condition, and
+**initial**, the blocks ICB can write: those with an initial state, their own
+section or `[ICB-Block*]`'s, and no error in it (a block with none, or whose
+state has an error, is not counted; the checks of **Review** say which). On
+the right, how the last run ended and the number of errors and warnings. A
+long file name or message is shortened with an ellipsis, its whole text in
+the tooltip, rather than pushing the others out.
 
 Sections belonging to tools the GUI does not edit yet (`[STB-*]`, `[MDB-*]`,
 `[KAnT-*]`) are carried through a save untouched, so a shared case file never
@@ -191,7 +207,10 @@ hover gives every property at that (p, h). h and s are counted from 0 at
 
 Under the plot: the files and when GPB wrote them, and a warning when the INI
 was saved after them or the case has changes not saved. **Tables** on GPB's
-row of the Run stage opens this view.
+row of the Run stage opens this view. The **Tables** switch in the header puts
+the card away, which gives the editor the whole width (a condensed phase's
+table of materials is wide); it is remembered, and asking for a table (from
+the Run or the Case stage) brings the card back.
 
 ---
 

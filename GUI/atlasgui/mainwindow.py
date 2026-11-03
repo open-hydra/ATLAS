@@ -46,7 +46,7 @@ from .gpbpanel import GPBPanel
 from .icbpanel import ICBPanel
 from .icmodel import block_label
 from .runpanel import RunPanel
-from .widgets import Card, UIKit
+from .widgets import Card, ElidedLabel, UIKit
 
 STAGES = [
     ("case", "Case", "case", "Where the case lives and what it contains"),
@@ -183,10 +183,21 @@ class AtlasMainWindow(QWidget):
         avail = screen.availableGeometry()
         width = min(width, avail.width() - 24)
         height = min(height, avail.height() - 24)
-        self.setMinimumSize(min(1080, width), min(640, height))
+        self._apply_min_size()
         self.resize(width, height)
         self.move(avail.x() + (avail.width() - width) // 2,
                   avail.y() + (avail.height() - height) // 2)
+
+    def _apply_min_size(self):
+        """The smallest window: 1080 x 640 at 100 % text, scaled with the text
+        and the screen (what the pages hold at 100 % needs more room at 125 %),
+        and never more than the screen has."""
+        width, height = self.kit.px(1080), self.kit.px(640)
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            width, height = min(width, avail.width() - 24), min(height, avail.height() - 24)
+        self.setMinimumSize(width, height)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
@@ -217,9 +228,9 @@ class AtlasMainWindow(QWidget):
         body.addWidget(self.stack, 1)
         root.addLayout(body, 1)
 
-        # The Boundaries and Initial stages have 3-D view controls; the tool
-        # stack has one page per stage, in the order of STAGES.
-        viewers = {"bcb": self.bcb_panel, "icb": self.icb_panel}
+        # The Phases, Boundaries and Initial stages have view controls (the tables,
+        # the 3-D views); the tool stack has one page per stage, in the order of STAGES.
+        viewers = {"gpb": self.gpb_panel, "bcb": self.bcb_panel, "icb": self.icb_panel}
         for key, _label, _icon, _tip in STAGES:
             self.tool_stack.addWidget(
                 viewers[key].view_tools() if key in viewers else QWidget())
@@ -436,6 +447,8 @@ class AtlasMainWindow(QWidget):
         row.setSpacing(10)
         left = QVBoxLayout()
         left.setSpacing(10)
+        right = QVBoxLayout()
+        right.setSpacing(10)
 
         where = Card()
         where.body.addLayout(kit.panel_header("open", "CASE FILES"))
@@ -450,29 +463,32 @@ class AtlasMainWindow(QWidget):
         dir_row.addWidget(kit.button("Browse…", self.browse_case_dir, "open"))
         where.body.addWidget(kit.section_label("CASE DIRECTORY"))
         where.body.addLayout(dir_row)
-        where.body.addWidget(kit.section_label("INI FILE"))
-        self.case_ini_label = QLabel("not saved yet")
+
+        def file_row(title, label, buttons):
+            """A name under its title, the buttons that change it beside it."""
+            line = QHBoxLayout()
+            line.setSpacing(7)
+            text = QVBoxLayout()
+            text.setSpacing(3)
+            text.addWidget(kit.section_label(title))
+            text.addWidget(label)
+            line.addLayout(text, 1)
+            for button in buttons:
+                line.addWidget(button, 0, Qt.AlignmentFlag.AlignBottom)
+            return line
+
+        self.case_ini_label = ElidedLabel("not saved yet", Qt.TextElideMode.ElideMiddle)
         self.case_ini_label.setProperty("role", "value")
-        where.body.addWidget(self.case_ini_label)
-        where.body.addWidget(kit.section_label("MESH"))
-        self.case_mesh_label = QLabel("no mesh loaded")
+        where.body.addLayout(file_row("INI FILE", self.case_ini_label, [
+            kit.button("Open INI…", self.open_ini_dialog, "file",
+                       tip="An ATLAS input.ini; the mesh of its folder with it"),
+            kit.button("Open folder…", self.open_case_dialog, "open",
+                       tip="A case folder: its INI if it has one, its mesh, and "
+                           "the files the tools wrote there")]))
+        self.case_mesh_label = ElidedLabel("no mesh loaded", Qt.TextElideMode.ElideMiddle)
         self.case_mesh_label.setProperty("role", "value")
-        where.body.addWidget(self.case_mesh_label)
-        mesh_row = QHBoxLayout()
-        mesh_row.setSpacing(7)
-        mesh_row.addWidget(kit.button("Load mesh…", self.load_mesh_dialog, "grid"))
-        mesh_row.addStretch(1)
-        where.body.addLayout(mesh_row)
-        open_row = QHBoxLayout()
-        open_row.setSpacing(7)
-        open_row.addWidget(kit.button("Open INI…", self.open_ini_dialog, "file",
-                                      tip="An ATLAS input.ini; the mesh of its folder with it"))
-        open_row.addWidget(kit.button("Open folder…", self.open_case_dialog, "open",
-                                      tip="A case folder: its INI if it has one, its mesh, and "
-                                          "the files the tools wrote there"))
-        open_row.addStretch(1)
-        where.body.addWidget(kit.section_label("OPEN A CASE"))
-        where.body.addLayout(open_row)
+        where.body.addLayout(file_row("MESH", self.case_mesh_label, [
+            kit.button("Load mesh…", self.load_mesh_dialog, "grid")]))
         self.recent_list = QListWidget()
         self.recent_list.setObjectName("RecentCases")
         self.recent_list.setToolTip("The cases opened last: click one to open it")
@@ -480,7 +496,7 @@ class AtlasMainWindow(QWidget):
         self.recent_list.setTextElideMode(Qt.TextElideMode.ElideMiddle)
         self.recent_list.itemClicked.connect(
             lambda item: self.open_recent(item.data(Qt.ItemDataRole.UserRole)))
-        self.recent_label = kit.section_label("RECENT")
+        self.recent_label = kit.section_label("RECENT CASES")
         where.body.addWidget(self.recent_label)
         where.body.addWidget(self.recent_list)
         left.addWidget(where)
@@ -490,7 +506,7 @@ class AtlasMainWindow(QWidget):
         self.outputs_rows = QVBoxLayout()
         self.outputs_rows.setSpacing(6)
         written.body.addLayout(self.outputs_rows)
-        left.addWidget(written)
+        right.addWidget(written)
 
         params = Card()
         params.body.addLayout(
@@ -523,6 +539,8 @@ class AtlasMainWindow(QWidget):
             "Global settings shared by the ATLAS tools, written as the "
             "[ATLAS-Parameters] section."))
 
+        right.addWidget(params, 1)
+
         overview = Card()
         overview.body.addLayout(kit.panel_header("case", "CASE OVERVIEW"))
         self.overview_row = QHBoxLayout()
@@ -532,9 +550,10 @@ class AtlasMainWindow(QWidget):
         left.addStretch(1)
 
         row.addLayout(left, 1)
-        row.addWidget(params, 1)
+        row.addLayout(right, 1)
         outer.addLayout(row, 1)
-        return page
+        # a short or narrow window scrolls the page: no card is squeezed over another
+        return kit.scrollable(page, horizontal=True)
 
     def _overview_tile(self, icon_name, title, value, note, stage):
         tile = QFrame()
@@ -697,34 +716,48 @@ class AtlasMainWindow(QWidget):
         lay.setSpacing(10)
 
         lay.addWidget(kit.icon_label("save", "muted", 16))
-        self.status = QLabel("new case")
+        self.status = ElidedLabel("new case", Qt.TextElideMode.ElideMiddle, keep=14)
         self.status.setProperty("role", "value")
         lay.addWidget(self.status)
         self.dirty_badge = kit.badge("unsaved")
         self.dirty_badge.setVisible(False)
         lay.addWidget(self.dirty_badge)
 
-        lay.addWidget(kit.vdivider())
-        lay.addWidget(kit.section_label("PHASES"))
-        self.phases_badge = kit.badge("0")
-        lay.addWidget(self.phases_badge)
-        lay.addWidget(kit.section_label("BLOCKS"))
-        self.blocks_badge = kit.badge("0")
-        lay.addWidget(self.blocks_badge)
+        def group(*widgets):
+            """A name beside its value, closer than the gap between groups."""
+            box = QHBoxLayout()
+            box.setContentsMargins(0, 0, 0, 0)
+            box.setSpacing(6)
+            for widget in widgets:
+                box.addWidget(widget)
+            return box
 
         lay.addWidget(kit.vdivider())
-        lay.addWidget(kit.section_label("COVERAGE"))
+        self.phases_badge = kit.badge("0")
+        self.blocks_badge = kit.badge("0")
+        lay.addLayout(group(kit.section_label("PHASES"), self.phases_badge))
+        lay.addLayout(group(kit.section_label("BLOCKS"), self.blocks_badge))
+
+        lay.addWidget(kit.vdivider())
         self.progress = QProgressBar()
         self.progress.setTextVisible(False)
-        kit.sized(self.progress.setFixedWidth, 150)
-        lay.addWidget(self.progress)
+        kit.sized(self.progress.setFixedWidth, 56)
         self.faces_label = QLabel("0 / 0 faces")
         self.faces_label.setProperty("role", "muted")
-        lay.addWidget(self.faces_label)
+        lay.addLayout(group(kit.section_label("COVERAGE"), self.progress, self.faces_label))
+
+        lay.addWidget(kit.vdivider())
+        self.initial_progress = QProgressBar()
+        self.initial_progress.setTextVisible(False)
+        kit.sized(self.initial_progress.setFixedWidth, 56)
+        self.initial_label = QLabel("0 / 0 blocks")
+        self.initial_label.setProperty("role", "muted")
+        lay.addLayout(group(kit.section_label("INITIAL"), self.initial_progress,
+                            self.initial_label))
 
         lay.addStretch(1)
         self.run_dot = QLabel()
-        self.run_state = QLabel()
+        self.run_state = ElidedLabel(keep=8)
         self.run_state.setProperty("role", "value")
         self.run_state.setToolTip("The last run of the tools (Run stage)")
         for widget in (self.run_dot, self.run_state):
@@ -733,7 +766,7 @@ class AtlasMainWindow(QWidget):
         self.run_divider = kit.vdivider()
         self.run_divider.setVisible(False)
         lay.addWidget(self.run_divider)
-        self.issues_label = QLabel("no issues")
+        self.issues_label = ElidedLabel("no issues", keep=8)
         self.issues_label.setProperty("role", "muted")
         lay.addWidget(self.issues_label)
         return bar
@@ -800,6 +833,7 @@ class AtlasMainWindow(QWidget):
         """The Phases stage, the tables of phase *name* drawn (the one
         selected, when None)."""
         self.set_stage("gpb")
+        self.gpb_panel.reveal_tables()
         if name is not None:
             self.gpb_panel.show_tables(name, sheet)
 
@@ -1124,16 +1158,15 @@ class AtlasMainWindow(QWidget):
             "boundary", "BLOCKS", str(nblocks),
             f"{done} of {total} faces assigned" if total else "no mesh loaded",
             "bcb"))
-        count = self.icb_panel.block_count()
-        started = sum(1 for b in range(1, count + 1) if self.doc.icb.block(b))
+        ready, count = self._initial_coverage(issues)
         if self.doc.icb.is_empty():
             note = "not set up yet"
         elif count:
-            note = "blocks with an initial state"
+            note = "blocks ICB can write"
         else:
             note = "no block known yet"
         self.overview_row.addWidget(self._overview_tile(
-            "initial", "INITIAL STATE", f"{started} / {count}" if count else "—",
+            "initial", "INITIAL", f"{ready} / {count}" if count else "—",
             note, "icb"))
         self.overview_row.addWidget(self._overview_tile(
             "review", "CHECKS", str(errors),
@@ -1158,7 +1191,7 @@ class AtlasMainWindow(QWidget):
         for widget in (self.recent_list, self.recent_label):
             widget.setVisible(bool(recent))
         if recent:
-            rows = min(len(recent), 5)
+            rows = min(len(recent), 3)
             frame = 2 * self.recent_list.frameWidth() + 4
             self.recent_list.setFixedHeight(
                 rows * max(self.recent_list.sizeHintForRow(0), 1) + frame)
@@ -1200,6 +1233,32 @@ class AtlasMainWindow(QWidget):
         self.outputs_rows.addWidget(self.kit.hint(
             f"In {where}. Run the tools to write them, or open a case folder that holds "
             "them."))
+
+    def _initial_coverage(self, issues):
+        """``(ready, blocks)``: how many blocks have an initial state ICB can
+        write -- their own section or ``[ICB-Block*]``'s, and no error in it
+        (*issues* as :meth:`_issues` gives them)."""
+        count = self.icb_panel.block_count()
+        if not count:
+            return 0, 0
+        icb = self.doc.icb
+        broken, wildcard_broken = set(), False
+        for level, (stage, index), _message in issues:
+            if level != "error" or stage != "icb":
+                continue
+            owner = index[0] if isinstance(index, tuple) else index
+            if owner == "*":
+                wildcard_broken = True
+            elif isinstance(owner, int):
+                broken.add(owner)
+        ready = 0
+        for b in range(1, count + 1):
+            if icb.block(b) is None or b in broken:
+                continue
+            if b not in icb.blocks and wildcard_broken:
+                continue                    # it takes the state of a section with errors
+            ready += 1
+        return ready, count
 
     def _coverage(self):
         total = sum(len(f) for f in self.doc.bcb.block_faces)
@@ -1382,13 +1441,7 @@ class AtlasMainWindow(QWidget):
 
     def refresh_status(self):
         total, done = self._coverage()
-        self.progress.setMaximum(max(total, 1))
-        self.progress.setValue(done)
-        state = "done" if total and done == total else "open"
-        if self.progress.property("state") != state:
-            self.progress.setProperty("state", state)
-            self.progress.style().unpolish(self.progress)
-            self.progress.style().polish(self.progress)
+        self._set_progress(self.progress, done, total)
         self.faces_label.setText(f"{done} / {total} faces")
         nphases, nblocks = self.doc.summary()
         self.phases_badge.setText(str(nphases))
@@ -1401,6 +1454,14 @@ class AtlasMainWindow(QWidget):
             f"{os.path.basename(self.case_dir)} (no INI)"
         self.setWindowTitle(f"{name}{' (unsaved)' if self._dirty else ''} — ATLAS")
         issues = self._issues()
+        ready, count = self._initial_coverage(issues)
+        self._set_progress(self.initial_progress, ready, count)
+        self.initial_label.setText(f"{ready} / {count} blocks")
+        tip = (f"{ready} of {count} blocks have an initial state ICB can write: their own "
+               "section or [ICB-Block*]'s, and no error in it (Review lists them)"
+               if count else "The blocks come from the mesh, or the BCB deck: load the mesh")
+        for widget in (self.initial_progress, self.initial_label):
+            widget.setToolTip(tip)
         errors = sum(1 for level, _t, _m in issues if level == "error")
         warnings = sum(1 for level, _t, _m in issues if level == "warning")
         if errors:
@@ -1410,6 +1471,17 @@ class AtlasMainWindow(QWidget):
         else:
             self.issues_label.setText("no issues")
         self.refresh_case_badges()
+
+    @staticmethod
+    def _set_progress(bar, done, total):
+        """*bar* at *done* of *total*, green when it is all there."""
+        bar.setMaximum(max(total, 1))
+        bar.setValue(done)
+        state = "done" if total and done == total else "open"
+        if bar.property("state") != state:
+            bar.setProperty("state", state)
+            bar.style().unpolish(bar)
+            bar.style().polish(bar)
 
     def refresh_case_badges(self):
         if getattr(self, "current_stage", None) == "case":
@@ -1462,6 +1534,7 @@ class AtlasMainWindow(QWidget):
     def _restyle(self):
         """Re-apply the theme and the size to everything already built."""
         self._apply_stylesheet()
+        self._apply_min_size()
         self.kit.retint()
         self.highlighter.set_theme(self._theme)
         self.bcb_panel.restyle()

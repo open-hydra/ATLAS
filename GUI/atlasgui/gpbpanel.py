@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import weakref
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QFormLayout, QGridLayout,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QListWidgetItem,
@@ -30,7 +30,7 @@ from .gpbdialogs import (AdvancedKeysDialog, ColumnTableDialog, MixtureDialog,
 from .gpbmodel import (FIXED_GAS_COLUMNS, GAS_SOURCES, GPBPhase,
                        MODEL_COLUMNS, PHASE_TYPES, join_tokens, split_tokens)
 from .tableview import TablesView
-from .widgets import Card, clear_layout
+from .widgets import Card, ElidedLabel, clear_layout
 
 # One hue per phase family, used by the phase list and the stage badges.
 FAMILY_COLORS = {
@@ -74,16 +74,17 @@ class PhaseListItem(QWidget):
 
         text = QVBoxLayout()
         text.setSpacing(2)
-        name = QLabel(phase.display_name(index))
+        # elided, not scrolled: the list is only as wide as the editor can spare
+        name = ElidedLabel(phase.display_name(index))
         name.setProperty("role", "value")
         text.addWidget(name)
-        detail = QLabel(f"{gpbmodel.TYPE_LABEL.get(phase.type, phase.type)}"
-                        f"  ·  {phase.summary()}")
+        summary = (f"{gpbmodel.TYPE_LABEL.get(phase.type, phase.type)}"
+                   f"  ·  {phase.summary()}")
+        detail = ElidedLabel(summary, keep=6)
         detail.setProperty("role", "hint")
-        detail.setWordWrap(False)
         text.addWidget(detail)
         layout.addLayout(text, 1)
-        self.setToolTip(f"[GPB-Phase{index + 1}]  {phase.type}")
+        self.setToolTip(f"[GPB-Phase{index + 1}]  {phase.type}\n{summary}")
         # The row is sized from sizeHint() before the list shows it: polish
         # now, so the hint counts the stylesheet's fonts and the two lines
         # are not clipped.
@@ -137,7 +138,7 @@ class GPBPanel(QWidget):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 1)
-        splitter.setSizes([self.kit.px(330), self.kit.px(620), self.kit.px(560)])
+        splitter.setSizes([self.kit.px(260), self.kit.px(720), self.kit.px(420)])
         root.addWidget(splitter)
 
     def _build_list_panel(self):
@@ -150,6 +151,7 @@ class GPBPanel(QWidget):
         # Its rows are PhaseListItem widgets, which carry their own margins:
         # the stylesheet gives this list no item padding (see theme.py).
         self.phase_list.setObjectName("PhaseList")
+        self.phase_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.phase_list.setSelectionMode(
             QAbstractItemView.SelectionMode.SingleSelection)
         self.phase_list.currentRowChanged.connect(self._on_phase_selected)
@@ -171,16 +173,20 @@ class GPBPanel(QWidget):
         add_row.addWidget(add_button, 1)
         card.body.addLayout(add_row)
 
-        tools = QHBoxLayout()
-        tools.setSpacing(7)
+        # two by two: four buttons in a row would keep the list as wide as the
+        # editor beside it can spare
+        tools = QGridLayout()
+        tools.setHorizontalSpacing(7)
+        tools.setVerticalSpacing(7)
         tools.addWidget(kit.button("Copy", self._duplicate_phase, "copy",
-                                   tip="Duplicate the selected phase"))
+                                   tip="Duplicate the selected phase"), 0, 0)
+        tools.addWidget(kit.button("Remove", self._remove_phase, "trash", "danger"), 0, 1)
         tools.addWidget(kit.button("Up", lambda: self._move_phase(-1), None,
-                                   tip="Move earlier in the deck"))
+                                   tip="Move earlier in the deck"), 1, 0)
         tools.addWidget(kit.button("Down", lambda: self._move_phase(1), None,
-                                   tip="Move later in the deck"))
-        tools.addWidget(kit.button("Remove", self._remove_phase, "trash",
-                                   "danger"))
+                                   tip="Move later in the deck"), 1, 1)
+        tools.setColumnStretch(0, 1)
+        tools.setColumnStretch(1, 1)
         card.body.addLayout(tools)
         card.body.addWidget(kit.hint(
             "A phase becomes one property table in fromATLAStoSolver/, named "
@@ -195,24 +201,55 @@ class GPBPanel(QWidget):
         outer_layout.setContentsMargins(4, 0, 4, 4)
         self.editor_host = QWidget()
         self.kit.sized(self.editor_host.setMaximumWidth, 880)
-        self.kit.sized(self.editor_host.setMinimumWidth, 420)
+        # no explicit minimum: the form needs what its widest row needs, and a
+        # narrower column scrolls sideways rather than cutting the row off
         self.editor_layout = QVBoxLayout(self.editor_host)
         self.editor_layout.setContentsMargins(0, 0, 0, 0)
         self.editor_layout.setSpacing(10)
         outer_layout.addWidget(self.editor_host, 6)
         outer_layout.addStretch(1)   # the column hugs the phase list
-        area = self.kit.scrollable(outer)
+        area = self.kit.scrollable(outer, horizontal=True)
         self.kit.sized(area.setMaximumWidth, 900)    # the rest goes to the tables
         return area
 
+    def view_tools(self):
+        """The stage's control in the shell's header: the tables GPB wrote,
+        beside the editor or put away to give the editor the whole width."""
+        bar = QWidget()
+        lay = QHBoxLayout(bar)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(8)
+        shown = str(self.shell.settings.value("gpb-tables", "true")).lower() != "false"
+        self.tables_toggle = self.kit.toggle(
+            "Tables", self._set_tables_shown, "chart", shown,
+            tip="Draw the tables GPB wrote beside the editor; off, the editor has the room")
+        lay.addWidget(self.tables_toggle)
+        self.tables_card.setVisible(shown)
+        return bar
+
+    def _set_tables_shown(self, on):
+        self.tables_card.setVisible(bool(on))
+        self.shell.settings.setValue("gpb-tables", bool(on))
+        if on:
+            self.refresh_tables()
+
+    def reveal_tables(self):
+        """Show the tables card: something asked to see a table."""
+        toggle = getattr(self, "tables_toggle", None)
+        if toggle is not None and not toggle.isChecked():
+            toggle.setChecked(True)
+        self.tables_card.setVisible(True)
+
     def _build_tables_panel(self):
         card = Card()
+        self.tables_card = card
         kit = self.kit
-        kit.sized(card.setMinimumWidth, 340)
+        kit.sized(card.setMinimumWidth, 300)
         card.body.addLayout(kit.panel_header("chart", "TABLES GPB WROTE"))
         self.tables_view = TablesView(kit)
         self.tables_view.run_requested.connect(lambda: self.shell.set_stage("run"))
-        card.body.addWidget(self.tables_view, 1)
+        # a short window scrolls the card instead of squeezing one part over another
+        card.body.addWidget(kit.scrollable(self.tables_view), 1)
         return card
 
     # -------------------------------------------------------------- refresh
@@ -223,12 +260,15 @@ class GPBPanel(QWidget):
 
     def refresh_tables(self):
         """The tables of the phase selected, as GPB last wrote them."""
+        if not self.tables_card.isVisibleTo(self):
+            return                          # put away: read when it is shown again
         phase = self.current_phase()
         self.tables_view.show_case(self.case_dir, prefer=phase.name if phase else None,
                                    ini_path=self.shell.ini_path, dirty=self.shell._dirty)
 
     def show_tables(self, name, sheet=None):
         """Select the deck's phase *name*, if it has one, and draw its tables."""
+        self.reveal_tables()
         for row, phase in enumerate(self.gpb.phases):
             if phase.name == name:
                 self._select(row)
@@ -244,7 +284,7 @@ class GPBPanel(QWidget):
         for i, phase in enumerate(self.gpb.phases):
             item = QListWidgetItem()
             widget = PhaseListItem(self.kit, phase, i)
-            item.setSizeHint(widget.sizeHint())
+            item.setSizeHint(QSize(0, widget.sizeHint().height()))
             self.phase_list.addItem(item)
             self.phase_list.setItemWidget(item, widget)
         if self.gpb.phases:
@@ -260,7 +300,7 @@ class GPBPanel(QWidget):
             return
         item = self.phase_list.item(index)
         widget = PhaseListItem(self.kit, self.gpb.phases[index], index)
-        item.setSizeHint(widget.sizeHint())
+        item.setSizeHint(QSize(0, widget.sizeHint().height()))
         self.phase_list.setItemWidget(item, widget)
 
     def _on_phase_selected(self, _row):

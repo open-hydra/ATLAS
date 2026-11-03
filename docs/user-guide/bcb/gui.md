@@ -68,9 +68,10 @@ only faces 1–4 are assignable; BCB fills faces 5/6 automatically.
   key); the chips are the phases defined in the Phases stage.
 - **Theme** selects the colour theme (Dark Blue, Midnight, Graphite, Nord,
   Light); the choice is remembered between sessions.
-- The status bar along the bottom tracks the case: mesh file, block count and a
-  **coverage** meter that fills as faces get assigned and turns green once every
-  face is mapped.
+- The status bar along the bottom tracks the case: the case file, the phase and
+  block counts, a **coverage** meter that fills as faces get assigned and turns
+  green once every face is mapped, and an **initial** meter for the blocks that
+  have an initial state ICB can write ([the status bar](../gui.md#the-status-bar)).
 
 ---
 

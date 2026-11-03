@@ -285,8 +285,8 @@ class RunPanel(QWidget):
                 "written into the case directory, where BCB and ICB read them")
         before.body.addWidget(self.handoff_toggle)
         column.addWidget(before, 1)
-        kit.sized(left.setMinimumWidth, 360)
-        splitter.addWidget(left)
+        # a short window scrolls the column: no row is squeezed over another
+        splitter.addWidget(kit.scrollable(left, horizontal=True))
 
         right = QSplitter(Qt.Orientation.Vertical)
         right.setHandleWidth(9)
