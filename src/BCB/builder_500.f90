@@ -130,35 +130,40 @@ contains
       rhoGrain_srm = cfg%rhoGrain
       SFgeo_srm = cfg%SF
 
+      ! grain-bc: the string key grain-wall replaced (wall, its default): refused in any strict-keys mode, since the
+      ! grain without it is now an inlet
+      if (cfg%has_grain_bc) then
+        write(*,'(A)') '[ERROR] key grain-bc of section ['//trim(self%name)//']: replaced by the logical grain-wall '// &
+          '(T: the grain is a wall that blows the products in, mode 1; F, the default: an inlet, mode 2)'
+        stop 1
+      endif
+
       ! a: required, the key a or an a-file (builder_face gives the cell the value of the file as the key a). A grain
       ! without it was written with a = 0, a surface that does not burn, in silence; a = 0 given stays that surface
       if (.not. cfg%has_a) then
         write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): no burn rate coefficient a (the key a '// &
-          'or an a-file); a = 0 is a surface that does not burn (grain-bc = wall)'
+          'or an a-file); a = 0 is a surface that does not burn (grain-wall = T)'
         stop 1
       endif
 
-      ! grain-bc: how the solver applies the grain, the mode of the record. inflow carries the turbulence variables of
-      ! the section (an inlet of the solver); wall none (the solver sets the wall values)
-      select case (trim(adjustl(cfg%grain_bc)))
-      case ('wall')
+      ! grain-wall: how the solver applies the grain, the mode of the record. F, the default: an inlet of the solver
+      ! (mode 2), with the turbulence variables of the section as the inlets 401-404; T: a wall that blows the products
+      ! in (mode 1), none (the solver sets the wall values)
+      if (cfg%grain_wall) then
         mode = 1.0_R8
         nrans = 0
-      case ('inflow')
+      else
         mode = 2.0_R8
         ! the 5 bands of an inflow of Q2D, the reader of the 2D meshes (x,y file), as BC 401-404 (build_400ig):
         ! R11 R22 R33 R12 omega
         if (nrans == 7 .and. mesh_cfg%meshType == MESH_PURE_2D) nrans = 5
         if (.not. (a_srm > 0.0_R8)) then
-          write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): grain-bc = inflow needs a burn rate a > 0 '// &
-            '(an inflow with no mass flux; a surface that does not burn is grain-bc = wall with a = 0)'
+          write(*,'(A)') '[ERROR] section ['//trim(self%name)//'] (gsi, BC 502): an inlet grain (grain-wall = F, the '// &
+            'default) needs a burn rate a > 0 (an inflow with no mass flux; a surface that does not burn is grain-wall = T '// &
+            'with a = 0)'
           stop 1
         endif
-      case default
-        write(*,'(A)') '[ERROR] key grain-bc of section ['//trim(self%name)//']: "'//trim(cfg%grain_bc)// &
-          '" is neither wall (a wall that blows the products in) nor inflow (an inlet)'
-        stop 1
-      end select
+      endif
 
       self % ig_n = dim + self % ig_species % n + nrans
       allocate(self % ig_properties(1:self % ig_n))
@@ -187,7 +192,7 @@ contains
       !   [3]      pRef       - reference pressure [Pa]
       !   [4]      Taf        - adiabatic flame temperature [K], of the eq-CEA-file: the solver takes it as the total
       !                           temperature of the products (MOSE: they enter with the total enthalpy h(Taf))
-      !   [5]      mode       - 1 (grain-bc = wall): a wall that blows the products in; 2 (inflow): an inlet
+      !   [5]      mode       - 1 (grain-wall = T): a wall that blows the products in; 2 (F, the default): an inlet
       !   [6..5+ns]           - species mass fractions
       !   following           - with mode 2 only, the turbulence variables of the section
 
@@ -214,13 +219,13 @@ contains
       if     (nrans==1) then
         self%ig_properties(start+1) = nuTilde
         if (nuTilde <= 0._R8) &
-          call warn_turbulence_zero(self, 'gsi, BC 502, grain-bc = inflow', 'nuTilde', 'Spalart-Allmaras (nrans = 1)', &
+          call warn_turbulence_zero(self, 'gsi, BC 502, inlet', 'nuTilde', 'Spalart-Allmaras (nrans = 1)', &
                                     'nuTilde')
       elseif (nrans==2) then
         self%ig_properties(start+1) = k
         self%ig_properties(start+2) = omega
         if (k <= 0._R8 .or. omega <= 0._R8) &
-          call warn_turbulence_zero(self, 'gsi, BC 502, grain-bc = inflow', 'k or omega', 'k-omega (nrans = 2)', &
+          call warn_turbulence_zero(self, 'gsi, BC 502, inlet', 'k or omega', 'k-omega (nrans = 2)', &
                                     'k and omega')
       elseif (nrans==7 .or. nrans==5) then
         ! 7 bands: R11 R22 R33 R12 R13 R23 omega; 5 bands (pure-2D mesh, mode 2): R11 R22 R33 R12 omega
@@ -228,7 +233,7 @@ contains
         self%ig_properties(start+4:start+nrans-1) = 1d-8
         self%ig_properties(start+nrans) = omega
         if (Rij <= 0._R8 .or. omega <= 0._R8) &
-          call warn_turbulence_zero(self, 'gsi, BC 502, grain-bc = inflow', 'Rij or omega', &
+          call warn_turbulence_zero(self, 'gsi, BC 502, inlet', 'Rij or omega', &
                                     'Reynolds-stress (nrans = 7)', 'Rij and omega')
       endif
 

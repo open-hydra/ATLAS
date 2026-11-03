@@ -6,7 +6,7 @@
 One block of 50 x 20 cells and one layer (IG-ablation's mesh). gas-bc.txt: 502 on faces 3 and 4, mdot_ref n pRef Taf
 mode and the three mass fractions, whose first field, the propellant mass flux a*rhoGrain*SF = 0.0052 x 1750 x 1, is
 times 1 - krho_tot: 0.8 on face 3 (drop 0.2), 0.63 on face 4 (drop 0.2, ash 0.05 + 0.1 + 0.02), whose grain has
-SF = 1.25; mode 1 and no turbulence variable, or with --inflow (grain-bc = inflow, nuTilde = NU in both grains)
+SF = 1.25; mode 1 and no turbulence variable, or with --inflow (grain-wall = T dropped: an inlet, the default; nuTilde = NU in both grains)
 mode 2 and the turbulence variable NU after the mass fractions.
 drop-bc.txt (one copy of the table): 401 with krho 0.2 on faces 3 and 4. ash-bc.txt (three copies: alumina's two
 populations, then water's): 300 on face 3, 401 on face 4 with krho 0.05, 0.1, 0.02 in copies 1, 2, 3. Faces 1

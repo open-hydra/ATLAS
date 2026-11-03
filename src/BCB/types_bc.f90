@@ -146,7 +146,7 @@ module bc_mod
     end subroutine
 
     !> The record of an inlet carries a zero turbulence band under a model: a WARNING, for the inlets 401-404
-    !> (builder_400ig) and the solid-propellant grain applied as an inlet (502, grain-bc = inflow, builder_500).
+    !> (builder_400ig) and the solid-propellant grain applied as an inlet (502, grain-wall = F, builder_500).
     !> bc_kind: the type the message names after the section
     module subroutine warn_turbulence_zero(self, bc_kind, what, model, keys)
       class(bc_t),          intent(in)    :: self

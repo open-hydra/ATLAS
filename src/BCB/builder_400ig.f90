@@ -850,7 +850,7 @@ contains
   ! The record of an inlet carries a zero turbulence band under a model (it was written in silence): the solver
   ! starts the inlet without turbulence; under an omega model ICB refuses the same initial field, and the same
   ! refusal on the inlet record is deliberately not applied (WARNING only). The inlets 401-404 (bc_kind: their
-  ! definition) and the solid-propellant grain applied as an inlet (502, grain-bc = inflow, build_srm_ig)
+  ! definition) and the solid-propellant grain applied as an inlet (502, grain-wall = F, build_srm_ig)
   module subroutine warn_turbulence_zero(self, bc_kind, what, model, keys)
     implicit none
     class(bc_t),      intent(in) :: self

@@ -70,12 +70,12 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exce
 | omega | 0.0 |  |  no | Specific dissipation rate omega [1/s], specific. BCB writes it as given; the solver multiplies it by the density of the boundary state. |
 | Rij | 0.0 |  |  no | Normal Reynolds stresses R11 = R22 = R33 [m2/s2], specific, one value for the three (the shear stresses are set to 1e-8). BCB writes it as given; the solver multiplies it by the density of the boundary state. |
 | nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
-| a | 0.0 |  |  no | Burn-rate coefficient a of r = a (p/pRef)^n [m/s] of a solid-propellant grain (BC 502), required: the key or an a-file; a = 0 is a surface that does not burn (grain-bc = wall). |
+| a | 0.0 |  |  no | Burn-rate coefficient a of r = a (p/pRef)^n [m/s] of a solid-propellant grain (BC 502), required: the key or an a-file; a = 0 is a surface that does not burn (grain-wall = T). |
 | n | 0.0 |  |  no | Burn-rate pressure exponent. |
 | pRef | 1.0 |  |  no | Reference pressure for the burn law. |
 | rhoGrain | 0.0 |  |  no | Solid propellant density. |
 | SF | 1.0 |  |  no | Scale factor for the grain propellant. |
-| grain-bc | wall | wall, inflow |  no | How the solver applies a grain (BC 502, the mode of its record): wall, a wall that blows the products in; inflow, the mass-flux inlet with the mass flux of the burn law and the turbulence keys of the section. Taf is the total temperature of the products in both. |
+| grain-wall | F |  |  no | How the solver applies a grain (BC 502, the mode of its record): T, a wall that blows the products in (mode 1); F, the default, the mass-flux inlet (mode 2) with the mass flux of the burn law and the turbulence keys of the section (nuTilde; k, omega; Rij, omega), as the inlets 401-404. Taf is the total temperature of the products in both. Replaces grain-bc. |
 | mach | 0.0 |  |  no | Ideal-gas Mach number. |
 | p0 | 0.0 |  |  no | Ideal-gas stagnation pressure. |
 | T0 | 0.0 |  |  no | Ideal-gas stagnation temperature. |

@@ -10,7 +10,7 @@ i 26-50, face 4 (j = 20) melting i 1-12, pyrolysis 13-25, surface reactions 26-3
   gas-bc.txt   501 (payload: block 1, face 2), 300, 502 on all of face 3, 503/504/505/506 on face 4, 0; the 502
                record mdot_ref n pRef Taf mode and the three mass fractions: its first field, the propellant mass
                flux a*rhoGrain*SF = 0.0052 x 1750 x 1, times 1 - 0.2 on the grain with drop's keys, mode 1 (a wall
-               that blows the products in, grain-bc's default) and no turbulence variables
+               that blows the products in, grain-wall = T) and no turbulence variables
   drop-bc.txt  300 on faces 1, 2 and 4 and on the grain without drop's keys, 401 on the grain with them
                (krho 0.2, kV 0.9, normal direction, kT 1.0, rp 1e-5 from drop-dp 2e-5, sigmap 0, Dirac,
                ds 0), 0 on faces 5 and 6; no payload but the 401's.
