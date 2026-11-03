@@ -763,7 +763,8 @@ phase (`<phase>-krho`, `<phase>-gp`, `<phase>-Vp`, `<phase>-Tp`, `<phase>-dp`, .
 [the dispersed-phase inlet](#dispersed-phase), or `<phase>-krho-file`): that face injects the phase as an `inlet`
 face would, with the same keys and defaults, as a `401` record (the inlet payload). A grain applied as an inlet
 (`grain-wall = F`, the default) is an inlet also for a phase it does not inject, as the other inlets are: a `401` record with
-`krho` 0, through which the solvers inject nothing of that phase (its particles leave the domain there).
+`krho` 0, through which the solvers inject nothing of that phase (its particles leave the domain there); a grain
+applied as a wall (`grain-wall = T`) stays a symmetry (`300`) for that phase.
 
 The grain's flow is then shared: every (material, population) pair of every dispersed phase entering through the
 face takes the fraction `krho` of it, and the gas the rest. BCB writes the propellant mass flux of the `502`
@@ -842,17 +843,20 @@ CEA equilibrium file: without `eq-CEA-file` BCB writes `Taf = 0` with a `[WARNIN
 The flame temperature of the equilibrium is that of the gas at rest: MOSE takes `Taf` as the **total** temperature of
 the products, in both modes (they enter with the total enthalpy h(`Taf`), that of the propellant).
 
-`grain-wall` sets how the solver applies the grain, the mode of the record: `grain-wall = T` (`.true.`, mode 1) a
-wall that blows the products in; without the key or with `F` (the default, mode 2) an inlet, the mass-flux inlet with
-the mass flux of the burn law, which takes the turbulence keys of the section (`nuTilde`; `k`, `omega`; `Rij`,
-`omega`) as an inlet does, and MOSE and Q2D impose them on the face as on a `404` inlet. BCB stops on an inlet grain
-with `a = 0` (an inflow without a mass flux: a surface that does not burn is `grain-wall = T` with `a = 0`) and on a
-value of `grain-wall` that is not a logical. With the grain an inlet a turbulence band written as 0 under a model (the
-keys of the model not given, `nrans` set) is reported with a `[WARNING]`, as on the inlets 401–404. MOSE and Q2D (the
-solver of the 2D meshes, x,y file) read both modes. `grain-bc`, the string key `grain-wall` replaced (`wall`, its
-default, or `inflow`), is an unknown key as any other: BCB stops on it with `strict-keys = T` (the default), the
-message naming `grain-wall`; with `strict-keys = F` it is reported with a `[WARNING]` and ignored, so a deck that gave
-`grain-bc = wall` must say `grain-wall = T`, or its grain is an inlet.
+`grain-wall`, a logical, sets how the solver applies the grain, the mode of the record:
+
+- `grain-wall = T` (or `.true.`): mode 1, a wall that blows the products in with the mass flux of the burn law. The
+  record carries no turbulence variable (the solver sets the wall values); `a = 0` is a surface that does not burn.
+- without the key, or `grain-wall = F` (`.false.`), the default: mode 2, an inlet, the mass-flux inlet with the mass
+  flux of the burn law. It takes the turbulence keys of the section (`nuTilde`; `k`, `omega`; `Rij`, `omega`) as an
+  inlet does, and MOSE and Q2D impose them on the face as on a `404` inlet; a turbulence band written as 0 under a
+  model (the keys of the model not given, `nrans` set) is reported with a `[WARNING]`, as on the inlets 401–404. BCB
+  stops on an inlet grain with `a = 0` (an inflow without a mass flux: a surface that does not burn is
+  `grain-wall = T` with `a = 0`).
+
+BCB stops on a value of `grain-wall` that is not a logical (`T`, `F`, `.true.`, `.false.`, `true`, `false`). MOSE and
+Q2D (the solver of the 2D meshes, x,y file) read both modes, and take `Taf` as the total temperature of the products
+in both.
 
 ```ini
 [grain]

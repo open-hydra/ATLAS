@@ -75,7 +75,7 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exce
 | pRef | 1.0 |  |  no | Reference pressure for the burn law. |
 | rhoGrain | 0.0 |  |  no | Solid propellant density. |
 | SF | 1.0 |  |  no | Scale factor for the grain propellant. |
-| grain-wall | F |  |  no | How the solver applies a grain (BC 502, the mode of its record): T, a wall that blows the products in (mode 1); F, the default, the mass-flux inlet (mode 2) with the mass flux of the burn law and the turbulence keys of the section (nuTilde; k, omega; Rij, omega), as the inlets 401-404. Taf is the total temperature of the products in both. Replaces grain-bc. |
+| grain-wall | F |  |  no | How the solver applies a grain (BC 502, the mode of its record): T, a wall that blows the products in (mode 1); F, the default, the mass-flux inlet (mode 2) with the mass flux of the burn law and the turbulence keys of the section (nuTilde; k, omega; Rij, omega), as the inlets 401-404. Taf is the total temperature of the products in both. |
 | mach | 0.0 |  |  no | Ideal-gas Mach number. |
 | p0 | 0.0 |  |  no | Ideal-gas stagnation pressure. |
 | T0 | 0.0 |  |  no | Ideal-gas stagnation temperature. |
