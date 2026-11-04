@@ -7,12 +7,16 @@ with the names of one species (second name blank) or of a pair, the number of vi
 the Fortran read: 0.10348180E 02 is 10.348180). CEApolynomials.yaml is read with yaml.safe_load, as GPB reads it.
 
 Every record of CEApolynomials.yaml must match the record of the same species of trans.inp, with the same name character by character:
-same number of viscosity and of conductivity intervals, same bounds and same coefficients (equal numbers). The records that ATLAS defines
-itself (ATLAS_RECORDS) have no record in trans.inp. No name or alias may appear twice in CEApolynomials.yaml.
+its NASA intervals, the intervals without a `source` key of their own, have the same number of viscosity and of conductivity intervals
+as trans.inp, which the code V<n>C<n> at the start of the `source` of the record also gives, the same bounds and the same coefficients
+(equal numbers). The intervals that ATLAS adds below the NASA intervals carry their own `source` and are not compared with trans.inp:
+they come before the NASA intervals of their property, each ends where the next begins, and the last ends exactly at the lowest bound of
+the first NASA interval. The records that ATLAS defines itself (ATLAS_RECORDS) have no record in trans.inp. No name or alias may appear
+twice in CEApolynomials.yaml.
 Exit status 1 on any difference; 77 when lib/cea/data/trans.inp is absent (no CEA submodule): CTest then reports the test as not run.
 Usage: cea_trans_inp_check.py <ATLAS directory>   (Python >= 3.6, PyYAML)
 """
-import os, sys
+import os, re, sys
 from collections import Counter
 try:
     import yaml
@@ -83,10 +87,27 @@ for i, r in enumerate(records, start=1):
         errors.append(f"record {i} ({name!r}): no record of that name in trans.inp" + (f" (trans.inp writes {same[0]!r})" if same else ""))
         continue
     compared += 1
+    code = re.match(r'V(\d)C(\d)', str(r.get('source', '')))
+    counts = {kind: len([it for it in r.get(key) or [] if not (isinstance(it, dict) and 'source' in it)])
+              for kind, key in (('V', 'viscosity'), ('C', 'conductivity'))}
+    if not code or (int(code.group(1)), int(code.group(2))) != (counts['V'], counts['C']):
+        errors.append(f"{name}: the source {r.get('source')!r} of the record does not start with the code V{counts['V']}C{counts['C']} "
+                      f"of its NASA intervals")
     for kind, key in (('V', 'viscosity'), ('C', 'conductivity')):
-        mine, ref = r.get(key) or [], nasa[name][kind]
+        intervals = r.get(key) or []
+        added = [it for it in intervals if isinstance(it, dict) and 'source' in it]
+        mine, ref = [it for it in intervals if not (isinstance(it, dict) and 'source' in it)], nasa[name][kind]
+        if added:
+            first_nasa = len(added)
+            if intervals[:first_nasa] != added:
+                errors.append(f"{name} {key}: the intervals with their own source must come before the NASA intervals")
+            chain = intervals[:first_nasa + 1] if len(intervals) > first_nasa else intervals
+            for a, b in zip(chain[:-1], chain[1:]):
+                if max(a.get('temperature_range', [0])) != min(b.get('temperature_range', [0])):
+                    errors.append(f"{name} {key}: the interval {a.get('temperature_range')} with its own source does not end where "
+                                  f"{b.get('temperature_range')} begins")
         if len(mine) != len(ref):
-            errors.append(f"{name} {key}: {len(mine)} intervals, trans.inp:{nasa[name]['line']} {len(ref)}")
+            errors.append(f"{name} {key}: {len(mine)} NASA intervals, trans.inp:{nasa[name]['line']} {len(ref)}")
             continue
         for interval, (t1, t2, fits) in zip(mine, ref):
             # list equality: the same count (two bounds, four coefficients) and the same numbers
@@ -98,5 +119,8 @@ for i, r in enumerate(records, start=1):
 
 for e in errors:
     print('ERROR ' + e)
-print(f"{len(records)} records, {compared} compared with trans.inp ({numbers} numbers), {len(errors)} differences")
+added = sum(1 for r in records for key in ('viscosity', 'conductivity') for it in r.get(key) or []
+            if isinstance(it, dict) and 'source' in it)
+print(f"{len(records)} records, {compared} compared with trans.inp ({numbers} numbers), {added} intervals added by ATLAS, "
+      f"{len(errors)} differences")
 sys.exit(1 if errors else 0)

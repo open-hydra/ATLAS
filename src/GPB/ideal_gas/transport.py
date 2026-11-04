@@ -2,8 +2,10 @@ import numpy as np
 import cantera as ct
 from . import io as IG_IO
 import os, sys
-from config import TRANSPORT_DIR
-from mixing_rules import chempp_wilke, cantera_wilke_mathur, simplified_law, CEA_polynomials
+from config import TRANSPORT_DIR, CEA_TRANS_FILE, ATLASDIR
+from mixing_rules import chempp_wilke, cantera_wilke_mathur, simplified_law
+from cea_transport_records import RecordError
+from cea_transport_rule import cea_table
 
 # Import required module
 sys.path.append(TRANSPORT_DIR)
@@ -39,7 +41,25 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
             viscosity_aux[species_name] = []
             conductivity_aux[species_name] = []
 
-            for T in temperatures:
+            # transport = CEA: the columns of the record whose name or one of whose aliases is the species name, character by
+            # character (cea_transport_rule.py: the intervals, and below them the viscosity rule and the Prandtl number of the
+            # lowest bound with the cp of this species, held at the bound of its thermo range as in thermo.py)
+            cea_columns = None
+            if model == 'CEA':
+                record = kwargs["database"].get(species_name)
+                if record is not None:
+                    thermo_n = solution.species(n).thermo
+                    try:
+                        cea_columns = cea_table(record, temperatures,
+                                                lambda T, th=thermo_n: th.cp(min(max(T, th.min_temp), th.max_temp)),
+                                                os.path.relpath(CEA_TRANS_FILE, ATLASDIR))
+                    except RecordError as e:
+                        print(f"[ERROR] GPB: {e}")
+                        sys.exit(1)
+                    for line in cea_columns[2]:
+                        print(f"[INFO] GPB: {line}")
+
+            for i, T in enumerate(temperatures):
                 mu, k = None, None
                 species_found = False
                 if (species_name=='C32H66'): #for now only exception
@@ -49,10 +69,8 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                     mu = solution.viscosity
                     k = solution.thermal_conductivity
                 elif (model=='CEA'):
-                    # the record whose name or one of whose aliases is the species name, character by character
-                    record = kwargs["database"].get(species_name)
-                    if record is not None:
-                        mu, k = CEA_polynomials(T,record)
+                    if cea_columns is not None:
+                        mu, k = cea_columns[0][i], cea_columns[1][i]
                 elif (model=='constant'):
                     mu = kwargs['mil'][n]
                     k = kwargs['kl'][n]
@@ -174,9 +192,8 @@ def compute_binary_diffusion(name, T_low, T_max, all_solutions):
         return
 
     # Cantera's binary-diffusion polynomial fits can extrapolate to non-physical
-    # negative values at very low temperature (below ~40 K, never reached in a real
-    # run). Clamp each pair's low-T tail to its smallest positive value so the table
-    # stays strictly positive, consistent with the viscosity/conductivity tables.
+    # negative values at very low temperature (below ~40 K). Clamp each pair's low-T
+    # tail to its smallest positive value so the table stays strictly positive.
     for p in range(npair):
         positive = Dij[p][Dij[p] > 0.0]
         if positive.size:
