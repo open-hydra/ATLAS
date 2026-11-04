@@ -13,6 +13,8 @@ MAJOR.MINOR.PATCH
 A release is a tag `vX.Y.Z` on `main`. The changes of each release are listed in
 [CHANGELOG.md](https://github.com/open-hydra/ATLAS/blob/main/CHANGELOG.md).
 
+Before 1.0.0, ATLAS is in pre-release (`0.Y.Z`, from 0.1.0): a breaking change raises `Y`, anything else `Z`.
+
 ## How To Classify A Change
 
 ### PATCH (`x.y.Z`)
@@ -142,7 +144,8 @@ user or a project that uses ATLAS has to change with it, which makes the release
 ## Making a release
 
 1. Choose the number from the entries under `[Unreleased]` in `CHANGELOG.md`: major if one is **Breaking**,
-   otherwise minor if one adds something, otherwise patch.
+   otherwise minor if one adds something, otherwise patch. Before 1.0.0: minor if one is **Breaking**,
+   otherwise patch.
 2. In `CHANGELOG.md`, rename `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD`, and open a new, empty `[Unreleased]` above
    it.
 3. Merge into `main` through a pull request.
