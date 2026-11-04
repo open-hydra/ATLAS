@@ -28,7 +28,7 @@ The tables are written by `MDB --write-config-doc` (`ATLAS DOCS` regenerates eve
 | bc-path | INPUT |  |  no | Directory holding the boundary condition files to split. |
 | bc-out-path | INPUT-split |  |  no | Directory the decomposed boundary condition files are written to. |
 | phase-type |  | gas | dispersed |  no | Phase kind of the BC files: gas or dispersed, which use different property-line conventions. Empty = read it from <prefix>phase.txt. |
-| prefix |  |  |  no | MOSE phase prefix of the BC files (<prefix>bc.txt). |
+| prefix |  |  |  no | Phase prefix of the BC files (`<prefix>bc.txt`: `gas-` for the files BCB writes for a phase named gas); MOSE reads its BC files without a prefix (`bc.txt`, `bc<n>.txt`). |
 | map-file | decomposition.map |  |  no | File recording the new-block to parent-block mapping. |
 | same-cut | false | true, false |  no | Coupled mode only. true applies the decomposition of [MDB-Phase1] to every other phase, which must share its mesh block for block (a gas and its Eulerian condensed phase): every cell of one phase then sits on the rank of the same cell of the other by construction. false decomposes each phase on its own and reports how many type-103/104 interface cells face a partner on another rank after the solvers' LPT. |
 

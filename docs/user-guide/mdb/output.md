@@ -25,6 +25,9 @@ MDB rewrites every multigrid BC level found in `bc-path` and places the results 
 | 2 | `bc2.txt` | `<p>bc2.txt` |
 | *n* | `bc<n>.txt` | `<p>bc<n>.txt` |
 
+MOSE reads the files without a prefix (`INPUT/bc.txt`, `INPUT/bc<n>.txt`): the files written with a prefix go into its
+`INPUT/` under those names.
+
 New faces at cut planes are written as standard connection records (type `101`, the opposite face as donor, orientation `1 0 0 1`). Every other record keeps its type and property line, with the block and the local indices renumbered; the donors of connection and chimera records (`101`, `102`, `201`) are renumbered too, and those of the inter-phase records (`103`, `104`) against the other phase's decomposition. A manifold (`501`) names a whole block face: its payload is renumbered to the new block that inherited the source face entire. T-junctions between cut pieces require no special records.
 
 !!! tip "Checking the result"
@@ -68,7 +71,7 @@ The index table:
 | `i0 i1 j0 j1 k0 k1` | Inclusive cell range of the piece inside its parent, in the parent's fine-level indices |
 | `ni nj nk` | Cell dimensions of the piece |
 | `cells` | Its cell count |
-| `rank` | The rank MOSE and ICE will assign it to: MDB's copy of their partitioner (largest block first to the least loaded rank, ties in block order). No solver reads this column; it is what the solver will compute itself from the block sizes, recorded so that the map can be scored and checked. |
+| `rank` | The rank MOSE and ICE assign it to by themselves: MDB's copy of their partitioner (largest block first to the least loaded rank, ties in block order), computed from the block sizes and recorded so that the map can be scored and checked. MOSE reads this column when the key `decomposition-map` of its `[MOSE-IO]` names the map, copied into its `INPUT/`: each block then runs on the rank of this column, which can be changed to run another assignment (MOSE stops at set-up on a map that does not fit the mesh or the run); without the key MOSE reads no map. |
 
 The face-origin table, `# face origin of every new block`:
 
