@@ -69,13 +69,12 @@ hydra gives ATLAS (see [External clones](./build.md#external-clones)). So:
 
 ## How ATLAS requires its libraries
 
-`CMakeLists.txt` requires ORION and FiNeR with `semver_dependency` of `cmake/SemVerDeps.cmake`, a copy of
-FLINT's file, unmodified (every project carries one, and the newest copy in a build tree is used):
+`CMakeLists.txt` requires ORION, the library ATLAS accepts by a range of releases, with `semver_dependency` of
+`cmake/SemVerDeps.cmake`, a copy of FLINT's file, unmodified (every project carries one, and the newest copy in a
+build tree is used):
 
 ```cmake
 semver_dependency(ORION GIT_REPOSITORY https://github.com/MarcoGrossi92/ORION.git VERSION 2 SOURCE_DIR lib/ORION)
-semver_dependency(FiNeR GIT_REPOSITORY https://github.com/szaghi/FiNeR.git GIT_TAG v2.3.0
-                  SOURCE_DIR lib/third_party/FiNeR)
 ```
 
 A `VERSION` requirement accepts the releases from its own up to the next change of its leftmost nonzero number,
@@ -88,18 +87,19 @@ the one that a release of the library may not change without breaking its users:
 | `0.3` | 0.3.0 and later, up to 0.4.0 excluded (before 1.0.0, a minor release may break) |
 | `1.7 2` | 1.7.0 and later 1.x, or 2.x: the values are alternatives |
 
-Only the tags `vX.Y.Z` are releases; a tag with a suffix, such as `v2.2.0-rc1`, is never selected. `GIT_TAG`
-pins one tag, for a library that is not released in this way: FiNeR, a third-party library.
+Only the tags `vX.Y.Z` are releases; a tag with a suffix, such as `v2.2.0-rc1`, is never selected.
 
 ATLAS requires the oldest release that has everything it uses, and raises the requirement when it starts to use
 something newer, with a comment that says what. ORION: `2`, because ORION 2.0.0 removed
 `tec_read_points_multivars` and ATLAS reads the point files of GPB with `tec_read_structured_multiblock`; the
 test suite passes with 2.0.0 and 2.1.0.
 
-CEA stays a git submodule (`lib/cea`), pinned by its commit; `ATLAS_CEA_VERSION` in `CMakeLists.txt` is checked
-against the release CEA declares, also for an external CEA (`CEA_PATH`). FiNeR's own dependencies are fetched as
-FiNeR's author does (`fobis fetch`, their default branches), or at the backup releases of
-`ATLAS_FINER_BACKUP_PINS` with `ATLAS_FINER_DEPS=BACKUP` (see [Build](./build.md#libraries-releases-pins-and-external-clones)).
+The libraries ATLAS accepts at one release each are git submodules, pinned by their commit: FiNeR (`lib/FiNeR`,
+v2.3.0, a third-party library), CEA (`lib/cea`) and PiNeR (`lib/PiNeR`). A gitlink is bumped together with the
+release in `CMakeLists.txt`, which is checked against the one the library declares, also for an external clone:
+`ATLAS_FINER_TAG` against FiNeR's `VERSION` file, `ATLAS_CEA_VERSION` against CEA's `project()` (`CEA_PATH`).
+FiNeR's own dependencies are fetched as FiNeR's author does (`fobis fetch`, their default branches), or at the
+backup releases of `ATLAS_FINER_BACKUP_PINS` with `ATLAS_FINER_DEPS=BACKUP` (see [Build](./build.md#libraries-releases-pins-and-external-clones)).
 
 ### Which release a build gets
 
@@ -111,8 +111,8 @@ The release of ORION is, in order:
 2. the release in `deps.lock`, in the ATLAS folder, if it satisfies the requirement;
 3. the newest release on GitHub that satisfies the requirement.
 
-FiNeR is its tag, or the external clone of `-DFETCHCONTENT_SOURCE_DIR_FINER` (`install.sh --include-finer`), whose
-`VERSION` must be that tag. At the end of the configure `deps.lock` lists the release of ORION selected, and the
+FiNeR is the submodule's commit, or the external clone of `-DFETCHCONTENT_SOURCE_DIR_FINER`
+(`install.sh --include-finer`), whose `VERSION` must be `ATLAS_FINER_TAG`. At the end of the configure `deps.lock` lists the release of ORION selected, and the
 next configure uses it without the network; `-DSEMVER_UPDATE=ORION` (`install.sh --update-deps`) selects the
 newest one again. `deps.lock` is not committed: ATLAS is not the top of its build tree, hydra is, and chooses
 the releases.

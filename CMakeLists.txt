@@ -9,31 +9,22 @@ set(CMAKE_VERBOSE_MAKEFILE FALSE)
 # Add our local modlues to the module path
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 
-# Set some options the user may choose
-# Uncomment the below if you want the user to choose a parallelization library
-#OPTION(USE_MPI "Use the MPI library for parallelization" OFF)
+# Default to using OpenMP for parallelization
 OPTION(USE_OPENMP "Use OpenMP for parallelization" OFF)
 
 # -------- Libraries and the releases ATLAS is tested with --------
-# ORION and FiNeR are required with semver_dependency of cmake/SemVerDeps.cmake, FLINT's copy unmodified (see
-# docs/development/versioning.md). They are checked out in lib/ORION and lib/third_party/FiNeR, out of the build
-# folder. The release of ORION selected is kept in deps.lock, not committed (in hydra the top-level project
-# chooses); -DSEMVER_UPDATE=ALL selects the newest one again. An external clone is built in place of the
-# checkout with -DFETCHCONTENT_SOURCE_DIR_ORION=<path> or -DFETCHCONTENT_SOURCE_DIR_FINER=<path> (install.sh
-# --include-orion, --include-finer), and must satisfy the same requirement (cmake/AddLibraries.cmake).
+# ATLAS depends on a few libraries, which are either submodules or external dependencies. The submodules are:
+
+# - ORION. Required by a range of releases, with semver_dependency of cmake/SemVerDeps.cmake.
+# It is checked out in lib/ORION, out of the build folder. The release of ORION selected is kept in deps.lock and git ignored.
+# Add -DSEMVER_UPDATE=ALL selects the newest one.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/SemVerDeps.cmake)
-# ORION 2: ATLAS reads the point files of GPB with tec_read_structured_multiblock (2.0.0 removed
-# tec_read_points_multivars)
 set(ATLAS_ORION_VERSION 2)
 semver_dependency(ORION GIT_REPOSITORY https://github.com/MarcoGrossi92/ORION.git VERSION ${ATLAS_ORION_VERSION}
                   SOURCE_DIR lib/ORION)
-# FiNeR, a third-party library: one release
+
+# - FiNeR. Added as submodule in lib/FiNeR
 set(ATLAS_FINER_TAG v2.3.0)
-semver_dependency(FiNeR GIT_REPOSITORY https://github.com/szaghi/FiNeR.git GIT_TAG ${ATLAS_FINER_TAG}
-                  SOURCE_DIR lib/third_party/FiNeR)
-# CEA stays a submodule (lib/cea, or CEA_PATH); its release is checked against the CEA configured. Bump it
-# together with the gitlink.
-set(ATLAS_CEA_VERSION "3.3.4")     # nasa/cea tag v3.3.4
 # FiNeR's own dependencies (cmake/FiNeRDependencies.cmake). FREE fetches them as FiNeR's author does
 # (`fobis fetch`: the default branch of each); BACKUP checks out the releases below, which ATLAS builds
 # and passes its tests with. When an upstream change breaks ATLAS, set BACKUP here and commit it, or
@@ -48,9 +39,10 @@ set(ATLAS_FINER_BACKUP_PINS   # the releases MOSE and FUSS share (hydra sync of 
   "FLAP=v2.5.3"
   "BeFoR64=v1.2.4")
 
-# This INCLUDE statement executes code that sets the compile flags for DEBUG,
-# RELEASE, and TESTING. You should  review this file and make sure the flags
-# are to your liking.
+# - CEA. Added as submodule in lib/cea or CEA_PATH; its release is checked against the CEA configured
+set(ATLAS_CEA_VERSION "3.3.4")
+
+# This INCLUDE statement executes code that sets the compile flags for DEBUG, RELEASE, and TESTING.
 INCLUDE(${CMAKE_MODULE_PATH}/SetFortranFlags.cmake)
 # Locate and set parallelization libraries. There are some CMake peculiarities
 # taken care of here, such as the fact that the FindOpenMP routine doesn't know

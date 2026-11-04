@@ -1,5 +1,5 @@
-# Helpers for the libraries ATLAS builds from: initialize a git submodule (lib/cea, lib/PiNeR), and check that
-# a library is at the commit or the release this ATLAS commit was tested with.
+# Helpers for the libraries ATLAS builds from: initialize a git submodule (lib/FiNeR, lib/cea, lib/PiNeR), and
+# check that a library is at the commit or the release this ATLAS commit was tested with.
 
 find_package(Git QUIET)
 

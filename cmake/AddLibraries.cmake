@@ -1,6 +1,6 @@
-# ORION and FiNeR (with FiNeR's dependencies) as CMakeLists.txt required them with semver_dependency, checked
-# first, so that a clone of another release stops the configure at once; then CEA (the submodule lib/cea, or
-# CEA_PATH). Each is checked against the commit or the release ATLAS requires.
+# ORION, as CMakeLists.txt required it with semver_dependency, and FiNeR (the submodule lib/FiNeR, with FiNeR's
+# dependencies), checked first, so that a clone of another release stops the configure at once; then CEA (the
+# submodule lib/cea, or CEA_PATH). Each is checked against the commit or the release ATLAS requires.
 
 include(${CMAKE_CURRENT_LIST_DIR}/SubmodulePins.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/FiNeRDependencies.cmake)
@@ -25,14 +25,17 @@ if (_orion_source STREQUAL "local")
   endif()
 endif()
 
-# FiNeR: its dependencies before its CMakeLists adds them. Those of the checkout of ATLAS are fetched; an
-# external clone is built as it is, its dependencies only checked. Its release is in its VERSION file (v2.3.0):
-# its project() still declares 2.0.3
+# FiNeR: its dependencies before its CMakeLists adds them. Those of the submodule are fetched; an external
+# clone is built as it is, its dependencies only checked. Its release is in its VERSION file (v2.3.0): its
+# project() still declares 2.0.3
+FetchContent_Declare(FiNeR SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/FiNeR")
 if (FETCHCONTENT_SOURCE_DIR_FINER)
   set(ATLAS_FINER_SOURCE_DIR "${FETCHCONTENT_SOURCE_DIR_FINER}")
   ensure_finer_dependencies("${ATLAS_FINER_SOURCE_DIR}" FALSE)
 else()
-  set(ATLAS_FINER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/third_party/FiNeR")   # SOURCE_DIR of its semver_dependency
+  set(ATLAS_FINER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/FiNeR")
+  ensure_submodule_initialized("${ATLAS_FINER_SOURCE_DIR}")
+  atlas_check_submodule_pin("${ATLAS_FINER_SOURCE_DIR}")
   ensure_finer_dependencies("${ATLAS_FINER_SOURCE_DIR}" TRUE)
 endif()
 set(_finer_version "")
@@ -41,8 +44,9 @@ if (EXISTS "${ATLAS_FINER_SOURCE_DIR}/VERSION")
   string(REGEX REPLACE "^[ \t]*v" "" _finer_version "${_finer_version}")
 endif()
 string(REGEX REPLACE "^v" "" _finer_pinned "${ATLAS_FINER_TAG}")
-string(CONCAT _hint "Give FETCHCONTENT_SOURCE_DIR_FINER a clone of FiNeR ${ATLAS_FINER_TAG}, or build the release "
-                    "ATLAS checks out (without it)")
+string(CONCAT _hint "Give FETCHCONTENT_SOURCE_DIR_FINER a clone of FiNeR ${ATLAS_FINER_TAG}, or build the submodule "
+                    "lib/FiNeR (without it); if lib/FiNeR was bumped on purpose, set ATLAS_FINER_TAG in "
+                    "CMakeLists.txt to its release")
 atlas_check_version(FiNeR "${ATLAS_FINER_SOURCE_DIR}" "${_finer_version}" "${_finer_pinned}" "${_hint}")
 
 # CEA

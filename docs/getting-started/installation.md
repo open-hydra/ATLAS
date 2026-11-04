@@ -33,16 +33,18 @@ command -v conda || true
 cmake --version
 ```
 
-## Git Submodules Used By ATLAS
+## Libraries Used By ATLAS
 
 The installer initializes the following submodules during build:
 
 | Path | Purpose |
 |------|---------|
-| `lib/ORION` | core I/O and supporting routines |
-| `lib/third_party/FiNeR` | INI-style parsing support |
+| `lib/FiNeR` | INI-style parsing support |
 | `lib/cea` | CEA-related thermochemical tooling |
 | `lib/PiNeR` | Python package used in ATLAS workflows |
+
+ORION (core I/O and supporting routines) is not a submodule: the configure checks out in `lib/ORION` the
+release ATLAS requires.
 
 ## Build Methods
 
@@ -83,7 +85,7 @@ Performs a clean configure and build cycle, writes `CMakePresets.json`, sets she
 # skip conda env creation
 ./install.sh build --no-conda
 
-# external clones in place of the releases of ORION and FiNeR (checked against what ATLAS requires)
+# external clones in place of the release of ORION and the submodule FiNeR (checked against what ATLAS requires)
 ./install.sh build \
   --include-orion=/path/to/ORION \
   --include-finer=/path/to/FiNeR
@@ -116,8 +118,8 @@ cmake -B build \
 cmake --build build
 ```
 
-The first configure clones the releases of ORION and FiNeR into `lib/` (it needs the network). External clones
-replace them with `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>` and `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>`; see
+The first configure clones the release of ORION into `lib/ORION` (it needs the network) and initializes the
+submodules if `git clone --recursive` did not. External clones replace ORION and FiNeR with `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>` and `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>`; see
 [Libraries: releases, pins and external clones](../development/build.md#libraries-releases-pins-and-external-clones).
 
 ## Conda Environment Created By Installer
@@ -164,8 +166,8 @@ ATLAS --help
   - verify toolchain binaries are in PATH
 
 - dependency path errors for ORION or FiNeR:
-  - run `./install.sh update` to initialize bundled submodules
-  - or provide explicit paths with `--include-orion` and `--include-finer`
+  - run `git submodule update --init --recursive` to initialize the submodules (FiNeR among them)
+  - or provide external clones with `--include-orion` and `--include-finer`
 
 - `ATLAS` command not available in current shell:
   - run `source scripts/setvars.sh`

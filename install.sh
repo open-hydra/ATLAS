@@ -26,7 +26,7 @@ Commands:
     --compilers=<name>      Set compilers suite (intel,gnu)
     --include-cea=<path>    Set external CEA path
     --include-orion=<path>  Build an external ORION clone instead of the release ATLAS selects
-    --include-finer=<path>  Build an external FiNeR clone instead of the release ATLAS checks out
+    --include-finer=<path>  Build an external FiNeR clone instead of the submodule lib/FiNeR
     --update-deps           Select again the newest release of ORION (deps.lock)
     --use-openmp            Use OpenMP
     --use-tecio             Use TecIO
@@ -121,7 +121,7 @@ EOF
 COMMAND=""
 COMPILERS=""
 CEA_PATH=$(pwd)'/lib/cea/'
-# ORION and FiNeR: the releases ATLAS requires (see CMakeLists.txt), or external clones
+# ORION and FiNeR: the release ATLAS selects and the submodule (see CMakeLists.txt), or external clones
 ORION_PATH=""
 FINER_PATH=""
 UPDATE_DEPS="false"
@@ -222,6 +222,7 @@ case "$COMMAND" in
         
         task "Cloning submodules"
         [[ $CEA_PATH == $(pwd)'/lib/cea/' ]] && git submodule update --init lib/cea
+        [[ -z $FINER_PATH ]] && git submodule update --init lib/FiNeR
         git submodule update --init lib/PiNeR
 
         task "Configuring and building $project"
@@ -238,7 +239,7 @@ case "$COMMAND" in
         log "Build type: $BUILD_TYPE"
         log "CEA path: $CEA_PATH"
         log "ORION: ${ORION_PATH:-release}"
-        log "FiNeR: ${FINER_PATH:-release}"
+        log "FiNeR: ${FINER_PATH:-lib/FiNeR}"
         log "Update ORION: $UPDATE_DEPS"
         log "Use TecIO: $USE_TECIO"
         log "Use OpenMP: $USE_OPENMP"

@@ -4,7 +4,7 @@
 #
 #   ensure_finer_dependencies(<FiNeR folder> <manage>)
 #
-# With <manage> TRUE (the checkout of FiNeR that ATLAS selected) it does the same without FoBiS, as
+# With <manage> TRUE (the submodule lib/FiNeR) it does the same without FoBiS, as
 # ATLAS_FINER_DEPS (set in CMakeLists.txt) chooses:
 #   FREE    as `fobis fetch`, reading the list from FiNeR's fobos; a clone left detached (by BACKUP) goes back
 #           to its branch, wherever that stands (nothing is fetched). Delete src/third_party/<dep> to take its
