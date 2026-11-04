@@ -19,16 +19,24 @@ contains
   subroutine build_st(sini, blocks, var_blocks)
     use ir_precision, only: str
     use config_stb_mod, only: load_var_config
+    use st_conservative_mod, only: build_3d_conservative, is_tecplot_file
     implicit none
     type(file_ini),              intent(in)  :: sini
     type(block_type),            intent(in)  :: blocks(:)
     type(st_block), allocatable, intent(out) :: var_blocks(:)
 
-    integer :: b
+    integer :: b, i, f, nf
     character(len=30) :: section_name
     type(config_t) :: cfg
+    character(len=llen), allocatable :: field_file(:)   ! the distinct 3D fields the blocks name
+    character(len=16),   allocatable :: field_rule(:)   ! per field: its qvol-remap rule
+    integer,             allocatable :: field_of(:)     ! per block: its field in field_file, 0 for none
+    logical :: exists
 
     allocate(var_blocks(1:size(blocks)))
+    allocate(field_file(size(blocks)), field_rule(size(blocks)), field_of(size(blocks)))
+    field_of = 0
+    nf = 0
     
     do b = 1, size(blocks)
       var_blocks(b)%id = b
@@ -48,19 +56,64 @@ contains
                        ' without qvol-file is not used (it selects the coordinate of a 1D qvol profile)'
       endif
       if (cfg%var%has_direction) call check_direction_letters(section_name, cfg%var%direction, cfg%var%has_file)
+      if (cfg%var%has_remap .and. (cfg%var%has_direction .or. cfg%var%has_value .or. .not. cfg%var%has_file)) then
+        write(*,'(A)') '[WARNING] key qvol-remap of section ['//trim(section_name)//'] (or [STB-Block*]): qvol-remap'// &
+                       ' is used only by a 3D field (qvol-file without direction)'
+      endif
+      if (cfg%var%has_file) then
+        inquire(file=trim(cfg%var%file), exist=exists)
+        if (.not. exists) then
+          write(*,'(A)') '[ERROR] '//trim(section_name)//': qvol-file '//trim(cfg%var%file)//' not found'
+          stop 1
+        endif
+      endif
       ! Build appropriate type
       if (cfg%var%has_value) then
         call build_uniform(cfg, blocks(b), var_blocks(b))
       else if (cfg%var%has_file .and. cfg%var%has_direction) then
+        ! a Tecplot field is 3D: it is remapped without direction (read along one it would be a 1D table)
+        if (is_tecplot_file(cfg%var%file)) then
+          write(*,'(A)') '[ERROR] '//trim(section_name)//': qvol-file '//trim(cfg%var%file)//' is a Tecplot field,'// &
+                         ' remapped in 3D onto the block: drop the direction key (it selects the coordinate of a 1D profile)'
+          stop 1
+        endif
         call build_1d(cfg, blocks(b), var_blocks(b))
       else if (cfg%var%has_file) then
-        write(*,*) '[ERROR] '//trim(section_name)//': qvol-file requires the direction key'
-        stop 1
+        ! qvol-file without direction: a 3D Tecplot field on another mesh, remapped conservatively onto every
+        ! block that names it; the blocks of one file share its donor cells, so the remap runs after this loop
+        if (.not. is_tecplot_file(cfg%var%file)) then
+          write(*,'(A)') '[ERROR] '//trim(section_name)//': qvol-file '//trim(cfg%var%file)//' is not a Tecplot field'// &
+                         ' (no VARIABLES/ZONE header): a 1D profile requires the direction key'
+          stop 1
+        endif
+        f = 0
+        do i = 1, nf
+          if (trim(field_file(i)) == trim(cfg%var%file)) f = i
+        enddo
+        if (f == 0) then
+          nf = nf + 1
+          field_file(nf) = cfg%var%file
+          field_rule(nf) = cfg%var%remap
+          f = nf
+        elseif (trim(field_rule(f)) /= trim(cfg%var%remap)) then
+          ! the blocks of one file share its donor cells: one rule for all of them
+          write(*,'(A)') '[ERROR] key qvol-remap of section ['//trim(section_name)//'] (or [STB-Block*]): '// &
+                         trim(cfg%var%remap)//' differs from the rule of another block of the same qvol-file ('// &
+                         trim(field_rule(f))//'): the blocks of one field are remapped together, under one rule'
+          stop 1
+        endif
+        field_of(b) = f
       else
         ! No source in this block: it is written with qvol = 0 (say so, like the other cases)
         write(*,'(A,I3,A)') '   Block ', b, ' - no volumetric source (qvol = 0)'
       endif
 
+    enddo
+
+    ! 3D fields: one remap per file over all the blocks that name it
+    do f = 1, nf
+      call build_3d_conservative(trim(field_file(f)), trim(field_rule(f)), blocks, var_blocks, &
+                                 pack([(b, b = 1, size(blocks))], field_of == f))
     enddo
   end subroutine build_st
 

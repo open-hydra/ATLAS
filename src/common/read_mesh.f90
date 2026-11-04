@@ -93,6 +93,12 @@ contains
       stop 1
     endif
 
+    ! A mesh carries no time. The Tecplot readers of ORION return the most negative real for a file
+    ! whose zones hold no SOLUTIONTIME (so a caller can tell it from a time of 0); the PLOT3D reader
+    ! returns 0. A product written from this mesh (MDB copies the time into the split grid) takes 0,
+    ! as from a PLOT3D mesh and as before.
+    if (error == 0 .and. orion%solutiontime <= -huge(0.0d0)) orion%solutiontime = 0.0d0
+
     if (error/=0) then
       if (fallback) then
         call read_fallback('read error')

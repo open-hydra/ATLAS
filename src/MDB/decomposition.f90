@@ -28,7 +28,7 @@ module decomposition_mod
   end type decomposition_t
 
   public :: dec_init, dec_split_piece, dec_finalize
-  public :: piece_dim, piece_cells, dec_locate
+  public :: piece_dim, piece_cells, dec_locate, face_piece
   public :: face_dir, face_side, face_opposite
   public :: fmn2ijk, ijk2mn, face_extent
   public :: dec_write_map
@@ -219,6 +219,37 @@ contains
           k >= pc%lo(3) .and. k <= pc%hi(3)
 
   end function in_piece
+
+
+  !> The piece of parent b that holds the whole of face f, or 0 when that face
+  !> is shared by several pieces (a cut tangential to it). Needs a finalized
+  !> decomposition.
+  pure integer function face_piece(dec, b, f) result(p)
+    type(decomposition_t), intent(in) :: dec
+    integer,               intent(in) :: b, f
+    integer :: q, dir, d
+    logical :: whole
+
+    p = 0
+    if (b < 1 .or. b > dec%nparent) return
+    dir = face_dir(f)
+    do q = dec%pfirst(b), dec%plast(b)
+      if (face_side(f) == 1) then
+        if (dec%piece(q)%lo(dir) /= 1) cycle
+      else
+        if (dec%piece(q)%hi(dir) /= dec%pdim(dir,b)) cycle
+      endif
+      whole = .true.
+      do d = 1, 3
+        if (d == dir) cycle
+        if (dec%piece(q)%lo(d) /= 1 .or. dec%piece(q)%hi(d) /= dec%pdim(d,b)) whole = .false.
+      enddo
+      if (whole) then
+        p = q; return
+      endif
+    enddo
+
+  end function face_piece
 
 
   !─────────────────────────────────────────────────────────────────────────────

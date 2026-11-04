@@ -91,7 +91,7 @@ program BCB
     call find_periodic(blk)
     if (size(blk)>1) then
       call find_connect(blk,force_connect,chimeraon)
-      if (chimeraon) call chimera_wrapper(blk,force_chimera)
+      if (chimeraon) call chimera_wrapper(blk,force_chimera,m)
     endif
 
     ! BC writing

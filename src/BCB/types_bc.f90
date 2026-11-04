@@ -14,7 +14,7 @@ module bc_mod
     integer                    :: id = 0
     integer                    :: n  = 0
     real(8),       allocatable :: properties(:,:,:)     ! material x population x property
-    character(32), allocatable :: distribution(:,:)    ! material x population
+    character(llen), allocatable :: distribution(:,:)  ! material x population
     real(8),       allocatable :: ds(:,:)              ! material x population (meters)
   end type dp_slot_t
 
