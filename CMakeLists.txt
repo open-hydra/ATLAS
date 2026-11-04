@@ -13,11 +13,12 @@ SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/")
 OPTION(USE_OPENMP "Use OpenMP for parallelization" OFF)
 
 # -------- Libraries and the releases ATLAS is tested with --------
-# ATLAS depends on a few libraries, which are either submodules or external dependencies. The submodules are:
+# ATLAS depends on a few libraries: ORION, a release checked out by the configure, and the submodules FiNeR, CEA
+# and PiNeR (bump a gitlink together with its release below).
 
 # - ORION. Required by a range of releases, with semver_dependency of cmake/SemVerDeps.cmake.
-# It is checked out in lib/ORION, out of the build folder. The release of ORION selected is kept in deps.lock and git ignored.
-# Add -DSEMVER_UPDATE=ALL selects the newest one.
+# It is checked out in lib/ORION, out of the build folder. The release selected is kept in deps.lock, git ignored;
+# -DSEMVER_UPDATE=ALL selects the newest one again.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/SemVerDeps.cmake)
 set(ATLAS_ORION_VERSION 2)
 semver_dependency(ORION GIT_REPOSITORY https://github.com/MarcoGrossi92/ORION.git VERSION ${ATLAS_ORION_VERSION}
