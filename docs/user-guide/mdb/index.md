@@ -170,6 +170,7 @@ evaluated **after** the solvers' LPT assignment on cell counts, with the ranks i
     - BC ids must be the current ATLAS set; files written with legacy numeric ids are rejected with the offending line quoted.
     - A dispersed phase is read with its own conventions, taken from the first line of `<prefix>phase.txt` (override with `phase-type`): no property line under the 300-series, and the whole boundary table repeated once per (material, population) pair. Every copy is split the same way and they are written back in the same order.
     - A manifold (BC 501) names a whole source face: MDB refuses a cut tangential to either face of the pair, and a pair the solvers' partitioner would put on two ranks. Restrict the cuts with `[MDB-Block#] split-directions` or change `ranks`. MOSE stops at set-up on a `bc.txt` with a record of type 501.
+    - A block closed by type `200` on its two k faces (a sector or a whole turn in MOSE) has to stay whole in k: MDB keeps each `200` record on its face, so a cut along k leaves pieces with `200` on one k face only, and MOSE stops at set-up on them. Give such a block `[MDB-Block#] split-directions` without `k` (for example `ij`).
     - `objective = cost` needs the fine-level BC file before the decomposition, to price the faces.
 
 ---

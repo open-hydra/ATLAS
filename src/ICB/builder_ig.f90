@@ -1020,9 +1020,10 @@ contains
     end function cell_in_range
 
     ! Assign velocity components based on specified angles and magnitude, or user-defined values.
-    ! The angles (radians) are those of the solvers' inflow BC (MOSE Lib_BC_Fluxes_Inflow): alpha in
-    ! the x-y plane from x towards y, beta out of it towards z, so the direction is a unit vector and
-    ! the speed is vel_mag whatever the angles.
+    ! The angles (radians) are those of the supersonic inlet of MOSE (BC 405, Supersonic_Inflow in
+    ! Lib_BC_Fluxes_Inflow): alpha in the x-y plane from x towards y, beta out of it towards z, so the
+    ! direction is a unit vector and the speed is vel_mag whatever the angles. The other inlets of MOSE
+    ! (401-404, 407, 408) take v = u tan(alpha), w = u tan(beta).
     subroutine assign_velocity_components(i, j, k, vel_mag)
       implicit none
       integer,  intent(in) :: i, j, k

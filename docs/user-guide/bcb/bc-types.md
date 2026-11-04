@@ -355,8 +355,8 @@ never clamped in silence.
 | `un` | Normal velocity [m s⁻¹]; for MOSE into the domain, positive on every face (see below) |
 | `mach` | Mach number |
 | `h0` | Total enthalpy; for a single-species phase `T0` is derived from it |
-| `alpha`, `beta` | Inflow direction angles |
-| `rf` | Relaxation factor |
+| `alpha`, `beta` | Inflow direction angles [rad]; for MOSE see below |
+| `rf` | Relaxation factor; for MOSE see below |
 | `Ae_At` | Nozzle exit-to-throat area ratio (must be ≥ 1) |
 | `psub`, `psup` | Subsonic / supersonic injector exit pressures |
 | `a1-a3` | Borda injector throat-to-face area ratio A1/A3, in (0, 1] |
@@ -377,12 +377,23 @@ in, and a face where the gas leaves takes an `outlet` section. BCB writes no zer
 key, the key left out), and refuses `g <= 0` for `420`.
 { #sign-of-g-and-un }
 
-The names of the series files written into the record (`time-file`, `p0-time-file`, `p-time-file`, `q-time-file`,
-`T-time-file`) are limited to 32 characters: the record keeps 32 characters of the name (MOSE reads the `402` series
-name and FUSS the wall series name with 32 characters), so a longer name of a file you provide is refused
-(`[ERROR] key <k>: file name longer than 32 characters ...`) instead of being truncated in silence. The `time-file`
-of a section with `line-file` is written by BCB itself: a longer name is accepted, the file is written under its first
-32 characters and the record names that file (one ` [LOG] time-file ...` line).
+**Direction and `rf` in MOSE.** BCB writes `alpha`, `beta` and `rf` as the section gives them, `normal` for an angle
+left out and `1` for `rf` left out. MOSE reads the angles in radians. For `405` the velocity is along
+(cos `alpha` cos `beta`, sin `alpha` cos `beta`, sin `beta`); for `401`-`404`, `407` and `408` it enters the domain with
+v = u tan `alpha` and w = u tan `beta`, so in 3-D the same two angles can give different directions in the two forms.
+An angle written `normal` is that of the normal of the face into the domain: with both `normal` the gas enters along
+that normal. `rf` blends the imposed value with one computed from the boundary cell (`rf = 1`: the imposed value) for
+`404` (`g`), `405` (`mach` and `p`), `406` (`p`) and `408` (`un`); on `401`, `402`, `403`, `407` and `420` it has no
+effect.
+{ #direction-and-rf-in-mose }
+
+The names of the series files written into the record (`time-file`, `p0-time-file`, `q-time-file`, `T-time-file`) are
+limited to 32 characters: BCB keeps 32 characters of the name in the record (FUSS reads the wall series name with 32
+characters; MOSE reads the `402` series name as written, up to 256 characters), so a longer name of a file you provide
+is refused (`[ERROR] key <k>: file name longer than 32 characters ...`) instead of being truncated in silence, and so is
+a longer `p-time-file` name, although no record carries it. The `time-file` of a section with `line-file` is written
+by BCB itself: a longer name is accepted, the file is written under its first 32 characters and the record names that
+file (one ` [LOG] time-file ...` line).
 
 With `line-file`, BCB maps each zone of the unwrapped 2D record onto the block face and writes the result to `time-file`
 (one zone per block and time level). The circumferential coordinate of the line-file (the one with the larger node range)
@@ -683,12 +694,15 @@ honoured (type = <type>) ...` (a `[WARNING]` with `strict-keys = F`, and the key
 
 A pressure outflow. It needs no section when the defaults suffice — naming a
 face `outlet` is enough — but a section lets you set the back-pressure and
-relaxation factor.
+relaxation factor. Without `p` the record carries `p = 0`, and without `rf` it carries
+`rf = 1`: with these two values MOSE imposes no pressure, and the face takes the state of the
+boundary cell at every Mach number, as a supersonic exit; give `p` for an exit at a back-pressure.
+Where the gas of the boundary cell moves into the domain, MOSE makes the face a slip wall.
 
 | Key | Meaning |
 |---|---|
-| `p` | Static back-pressure |
-| `rf` | Relaxation factor |
+| `p` | Static back-pressure (default `0`) |
+| `rf` | Relaxation factor; for MOSE see [the inlet keys](#direction-and-rf-in-mose) |
 
 ```ini
 [BCB-Block1]

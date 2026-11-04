@@ -344,10 +344,12 @@ contains
     type(config_velocity_t), target, intent(inout) :: velocity_cfg
 
     call registry%add(section, 'alpha', velocity_cfg%alpha, '0.0', &
-                      'Flow angle [rad] in the x-y plane, from x towards y: the direction is '// &
-                      '(cos alpha cos beta, sin alpha cos beta, sin beta).', '', .false.)
+                      'Flow angle [rad] from x towards y. ICB takes the direction (cos alpha cos beta, '// &
+                      'sin alpha cos beta, sin beta); BCB writes the angle into the record as given, or normal '// &
+                      'when the key is left out, and the solver gives it its meaning (MOSE: see the BC types '// &
+                      'page of BCB).', '', .false.)
     call registry%add(section, 'beta', velocity_cfg%beta, '0.0', &
-                      'Flow angle [rad] out of the x-y plane, towards z.', '', .false.)
+                      'Flow angle [rad] towards z (see alpha).', '', .false.)
     call registry%add(section, 'u', velocity_cfg%u, '0.0', &
                       'Prescribed x-velocity component.', '', .false.)
     call registry%add(section, 'v', velocity_cfg%v, '0.0', &

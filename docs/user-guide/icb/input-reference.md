@@ -53,8 +53,8 @@ Units: every value is SI (Pa, K, J/kg, m/s, rad); the solver dumps and the profi
 | rho | 0.0 |  |  no | Ideal-gas density. |
 | rho-file |  |  |  no | Profile of rho in place of the constant (not with it): a two-column table (coordinate, value) along rho-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
 | rho-direction |  | x,y,z,r,t |  no | Letter of the 1-D rho-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with rho-file. |
-| alpha | 0.0 |  |  no | Flow angle [rad] in the x-y plane, from x towards y: the direction is (cos alpha cos beta, sin alpha cos beta, sin beta). |
-| beta | 0.0 |  |  no | Flow angle [rad] out of the x-y plane, towards z. |
+| alpha | 0.0 |  |  no | Flow angle [rad] from x towards y. ICB takes the direction (cos alpha cos beta, sin alpha cos beta, sin beta); BCB writes the angle into the record as given, or normal when the key is left out, and the solver gives it its meaning (MOSE: see the BC types page of BCB). |
+| beta | 0.0 |  |  no | Flow angle [rad] towards z (see alpha). |
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |
@@ -95,8 +95,8 @@ Units: every value is SI (Pa, K, J/kg, m/s, rad); the solver dumps and the profi
 | vel | 0.0 |  |  no | Real-fluid speed magnitude. |
 | vel-file |  |  |  no | Profile of vel in place of the constant (not with it): a two-column table (coordinate, value) along vel-direction, covering the cell centres of the zone, or without it a Tecplot field (.tec, .szplt) on a structured grid, each cell taking the first variable of the nearest cell. |
 | vel-direction |  | x,y,z,r,t |  no | Letter of the 1-D vel-file table: x, y, z, or r and t about the x axis (in the x-y plane on a 2-D mesh; t in degrees); only with vel-file. |
-| alpha | 0.0 |  |  no | Flow angle [rad] in the x-y plane, from x towards y: the direction is (cos alpha cos beta, sin alpha cos beta, sin beta). |
-| beta | 0.0 |  |  no | Flow angle [rad] out of the x-y plane, towards z. |
+| alpha | 0.0 |  |  no | Flow angle [rad] from x towards y. ICB takes the direction (cos alpha cos beta, sin alpha cos beta, sin beta); BCB writes the angle into the record as given, or normal when the key is left out, and the solver gives it its meaning (MOSE: see the BC types page of BCB). |
+| beta | 0.0 |  |  no | Flow angle [rad] towards z (see alpha). |
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |
