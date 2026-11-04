@@ -300,20 +300,27 @@ Example (DP inlet, `id = 402`, LogNormal, `ds` unset):
 
 `block`, `face` = source block/face index from which the manifold draws its conditions; 
 
+In a dispersed phase's file the face is a `300` record (no payload).
+
 ### `502`–`506` — Gas-surface interaction (GSI) { #gsi-ids }
 
 All five IDs are produced by the single `gsi` marker; BCB selects the variant
 from the keys present in the section (see [BC Types](./bc-types.md#gsi)).
 
+They are written in the fluid's file. In a dispersed phase's file a gsi face is a `300` record (no payload), or,
+on a solid-propellant grain (`502`) whose section gives inlet keys of that phase, a `401` record with the inlet
+payload; the grain's `502` record then carries its propellant mass flux times `1 − krho_tot`, the gas flow left by
+the dispersed phases entering through the cell (see [Dispersed phase on a gsi face](./bc-types.md#dispersed-phase-on-a-gsi-face)).
+
 | ID | Variant | Payload fields (in order) | Payload length |
 |----|---------|---------------------------|----------------|
-| `502` | Solid propellant | `Taf, a, n, pRef, rhoGrain, SF, massf(1:ns) [, turb…]` | `6 + ns [+ nrans]` |
+| `502` | Solid propellant | `Taf, a·rhoGrain·SF, n, pRef, rhoGrain, SF, massf(1:ns) [, turb…]` | `6 + ns [+ nrans]` |
 | `503` | Melting | `cp, Tm, Ti, dh, qrad, eps, massf(1:ns)` | `6 + ns` |
 | `504` | Pyrolysis | `pyro, qrad, eps, massf(1:ns)` | `3 + ns` |
 | `505` | Surface reactions | `surf, qrad, eps` | `3` |
 | `506` | Pyrolysis + surface reactions | `pyro, surf, qrad, eps, massf(1:ns)` | `4 + ns` |
 
-Field key: `Taf` = adiabatic flame temperature [K]; `a` = burn-rate pre-exponential coefficient; `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `rhoGrain` = propellant grain density [kg m⁻³]; `SF` = geometric scale factor (default 1); `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
+Field key: `Taf` = adiabatic flame temperature [K]; `a·rhoGrain·SF` = the propellant mass flux at `pRef` [kg m⁻² s⁻¹], `a` the linear burn rate coefficient [m s⁻¹] (times `1 − krho_tot` with dispersed phases); `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `rhoGrain` = propellant grain density [kg m⁻³]; `SF` = geometric scale factor (default 1); `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
 
 Only `502` carries a turbulence suffix, using the same layout as the inlet IDs
 (depends on `nrans`). `505` is the only GSI variant that writes **no** mass
@@ -333,7 +340,7 @@ Example (`id = 502`, single-species, no turbulence):
 
 ```
        1       1      20       1       4     502
-    0.342053E+04,    0.520000E-02,    0.350000E+00,    0.482900E+07,    0.175000E+04,    0.100000E+01,    0.100000E+01,
+    0.342053E+04,    0.910000E+01,    0.350000E+00,    0.482900E+07,    0.175000E+04,    0.100000E+01,    0.100000E+01,
 ```
 
 Example (`id = 503`, melting, 3 species — `cp = 1000`, `Tm = 500`, `Ti = 300`, `dh = -500`, `qrad = 1e4`, `eps` unset):

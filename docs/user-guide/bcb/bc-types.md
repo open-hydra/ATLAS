@@ -632,6 +632,11 @@ p2-dp = 0.001
     `p1-dp = 0.01 0.02 0.03` gives alumina's populations 0.01 and 0.02 and water's 0.03. Any other count stops BCB. The
     variant is chosen once for the phase: `402` needs a non-zero velocity magnitude in every population.
 
+!!! note "Injection from a propellant grain"
+    The same keys, with the phase's prefix, make a solid-propellant `gsi` face (`502`) inject the phase: see
+    [Dispersed phase on a gsi face](#dispersed-phase-on-a-gsi-face). Any other `gsi` face and a `manifold` are a
+    symmetry (`300`) for a dispersed phase.
+
 !!! note "One record set per dispersed phase"
     Each named dispersed phase gets its own ids and payloads in its own `<name>-bc.txt`:
     on a face shared by `p1` and `p2`, the `p1-*` keys reach only `p1-bc.txt` and the
@@ -718,6 +723,10 @@ Output ID: `501`; the payload is the source `block, face` pair, written as two i
 
 MOSE does not apply type `501`: it stops at set-up on a `bc.txt` with a record of this type.
 
+A dispersed phase does not follow the manifold: its `<phase>-bc.txt` carries `300` (symmetry, no payload) on
+the face, where the fluid's file keeps `501`. An inlet key of the dispersed phase in the section is refused as on
+a gsi face, see [Dispersed phase on a gsi face](#dispersed-phase-on-a-gsi-face).
+
 ---
 
 ### `gsi`
@@ -738,6 +747,47 @@ The variants are tested in the order above and the first match wins.
 MOSE does not apply type `506`: it stops at set-up on a `bc.txt` with a record of this type; for MOSE use the pyrolysis (`504`)
 or the surface-reactions (`505`) variant.
 
+#### Dispersed phase on a gsi face
+
+A dispersed phase sees a gsi face as a symmetry: its `<phase>-bc.txt` carries `300` (no payload) there, whatever
+the variant. The exception is the solid-propellant grain (`502`) of a section that also gives inlet keys of that
+phase (`<phase>-krho`, `<phase>-gp`, `<phase>-Vp`, `<phase>-Tp`, `<phase>-dp`, ..., the keys of
+[the dispersed-phase inlet](#dispersed-phase), or `<phase>-krho-file`): that face injects the phase as an `inlet`
+face would, with the same keys and defaults, as a `401` record (the inlet payload).
+
+The grain's flow is then shared: every (material, population) pair of every dispersed phase entering through the
+face takes the fraction `krho` of it, and the gas the rest. BCB writes the propellant mass flux of the `502`
+record ([Solid propellant](#gsi-solid-propellant)) times `1 − krho_tot`, `krho_tot` the sum of those `krho` on the
+cell (a `krho` profile file is summed cell by cell): it is the only factor of the gas flow the solver takes from the
+record. A phase
+given with a mass flux (`<phase>-gp`, records `402`/`403`) cannot be taken out of the burn-rate law and stops BCB
+(`[ERROR] key <phase>-gp of section [<s>]: not honoured by BC 502 (gsi): ...`), and so does a `krho_tot` of 1 or
+more (`[ERROR] section [<s>] (gsi, BC 502): the dispersed phases entering the grain take krho = ... of its flow, 1
+or more: no gas is left ...`).
+
+```ini
+[grain]
+type          = gsi
+eq-CEA-file   = CEA.inp
+pRef          = 4.829e6
+a             = 0.0052
+n             = 0.35
+rhoGrain      = 1750.0
+alumina-krho  = 0.2      ; alumina-bc.txt: 401 on this face; the gas: a x (1 - 0.2)
+alumina-kV    = 0.9
+alumina-kT    = 1.0
+alumina-dp    = 2.0e-5
+```
+
+An inlet key of a dispersed phase on any other gsi variant (`503`–`506`), or on a [manifold](#manifold), stops BCB:
+
+```
+[ERROR] key alumina-krho of section [throat]: not honoured by BC 505 (gsi): only the solid-propellant grain (gsi, BC 502) injects the dispersed phase alumina, this face is a symmetry (300) for it
+```
+
+With `strict-keys = false` in `[ATLAS-Parameters]` the same line is a `[WARNING]`, once per section and key, and
+the face stays a symmetry for that phase.
+
 !!! warning "Solid propellant is the fallback"
     A section matching none of the four model combinations is built as a
     propellant grain, and then fails on the missing `n`/`rhoGrain` checks rather
@@ -755,9 +805,9 @@ or the surface-reactions (`505`) variant.
 | `T` | Melting temperature |
 | `Ti` | Ignition (initial) temperature |
 | `dh` | Heat of reaction (negative for an exothermic surface) |
-| `a`, `n`, `pRef` | APN burn-rate law coefficients, `r = a (p/pRef)^n` |
+| `a`, `n`, `pRef` | APN burn-rate law coefficients, `r = a (p/pRef)^n`: `a` the linear burn rate at `pRef` [m/s] |
 | `rhoGrain` | Propellant grain density |
-| `SF` | Geometric scale factor |
+| `SF` | Geometric scale factor of the mass flux (default 1) |
 | `eq-CEA-file` | CEA equilibrium file supplying flame temperature and composition |
 | `y<species>` | Injected species mass fractions |
 
@@ -773,7 +823,10 @@ BCB with the list of valid options.
 
 #### `gsi` — Solid propellant
 
-Grain burning with an APN burn-rate law, `r = a (p/pRef)^n`. The adiabatic flame
+Grain burning with an APN burn-rate law, `r = a (p/pRef)^n`, `a` the linear burn rate at `pRef` [m/s]. BCB
+writes the propellant mass flux at `pRef`, `a × rhoGrain × SF` [kg m⁻² s⁻¹], as the second field of the `502`
+record: the solver takes the gas mass flux `ṁ″ = (a rhoGrain SF) (p/pRef)^n` from it (MOSE does not multiply by
+`rhoGrain` or `SF`, which follow in the record). The adiabatic flame
 temperature and the injected composition come from the CEA equilibrium file.
 
 ```ini

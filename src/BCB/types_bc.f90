@@ -16,6 +16,7 @@ module bc_mod
     real(8),       allocatable :: properties(:,:,:)     ! material x population x property
     character(llen), allocatable :: distribution(:,:)  ! material x population
     real(8),       allocatable :: ds(:,:)              ! material x population (meters)
+    real(8)                    :: krho_sum = 0.0d0     ! a 401 record: the sum of its krho over the (material, population) pairs
   end type dp_slot_t
 
   type, public:: bc_t
@@ -56,6 +57,8 @@ module bc_mod
     procedure, pass(self)      :: build_periodic
     procedure, pass(self)      :: build_manifold
     procedure, pass(self)      :: build_gsi_ig
+    procedure, pass(self)      :: build_special_dp
+    procedure, pass(self)      :: correct_grain_flux
 
   end type bc_t
 
@@ -115,6 +118,22 @@ module bc_mod
       type(file_ini),       intent(inout) :: sourceini
       character(len=*),     intent(in)    :: section
       type(phase_t),        intent(in)    :: phase
+    end subroutine
+
+    !> A face of the 500 family (manifold, gsi) seen by one dispersed phase, in its slot k: a symmetry,
+    !> or an inlet on a solid-propellant grain that gives the phase's inlet keys (builder_500)
+    module subroutine build_special_dp(self, k, sourceini, section, phase)
+      class(bc_t),          intent(inout) :: self
+      integer,              intent(in)    :: k
+      type(file_ini),       intent(in)    :: sourceini
+      character(len=*),     intent(in)    :: section
+      type(phase_t),        intent(in)    :: phase
+    end subroutine
+
+    !> The gas flow of a solid-propellant grain that injects dispersed phases, once every phase of the block
+    !> is built on the cell (builder_500)
+    module subroutine correct_grain_flux(self)
+      class(bc_t),          intent(inout) :: self
     end subroutine
 
     !> The x,y (pure-2D) deck format is read by Q2D only: a BC that Q2D does not implement (408, 410
@@ -192,7 +211,15 @@ contains
       return
 
     case(trim(MARKER_MANIFOLD))
-      call build_manifold(self, sourceini, section, phase)
+      ! A dispersed phase does not follow a manifold: a symmetry in its own slot (write_dp_bc prints the slot's
+      ! id where the fluid's file keeps 501). The fluid's record is built by the fluid phase alone: built
+      ! again for a dispersed phase of the block, its allocation stopped BCB.
+      if (phase % type == 'DP') then
+        k = self % dp_slot(phase % name)
+        call build_special_dp(self, k, sourceini, section, phase)
+      else
+        call build_manifold(self, sourceini, section, phase)
+      endif
       return
 
      ! case default
@@ -241,6 +268,9 @@ contains
 
       case (trim(MARKER_INLET), trim(MARKER_OUTLET))
         call build_inflow_outflow_dp(self, k, sourceini, section, phase)
+
+      case (trim(MARKER_GSI))
+        call build_special_dp(self, k, sourceini, section, phase)
 
       ! case default
       !   write(*,*) '[ERROR] BC definition ', trim(self % definition), ' not implemented for dispersed phase'

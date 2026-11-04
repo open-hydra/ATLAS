@@ -2,11 +2,15 @@
 
 submodule (bc_mod) special_bc_mod
   use bcb_config_mod, only: bcb_gsi_fluid_config_t, load_bcb_gsi_fluid_config, &
-                            bcb_manifold_config_t, load_bcb_manifold_config
+                            bcb_manifold_config_t, load_bcb_manifold_config, gsi_variant, dp_inlet_key_given
+  use input_keys_mod, only: input_keys_strict
   use phase_mod, only: phase_t, species_t, define_composition
   use composition_check_mod, only: check_composition
   implicit none
   character(len=20), allocatable, save :: warned_502(:)   ! sections already given the Taf WARNING
+  ! inlet keys of a dispersed phase on a manifold or a non-grain gsi face, under strict-keys = false: one
+  ! WARNING per (section, key), the builder runs once per face cell
+  character(len=200), allocatable, save :: warned_dp_keys(:)
 
 contains
 
@@ -38,8 +42,10 @@ contains
 
     call load_bcb_gsi_fluid_config(sourceini, section, cfg)
 
+    select case (gsi_variant(cfg))
+
     ! GSI - Melting | cp, Tm, Ti, dh, qrad, epsilon, and species mass fractions
-    if (cfg%has_cp .and. cfg%has_dh .and. cfg%has_T .and. cfg%has_qrad) then
+    case (503)
       self % ig_id = 503
       self % ig_species = phase % species
       if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
@@ -53,7 +59,7 @@ contains
       self % ig_properties(7:self % ig_n) = self % ig_species % massf
 
     ! GSI - Pyrolysis | pyrolysis model, qrad, ks, epsilon, and species mass fractions
-    elseif (cfg%pyrolysis_model /= 'none' .and. cfg%has_qrad .and. cfg%surface_reactions_model == 'none') then
+    case (504)
       self % ig_id = 504
       self % ig_species = phase % species
       if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
@@ -67,14 +73,14 @@ contains
       self % ig_properties(4:self % ig_n) = self % ig_species % massf
 
     ! GSI - Surface reactions | reactions name, qrad, epsilon
-    elseif (cfg%surface_reactions_model /= 'none' .and. cfg%has_qrad .and. cfg%pyrolysis_model == 'none') then
+    case (505)
       self % ig_id = 505
       self % ig_n = 3
       allocate(self % ig_properties(1:self % ig_n))
       self % ig_properties(1:3) = [surface_model_name2value(cfg%surface_reactions_model), cfg%qrad, cfg%eps]
 
     ! GSI - Pyrolysis + Surface reactions | pyrolysis model, reactions name, qrad, epsilon, and species mass fractions
-    elseif (cfg%pyrolysis_model /= 'none' .and. cfg%surface_reactions_model /= 'none' .and. cfg%has_qrad) then
+    case (506)
       self % ig_id = 506
       self % ig_species = phase % species
       if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
@@ -87,11 +93,11 @@ contains
       self % ig_properties(1:4) = [pyrolysis_model_name2value(cfg%pyrolysis_model), surface_model_name2value(cfg%surface_reactions_model), cfg%qrad, cfg%eps]
       self % ig_properties(5:self % ig_n) = self % ig_species % massf
 
-    else
+    case default
       ! GSI - Solid propellant (deferred subroutine to build ig_properties)
       call build_srm_ig()
 
-    endif
+    end select
 
   
   contains
@@ -143,7 +149,10 @@ contains
 
       ! Property layout:
       !   [1]      Taf        - adiabatic flame temperature [K]
-      !   [2]      a          - burn rate pre-exponential coefficient
+      !   [2]      a*rhoGrain*SF - the propellant mass flux at pRef [kg/(m2 s)]: a the linear burn rate
+      !                           coefficient [m/s] of r = a (p/pRef)^n; the solver takes the mass flux as it is
+      !                           (MOSE: mdot = [2] (p/pRef)^n), times 1 - krho_tot with dispersed phases
+      !                           (correct_grain_flux)
       !   [3]      n          - burn rate pressure exponent
       !   [4]      pRef       - reference pressure [Pa]
       !   [5]      rhoGrain   - grain density [kg/m3]
@@ -161,7 +170,7 @@ contains
       endif
 
       self%ig_properties(1) = T0            ! Taf: adiabatic flame temperature
-      self%ig_properties(2) = a_srm         ! burn rate coefficient
+      self%ig_properties(2) = a_srm*rhoGrain_srm*SFgeo_srm   ! the propellant mass flux at pRef [kg/(m2 s)]
       self%ig_properties(3) = n_srm         ! burn rate pressure exponent
       self%ig_properties(4) = pRef_srm      ! reference pressure [Pa]
       self%ig_properties(5) = rhoGrain_srm  ! grain density [kg/m3]
@@ -189,6 +198,114 @@ contains
     end subroutine build_srm_ig
 
   end procedure build_gsi_ig
+
+
+
+  !> A face of the 500 family seen by the dispersed phase `phase`, in its slot k: a symmetry (300, no payload),
+  !> since the phase neither follows a manifold nor takes part in a gas-surface interaction, except the
+  !> solid-propellant grain (gsi, BC 502) of a section that gives the phase's inlet keys: that face injects the
+  !> phase as an inlet does, from the same keys and defaults (build_inflow_outflow_dp), as a 401 record -- a fraction
+  !> krho of the grain's flow, the gas keeping the rest (correct_grain_flux); a mass flux (402/403) is refused. The phase's inlet
+  !> keys on any other face of the family are refused, or reported once with strict-keys = false (the face then
+  !> a symmetry). A manifold keeps its 501 in the fluid's file; write_dp_bc prints the slot's 300 for the phase.
+  module procedure build_special_dp
+    implicit none
+    type(bcb_gsi_fluid_config_t) :: cfg
+    character(len=160) :: key
+    character(len=12)  :: id_txt
+    character(len=:), allocatable :: msg
+    integer :: id
+
+    if (trim(self % definition) == trim(MARKER_GSI)) then
+      call load_bcb_gsi_fluid_config(sourceini, section, cfg)
+      id = gsi_variant(cfg)
+    else
+      id = 501
+    endif
+
+    if (dp_inlet_key_given(sourceini, section, phase, key)) then
+      if (id == 502) then
+        call self % build_inflow_outflow_dp(k, sourceini, section, phase)
+        ! The grain gives the phase a fraction of its flow, krho, and the gas the rest (correct_grain_flux): a
+        ! mass flux (gp, BC 402/403) cannot be taken out of the burn-rate law, which the solver evaluates
+        if (self % dp(k) % id /= 401) then
+          write(id_txt,'(I0)') self % dp(k) % id
+          write(*,'(A)') '[ERROR] key '//trim(prefix(phase))//'gp of section ['//trim(self % name)//']: not honoured by '// &
+            'BC 502 (gsi): a solid-propellant grain injects the dispersed phase '//trim(phase % name)//' with '// &
+            trim(prefix(phase))//'krho, a fraction of its flow (the gas takes the rest), not with a '// &
+            'mass flux (BC '//trim(id_txt)//')'
+          stop 1
+        endif
+        return
+      endif
+      write(id_txt,'(I0)') id
+      msg = 'key '//trim(key)//' of section ['//trim(self % name)//']: not honoured by BC '//trim(id_txt)// &
+            ' ('//trim(self % definition)//'): only the solid-propellant grain (gsi, BC 502) injects the dispersed'// &
+            ' phase '//trim(phase % name)//', this face is a symmetry (300) for it'
+      if (input_keys_strict()) then
+        write(*,'(A)') '[ERROR] '//msg
+        stop 1
+      endif
+      call warn_dp_key_once(trim(self % name)//'/'//trim(key), msg)
+    endif
+
+    self % dp(k) % id = 300
+    self % dp(k) % n  = 0
+
+  contains
+
+    !> The prefix of the phase's keys: '<name>-', or none for an unnamed phase.
+    function prefix(ph) result(pn)
+      implicit none
+      type(phase_t), intent(in) :: ph
+      character(len=:), allocatable :: pn
+      pn = ''
+      if (len_trim(ph % name) > 0) pn = trim(adjustl(ph % name))//'-'
+    end function prefix
+
+    !> One [WARNING] per (section, key) tag.
+    subroutine warn_dp_key_once(tag, text)
+      implicit none
+      character(len=*), intent(in) :: tag, text
+      integer :: i
+      if (.not. allocated(warned_dp_keys)) allocate(warned_dp_keys(0))
+      do i = 1, size(warned_dp_keys)
+        if (trim(warned_dp_keys(i)) == tag) return
+      enddo
+      warned_dp_keys = [character(len=200) :: warned_dp_keys, tag]
+      write(*,'(A)') '[WARNING] '//text
+    end subroutine warn_dp_key_once
+
+  end procedure build_special_dp
+
+
+  !> The gas flow of a solid-propellant grain (gsi, BC 502) that also injects dispersed phases: the propellant's
+  !> flow is shared, the phases take krho_tot of it -- the sum of krho over every (material, population) pair of
+  !> every dispersed phase entering through the cell (their 401 slots) -- and the gas the rest. The record's
+  !> second field, a*rhoGrain*SF, the propellant mass flux at pRef and the only factor of the gas flow (MOSE:
+  !> mdot = [2] (p/pRef)^n), is multiplied by 1 - krho_tot. Called once per face cell, after every phase of the
+  !> block has been built on it.
+  module procedure correct_grain_flux
+    implicit none
+    real(R8) :: krho_tot
+    character(len=24) :: txt
+    integer :: k
+
+    if (self % ig_id /= 502 .or. .not. allocated(self % dp)) return
+    krho_tot = 0.0_R8
+    do k = 1, size(self % dp)
+      if (self % dp(k) % id == 401) krho_tot = krho_tot + self % dp(k) % krho_sum
+    enddo
+    if (krho_tot == 0.0_R8) return
+    if (.not. (krho_tot < 1.0_R8)) then
+      write(txt,'(ES12.5)') krho_tot
+      write(*,'(A)') '[ERROR] section ['//trim(self % name)//'] (gsi, BC 502): the dispersed phases entering the grain take '// &
+        'krho = '//trim(adjustl(txt))//' of its flow, 1 or more: no gas is left (the gas takes 1 - krho of it)'
+      stop 1
+    endif
+    self % ig_properties(2) = self % ig_properties(2) * (1.0_R8 - krho_tot)
+
+  end procedure correct_grain_flux
 
 
 
