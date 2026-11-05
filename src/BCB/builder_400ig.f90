@@ -152,19 +152,21 @@ contains
       ! same refusal on the inlet record is deliberately not applied here (WARNING only)
       if     (nrans==1) then
         self%ig_properties(start+1) = nuTilde
-        if (nuTilde <= 0._R8) call warn_turbulence_zero('nuTilde', 'Spalart-Allmaras (nrans = 1)', 'nuTilde')
+        if (nuTilde <= 0._R8) &
+          call warn_turbulence_zero(self, trim(self%definition), 'nuTilde', 'Spalart-Allmaras (nrans = 1)', 'nuTilde')
       elseif (nrans==2) then
         self%ig_properties(start+1) = k
         self%ig_properties(start+2) = omega
         if (k <= 0._R8 .or. omega <= 0._R8) &
-          call warn_turbulence_zero('k or omega', 'k-omega (nrans = 2)', 'k and omega')
+          call warn_turbulence_zero(self, trim(self%definition), 'k or omega', 'k-omega (nrans = 2)', 'k and omega')
       elseif (nrans==7 .or. nrans==5) then
         ! 7 bands (3-D solvers): R11 R22 R33 R12 R13 R23 omega; 5 bands (Q2D, pure-2D mesh): R11 R22 R33 R12 omega
         self%ig_properties(start+1:start+3) = Rij
         self%ig_properties(start+4:start+nrans-1) = 1d-8
         self%ig_properties(start+nrans) = omega
         if (Rij <= 0._R8 .or. omega <= 0._R8) &
-          call warn_turbulence_zero('Rij or omega', 'Reynolds-stress (nrans = 7)', 'Rij and omega')
+          call warn_turbulence_zero(self, trim(self%definition), 'Rij or omega', 'Reynolds-stress (nrans = 7)', &
+                                    'Rij and omega')
       endif
 
     elseif (self % definition=='outlet') then
@@ -339,16 +341,6 @@ contains
 
     end subroutine standard
 
-
-    !> The inlet record carries a zero turbulence band under a model (the solver starts the
-    !> inlet without turbulence; under an omega model the same field is refused by ICB)
-    subroutine warn_turbulence_zero(what, model, keys)
-      implicit none
-      character(len=*), intent(in) :: what, model, keys
-      write(*,'(A)') '[WARNING] '//trim(self%name)//' ('//trim(self%definition)//'): '//what//' = 0 written into the'// &
-        ' inlet record under '//model//': the inlet carries no turbulence (give '//keys//'; ICB refuses'// &
-        ' the same initial field under an omega model)'
-    end subroutine warn_turbulence_zero
 
     ! L4 (honoured-keys table per inlet type): a key of the 4xx family that the resolved record cannot carry (a
     ! selector of a sibling inlet type, or a field the record has no slot for: composition and turbulence
@@ -854,5 +846,18 @@ contains
                    ' by Q2D, which does not implement BC '//trim(txt)//': '//advice
     stop 1
   end subroutine refuse_on_2d_mesh
+
+  ! The record of an inlet carries a zero turbulence band under a model (it was written in silence): the solver
+  ! starts the inlet without turbulence; under an omega model ICB refuses the same initial field, and the same
+  ! refusal on the inlet record is deliberately not applied (WARNING only). The inlets 401-404 (bc_kind: their
+  ! definition) and the solid-propellant grain applied as an inlet (502, grain-wall = F, build_srm_ig)
+  module subroutine warn_turbulence_zero(self, bc_kind, what, model, keys)
+    implicit none
+    class(bc_t),      intent(in) :: self
+    character(len=*), intent(in) :: bc_kind, what, model, keys
+    write(*,'(A)') '[WARNING] '//trim(self%name)//' ('//bc_kind//'): '//what//' = 0 written into the'// &
+      ' inlet record under '//model//': the inlet carries no turbulence (give '//keys//'; ICB refuses'// &
+      ' the same initial field under an omega model)'
+  end subroutine warn_turbulence_zero
 
 end submodule ig_inflow_outflow_mod

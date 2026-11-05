@@ -131,7 +131,8 @@ Two-direction combination strings (`xt`, `rt`, `xy`, …) activate 2-D bilinear 
 
 Supported `*-file` keys: `ks-file`, `q-file`, `T-file`, `Tref-file`, `hconv-file`, `qrad-file`,
 `eps-file`, `alpha-file`, `beta-file`, `g-file`, `krho-file`, `a-file`, `n-file`, `pRef-file`,
-`rhoGrain-file`, `Taf-file`, `SFgeo-file`, `SF-file`.
+`rhoGrain-file`, `SF-file`, `mach-file`, `p-file`. There is no `Taf-file`: the flame temperature of a grain
+comes from its `eq-CEA-file` alone.
 
 A one-direction file holds one `coordinate value` pair per row, coordinates in order (increasing or
 decreasing; a decreasing file is read as the same rows in increasing order): a row that is not two numbers
