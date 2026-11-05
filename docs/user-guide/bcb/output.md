@@ -16,8 +16,9 @@ One file is produced per phase, and each Hydra solver reads the file of its phas
 - For named phases: `<phase_name>-bc.txt`, `<phase_name>-bc2.txt`, etc.
 
 The phase name prefix is added only when the phase has a non-empty name. For a single unnamed phase the file is simply `bc.txt`.
-MOSE reads `INPUT/bc.txt` (`INPUT/bc<n>.txt` on the coarse levels of a multigrid run) and puts no phase prefix before
-the name: the files of a named phase go into its `INPUT/` as `bc.txt`, `bc2.txt`, ...
+MOSE on its own reads `INPUT/bc.txt` (`INPUT/bc<n>.txt` on the coarse levels of a multigrid run) and puts no phase prefix
+before the name: the files of a named phase go into its `INPUT/` as `bc.txt`, `bc2.txt`, ... The programs that couple MOSE
+to other solvers give it the prefix of its phase: `INPUT/gas-bc.txt`.
 
 Example with two phases `gas` and `solid` and `MG-levels = 2`:
 
@@ -314,6 +315,7 @@ They are written in the fluid's file. In a dispersed phase's file a gsi face is 
 on a solid-propellant grain (`502`) whose section gives inlet keys of that phase, a `401` record with the inlet
 payload; the grain's `502` record then carries its propellant mass flux times `1 − krho_tot`, the gas flow left by
 the dispersed phases entering through the cell (see [Dispersed phase on a gsi face](./bc-types.md#dispersed-phase-on-a-gsi-face)).
+A grain applied as an inlet (`grain-wall = F`, the default) is also a `401` record, with `krho` 0, for a phase it does not inject.
 
 | ID | Variant | Payload fields (in order) | Payload length |
 |----|---------|---------------------------|----------------|
@@ -344,7 +346,7 @@ Example (`id = 502`, single-species, no turbulence; `Taf` as the CEA file gives 
 
 ```
        1       1      20       1       4     502
-  3.4205300000000002E+03,  9.0999999999999996E+00,  3.4999999999999998E-01,  4.8290000000000000E+06,  1.7500000000000000E+03,  1.0000000000000000E+00,  1.0000000000000000E+00,
+  9.0999999999999996E+00,  3.4999999999999998E-01,  4.8290000000000000E+06,  3.4205300000000002E+03,  2.0000000000000000E+00,  1.0000000000000000E+00,
 ```
 
 Example (`id = 503`, melting, 3 species — `cp = 1000`, `Tm = 500`, `Ti = 300`, `dh = -500`, `qrad = 1e4`, `eps` unset):

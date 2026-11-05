@@ -25,8 +25,8 @@ MDB rewrites every multigrid BC level found in `bc-path` and places the results 
 | 2 | `bc2.txt` | `<p>bc2.txt` |
 | *n* | `bc<n>.txt` | `<p>bc<n>.txt` |
 
-MOSE reads the files without a prefix (`INPUT/bc.txt`, `INPUT/bc<n>.txt`): the files written with a prefix go into its
-`INPUT/` under those names.
+MOSE on its own reads the files without a prefix (`INPUT/bc.txt`, `INPUT/bc<n>.txt`): the files written with a prefix go into its
+`INPUT/` under those names. The programs that couple MOSE to other solvers give it the prefix of its phase: `INPUT/gas-bc.txt`.
 
 New faces at cut planes are written as standard connection records (type `101`, the opposite face as donor, orientation `1 0 0 1`). Every other record keeps its type and property line, with the block and the local indices renumbered; the donors of connection and chimera records (`101`, `102`, `201`) are renumbered too, and those of the inter-phase records (`103`, `104`) against the other phase's decomposition. A manifold (`501`) names a whole block face: its payload is renumbered to the new block that inherited the source face entire. T-junctions between cut pieces require no special records.
 

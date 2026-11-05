@@ -57,6 +57,16 @@ project that uses ATLAS to change with it.
   GPB never removes a file of `fromATLAStoSolver/`, so the phase of an earlier deck stays there: when the INI has
   `[GPB-Phase*]` sections, BCB and ICB read there only their phase files, and `ATLAS.sh` and the GUI name the
   others.
+- **Breaking.** BCB: the `502` record of a solid-propellant grain is `a rhoGrain SF, n, pRef, Taf, mode` and the
+  mass fractions, with the turbulence values of the section in mode 2 only. `grain-wall` sets the mode: `F`, the
+  default, an inlet (mode 2); `T`, a wall that blows the products in (mode 1), as every grain was: a deck that
+  keeps that wall gives `grain-wall = T`. BCB stops on a grain without `a` (the key or an `a-file`) and on an inlet
+  grain with `a = 0`. `Taf-file` and `SFgeo-file` are no longer keys.
+- **Breaking.** BCB: `krho` of a dispersed phase is the fraction of the flow of the mixture that it takes: the
+  `401` record carries `krho/(1 - krho_tot)`, with `krho_tot` the sum of `krho` over the dispersed phases of the
+  cell, and ends with `G`, the mass flux of the phases given by `gp` on the cell. BCB stops on a cell whose
+  `krho_tot` is 1 or more, on a negative `krho` and on a negative `gp`. A grain applied as an inlet
+  (`grain-wall = F`) is a `401` record with `krho` 0, in place of a `300`, for a phase it does not inject.
 
 ### Fixed
 
