@@ -1162,6 +1162,22 @@ set_tests_properties(DP-two-phases PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-mixture-401 (the mixture rule of the 401 inlet across the dispersed phases of a cell) -------------
+# DP-two-phases' mesh, partE and partL and a third phase partG on [injCH4]: partE krho 0.2 and partL krho 0.3 (401),
+# partG gp 7.0 (402): the 401 records carry krho/(1 - krho_tot), 0.4 and 0.6, and G = 7.0 after ds; partG's 402
+# carries gp and no G; [injOX], no key of any phase: 401 with 0 and G 0 (check_mix.py). _run-sum: partE 0.6 and
+# partL 0.5 (a sum of 1.1) stop BCB; _run-neg: partE -0.1 stops BCB.
+add_test(
+    NAME    DP-mixture-401
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-sum _run-neg && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_mix.py fromATLAStoSolver/partE-bc.txt fromATLAStoSolver/partL-bc.txt fromATLAStoSolver/partG-bc.txt && mkdir _run-sum && cp input.ini mesh.tec partE-phase.txt partL-phase.txt partG-phase.txt _run-sum/ && cd _run-sum && sed -i 's/^partE-krho = 0.20$/partE-krho = 0.60/; s/^partL-krho = 0.30$/partL-krho = 0.50/' input.ini && { out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); test $? -eq 1; } && grep -q -F '[ERROR] section [injCH4] (inlet of the dispersed phases, BC 401): the krho of the dispersed phases of the cell sum to 1.10000E+00' <<< \"$out\" && test ! -e fromATLAStoSolver/partE-bc.txt && cd .. && mkdir _run-neg && cp input.ini mesh.tec partE-phase.txt partL-phase.txt partG-phase.txt _run-neg/ && cd _run-neg && sed -i 's/^partE-krho = 0.20$/partE-krho = -0.10/' input.ini && { out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); test $? -eq 1; } && grep -q -F '[ERROR] section [injCH4] (inlet of the dispersed phases, BC 401): a negative krho of the dispersed phase partE' <<< \"$out\""
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-mixture-401"
+)
+set_tests_properties(DP-mixture-401 PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-distribution-missing (a size-distribution file that does not exist) ----
 # DP-basic with drop-sigmap = 0.0 and drop-distribution = ./missing-dist.txt on injCH4 (mesh.tec
 # and drop-phase.txt are symlinks to DP-basic's). sigmap = 0 turns only a law name into Dirac, so

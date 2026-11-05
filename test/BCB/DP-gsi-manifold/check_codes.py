@@ -12,8 +12,9 @@ i 26-50, face 4 (j = 20) melting i 1-12, pyrolysis 13-25, surface reactions 26-3
                flux a*rhoGrain*SF = 0.0052 x 1750 x 1, times 1 - 0.2 on the grain with drop's keys, mode 1 (a wall
                that blows the products in, grain-wall = T) and no turbulence variables
   drop-bc.txt  300 on faces 1, 2 and 4 and on the grain without drop's keys, 401 on the grain with them
-               (krho 0.2, kV 0.9, normal direction, kT 1.0, rp 1e-5 from drop-dp 2e-5, sigmap 0, Dirac,
-               ds 0), 0 on faces 5 and 6; no payload but the 401's.
+               (krho 0.2 as 0.2/(1 - 0.2), the mixture rule with drop the only phase of the cell, kV 0.9, normal
+               direction, kT 1.0, rp 1e-5 from drop-dp 2e-5, sigmap 0, Dirac, ds 0, G 0: no 402/403), 0 on faces
+               5 and 6; no payload but the 401's. Field 1 within 1e-15 relative (the division), the rest exactly.
 """
 import sys
 
@@ -81,9 +82,9 @@ def main(gas_path, dp_path):
             bad += 1
         if cd == 401:
             t = pd[0].replace(",", " ").split()
-            want = [0.2, 0.9, "normal", "normal", 1.0, 1.0e-5, 0.0, "Dirac", 0.0]
+            want = [0.2 / (1.0 - 0.2), 0.9, "normal", "normal", 1.0, 1.0e-5, 0.0, "Dirac", 0.0, 0.0]
             got = [v if v in ("normal", "Dirac") else float(v) for v in t]
-            if got != want:
+            if len(got) != len(want) or abs(got[0] - want[0]) > 1e-15 * want[0] or got[1:] != want[1:]:
                 print(f"[FAIL] 401 payload at i={i}: {t}")
                 bad += 1
         count[(f, cg, cd)] = count.get((f, cg, cd), 0) + 1

@@ -283,6 +283,16 @@ contains
       call warn_dp_key_once(trim(self % name)//'/'//trim(key), msg)
     endif
 
+    ! A grain applied as an inlet (grain-wall = F, the default) is an inlet also for a phase it does not inject, as the other
+    ! inlets are: a 401 record with krho 0, through which the solvers inject nothing of the phase (its particles leave
+    ! the domain there, as at any inlet). A grain applied as a wall stays a symmetry (300) for that phase
+    if (id == 502) then
+      if (.not. cfg % grain_wall) then
+        call self % build_inflow_outflow_dp(k, sourceini, section, phase)
+        return
+      endif
+    endif
+
     self % dp(k) % id = 300
     self % dp(k) % n  = 0
 
