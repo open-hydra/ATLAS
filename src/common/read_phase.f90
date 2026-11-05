@@ -45,8 +45,7 @@ contains
     end do
     close(unitFile)
 
-    ! File 2: thermo
-    ios = tec_read_points_multivars(orion,4,trim(prefix)//'thermo.dat')
+    ios = tec_read_structured_multiblock(orion=orion,filename=trim(prefix)//'thermo.dat')
     if (ios/=0) then
       write(*,*) '[WARNING] thermo file, '//trim(prefix)//'thermo.dat'//' not found'
       return
@@ -187,17 +186,17 @@ contains
     end do
     close(unitFile)
 
-    ios = tec_read_points_multivars(orion,3,trim(prefix)//'properties.dat')
+    ios = tec_read_structured_multiblock(orion=orion,filename=trim(prefix)//'properties.dat')
     if (ios/=0) return!error stop ("Error reading ideal-gas thermo file")
-    Ti1 = nint(orion%block(1)%mesh(1,1,1,1))
-    Ti2 = Ti1 + orion%block(1)%Ni - 1
+    Ti1 = nint(orion%block(1)%mesh(1,0,0,0))
+    Ti2 = Ti1 + orion%block(1)%Ni
     allocate(mat%cp(1:mat%n,Ti1:Ti2))
     allocate(mat%rho(1:mat%n,Ti1:Ti2))
     allocate(mat%h(1:mat%n,Ti1:Ti2))
     do i = 1, mat%n
-      mat%cp(i,Ti1:Ti2) = orion%block(i)%vars(1,1:orion%block(1)%Ni,1,1)
-      mat%rho(i,Ti1:Ti2) = orion%block(i)%vars(2,:,1,1)
-      mat%h(i,Ti1:Ti2) = orion%block(i)%vars(3,:,1,1)
+      mat%cp(i,Ti1:Ti2) = orion%block(i)%vars(1,0:orion%block(1)%Ni,0,0)
+      mat%rho(i,Ti1:Ti2) = orion%block(i)%vars(2,:,0,0)
+      mat%h(i,Ti1:Ti2) = orion%block(i)%vars(3,:,0,0)
     enddo
 
   end subroutine read_dp_properties

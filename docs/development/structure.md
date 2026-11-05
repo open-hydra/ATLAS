@@ -23,9 +23,9 @@ ATLAS/
 │
 ├── lib/                    # Library code
 │   ├── cea/                # CEA (Chemical Equilibrium & Applications)
-│   ├── ORION/              # ORION multi-format I/O toolkit
-│   ├── PiNeR/              # PiNeR Python INI parser
-│   └── third_party/FiNeR/  # FiNeR Fortran INI reader
+│   ├── FiNeR/              # FiNeR Fortran INI reader
+│   ├── ORION/              # ORION multi-format I/O toolkit (a release, checked out by the configure)
+│   └── PiNeR/              # PiNeR Python INI parser
 │
 ├── test/                   # Test cases, one folder per case
 │   ├── CMakeLists.txt      # Registers every case with CTest
@@ -64,7 +64,7 @@ Each tool's internal file layout follows the same conventions — see
 |---|---|---|---|
 | **CEA** | NASA chemical-equilibrium and thermodynamic property solver (>2000 species) | `lib/cea/` | [nasa/cea](https://github.com/nasa/cea) |
 | **ORION** | Multi-format structured multi-block I/O (Tecplot binary, VTK, PLOT3D) | `lib/ORION/` | [MarcoGrossi92/ORION](https://github.com/MarcoGrossi92/ORION) |
-| **FiNeR** | Fortran INI parser, used by all four Fortran tools | `lib/third_party/FiNeR/` | [szaghi/FiNeR](https://github.com/szaghi/FiNeR) |
+| **FiNeR** | Fortran INI parser, used by all four Fortran tools | `lib/FiNeR/` | [szaghi/FiNeR](https://github.com/szaghi/FiNeR) |
 | **PiNeR** | Python INI parser, used by GPB | `lib/PiNeR/` | [MarcoGrossi92/PiNeR](https://github.com/MarcoGrossi92/PiNeR) |
 
 Cantera and CoolProp are external Python dependencies used by GPB for kinetics
