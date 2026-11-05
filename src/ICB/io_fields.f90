@@ -1,10 +1,10 @@
 module io_fields_mod
   use Lib_ORION_data
   use IR_Precision
+  use global_mod, only: outpath
 
   implicit none
 
-  character(len=18), parameter :: outpath = 'fromATLAStoSolver/'
 
 contains
 
@@ -816,7 +816,7 @@ contains
       if (index(ICformat,'vtk')>0) then
         localpath_vtk = trim(localpath)//'/vtk/'
         call execute_command_line('mkdir -p '//trim(localpath_vtk))
-        write(*,*)' - Writing vtk-fomat file'
+        write(*,*)' - Writing vtk-format file'
         if (index(ICformat,'binary')>0) then
           orion%vtk%format = 'binary'
         elseif (index(ICformat,'ascii')>0) then
@@ -834,7 +834,7 @@ contains
           stop 1
         endif
       else
-        write(*,*)' - Writing tec-fomat file'
+        write(*,*)' - Writing tec-format file'
         if (index(ICformat,'binary')>0) then
 #if !defined(TECIO)
           write(*,'(A)') '[ERROR] IC-format = '//trim(ICformat)//': a binary Tecplot file (.szplt) needs a TecIO build'

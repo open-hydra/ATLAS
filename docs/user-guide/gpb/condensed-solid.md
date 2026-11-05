@@ -131,7 +131,7 @@ database, `h0` is optional as for any constant-property phase. A material the da
 the material and the database named: correct the name or give `cp`. `cp` without `thermo` keeps its meaning: every
 material takes the constants, whatever the database holds.
 
-### Mult-material mixtures
+### Multi-material mixtures
 
 ```ini
 [GPB-Phase1]

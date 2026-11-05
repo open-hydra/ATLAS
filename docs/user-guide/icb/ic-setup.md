@@ -165,8 +165,8 @@ give one of the two.
 ```ini
 [ICB-Block1]
 type = nozzle
-p0 = 10.342
-T0 = 555.56
+p0 = 3.0e+5
+T0 = 500.0
 nozzle-direction = dx
 nozzle-threshold = 0.0
 ```
@@ -297,12 +297,12 @@ given, or from `nrans`.
 The boundary records written by BCB take the specific `nuTilde`, `k`, `omega` and `Rij`
 ([inlet turbulence keys](../bcb/bc-types.md#inlet-turbulence-keys)).
 
-## Next
-
-- [IC Strategies](./ic-strategies.md)
-
 !!! note "A zone whose keys cover part of the block"
     The turbulence constants (`nuTilde`, `k`, `omega`, `Rij` or `rhoNuTilde`, `rhoK`, `rhoOmega`, `rhoRij`) of a zone are applied to the cells of
     its range only, exactly like `p`, `T` and the velocity: the cells outside it keep the field
     written by the other zones (ICB prints ` - build_IG_field: turbulence constants of this zone
     applied to n of N cells`). A zone that is meant to cover the whole block must have no `range`.
+
+## Next
+
+- [IC Strategies](./ic-strategies.md)

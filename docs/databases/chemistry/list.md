@@ -1,16 +1,16 @@
 # Mechanism Catalog
 
 <figure>
-  {% include "databases/chemistry/mechs.svg" %}
+  --8<-- "docs/databases/chemistry/mechs.svg"
 </figure>
 
 The **FLINT** lines below state what ATLAS provides to FLINT: GPB writes the phase name of the file on line 1 of `chemistry-info.txt` and its species, in the order of the file, in the tables; FLINT selects a compiled routine by that phase name, or runs the file with its `general` procedure when the name selects none. What a compiled routine computes (its reaction orders and rate laws, the GPB tables it reads) is described in [FLINT's documentation](https://github.com/MarcoGrossi92/FLINT/blob/main/docs/user/chemistry_routines.md), `docs/user/chemistry_routines.md` of the FLINT version released with this ATLAS version.
 
 ---
 
-# H₂/O₂ Mechanisms
+## H₂/O₂ Mechanisms
 
-## Mevel 2017
+### Mevel 2017
 
 A detailed H₂/O₂/N₂ reaction mechanism with 14 species and 42 reactions, valid from 200 to 6000 K. Includes NO formation chemistry and a sub-mechanism for excited hydroxyl radicals (OH\*), enabling OH\* chemiluminescence predictions. Developed at the Explosion Dynamics Laboratory for high-temperature hydrogen-air ignition and detonation studies.
 
@@ -21,7 +21,7 @@ A detailed H₂/O₂/N₂ reaction mechanism with 14 species and 42 reactions, v
 
 > J. Melguizo-Gavilanes, L.R. Boeck, R. Mével, J.E. Shepherd, "Hot surface ignition of stoichiometric hydrogen-air mixtures," *Int. J. Hydrogen Energy*, 42(11):7393–7403, 2017. DOI: [10.1016/j.ijhydene.2016.05.095](https://doi.org/10.1016/j.ijhydene.2016.05.095).
 
-## Jachimowski-7
+### Jachimowski-7
 
 A reduced H₂/O₂ mechanism with 7 species (H₂, O₂, H₂O, H, O, OH, N₂) derived from the full Jachimowski hydrogen-air mechanism originally developed for scramjet and hypersonic combustion applications at NASA Langley.
 
@@ -32,7 +32,7 @@ A reduced H₂/O₂ mechanism with 7 species (H₂, O₂, H₂O, H, O, OH, N₂)
 
 > C.J. Jachimowski, "An Analytical Study of the Hydrogen-Air Reaction Mechanism with Application to Scramjet Combustion," NASA TP-2791, 1988.
 
-## ONERA-7
+### ONERA-7
 
 A reduced H₂/O₂ mechanism with 7 species developed for supersonic combustion applications. Two variants are provided: an irreversible formulation with 14 unidirectional reactions (`ONERA-7.yaml`) and a reversible formulation with 7 bidirectional reactions (`ONERA-7_rev.yaml`).
 
@@ -47,7 +47,7 @@ A reduced H₂/O₂ mechanism with 7 species developed for supersonic combustion
 >
 > Davidenko, Gökalp, Kudryavtsev, West-East High Speed Flow Field Conference, 2007 (the same model for H₂–O₂ rotating detonation).
 
-## Gerlinger-9
+### Gerlinger-9
 
 A reduced H₂/air mechanism (a modified Jachimowski 1988 model) with 9 species and 19 reactions.
 
@@ -57,7 +57,7 @@ A reduced H₂/air mechanism (a modified Jachimowski 1988 model) with 9 species 
 
 > Gerlinger, Möbus, Brüggemann, *J. Comput. Phys.*, 167:247–276, 2001. DOI: [10.1006/jcph.2000.6671](https://doi.org/10.1006/jcph.2000.6671).
 
-## Nassini
+### Nassini
 
 A global single-step mechanism for H₂/air detonation with 4 species (O₂, H₂ONassini, H₂, N₂; the water is named `H₂ONassini` because its enthalpy of formation is the thesis value, −230.66 kJ/mol, and must not be replaced by the thermo database: deck composition keys are `yH2ONassini`). Calibrated to match the Chapman-Jouguet (CJ) speed, von Neumann state, and half-reaction thickness across a wide equivalence ratio range (φ = 0–5) at atmospheric preshock conditions. The H₂O formation enthalpy is modified to reproduce CJ detonation speed. The **Original** version is from Nassini's PhD thesis; the **Montanari-Grossi** version features adjusted parameters.
 
@@ -72,7 +72,7 @@ A global single-step mechanism for H₂/air detonation with 4 species (O₂, H�
 
 > P.C. Nassini, A. Andreini, M.D. Bohon, "Characterization of refill region and mixing state immediately ahead of a hydrogen-air rotating detonation using LES," *Combust. Flame*, 258:113050, 2023. DOI: [10.1016/j.combustflame.2023.113050](https://doi.org/10.1016/j.combustflame.2023.113050).
 
-## Frolov
+### Frolov
 
 A global single-step mechanism for H₂/air combustion with 4 species (H₂, O₂, H₂O, N₂) and 1 reversible reaction (backward rate from the equilibrium constant), in the variant of the CFD++ reaction panel: no pressure factor, A = 8·10¹¹ on the reaction progress rate. Designed for detonation simulations requiring a computationally efficient chemical model.
 
@@ -89,9 +89,9 @@ A global single-step mechanism for H₂/air combustion with 4 species (H₂, O�
 
 ---
 
-# CH₄/O₂ Mechanisms — Detailed
+## CH₄/O₂ Mechanisms — Detailed
 
-## ZhukovC1C4
+### ZhukovC1C4
 
 A detailed C₁–C₄ chemical kinetic mechanism with 207 species and 2176 reactions for the oxidation of light alkanes at high pressures and temperatures. Originally developed for methane/oxygen combustion under rocket engine conditions. Serves as the parent detailed mechanism from which the ZK skeletal model and the TSR-derived mechanisms have been generated.
 
@@ -102,7 +102,7 @@ A detailed C₁–C₄ chemical kinetic mechanism with 207 species and 2176 reac
 
 > V.P. Zhukov, A.F. Kong, "A compact reaction mechanism of methane oxidation at high pressures," *Prog. React. Kinet. Mech.*, 43(1):62–78, 2018. DOI: [10.3184/146867818X15066862094914](https://doi.org/10.3184/146867818X15066862094914).
 
-## Foundational Fuel Chemistry Models (FFCM)
+### Foundational Fuel Chemistry Models (FFCM)
 
 Detailed chemical kinetic reaction models developed through a collaboration between Hai Wang's research group at Stanford University and Gregory Smith of SRI International, employing up-to-date kinetic knowledge with well-defined predictive uncertainties. FFCM-2 extends FFCM-1 to cover a wider range of C₀–C₄ fuels.
 
@@ -129,7 +129,7 @@ Detailed chemical kinetic reaction models developed through a collaboration betw
 >
 > https://web.stanford.edu/group/haiwanglab/FFCM2/
 
-## DTU Mechanism
+### DTU Mechanism
 
 A detailed chemical kinetic model for methane oxidation under high-pressure conditions (up to 100 atm), developed at the Technical University of Denmark.
 
@@ -142,9 +142,9 @@ A detailed chemical kinetic model for methane oxidation under high-pressure cond
 
 ---
 
-# CH₄/O₂ Mechanisms — Reduced / Skeletal
+## CH₄/O₂ Mechanisms — Reduced / Skeletal
 
-## TSR Mechanisms (Family)
+### TSR Mechanisms (Family)
 
 A family of skeletal mechanisms for methane–oxygen combustion at high pressure, generated via Tangential Stretching Rate (TSR) analysis combined with CSP-based reduction. Starting from the detailed ZhukovC1C4 mechanism (207 species), the reduction targets specific canonical configurations.
 
@@ -160,7 +160,7 @@ A family of skeletal mechanisms for methane–oxygen combustion at high pressure
 
 > J. Liberatori, R. Malpica Galassi, D. Bianchi, F. Nasuti, M. Valorani, P.P. Ciottoli, "Family of Skeletal Reaction Mechanisms for Methane–Oxygen Combustion in Rocket Propulsion," *J. Propul. Power*, 40(2):303–319, 2024. DOI: [10.2514/1.B39283](https://doi.org/10.2514/1.B39283).
 
-## Zhukov-Kong (ZK) Mechanism
+### Zhukov-Kong (ZK) Mechanism
 
 A skeletal methane kinetic mechanism for undiluted methane–oxygen mixtures at high pressures. Obtained by eliminating unimportant species and reactions from the detailed Zhukov (2009) alkane oxidation mechanism.
 
@@ -171,7 +171,7 @@ A skeletal methane kinetic mechanism for undiluted methane–oxygen mixtures at 
 
 > V.P. Zhukov, A.F. Kong, "A compact reaction mechanism of methane oxidation at high pressures," *Prog. React. Kinet. Mech.*, 43(1):62–78, 2018.
 
-## CORIA-CNRS Mechanism
+### CORIA-CNRS Mechanism
 
 A RAMEC-based reduced mechanism validated for auto-ignition delay, laminar premixed flame, and counterflow diffusion flame over a very large range of pressure (1 atm to 100 bar) and equivalence ratio (0.2 to 14).
 
@@ -182,7 +182,7 @@ A RAMEC-based reduced mechanism validated for auto-ignition delay, laminar premi
 
 > F. Monnier, G. Ribert, "Simulation of high-pressure methane-oxygen combustion with a new reduced chemical mechanism," *Combust. Flame*, 235:111735, 2022.
 
-## Smooke Mechanism
+### Smooke Mechanism
 
 A reduced kinetic mechanism for methane-air flames.
 
@@ -194,9 +194,9 @@ A reduced kinetic mechanism for methane-air flames.
 
 ---
 
-# CH₄/O₂ Mechanisms — Global
+## CH₄/O₂ Mechanisms — Global
 
-## Jones-Lindstedt (JL) Mechanism
+### Jones-Lindstedt (JL) Mechanism
 
 A classic global reaction mechanism for methane-air combustion. The four global steps represent: (1) fuel breakdown to CO and H₂, (2) H₂ oxidation, (3) CO oxidation via the water-gas shift, and (4) CO₂ dissociation.
 
@@ -207,7 +207,7 @@ A classic global reaction mechanism for methane-air combustion. The four global 
 
 > W.P. Jones, R.P. Lindstedt, "Global reaction schemes for hydrocarbon combustion," *Combust. Flame*, 73(3):233–249, 1988. DOI: [10.1016/0010-2180(88)90021-1](https://doi.org/10.1016/0010-2180(88)90021-1).
 
-## JLR (Jones-Lindstedt-Rodi) Mechanisms
+### JLR (Jones-Lindstedt-Rodi) Mechanisms
 
 Extended variants of the Jones-Lindstedt mechanism, augmented with radical species (H, O, OH), yielding 9 species and 6–8 reactions. Two sub-variants are available: **Frassoldati** (rates from CRECK Modeling Group, Politecnico di Milano) and **Nasuti** (rates adapted for rocket propulsion at Sapienza). The `-ct` files add N₂ to the element list for native Cantera compatibility and split the H₂ step into a forward and a backward reaction.
 
@@ -221,7 +221,7 @@ Extended variants of the Jones-Lindstedt mechanism, augmented with radical speci
 >
 > B. Betti, D. Bianchi, F. Nasuti, E. Martelli, "Chemical reaction effects on heat loads of CH₄/O₂ and H₂/O₂ rockets," *AIAA J.*, 54(5):1693–1703, 2016. DOI: [10.2514/1.J054606](https://doi.org/10.2514/1.J054606).
 
-## Westbrook-Dryer (WD) Global Mechanism
+### Westbrook-Dryer (WD) Global Mechanism
 
 A simplified global kinetic model for hydrocarbon combustion with 5 species and 3 reactions. The **WD-Andersen** variant (Andersen, Rasmussen, Giselsson, Glarborg, *Energy & Fuels* 23 (2009) 1379) uses modified rate parameters and writes the CO2 dissociation step as the explicit inverse of the CO oxidation step, rate = k3 [CO2] [H2O]^0.5 [O2]^-0.25 (yaml `orders` with `negative-orders` and `nonreactant-orders`), so that the two steps reach the CO + 0.5 O2 <=> CO2 equilibrium; at zero O2 concentration the rate of that step is zero (Cantera's convention).
 
@@ -236,39 +236,39 @@ A simplified global kinetic model for hydrocarbon combustion with 5 species and 
 
 ---
 
-# C₁–C₄ Hydrocarbon Mechanisms
+## C₁–C₄ Hydrocarbon Mechanisms
 
-## Aramco Mechanisms
+### Aramco Mechanisms
 
 Detailed chemical kinetic mechanisms developed at NUI Galway for modeling the combustion of C₁–C₄ hydrocarbon fuels.
 
 - **Aramco 2.0**
   - **File**: `aramco20.yaml`
-  - **Species / Reactions**: 532 / 2716
+  - **Species / Reactions**: 493 / 2716
   - **Pressure range**: 1 to 100 atm
 
 - **Aramco 3.0**
   - **File**: `aramco30.yaml`
-  - **Species / Reactions**: 623 / 3037
+  - **Species / Reactions**: 581 / 3037
   - **Pressure range**: 1 to 100 atm
 
 > Y. Li, C-W. Zhou, K.P. Somers, K. Zhang, H.J. Curran, "The Oxidation of 2-Butene: A High Pressure Ignition Delay, Kinetic Modeling Study and Reactivity Comparison with Isobutene and 1-Butene," *Proc. Combust. Inst.*, 36(1):403–411, 2017.
 >
 > C-W. Zhou, Y. Li, U. Burke, C. Banyon, K.P. Somers, S. Khan, J.W. Hargis, T. Sikes, E.L. Petersen, M. AlAbbad, A. Farooq, Y. Pan, Y. Zhang, Z. Huang, J. Lopez, Z. Loparo, S.S. Vasu, H.J. Curran, "An experimental and chemical kinetic modeling study of 1,3-butadiene combustion: Ignition delay time and laminar flame speed measurements," *Combust. Flame*, 197:423–438, 2018.
 
-## USC Mech II
+### USC Mech II
 
 A detailed chemical kinetic mechanism for the combustion of H₂/CO/C₁–C₄ compounds.
 
 - **Developer**: University of Southern California
 - **File**: `USCII.yaml`
-- **Species / Reactions**: 113 / 784
+- **Species / Reactions**: 111 / 784
 - **Pressure range**: 1–50 atm
 - **Primary fuels**: H₂, CO, CH₄, C₂H₆, C₃H₈, C₄H₁₀
 
 > H. Wang, X. You, A.V. Joshi, S.G. Davis, A. Laskin, F. Egolfopoulos, C.K. Law, "USC Mech Version II. High-Temperature Combustion Reaction Model of H₂/CO/C₁-C₄ Compounds," http://ignis.usc.edu/USC_Mech_II.htm, May 2007.
 
-## UCSD Mechanism
+### UCSD Mechanism
 
 A detailed reaction model for the combustion of hydrocarbon fuels, developed at the Combustion Research Group of UC San Diego.
 
@@ -282,9 +282,9 @@ A detailed reaction model for the combustion of hydrocarbon fuels, developed at 
 
 ---
 
-# Kerosene / RP-1 Mechanisms
+## Kerosene / RP-1 Mechanisms
 
-## Zettervall
+### Zettervall
 
 A reduced chemical kinetic mechanism for kerosene-air combustion using C₁₂H₂₃ as a surrogate fuel. Developed with a modular approach, it reproduces key flame parameters (laminar flame speed, ignition delay time, flame structure) while remaining compact enough for LES and DNS.
 
@@ -295,7 +295,7 @@ A reduced chemical kinetic mechanism for kerosene-air combustion using C₁₂H�
 
 > N. Zettervall, C. Fureby, E.J.K. Nilsson, "A reduced chemical kinetic reaction mechanism for kerosene-air combustion," *Fuel*, 269:117446, 2020. DOI: [10.1016/j.fuel.2020.117446](https://doi.org/10.1016/j.fuel.2020.117446).
 
-## CKJLR-10sp
+### CKJLR-10sp
 
 A 10-species global mechanism for RP-1 (kerosene surrogate, modeled as C₂H₄) with 8 reactions. Extends the JLR framework by introducing RP-1 as a surrogate fuel species, with ethylene as the primary cracking product. Uses NASA-9 polynomial thermodynamics.
 
@@ -308,9 +308,9 @@ A 10-species global mechanism for RP-1 (kerosene surrogate, modeled as C₂H₄)
 
 ---
 
-# Hybrid Rocket Mechanisms (HTPB / Paraffin)
+## Hybrid Rocket Mechanisms (HTPB / Paraffin)
 
-## Ciottoli20
+### Ciottoli20
 
 A 20-species skeletal mechanism with 104 reactions for GOX/HTPB hybrid rocket propulsion. Derived from the detailed n-heptane mechanism of Curran, Pitz, and Westbrook (LLNL) using Computational Singular Perturbation (CSP) analysis. Retains key species necessary to describe butadiene oxidation pathways in non-premixed configurations.
 
@@ -321,7 +321,7 @@ A 20-species skeletal mechanism with 104 reactions for GOX/HTPB hybrid rocket pr
 
 > P.P. Ciottoli, R. Malpica Galassi, P.E. Lapenna, G. Leccese, D. Bianchi, F. Nasuti, F. Creta, M. Valorani, "CSP-based chemical kinetics mechanisms simplification strategy for non-premixed combustion: An application to hybrid rocket propulsion," *Combust. Flame*, 186:83–93, 2017. DOI: [10.1016/j.combustflame.2017.07.035](https://doi.org/10.1016/j.combustflame.2017.07.035).
 
-## CoronettiC4H6
+### CoronettiC4H6
 
 A global mechanism for 1,3-butadiene (C₄H₆) combustion with 9 species and 6 reactions. C₄H₆ is the primary pyrolysis product of HTPB, the most common solid fuel in hybrid rocket motors.
 
@@ -333,7 +333,7 @@ A global mechanism for 1,3-butadiene (C₄H₆) combustion with 9 species and 6 
 
 > A. Coronetti, W.A. Sirignano, "Numerical Analysis of Hybrid Rocket Combustion," *J. Propul. Power*, 29(2):371–384, 2013. DOI: [10.2514/1.B34760](https://doi.org/10.2514/1.B34760).
 
-## Singh-WC32
+### Singh-WC32
 
 A global mechanism for dotriacontane (C₃₂H₆₆) combustion with 10 species and 11 reactions. C₃₂H₆₆ is used as a surrogate for paraffin wax, a liquefying solid fuel for hybrid rocket motors. Models wax cracking to ethylene followed by oxidation through the JLR-type pathway.
 
@@ -346,9 +346,9 @@ A global mechanism for dotriacontane (C₃₂H₆₆) combustion with 10 species
 
 ---
 
-# Chlorine / SRM Plume Mechanisms
+## Chlorine / SRM Plume Mechanisms
 
-## Pelucchi
+### Pelucchi
 
 A detailed chlorine chemistry mechanism covering the high-temperature chemistry of HCl and Cl₂. Thermochemistry obtained using the Active Thermochemical Tables (ATcT) approach. The reaction subset is coupled with the POLIMI syngas/CO mechanism.
 
@@ -359,7 +359,7 @@ A detailed chlorine chemistry mechanism covering the high-temperature chemistry 
 
 > M. Pelucchi, A. Frassoldati, T. Faravelli, B. Ruscic, P. Glarborg, "High-temperature chemistry of HCl and Cl₂," *Combust. Flame*, 162(6):2693–2704, 2015. DOI: [10.1016/j.combustflame.2015.04.002](https://doi.org/10.1016/j.combustflame.2015.04.002).
 
-## Cross
+### Cross
 
 A mechanism for SRM plume afterburning with 19 species and 33 reactions. Includes hydrocarbons (C₂H₂, CH₂O, CH₃, CH₄), chlorine species (Cl, Cl₂, ClO, HCl), and nitrogen species (HCN, N₂). Uses NASA-9 polynomial thermodynamics.
 
@@ -368,7 +368,7 @@ A mechanism for SRM plume afterburning with 19 species and 33 reactions. Include
 - **Reference**: to be confirmed
 - **Primary fuels**: SRM exhaust plume (H₂/CO/HCl/HCN afterburning)
 
-## Ecker
+### Ecker
 
 A reduced mechanism for SRM plume afterburning with 14 species and 28 reactions. Includes hydrogen/oxygen combustion chemistry and chlorine species relevant to SRM exhaust containing HCl from ammonium perchlorate decomposition. Thermodynamic data for H/O/C/N from GRI-Mech 3.0; chlorine data from Pelucchi.
 
@@ -379,7 +379,7 @@ A reduced mechanism for SRM plume afterburning with 14 species and 28 reactions.
 
 > T. Ecker, S. Karl, K. Hannemann, "Combustion Modeling in Solid Rocket Motor Plumes," *8th European Conference for Aeronautics and Space Sciences (EUCASS)*, Madrid, 2019.
 
-## Troyes
+### Troyes
 
 A reduced mechanism for SRM exhaust plume afterburning with 12 species and 17 reactions. Models secondary combustion of H₂, CO, and HCl in the plume region. Thermodynamic data for H/O/C/N from GRI-Mech 3.0; chlorine data from Pelucchi.
 
@@ -392,9 +392,9 @@ A reduced mechanism for SRM exhaust plume afterburning with 12 species and 17 re
 
 ---
 
-# Reference Mechanisms (Not Included)
+## Reference Mechanisms (Not Included)
 
-## GRI-Mech 3.0
+### GRI-Mech 3.0
 
 A widely-used detailed mechanism for natural gas combustion (53 species, 325 reactions, valid 1000–2500 K, 10 Torr–10 atm). Not included in this database but commonly used as a reference and as a source of thermodynamic/transport data for other mechanisms.
 

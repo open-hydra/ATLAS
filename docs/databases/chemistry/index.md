@@ -1,6 +1,6 @@
 # Chemistry Databases
 
-ATLAS bundles a great number of reaction mechanisms for combustion and reacting flows, all stored as Cantera-compatible YAML files. The collection spans hydrogen/oxygen, methane/oxygen (detailed, skeletal, and global), kerosene/RP-1, hybrid-rocket fuels, and SRM plume chemistry.
+ATLAS bundles a large number of reaction mechanisms for combustion and reacting flows, all stored as Cantera-compatible YAML files. The collection spans hydrogen/oxygen, methane/oxygen (detailed, skeletal, and global), kerosene/RP-1, hybrid-rocket fuels, and SRM plume chemistry.
 
 ---
 

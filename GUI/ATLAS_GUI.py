@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Launcher for the ATLAS case-setup GUI.
+"""Launcher for the ATLAS GUI: the case setup and the runs of the tools.
 
 Usage:
-    python ATLAS_GUI.py [mesh] [--ini input.ini] [--stage case|gpb|bcb|review]
+    python ATLAS_GUI.py [mesh] [--ini input.ini | --case folder] [--stage case|gpb|bcb|icb|review|run]
 
 This simply forwards to the ``atlasgui`` package next to this file.
 """

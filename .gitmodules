@@ -1,12 +1,9 @@
-[submodule "lib/third_party/FiNeR"]
-	path = lib/third_party/FiNeR
-	url = https://github.com/szaghi/FiNeR.git
-[submodule "lib/ORION"]
-	path = lib/ORION
-	url = https://github.com/MarcoGrossi92/ORION.git
 [submodule "lib/PiNeR"]
 	path = lib/PiNeR
 	url = https://github.com/MarcoGrossi92/PiNeR.git
 [submodule "lib/cea"]
 	path = lib/cea
-	url = https://github.com/MarcoGrossi92/cea.git
+	url = https://github.com/nasa/cea.git
+[submodule "lib/FiNeR"]
+	path = lib/FiNeR
+	url = https://github.com/szaghi/FiNeR.git

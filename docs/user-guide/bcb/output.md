@@ -10,7 +10,7 @@ The format is designed to be simple and flexible, with a fixed coordinate line f
 
 ## Output Files
 
-One file is produced per phase type, hence one file per Hydra solver. The naming depends on the phase name and the multigrid level:  
+One file is produced per phase, and each Hydra solver reads the file of its phase. The naming depends on the phase name and the multigrid level:
 
 - For a single unnamed phase: `bc.txt`, `bc2.txt`, etc.
 - For named phases: `<phase_name>-bc.txt`, `<phase_name>-bc2.txt`, etc.
@@ -75,8 +75,9 @@ Written for block-to-block connections after the automatic connection-finding pa
 
 **Payload line** (one line, all integers, `I8` format):
 
+| Mesh | Fields |
+|------|--------|
 | 1-D | `b2  i2  f2  c1  c2  c3  c4` |
-|-----|------------------------------|
 | 2-D | `b2  i2  j2  f2  c1  c2  c3  c4` |
 | 3-D | `b2  i2  j2  k2  f2  c1  c2  c3  c4` |
 
@@ -100,7 +101,7 @@ Written after the chimera interpolation pass. Covers two ghost-cell layers inwar
 **Record structure** (multiple lines):
 
 1. Counts line: `nchi_g1  nchi_g2` — number of donor cells for ghost layers 1 and 2 (`I8` format).
-2. For ghost layer 1: `nchi_g1` donor lines, each `b  i  j  k  weight` (`4I8 + ES24.16`).
+2. For ghost layer 1: `nchi_g1` donor lines, each `b  i  j  k  weight` (`4I8, ES24.16`).
 3. For ghost layer 2: `nchi_g2` donor lines, same format.
 
 `weight` is the donor's share of the receiver ghost cell, so the weights of one
@@ -116,9 +117,9 @@ Example (3-D, `id = 102`, 1 donor for layer 1, 2 donors for layer 2):
 ```
        1       1      30       1       4     102
        1       2
-       2       1       1       1    0.1000000000E+01
-       2       1       1       1    0.4514333088E+00
-       2       1       2       1    0.5485666912E+00
+       2       1       1       1  1.0000000000000000E+00
+       2       1       1       1  4.5143331002613452E-01
+       2       1       2       1  5.4856668997386537E-01
 ```
 
 ---
@@ -178,7 +179,7 @@ Example (`id = 301`, prescribed heat flux):
 
 ```
        1       1      21       1       1     301
-    0.000000E+00,    0.000000E+00,    0.000000E+00,
+  0.0000000000000000E+00,  0.0000000000000000E+00,  0.0000000000000000E+00,
 ```
 
 ---
@@ -198,11 +199,11 @@ Example (`id = 301`, prescribed heat flux):
 !!! tip "Time-file option"
     For time-varying wall conditions, the payload line contains the time-file name string instead of numeric values.
 
-Example (`id = 302`, prescribed wall temperature):
+Example (`id = 302`, prescribed wall temperature, solid phase):
 
 ```
-       1       1      21       1       1     302
-    0.000000E+00,
+       1       1       2       1       4     302
+  3.9300000000000000E+02,
 ```
 
 ---
@@ -283,11 +284,11 @@ Field key: `krho`/`kV`/`kT` = scaling coefficients for mass/velocity/temperature
 !!! note "Injection spacing `ds` (9th field)"
     Per-population injection-point spacing in **meters** (the BCB `ds` input option is in cm and converted on write). `0.00000E+00` (option unset) tells the solver to fall back to its global `[IGLOO-BC] ds`; a positive value activates per-cell spacing for this population.
 
-Example (DP inlet, `id = 402`, LogNormal, `ds` unset):
+Example (DP inlet, `id = 402`, `Dirac`, `ds` unset):
 
 ```
        2       1       1       1       1     402
-   0.34500E+03   0.10000E+03   0.26000E+02   0.00000E+00   0.45000E+03   0.50000E-02   0.50000E+00 LogNormal   0.00000E+00
+  3.4500000000000000E+02  1.0000000000000000E+02  2.6000000000000000E+01         normal,  4.5000000000000000E+02  5.0000000000000001E-03  0.0000000000000000E+00 Dirac  0.0000000000000000E+00
 ```
 
 ---
@@ -295,25 +296,32 @@ Example (DP inlet, `id = 402`, LogNormal, `ds` unset):
 ### `501` –  Manifold 
 
 | ID | Payload fields (in order) |
-|----|-----------|--------------------------|
-| `501` | `block, face` |
+|----|---------------------------|
+| `501` | `block, face` (two integers, `I8`) |
 
-`block`, `face` = source block/face index from which the manifold draws its conditions; 
+`block`, `face` = source block/face index from which the manifold draws its conditions.
+
+In a dispersed phase's file the face is a `300` record (no payload).
 
 ### `502`–`506` — Gas-surface interaction (GSI) { #gsi-ids }
 
 All five IDs are produced by the single `gsi` marker; BCB selects the variant
 from the keys present in the section (see [BC Types](./bc-types.md#gsi)).
 
+They are written in the fluid's file. In a dispersed phase's file a gsi face is a `300` record (no payload), or,
+on a solid-propellant grain (`502`) whose section gives inlet keys of that phase, a `401` record with the inlet
+payload; the grain's `502` record then carries its propellant mass flux times `1 − krho_tot`, the gas flow left by
+the dispersed phases entering through the cell (see [Dispersed phase on a gsi face](./bc-types.md#dispersed-phase-on-a-gsi-face)).
+
 | ID | Variant | Payload fields (in order) | Payload length |
 |----|---------|---------------------------|----------------|
-| `502` | Solid propellant | `Taf, a, n, pRef, rhoGrain, SF, massf(1:ns) [, turb…]` | `6 + ns [+ nrans]` |
+| `502` | Solid propellant | `Taf, a·rhoGrain·SF, n, pRef, rhoGrain, SF, massf(1:ns) [, turb…]` | `6 + ns [+ nrans]` |
 | `503` | Melting | `cp, Tm, Ti, dh, qrad, eps, massf(1:ns)` | `6 + ns` |
 | `504` | Pyrolysis | `pyro, qrad, eps, massf(1:ns)` | `3 + ns` |
 | `505` | Surface reactions | `surf, qrad, eps` | `3` |
 | `506` | Pyrolysis + surface reactions | `pyro, surf, qrad, eps, massf(1:ns)` | `4 + ns` |
 
-Field key: `Taf` = adiabatic flame temperature [K]; `a` = burn-rate pre-exponential coefficient; `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `rhoGrain` = propellant grain density [kg m⁻³]; `SF` = geometric scale factor (default 1); `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
+Field key: `Taf` = adiabatic flame temperature [K]; `a·rhoGrain·SF` = the propellant mass flux at `pRef` [kg m⁻² s⁻¹], `a` the linear burn rate coefficient [m s⁻¹] (times `1 − krho_tot` with dispersed phases); `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `rhoGrain` = propellant grain density [kg m⁻³]; `SF` = geometric scale factor (default 1); `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
 
 Only `502` carries a turbulence suffix, using the same layout as the inlet IDs
 (depends on `nrans`). `505` is the only GSI variant that writes **no** mass
@@ -329,36 +337,36 @@ fractions.
     | `pyro` | `pyrolysis-model` | `HTPB` → `1`, `HDPB` → `2`, `PP` → `3` |
     | `surf` | `surface-reactions` | `bradley` → `1` |
 
-Example (`id = 502`, single-species, no turbulence):
+Example (`id = 502`, single-species, no turbulence; `Taf` as the CEA file gives it, here 3420.53 K):
 
 ```
        1       1      20       1       4     502
-    0.342053E+04,    0.520000E-02,    0.350000E+00,    0.482900E+07,    0.175000E+04,    0.100000E+01,    0.100000E+01,
+  3.4205300000000002E+03,  9.0999999999999996E+00,  3.4999999999999998E-01,  4.8290000000000000E+06,  1.7500000000000000E+03,  1.0000000000000000E+00,  1.0000000000000000E+00,
 ```
 
 Example (`id = 503`, melting, 3 species — `cp = 1000`, `Tm = 500`, `Ti = 300`, `dh = -500`, `qrad = 1e4`, `eps` unset):
 
 ```
        1       1      20       1       4     503
-    0.100000E+04,    0.500000E+03,    0.300000E+03,   -0.500000E+03,    0.100000E+05,    0.000000E+00,    0.700000E+00,    0.300000E+00,    0.100000E-19,
+  1.0000000000000000E+03,  5.0000000000000000E+02,  3.0000000000000000E+02, -5.0000000000000000E+02,  1.0000000000000000E+04,  0.0000000000000000E+00,  6.9999999999999996E-01,  2.9999999999999999E-01,  9.9999999999999995E-21,
 ```
 
 Example (`id = 504`, pyrolysis, `HTPB` → `1`, 3 species):
 
 ```
        1       1      20       1       4     504
-    0.100000E+01,    0.100000E+05,    0.000000E+00,    0.700000E+00,    0.300000E+00,    0.100000E-19,
+       1,  1.0000000000000000E+04,  0.0000000000000000E+00,  6.9999999999999996E-01,  2.9999999999999999E-01,  9.9999999999999995E-21,
 ```
 
 Example (`id = 505`, surface reactions, `bradley` → `1`, no mass fractions):
 
 ```
        1       1      20       1       4     505
-    0.100000E+01,    0.100000E+07,    0.000000E+00,
+       1,  1.0000000000000000E+06,  0.0000000000000000E+00,
 ```
 
 !!! note "Unset species"
-    Species not named by a `y<species>` key are written as `0.100000E-19`
+    Species not named by a `y<species>` key are written as `9.9999999999999995E-21`
     (the `1e-20` floor), not as exact zero.
 
 ---

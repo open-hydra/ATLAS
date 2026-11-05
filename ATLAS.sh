@@ -27,7 +27,7 @@ Usage:
 Hydra pre-processing tools:
    ATLAS GPB
    ATLAS BCB
-   ATLAS GUI        (case setup: GPB phases + BCB boundary conditions)
+   ATLAS GUI        (the case: GPB, BCB and ICB sections, and their runs)
    ATLAS BCB-GUI    (the same GUI, opened on the boundaries stage)
    ATLAS ICB
    ATLAS STB
@@ -39,6 +39,13 @@ Other tools:
 
 Repo documentation:
    ATLAS DOCS
+
+Every tool runs in the case directory: it reads the mesh there, and its setup in
+input.ini (written by 'ATLAS GUI', or by hand), and writes into
+fromATLAStoSolver/. BCB, ICB and MDB read each *phase.txt of the case
+directory, else the one GPB wrote into fromATLAStoSolver/, so that
+'ATLAS GPB BCB ICB' needs no copy; of fromATLAStoSolver/, BCB and ICB read
+only the phases of the [GPB-Phase*] sections of the INI, when it has some.
 
 Options:
    --input     | -i <file>   Input file (default: input.ini)
@@ -166,21 +173,54 @@ function python_bin {
 
 # ------------------------------------------------------------------- driver --
 status=0
-NEED_FILELIST=0
-for program in "${TOOLS[@]}"; do
-  case $program in
-    BCB | ICB | MDB | STB ) NEED_FILELIST=1 ;;
-  esac
-done
 
-# The Fortran tools discover '*phase.txt' through this listing (see
-# src/common/read_phase.f90). Only create it when one of them will run, and
-# never clobber a file the user already has.
+# The phase file each [GPB-Phase<N>] section of the INI $1 makes GPB write, N = 1, 2, ... up to the
+# first missing, as GPB reads them (src/GPB/ini/common.py): <name>-phase.txt, or phase.txt for a
+# phase with no name.
+function gpb_phase_files {
+  awk '
+    { line = $0; sub(/\r$/, "", line); sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line) }
+    line == "" || line ~ /^[#;]/ { next }
+    line ~ /^\[.*\]$/ { sec = substr(line, 2, length(line) - 2); if (sec ~ /^GPB-Phase[0-9]+$/) seen[sec] = 1; next }
+    sec ~ /^GPB-Phase[0-9]+$/ && tolower(line) ~ /^name[ \t]*[=:]/ {
+      v = line; sub(/^[^=:]*[=:][ \t]*/, "", v); name[sec] = v
+    }
+    END { for (k = 1; ("GPB-Phase" k) in seen; k++) print (name["GPB-Phase" k] != "" ? name["GPB-Phase" k] "-" : "") "phase.txt" }
+  ' "$1"
+}
+
+# BCB and ICB discover the '*phase.txt' through filelist.txt (see
+# src/common/read_phase.f90): those of the case directory (written by hand, or
+# copied there) and those GPB wrote into fromATLAStoSolver/; the tools read each
+# from the case directory when it is there, else from fromATLAStoSolver/
+# (phase_dir in src/common/global.f90). Of fromATLAStoSolver/, only the phase
+# files of the [GPB-Phase*] sections of the INI are listed, when it has some:
+# GPB never removes a file there, so the phase of an earlier deck stays. It is
+# written again before each of them runs, so that in 'ATLAS GPB BCB' BCB finds
+# what GPB has just written, and removed at the end; a filelist.txt the user
+# already has is used as it is.
+USER_FILELIST=0
+[ -e filelist.txt ] && USER_FILELIST=1
 FILELIST_CREATED=0
-if [ "$NEED_FILELIST" -eq 1 ] && [ ! -e filelist.txt ]; then
-  ls *phase.txt > filelist.txt 2>/dev/null
+function write_filelist {
+  [ "$USER_FILELIST" -eq 1 ] && return
+  local ini="${INPUT:-input.ini}" declared="" listed="" name
+  [ -f "$ini" ] && declared=$(gpb_phase_files "$ini")
+  for name in $( { ls *phase.txt; cd fromATLAStoSolver && ls *phase.txt; } 2>/dev/null | sort -u); do
+    if [ ! -f "$name" ] && [ -n "$declared" ] && ! grep -qxF "$name" <<< "$declared"; then
+      echo "[WARNING] fromATLAStoSolver/$name is not read: no [GPB-Phase*] section of $ini writes it (an earlier GPB run left it)" >&2
+      continue
+    fi
+    if [ -f "$name" ] && [ -f "fromATLAStoSolver/$name" ] && ! cmp -s "$name" "fromATLAStoSolver/$name"; then
+      if [ -z "$declared" ] || grep -qxF "$name" <<< "$declared"; then
+        echo "[WARNING] $name of the case directory is read, not the one GPB wrote into fromATLAStoSolver/: remove it to read GPB's" >&2
+      fi
+    fi
+    listed+="$name"$'\n'
+  done
+  printf '%s' "$listed" > filelist.txt
   FILELIST_CREATED=1
-fi
+}
 
 for program in "${TOOLS[@]}"; do
   case $program in
@@ -257,6 +297,7 @@ for program in "${TOOLS[@]}"; do
         # overflows the default 8 MB and dies with SIGSEGV. Raise the soft limit, as figaro does for the
         # solvers and the CI before ctest; a hard limit below unlimited keeps whatever it allows.
         ulimit -s unlimited 2>/dev/null || true
+        case $program in BCB | ICB ) write_filelist ;; esac
         "$ATLASDIR/bin/$program" ${INPUT:+--input "$INPUT"} $V $W "${EXTRA[@]}"
         status=$?
       fi

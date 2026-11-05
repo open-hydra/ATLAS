@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import weakref
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractItemView, QComboBox, QDialog, QFormLayout, QGridLayout,
     QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget, QListWidgetItem,
@@ -26,10 +26,11 @@ from PyQt6.QtWidgets import (
 from . import database, filekeys, gpbmodel, icons
 from .filewidgets import STATE_ICON, STATE_TOKEN, pick_value
 from .gpbdialogs import (AdvancedKeysDialog, ColumnTableDialog, MixtureDialog,
-                         SpeciesPicker)
+                         pick_from_database)
 from .gpbmodel import (FIXED_GAS_COLUMNS, GAS_SOURCES, GPBPhase,
                        MODEL_COLUMNS, PHASE_TYPES, join_tokens, split_tokens)
-from .widgets import Card, clear_layout
+from .tableview import TablesView
+from .widgets import Card, ElidedLabel, clear_layout
 
 # One hue per phase family, used by the phase list and the stage badges.
 FAMILY_COLORS = {
@@ -47,6 +48,14 @@ DEFAULT_PHASE_NAMES = {
 }
 
 
+def _column_header(label):
+    """``"rho [kg/m3]"`` -> ``"RHO"`` over ``"[kg/m3]"``, ``"psat vapour"`` ->
+    ``"PSAT"`` over ``"VAPOUR"``: two short lines keep a narrow column
+    readable, and the unit keeps its case."""
+    name, _sep, unit = label.partition(" [")
+    return name.upper().replace(" ", "\n") + (f"\n[{unit}" if unit else "")
+
+
 class PhaseListItem(QWidget):
     """Two-line row of the phase list: name, then type and a one-line summary."""
 
@@ -58,22 +67,28 @@ class PhaseListItem(QWidget):
         layout.setSpacing(9)
         family = phase.family
         dot = QLabel()
-        dot.setPixmap(icons.dot_pixmap(FAMILY_COLORS.get(family, "#888"), 12))
-        dot.setFixedWidth(14)
+        dot.setPixmap(icons.dot_pixmap(FAMILY_COLORS.get(family, "#888"),
+                                       kit.px(12)))
+        dot.setFixedWidth(kit.px(14))
         layout.addWidget(dot, 0, Qt.AlignmentFlag.AlignTop)
 
         text = QVBoxLayout()
         text.setSpacing(2)
-        name = QLabel(phase.display_name(index))
+        # elided, not scrolled: the list is only as wide as the editor can spare
+        name = ElidedLabel(phase.display_name(index))
         name.setProperty("role", "value")
         text.addWidget(name)
-        detail = QLabel(f"{gpbmodel.TYPE_LABEL.get(phase.type, phase.type)}"
-                        f"  ·  {phase.summary()}")
+        summary = (f"{gpbmodel.TYPE_LABEL.get(phase.type, phase.type)}"
+                   f"  ·  {phase.summary()}")
+        detail = ElidedLabel(summary, keep=6)
         detail.setProperty("role", "hint")
-        detail.setWordWrap(False)
         text.addWidget(detail)
         layout.addLayout(text, 1)
-        self.setToolTip(f"[GPB-Phase{index + 1}]  {phase.type}")
+        self.setToolTip(f"[GPB-Phase{index + 1}]  {phase.type}\n{summary}")
+        # The row is sized from sizeHint() before the list shows it: polish
+        # now, so the hint counts the stylesheet's fonts and the two lines
+        # are not clipped.
+        self.ensurePolished()
 
 
 class GPBPanel(QWidget):
@@ -119,9 +134,11 @@ class GPBPanel(QWidget):
         splitter.setHandleWidth(9)
         splitter.addWidget(self._build_list_panel())
         splitter.addWidget(self._build_editor_panel())
+        splitter.addWidget(self._build_tables_panel())
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([330, 1000])
+        splitter.setStretchFactor(2, 1)
+        splitter.setSizes([self.kit.px(260), self.kit.px(720), self.kit.px(420)])
         root.addWidget(splitter)
 
     def _build_list_panel(self):
@@ -131,6 +148,10 @@ class GPBPanel(QWidget):
         card.body.addLayout(kit.panel_header("layers", "PHASES", self.count_badge))
 
         self.phase_list = QListWidget()
+        # Its rows are PhaseListItem widgets, which carry their own margins:
+        # the stylesheet gives this list no item padding (see theme.py).
+        self.phase_list.setObjectName("PhaseList")
+        self.phase_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.phase_list.setSelectionMode(
             QAbstractItemView.SelectionMode.SingleSelection)
         self.phase_list.currentRowChanged.connect(self._on_phase_selected)
@@ -152,16 +173,20 @@ class GPBPanel(QWidget):
         add_row.addWidget(add_button, 1)
         card.body.addLayout(add_row)
 
-        tools = QHBoxLayout()
-        tools.setSpacing(7)
+        # two by two: four buttons in a row would keep the list as wide as the
+        # editor beside it can spare
+        tools = QGridLayout()
+        tools.setHorizontalSpacing(7)
+        tools.setVerticalSpacing(7)
         tools.addWidget(kit.button("Copy", self._duplicate_phase, "copy",
-                                   tip="Duplicate the selected phase"))
+                                   tip="Duplicate the selected phase"), 0, 0)
+        tools.addWidget(kit.button("Remove", self._remove_phase, "trash", "danger"), 0, 1)
         tools.addWidget(kit.button("Up", lambda: self._move_phase(-1), None,
-                                   tip="Move earlier in the deck"))
+                                   tip="Move earlier in the deck"), 1, 0)
         tools.addWidget(kit.button("Down", lambda: self._move_phase(1), None,
-                                   tip="Move later in the deck"))
-        tools.addWidget(kit.button("Remove", self._remove_phase, "trash",
-                                   "danger"))
+                                   tip="Move later in the deck"), 1, 1)
+        tools.setColumnStretch(0, 1)
+        tools.setColumnStretch(1, 1)
         card.body.addLayout(tools)
         card.body.addWidget(kit.hint(
             "A phase becomes one property table in fromATLAStoSolver/, named "
@@ -175,20 +200,82 @@ class GPBPanel(QWidget):
         outer_layout = QHBoxLayout(outer)
         outer_layout.setContentsMargins(4, 0, 4, 4)
         self.editor_host = QWidget()
-        self.editor_host.setMaximumWidth(880)
-        self.editor_host.setMinimumWidth(420)
+        self.kit.sized(self.editor_host.setMaximumWidth, 880)
+        # no explicit minimum: the form needs what its widest row needs, and a
+        # narrower column scrolls sideways rather than cutting the row off
         self.editor_layout = QVBoxLayout(self.editor_host)
         self.editor_layout.setContentsMargins(0, 0, 0, 0)
         self.editor_layout.setSpacing(10)
         outer_layout.addWidget(self.editor_host, 6)
         outer_layout.addStretch(1)   # the column hugs the phase list
-        return self.kit.scrollable(outer)
+        area = self.kit.scrollable(outer, horizontal=True)
+        self.kit.sized(area.setMaximumWidth, 900)    # the rest goes to the tables
+        return area
+
+    def view_tools(self):
+        """The stage's control in the shell's header: the tables GPB wrote,
+        beside the editor or put away to give the editor the whole width."""
+        bar = QWidget()
+        lay = QHBoxLayout(bar)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(8)
+        shown = str(self.shell.settings.value("gpb-tables", "true")).lower() != "false"
+        self.tables_toggle = self.kit.toggle(
+            "Tables", self._set_tables_shown, "chart", shown,
+            tip="Draw the tables GPB wrote beside the editor; off, the editor has the room")
+        lay.addWidget(self.tables_toggle)
+        self.tables_card.setVisible(shown)
+        return bar
+
+    def _set_tables_shown(self, on):
+        self.tables_card.setVisible(bool(on))
+        self.shell.settings.setValue("gpb-tables", bool(on))
+        if on:
+            self.refresh_tables()
+
+    def reveal_tables(self):
+        """Show the tables card: something asked to see a table."""
+        toggle = getattr(self, "tables_toggle", None)
+        if toggle is not None and not toggle.isChecked():
+            toggle.setChecked(True)
+        self.tables_card.setVisible(True)
+
+    def _build_tables_panel(self):
+        card = Card()
+        self.tables_card = card
+        kit = self.kit
+        kit.sized(card.setMinimumWidth, 300)
+        card.body.addLayout(kit.panel_header("chart", "TABLES GPB WROTE"))
+        self.tables_view = TablesView(kit)
+        self.tables_view.run_requested.connect(lambda: self.shell.set_stage("run"))
+        # a short window scrolls the card instead of squeezing one part over another
+        card.body.addWidget(kit.scrollable(self.tables_view), 1)
+        return card
 
     # -------------------------------------------------------------- refresh
     def refresh(self):
         """Rebuild the list and the editor from the document."""
         self._refresh_list()
         self._rebuild_editor()
+
+    def refresh_tables(self):
+        """The tables of the phase selected, as GPB last wrote them."""
+        if not self.tables_card.isVisibleTo(self):
+            return                          # put away: read when it is shown again
+        phase = self.current_phase()
+        self.tables_view.show_case(self.case_dir, prefer=phase.name if phase else None,
+                                   ini_path=self.shell.ini_path, dirty=self.shell._dirty)
+
+    def show_tables(self, name, sheet=None):
+        """Select the deck's phase *name*, if it has one, and draw its tables."""
+        self.reveal_tables()
+        for row, phase in enumerate(self.gpb.phases):
+            if phase.name == name:
+                self._select(row)
+                break
+        else:
+            self.refresh_tables()
+        self.tables_view.select(name, sheet)
 
     def _refresh_list(self):
         index = self.current_index()
@@ -197,7 +284,7 @@ class GPBPanel(QWidget):
         for i, phase in enumerate(self.gpb.phases):
             item = QListWidgetItem()
             widget = PhaseListItem(self.kit, phase, i)
-            item.setSizeHint(widget.sizeHint())
+            item.setSizeHint(QSize(0, widget.sizeHint().height()))
             self.phase_list.addItem(item)
             self.phase_list.setItemWidget(item, widget)
         if self.gpb.phases:
@@ -213,10 +300,23 @@ class GPBPanel(QWidget):
             return
         item = self.phase_list.item(index)
         widget = PhaseListItem(self.kit, self.gpb.phases[index], index)
-        item.setSizeHint(widget.sizeHint())
+        item.setSizeHint(QSize(0, widget.sizeHint().height()))
         self.phase_list.setItemWidget(item, widget)
 
     def _on_phase_selected(self, _row):
+        self._rebuild_editor()
+
+    def _select(self, row):
+        """Make *row* the current phase and open its editor.
+
+        setCurrentRow() signals only a change of row, and after
+        _refresh_list() the row asked for may already be current -- the
+        first phase added to an empty list is row 0 then -- so the editor is
+        rebuilt here, not left to the signal.
+        """
+        self.phase_list.blockSignals(True)
+        self.phase_list.setCurrentRow(row)
+        self.phase_list.blockSignals(False)
         self._rebuild_editor()
 
     def _edited(self, relist=True):
@@ -247,7 +347,7 @@ class GPBPanel(QWidget):
             phase.set("material", "material1")
         self.gpb.add_phase(phase)
         self._refresh_list()
-        self.phase_list.setCurrentRow(len(self.gpb.phases) - 1)
+        self._select(len(self.gpb.phases) - 1)
         self.changed.emit()
 
     def _duplicate_phase(self):
@@ -259,7 +359,7 @@ class GPBPanel(QWidget):
         clone.set("name", self._unique_name(base + "_copy"))
         self.gpb.add_phase(clone, self.current_index() + 1)
         self._refresh_list()
-        self.phase_list.setCurrentRow(self.current_index() + 1)
+        self._select(self.current_index() + 1)
         self.changed.emit()
 
     def _remove_phase(self):
@@ -279,7 +379,7 @@ class GPBPanel(QWidget):
             return
         new_index = self.gpb.move_phase(index, delta)
         self._refresh_list()
-        self.phase_list.setCurrentRow(new_index)
+        self._select(new_index)
         self.changed.emit()
 
     # --------------------------------------------------------- field helpers
@@ -310,6 +410,7 @@ class GPBPanel(QWidget):
             return
         if held:
             self.shell.doc.bcb.rename_phase(held, new)
+            self.shell.doc.icb.rename_phase(held, new)
         self._block_names[phase] = new
 
     def _release_block_phase(self, phase):
@@ -319,26 +420,30 @@ class GPBPanel(QWidget):
         if name in {p.name for p in self.gpb.phases if p is not phase}:
             return True     # another phase still answers to the name
         bcb = self.shell.doc.bcb
+        icb = self.shell.doc.icb
         blocks = bcb.blocks_listing_phase(name) if name else []
-        if not blocks:
+        initial = icb.blocks_listing_phase(name) if name else []
+        if not blocks and not initial:
             if name:
                 bcb.drop_phase(name)    # the wildcard block, if not expanded
             return True
-        listing = ", ".join(f"Block{b + 1}" for b in blocks[:8])
-        if len(blocks) > 8:
-            listing += ", ..."
+        sections = [f"[BCB-Block{b + 1}]" for b in blocks]
+        sections += [f"[{block.section_name}]" for block in initial]
+        listing = ", ".join(sections[:8]) + (", ..." if len(sections) > 8 else "")
         text = (f"Phase '{name}' is listed in the phase key of {listing}; "
-                f"removing the phase removes it from those blocks too.")
-        alone = sum(1 for b in blocks if bcb.block_phases(b) == [name])
+                f"removing the phase removes it from those sections too.")
+        alone = (sum(1 for b in blocks if bcb.block_phases(b) == [name])
+                 + sum(1 for block in initial if block.phases == [name]))
         if alone:
             text += (f"\n\n{alone} of them list no other phase: without a "
-                     f"phase key, BCB gives a block every phase of the deck.")
+                     f"phase key, a block gets every phase of the deck.")
         reply = QMessageBox.question(
             self, "Remove phase", text + "\n\nRemove the phase?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
         if reply != QMessageBox.StandardButton.Yes:
             return False
         bcb.drop_phase(name)
+        icb.drop_phase(name)
         return True
 
     def _line(self, key, placeholder=None, width=None, relist=True):
@@ -349,7 +454,7 @@ class GPBPanel(QWidget):
             else (gpbmodel.default_of(key) or ""))
         edit.setToolTip(gpbmodel.describe(key) or key)
         if width:
-            edit.setMaximumWidth(width)
+            edit.setMaximumWidth(self.kit.px(width))
         edit.textEdited.connect(lambda text, k=key: self._set(k, text, relist))
         return edit
 
@@ -370,7 +475,7 @@ class GPBPanel(QWidget):
             combo.setCurrentText(current)
         combo.setToolTip(gpbmodel.describe(key) or key)
         if width:
-            combo.setMaximumWidth(width)
+            combo.setMaximumWidth(self.kit.px(width))
 
         def commit(_index=None, k=key, c=combo):
             value = c.currentData() if not c.isEditable() else c.currentText()
@@ -399,7 +504,7 @@ class GPBPanel(QWidget):
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(7)
         mark = QLabel()
-        mark.setFixedWidth(18)
+        mark.setFixedWidth(self.kit.px(18))
 
         def repaint():
             phase = self.current_phase()
@@ -459,6 +564,7 @@ class GPBPanel(QWidget):
     def _rebuild_editor(self):
         clear_layout(self.editor_layout)
         phase = self.current_phase()
+        self.refresh_tables()
         if phase is None:
             empty = Card()
             empty.body.addWidget(self.kit.title("No phase yet"))
@@ -476,7 +582,6 @@ class GPBPanel(QWidget):
             family = phase.family
             if family in ("condensed", "solid"):
                 self.editor_layout.addWidget(self._materials_card(phase))
-                self.editor_layout.addWidget(self._condensed_properties_card(phase))
             elif family == "real-fluid":
                 self.editor_layout.addWidget(self._real_fluid_card(phase))
             else:
@@ -658,8 +763,10 @@ class GPBPanel(QWidget):
             layout.addLayout(form)
             button_row = QHBoxLayout()
             button_row.setSpacing(7)
-            button_row.addWidget(kit.button("Pick species…", self._pick_species,
-                                            "open"))
+            button_row.addWidget(kit.button(
+                "Pick species…", self._pick_species, "open",
+                tip="Pick gaseous species from the mechanism or from NASA7, "
+                    "NASA9 or Burcat."))
             button_row.addWidget(kit.button(
                 "Constant properties…", self._edit_fixed_gas, "sliders",
                 tip="Give each species a constant cp/cv/gamma/R/mw and its "
@@ -702,24 +809,19 @@ class GPBPanel(QWidget):
 
     def _pick_species(self):
         phase = self.current_phase()
-        source = phase.get("thermo") or "NASA9"
-        names = database.species_of_database(source, phase.family)
-        mechanism = phase.get("reactions")
-        if mechanism:
-            from_mech = database.species_of_mechanism(mechanism, self.case_dir)
-            names = from_mech + [n for n in names if n not in from_mech]
-        chosen = SpeciesPicker.choose(
-            self, self.kit, "Add species", names,
-            f"Species of {mechanism or source}. Pick one or more to add to the "
-            f"species list.")
-        if chosen:
-            current = split_tokens(phase.get("species"))
-            for name in chosen:
-                if name not in current:
-                    current.append(name)
-            phase.set("species", join_tokens(current))
-            self._edited()
-            self._rebuild_editor()
+        chosen, thermo = pick_from_database(
+            self, self.kit, phase, "Add species", self.case_dir)
+        if not chosen:
+            return
+        if thermo:
+            phase.set("thermo", thermo)
+        current = split_tokens(phase.get("species"))
+        for name in chosen:
+            if name not in current:
+                current.append(name)
+        phase.set("species", join_tokens(current))
+        self._edited()
+        self._rebuild_editor()
 
     def _edit_fixed_gas(self):
         phase = self.current_phase()
@@ -755,13 +857,20 @@ class GPBPanel(QWidget):
         card.body.addLayout(
             kit.panel_header("cube", "MATERIALS", self.material_badge))
 
+        # The database first: it is where the materials below are looked up.
+        form = self._form()
+        form.addRow(self._labelled("thermo"),
+                    self._combo("thermo", gpbmodel.CONDENSED_THERMO,
+                                empty="(NASA9 when no cp is given)"))
+        card.body.addLayout(form)
+
         columns = self._material_columns(phase)
         table = QTableWidget(len(materials), len(columns) + 1)
         table.setHorizontalHeaderLabels(
-            ["MATERIAL"] + [label.upper() for _k, label in columns])
+            ["MATERIAL"] + [_column_header(label) for _k, label in columns])
         table.verticalHeader().setVisible(False)
         table.setShowGrid(False)
-        table.verticalHeader().setDefaultSectionSize(28)
+        kit.table_rows(table, 28)
         table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch)
         table.horizontalHeader().setSectionResizeMode(
@@ -775,17 +884,19 @@ class GPBPanel(QWidget):
                 item.setToolTip(gpbmodel.describe(key) or key)
                 table.setItem(row, col + 1, item)
         table.cellChanged.connect(lambda *_: self._commit_materials())
-        rows_height = 40 + 29 * max(len(materials), 1) + 8
-        table.setMinimumHeight(min(rows_height, 150))
-        table.setMaximumHeight(max(rows_height, 90))
+        rows_height = kit.px(56 + 29 * max(len(materials), 1) + 8)   # 2-line header
+        table.setMinimumHeight(min(rows_height, kit.px(150)))
+        table.setMaximumHeight(max(rows_height, kit.px(90)))
         self.material_table = table
         card.body.addWidget(table)
 
         tools = QHBoxLayout()
         tools.setSpacing(7)
         tools.addWidget(kit.button("Add material", self._add_material, "plus"))
-        tools.addWidget(kit.button("From database…", self._pick_material, "open",
-                                   tip="Pick a material from the thermo database."))
+        tools.addWidget(kit.button(
+            "From database…", self._pick_material, "open",
+            tip="Pick materials from NASA7, NASA9, Burcat or the SP-database; "
+                "only the states this phase type takes are listed."))
         tools.addWidget(kit.button("Remove", self._remove_material, "trash",
                                    "danger"))
         tools.addStretch(1)
@@ -796,8 +907,12 @@ class GPBPanel(QWidget):
                     "solver models, per material."))
         card.body.addLayout(tools)
         card.body.addWidget(kit.hint(
-            "A value left empty is not written. A column with the same value "
-            "everywhere is written once and broadcast by GPB."))
+            "With a database, every material it holds is temperature "
+            "dependent and the others fall back to the constants in the "
+            "table; give h0 to put a constant-property material on the "
+            "database's absolute enthalpy scale. A value left empty is not "
+            "written, and a column with the same value everywhere is written "
+            "once and broadcast by GPB."))
         return card
 
     def _commit_materials(self):
@@ -835,16 +950,12 @@ class GPBPanel(QWidget):
 
     def _pick_material(self):
         phase = self.current_phase()
-        source = phase.get("thermo") or "NASA9"
-        if source == "SP-database":
-            source = "NASA9"
-        names = database.species_of_database(source, phase.family)
-        chosen = SpeciesPicker.choose(
-            self, self.kit, "Add material", names,
-            f"Materials of the {source} database. Liquid entries end in (L), "
-            f"condensed ones in (cr) or (a).")
+        chosen, thermo = pick_from_database(
+            self, self.kit, phase, "Add material", self.case_dir)
         if not chosen:
             return
+        if thermo:
+            phase.set("thermo", thermo)
         materials = phase.entries()
         for name in chosen:
             if name not in materials:
@@ -888,22 +999,6 @@ class GPBPanel(QWidget):
             dialog.apply_to_phase()
             self._edited()
             self._rebuild_editor()
-
-    def _condensed_properties_card(self, phase):
-        card = Card()
-        kit = self.kit
-        card.body.addLayout(kit.panel_header("sliders", "PROPERTIES"))
-        form = self._form()
-        form.addRow(self._labelled("thermo"),
-                    self._combo("thermo", gpbmodel.CONDENSED_THERMO,
-                                empty="(NASA9 when no cp is given)"))
-        card.body.addLayout(form)
-        card.body.addWidget(kit.hint(
-            "With a database, every material it holds is temperature "
-            "dependent and the others fall back to the constants in the table "
-            "above. Give h0 to put a constant-property material on the "
-            "database's absolute enthalpy scale."))
-        return card
 
     # -- real fluid -------------------------------------------------------
     def _real_fluid_card(self, phase):

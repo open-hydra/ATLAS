@@ -73,16 +73,10 @@ Run KAnT from an ATLAS simulation directory:
 ATLAS KAnT
 ```
 
-You can also run it directly from the Python source tree:
+You can also run it directly from the source tree, with the Python of `ct-env`:
 
 ```bash
-python3 -B /path/to/KAnT [--plot] [<ini-file>]
-```
-
-or as a module:
-
-```bash
-python3 -m kant
+python3 -B $ATLASDIR/database/KAnT [--plot] [<ini-file>]
 ```
 
 If no input file is passed, KAnT looks for `kant.ini` first and then `input.ini` in the current directory. Passing `--plot` opens the Matplotlib figures for the computed results.
@@ -106,7 +100,7 @@ The main keys are:
 | `equilibrium` | Enable the equilibrium calculation |
 | `ignition-delay` | Enable the ignition-delay calculation |
 | `time-evolution` | Enable the transient reactor calculation |
-| `case` | Reference case name from `data/reference/cases.yaml` |
+| `case` | Reference case name from `database/KAnT/data/reference/cases.yaml` |
 | `fuel` | Fuel stream composition |
 | `oxidizer` | Oxidizer stream composition |
 | `fuel-T` | Fuel stream temperature in K |
@@ -151,6 +145,7 @@ If plotting is enabled, KAnT also opens a Matplotlib window for the computed res
 
 ## Reference Cases
 
-Reference datasets for the ignition-delay examples are stored under `data/reference/`. The packaged cases are the same ones used by the tutorial page and the regression tests.
+Reference datasets for the ignition-delay examples are stored under `database/KAnT/data/reference/`; the cases of
+`test/KAnT/` use them ([Testing](../../development/testing.md#kant-cases-testkant)).
 
-See the [KAnT tutorials](../../tutorials/kant/index.md) for case-by-case walkthroughs.
+The tutorial [Checking a Mechanism](../../tutorials/kant/index.md) runs an equilibrium and an ignition-delay case.

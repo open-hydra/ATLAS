@@ -1,6 +1,6 @@
 <p align="center">
 	<h1 align="center">ATLAS</h1>
-	<p align="center"><b>Auxiliary Toolbox and Libraries for an hydrA Solvers</b></p>
+	<p align="center"><b>Auxiliary Toolbox and Libraries for hydrA Solvers</b></p>
 </p>
 
 <p align="center">
@@ -22,7 +22,8 @@ ATLAS is an open-source pre-processing toolbox for Hydra simulation workflows. I
 - **Source Terms Builder (STB)** - builds volumetric source term datasets for coupled simulations.
 - **Mesh Decomposition Builder (MDB)** - splits blocks to load-balance a mesh over a given number of MPI ranks, rewriting grid, solution, and BC files.
 - **KAnT (Kinetic Analyzer and Tester)** - runs 0-D and 1-D chemistry analyses (equilibrium, ignition delay, time evolution, counterflow flame).
-- **Workflow chaining** - tools can be run independently or in sequence from a shared `input.ini`.
+- **ATLAS GUI** - sets up the case from the mesh alone (phases, boundary conditions on the 3-D mesh, initial state), writes the setup of every tool, checks it, runs GPB, BCB and ICB, and draws what they wrote.
+- **GUI or shell** - the same tools run from the GUI or from the shell, independently or in sequence.
 
 ## Quick Start
 
@@ -55,19 +56,22 @@ See the [Installation Guide](docs/getting-started/installation.md) for all optio
 
 ### Run a Minimal Workflow
 
-From a case directory:
+From a case directory holding the mesh:
 
 ```bash
-ATLAS GPB
-ATLAS BCB
-ATLAS ICB
+ATLAS GUI            # set up the phases, the boundary conditions and the initial state, then Run
 ```
 
-Combined execution with one shared input file:
+The GUI writes the setup of every tool (`input.ini`) and runs them. The same run from the shell, once the case is
+set up:
 
 ```bash
-ATLAS GPB BCB ICB
+ATLAS GPB BCB ICB    # phase tables, boundary conditions, initial field: all into fromATLAStoSolver/
 ```
+
+Every tool writes into `fromATLAStoSolver/`, and BCB and ICB read there the phase files GPB wrote, so nothing is
+copied between the runs; a phase file of the case directory, written by hand, is read in its place. The files of
+`fromATLAStoSolver/` are the input of a solver run (figaro moves them into its `INPUT/`).
 
 Chemistry validation:
 
@@ -79,7 +83,9 @@ See the [Quick Start](docs/getting-started/quick-start.md) for a full walkthroug
 
 ## Dependencies
 
-ATLAS uses companion libraries, typically managed as Git submodules:
+ATLAS uses companion libraries: FiNeR (v2.3.0), CEA and PiNeR are Git submodules; ORION (2.x) is required by
+release and checked out by the configure. ORION and FiNeR can also be given as external clones (see
+[Versioning](docs/development/versioning.md#how-atlas-requires-its-libraries)):
 
 | Library | Role |
 |---|---|
@@ -96,10 +102,10 @@ Optional ecosystem components: **OpenMP**, **TecIO**, and Python packages from `
 ATLAS/
 |- src/                  # Fortran core and tool sources
 |- database/             # Databases and KAnT package
-|- docs/                 # MkDocs documentation source
+|- docs/                 # documentation source (Zensical, mkdocs.yml)
 |- test/                 # Reference and regression cases
 |- scripts/              # Build and workflow helpers
-|- lib/                  # Dependencies/submodules
+|- lib/                  # Submodules (FiNeR, cea, PiNeR) and the release of ORION
 |- bin/                  # Built executables (after build)
 |- install.sh            # Build helper script
 |- CMakeLists.txt

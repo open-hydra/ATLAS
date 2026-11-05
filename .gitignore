@@ -22,6 +22,10 @@ build
 scripts/setvars.sh
 CMakePresets.json
 
+# Release of ORION checked out by the configure (cmake/SemVerDeps.cmake), and the one selected
+deps.lock
+lib/ORION
+
 # Executables
 bin
 
@@ -30,10 +34,9 @@ node_modules/
 package-lock.json
 yarn.lock
 
-# Build output
-docs/.vitepress/dist/
-docs/.vitepress/cache/
+# Documentation site (zensical build) and Zensical's cache
 site
+.cache
 
 # Development
 .DS_Store

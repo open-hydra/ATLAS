@@ -10,21 +10,22 @@ from __future__ import annotations
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QComboBox, QDialog, QFormLayout, QFrame, QGridLayout,
-    QGroupBox, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QListWidget,
-    QListWidgetItem, QMessageBox, QPushButton, QSplitter, QTableWidget,
-    QTableWidgetItem, QTabWidget, QTreeWidget, QTreeWidgetItem, QVBoxLayout,
-    QWidget,
+    QAbstractItemView, QButtonGroup, QComboBox, QDialog, QFormLayout, QFrame,
+    QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QInputDialog, QLabel,
+    QListWidget, QListWidgetItem, QMessageBox, QPushButton, QSplitter,
+    QTableWidget, QTableWidgetItem, QTabWidget, QTreeWidget, QTreeWidgetItem,
+    QVBoxLayout, QWidget,
 )
 from PyQt6.QtGui import QBrush, QColor, QFont, QIcon
 
 from . import faces as facemod
 from . import filekeys, icons, mesh_io
 from .bcmodel import (
-    BCSection, ENUM_KEY_VALUES, KEYWORD_BCS, TYPED_BCS, file_keys_of,
-    suggested_keys,
+    BCSection, ENUM_KEY_VALUES, KEYWORD_BCS, REFUSED_BC_KEYS, TYPED_BCS,
+    file_keys_of, suggested_keys,
 )
 from .bcbdialogs import NewBCDialog
+from .bcview import WrittenView
 from .filewidgets import FileColumn, FilesDialog
 from .viewport import MeshViewport
 from .widgets import Card
@@ -67,6 +68,7 @@ class BCBPanel(QWidget):
         self._editing_section = None   # name loaded in the section editor
         self._name_colors = {}
         self.color_mode = "bc"         # "bc" or "block"
+        self.view_mode = "assigned"    # the deck's BCs on the faces, or what BCB "written"
         self._build_ui()
 
     @property
@@ -90,7 +92,7 @@ class BCBPanel(QWidget):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([340, 800, 520])
+        splitter.setSizes([self.kit.px(340), self.kit.px(800), self.kit.px(520)])
         root.addWidget(splitter)
 
     def view_tools(self):
@@ -131,7 +133,7 @@ class BCBPanel(QWidget):
         self.color_combo.addItem("By BC", "bc")
         self.color_combo.addItem("By block index", "block")
         self.color_combo.setToolTip("How faces are coloured in the 3-D view.")
-        self.color_combo.setMinimumWidth(130)
+        kit.sized(self.color_combo.setMinimumWidth, 130)
         self.color_combo.currentIndexChanged.connect(self._on_color_mode_changed)
         group = QHBoxLayout()
         group.setSpacing(6)
@@ -171,14 +173,86 @@ class BCBPanel(QWidget):
         return card
 
     def _build_center_panel(self):
+        card = Card()
+        kit = self.kit
+        self.mode_buttons = {}
+        group = QButtonGroup(card)
+        mode = QHBoxLayout()
+        mode.setSpacing(0)
+        for key, text, pos, tip in (
+                ("assigned", "Assigned", "left", "Every face in the colour of the BC the deck "
+                 "assigns it; a click picks the face"),
+                ("written", "Written", "right", "Every boundary cell in the colour of the BC "
+                 "BCB wrote for it (fromATLAStoSolver/); a click shows its record")):
+            button = kit.button(text, lambda _c=False, k=key: self.set_view_mode(k), None,
+                                None, seg=pos, tip=tip)
+            button.setCheckable(True)
+            button.setChecked(key == self.view_mode)
+            group.addButton(button)
+            self.mode_buttons[key] = button
+            mode.addWidget(button)
+        header = kit.panel_header("cube", "3-D VIEW")
+        header.addLayout(mode)
+        card.body.addLayout(header)
         frame = QFrame()
         frame.setObjectName("ViewportFrame")
         lay = QVBoxLayout(frame)
         lay.setContentsMargins(3, 3, 3, 3)
         self.viewport = MeshViewport()
         self.viewport.face_picked.connect(self._on_face_picked)
+        self.viewport.cell_picked.connect(self._on_cell_picked)
         lay.addWidget(self.viewport)
-        return frame
+        card.body.addWidget(frame, 1)
+        self.written_view = WrittenView(kit)
+        self.written_view.changed.connect(self._refresh_written)
+        self.written_view.run_requested.connect(lambda: self.shell.set_stage("run"))
+        self.written_view.setVisible(False)
+        card.body.addWidget(self.written_view)
+        self.pick_label = kit.hint("Click a boundary cell for the record BCB wrote for it.")
+        self.pick_label.setVisible(False)
+        card.body.addWidget(self.pick_label)
+        return card
+
+    # -- what BCB wrote --------------------------------------------------
+    def set_view_mode(self, mode):
+        """The deck's BCs on the faces (``assigned``) or the BC of every
+        boundary cell as BCB wrote it (``written``)."""
+        self.view_mode = mode
+        button = self.mode_buttons[mode]
+        if not button.isChecked():
+            button.setChecked(True)
+        written = mode == "written"
+        self.written_view.setVisible(written)
+        self.pick_label.setVisible(written)
+        for widget in (getattr(self, "color_combo", None), getattr(self, "labels_chk", None)):
+            if widget is not None:
+                widget.setEnabled(not written)
+        if written:
+            self.pick_label.setText("Click a boundary cell for the record BCB wrote for it.")
+            self._refresh_written()
+        else:
+            self.viewport.set_written(None)
+            self._refresh_viewport_colors()
+
+    def written_changed(self):
+        """BCB may have written its files again: read them when shown."""
+        if self.view_mode == "written":
+            self._refresh_written()
+
+    def _refresh_written(self):
+        if self.view_mode != "written":
+            return
+        dark = QColor(self.theme["viewport_bg"]).lightnessF() < 0.5
+        faces = self.written_view.update(self.shell.case_dir, self.blocks,
+                                         self.doc if self.doc.nblocks else None,
+                                         self.shell.ini_path, self.shell._dirty, dark)
+        self.viewport.update_labels({})
+        if self.blocks:
+            self.viewport.set_written(faces or {})
+
+    def _on_cell_picked(self, b, f, m, n):
+        self.pick_label.setText(self.written_view.describe(b, f, m, n))
+        self._on_face_picked(b, f)
 
     def _build_right_panel(self):
         card = Card(margins=(4, 2, 4, 4))
@@ -291,7 +365,7 @@ class BCBPanel(QWidget):
         lay.addLayout(kit.panel_header("cube", "DEFINED BCS", self.sections_badge))
 
         self.sections_list = QListWidget()
-        self.sections_list.setMinimumHeight(120)
+        kit.sized(self.sections_list.setMinimumHeight, 120)
         self.sections_list.currentItemChanged.connect(self._on_section_selected)
         self.sections_list.itemDoubleClicked.connect(
             lambda _it: self._assign_current(self._current_section_name()))
@@ -328,7 +402,7 @@ class BCBPanel(QWidget):
         self.param_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch)
         self.param_table.verticalHeader().setVisible(False)
-        self.param_table.verticalHeader().setDefaultSectionSize(28)
+        kit.table_rows(self.param_table)
         self.param_table.setShowGrid(False)
         self.param_table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
@@ -531,6 +605,9 @@ class BCBPanel(QWidget):
                     self.viewport.set_face_color(b, f, self._face_display_color(b, val))
                     if val:
                         label_map[(b, f)] = val
+        if self.view_mode == "written":
+            self._refresh_written()
+            return
         self.viewport.update_labels(label_map)
 
     def _refresh_assign_combo(self):
@@ -710,6 +787,11 @@ class BCBPanel(QWidget):
         item = self.sections_list.currentItem()
         return item.data(Qt.ItemDataRole.UserRole) if item else None
 
+    def open_section(self, name):
+        """Show BC *name* in the Build tab's editor."""
+        self.right_tabs.setCurrentIndex(1)
+        self._select_section_in_list(name)
+
     def _select_section_in_list(self, name):
         for i in range(self.sections_list.count()):
             it = self.sections_list.item(i)
@@ -717,14 +799,18 @@ class BCBPanel(QWidget):
                 self.sections_list.setCurrentRow(i)
                 return
 
+    def _taken_names(self):
+        """Names a BC cannot take: the keyword BCs and every section of the
+        case file, whichever tool owns it (an ICB zone has no prefix either)."""
+        return self.shell.doc.section_names() | set(KEYWORD_BCS)
+
     def _new_section(self):
-        dialog = NewBCDialog(
-            self, self.kit, list(self.doc.sections) + KEYWORD_BCS,
-            self.shell.case_dir)
+        taken = self._taken_names()
+        dialog = NewBCDialog(self, self.kit, taken, self.shell.case_dir)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         name, bc_type, files = dialog.result_values()
-        if not name or name in self.doc.sections or name in KEYWORD_BCS:
+        if not name or name in taken:
             return
         section = BCSection(name, bc_type or "wall")
         section.params.update(files)
@@ -738,9 +824,10 @@ class BCBPanel(QWidget):
         name = self._current_section_name()
         if not name:
             return
+        taken = self._taken_names()
         new = f"{name}_copy"
         i = 2
-        while new in self.doc.sections:
+        while new in taken:
             new = f"{name}_copy{i}"; i += 1
         self.doc.add_section(self.doc.sections[name].clone_as(new))
         self._refresh_sections_list()
@@ -756,7 +843,7 @@ class BCBPanel(QWidget):
         new = new.strip()
         if not ok or not new or new == old:
             return
-        if new in self.doc.sections or new in KEYWORD_BCS:
+        if new in self._taken_names():
             QMessageBox.warning(self, "Name in use", f"'{new}' is already used.")
             return
         self.doc.rename_section(old, new)
@@ -827,11 +914,15 @@ class BCBPanel(QWidget):
         sec = self.doc.sections[name]
         sec.type = self.sec_type_combo.currentText().strip()
         params = OrderedDict()
+        self.param_table.blockSignals(True)
         for r in range(self.param_table.rowCount()):
             k = self._cell(self.param_table, r, 0)
             v = self._cell(self.param_table, r, 1)
+            if self.param_table.item(r, 0) is not None:
+                self._mark_key(self.param_table.item(r, 0))
             if k:
                 params[k] = v
+        self.param_table.blockSignals(False)
         sec.params = params
         self.file_column.refresh()
         self._refresh_sections_list_label(name)
@@ -921,8 +1012,18 @@ class BCBPanel(QWidget):
     def _table_append(self, table, key, value):
         r = table.rowCount()
         table.insertRow(r)
-        table.setItem(r, 0, QTableWidgetItem(str(key)))
+        item = QTableWidgetItem(str(key))
+        if table is self.param_table:
+            self._mark_key(item)
+        table.setItem(r, 0, item)
         table.setItem(r, 1, QTableWidgetItem(str(value)))
+
+    def _mark_key(self, item):
+        """A key BCB refuses in red, with the reason as its tooltip."""
+        why = REFUSED_BC_KEYS.get(item.text().strip())
+        item.setData(Qt.ItemDataRole.ForegroundRole,
+                     self._brush(self.theme["danger"]) if why else None)
+        item.setToolTip(f"BCB refuses this key: {why}" if why else "")
 
     def _cell(self, table, r, c):
         it = table.item(r, c)

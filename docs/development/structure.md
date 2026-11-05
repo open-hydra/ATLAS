@@ -23,9 +23,9 @@ ATLAS/
 │
 ├── lib/                    # Library code
 │   ├── cea/                # CEA (Chemical Equilibrium & Applications)
-│   ├── ORION/              # ORION multi-format I/O toolkit
-│   ├── PiNeR/              # PiNeR Python INI parser
-│   └── third_party/FiNeR/  # FiNeR Fortran INI reader
+│   ├── FiNeR/              # FiNeR Fortran INI reader
+│   ├── ORION/              # ORION multi-format I/O toolkit (a release, checked out by the configure)
+│   └── PiNeR/              # PiNeR Python INI parser
 │
 ├── test/                   # Test cases, one folder per case
 │   ├── CMakeLists.txt      # Registers every case with CTest
@@ -39,7 +39,7 @@ ATLAS/
 │   └── scripts/            # Database maintenance scripts
 │
 ├── cmake/                  # CMake modules (compiler flags, OpenMP detection)
-├── GUI/                    # ATLAS case-setup GUI (PyQt): GPB phases + BCB BCs
+├── GUI/                    # ATLAS GUI (PyQt): the case, its phases, BCs and initial state, and the runs
 ├── docs/                   # This documentation
 ├── scripts/                # Utility scripts
 └── build/                  # Build output (created by CMake, git-ignored)
@@ -54,6 +54,8 @@ ATLAS/
 | **MDB** | Splits mesh and BC data across parallel partitions | `src/MDB/` | `bin/MDB` | Mesh + BC files → per-partition files |
 | **STB** | Computes spatially varying source terms | `src/STB/` | `bin/STB` | Mesh + INI → source-term data |
 | **GPB** | Builds thermodynamic phase-property tables from CEA and Cantera | `src/GPB/` | `ATLAS GPB` | INI + databases → thermo/transport tables |
+| **KAnT** | 0-D and 1-D Cantera runs to check a mechanism | `database/KAnT/` | `ATLAS KAnT` | INI + mechanism → `KAnT-out.dat` |
+| **GUI** | Sets up the case and runs GPB, BCB and ICB | `GUI/` | `ATLAS GUI` | INI + mesh ⇄ the tools |
 
 Each tool's internal file layout follows the same conventions — see
 [Source Layout](./fortran-guide.md#source-layout) in the Fortran Development Guide.
@@ -64,7 +66,7 @@ Each tool's internal file layout follows the same conventions — see
 |---|---|---|---|
 | **CEA** | NASA chemical-equilibrium and thermodynamic property solver (>2000 species) | `lib/cea/` | [nasa/cea](https://github.com/nasa/cea) |
 | **ORION** | Multi-format structured multi-block I/O (Tecplot binary, VTK, PLOT3D) | `lib/ORION/` | [MarcoGrossi92/ORION](https://github.com/MarcoGrossi92/ORION) |
-| **FiNeR** | Fortran INI parser, used by all four Fortran tools | `lib/third_party/FiNeR/` | [szaghi/FiNeR](https://github.com/szaghi/FiNeR) |
+| **FiNeR** | Fortran INI parser, used by all four Fortran tools | `lib/FiNeR/` | [szaghi/FiNeR](https://github.com/szaghi/FiNeR) |
 | **PiNeR** | Python INI parser, used by GPB | `lib/PiNeR/` | [MarcoGrossi92/PiNeR](https://github.com/MarcoGrossi92/PiNeR) |
 
 Cantera and CoolProp are external Python dependencies used by GPB for kinetics
@@ -74,13 +76,14 @@ and real-fluid properties respectively.
 
 - **Build Tool**: CMake 3.23+
 - **Languages**: Fortran (core), C++ (optional), Python (tools)
-- **Supported Compilers**: GNU Fortran (≥9), Intel ifort (≥2021)
+- **Supported Compilers**: GNU (`gfortran`, `g++`), Intel oneAPI (`ifx`, `icpx`)
 - **Presets**: `default` (all components, Intel/GNU)
 - **Parallelization**: OpenMP (optional, off by default); MPI is not currently wired up
 
 ### CMake Preset Configuration
 
-The `CMakePresets.json` defines the `default` preset with:
+The `CMakePresets.json` that `install.sh` writes defines the `default` preset with:
+
 - Compiler paths (GFortran, C++)
 - Library paths (ORION, FiNeR, CEA, etc.)
 - Optional features: TecIO, OpenMP
@@ -89,6 +92,7 @@ The `CMakePresets.json` defines the `default` preset with:
 
 - `FindOpenMP_Fortran.cmake` — OpenMP detection for Fortran
 - `SetFortranFlags.cmake` — Compiler-specific optimization flags
+- `SetCompileFlag.cmake` — test of a compiler flag before it is added
 - `SetParallelizationLibrary.cmake` — Parallel backend setup
 
 ## Testing Structure
@@ -111,7 +115,7 @@ test/
 ```bash
 cd build
 ctest --output-on-failure
-ctest -L BCB                  # run one tool's cases (labels: BCB, ICB, MDB, STB, GPB)
+ctest -L BCB                  # run one tool's cases (labels: BCB, ICB, MDB, STB, GPB, GUI)
 ctest -j 4                    # run in parallel
 ```
 
@@ -137,15 +141,17 @@ Notes:
 
 ## Documentation
 
-- **Source**: `docs/` (You are here!)
-- **Build**: MkDocs + Material for MkDocs
-- **Output**: Static HTML
+- **Source**: `docs/`, configured by `mkdocs.yml`
+- **Build**: [Zensical](https://zensical.org), pinned in `requirements-docs.txt` (MkDocs with Material for MkDocs
+  builds the same files)
+- **Output**: Static HTML in `site/`, published to GitHub Pages from `main` by `.github/workflows/docs.yml`
 
 Local commands:
 
 ```bash
-mkdocs serve
-mkdocs build
+pip install -r requirements-docs.txt
+zensical serve            # preview at http://localhost:8000
+zensical build --strict   # what the workflow runs: a warning (a broken link) fails the build
 ```
 
 ## Adding New Components
