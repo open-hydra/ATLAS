@@ -7,188 +7,119 @@ hide:
 
 <div class="atlas-hero" markdown>
 
-<p class="atlas-hero__eyebrow">Pre-processing for the Hydra solvers</p>
+<div class="atlas-hero__text" markdown>
+
+<p class="atlas-hero__eyebrow">HYDRA CFD SUITE</p>
 
 <h1 class="atlas-hero__title">ATLAS</h1>
 
-<p class="atlas-hero__lead">From a mesh and one INI file to the input of the solvers: phase tables, boundary
-conditions, initial fields, source terms, and the decomposition of the mesh for parallel runs.</p>
+<p class="atlas-hero__lead">Open-source pre-processing tools for multi-physics simulations. Generate thermodynamic and transport tables, boundary conditions and initial fields for the Hydra solvers.</p>
+
+<p class="atlas-hero__cmd"><span>$</span> ATLAS GPB BCB ICB</p>
 
 [Get started](getting-started/index.md){ .md-button .md-button--primary }
-[Quick Start](getting-started/quick-start.md){ .md-button .atlas-hero__ghost }
-[ATLAS GUI](user-guide/gui.md){ .md-button .atlas-hero__ghost }
+[Tutorials](tutorials/index.md){ .md-button .atlas-hero__ghost }
 
 <p class="atlas-hero__name"><strong>A</strong>uxiliary <strong>T</strong>oolbox and <strong>L</strong>ibraries for
-hydr<strong>A</strong> <strong>S</strong>olvers · Fortran and Python · GPL-3.0</p>
+Hydr<strong>A</strong> <strong>S</strong>olvers</p>
 
 </div>
 
-## One case, one input file, one output directory
+<div class="atlas-hero__shot" markdown>
 
-Every tool reads its sections of the same `input.ini` in the case directory and writes its products into
-`fromATLAStoSolver/`, the directory the solvers read.
+![The ATLAS GUI on the nozzle of the Quick Start: the nozzle law and the pressure field ICB wrote](user-guide/images/gui-initial-field.png)
 
-<div class="atlas-flow" markdown>
-
-<div class="atlas-flow__step atlas-flow__step--io" markdown>
-<span class="atlas-flow__tag">Case</span>
-
-**`input.ini`**, the mesh (`mesh.tec`, `.p3d`, `.szplt`) and the [databases](databases/index.md)
-</div>
-
-<div class="atlas-flow__step" markdown>
-<span class="atlas-flow__tag">GPB</span>
-
-[**Phases**](user-guide/gpb/index.md): `phase.txt`, `thermo.dat`, `transport.dat`, chemistry tables
-</div>
-
-<div class="atlas-flow__step" markdown>
-<span class="atlas-flow__tag">BCB</span>
-
-[**Boundaries**](user-guide/bcb/index.md): `bc.txt`, one per multigrid level
-</div>
-
-<div class="atlas-flow__step" markdown>
-<span class="atlas-flow__tag">ICB</span>
-
-[**Initial field**](user-guide/icb/index.md): `ic.tec` or `ic.vtm`
-</div>
-
-<div class="atlas-flow__step atlas-flow__step--opt" markdown>
-<span class="atlas-flow__tag">STB · MDB</span>
-
-[**Sources**](user-guide/stb/index.md) and the [**decomposition**](user-guide/mdb/index.md) for MPI
-</div>
-
-<div class="atlas-flow__step atlas-flow__step--io" markdown>
-<span class="atlas-flow__tag">Solvers</span>
-
-**`fromATLAStoSolver/`**, read by MOSE, ARES, Q2D, FUSS, IGLOO, ICE
 </div>
 
 </div>
 
-=== "Shell"
+<p class="atlas-kicker">The toolbox</p>
 
-    ```bash
-    ATLAS GPB                                                    # phase tables
-    cp fromATLAStoSolver/phase.txt fromATLAStoSolver/thermo.dat .  # BCB and ICB read them here
-    ATLAS BCB ICB                                                # boundary conditions, initial field
-    ```
+## Everything you need before solver runtime { .atlas-heading }
 
-=== "GUI"
+<p class="atlas-sub" markdown>Set the case up in the [GUI](user-guide/gui.md) from the mesh alone: it writes the
+setup of every tool and runs them. The same tools run from the shell.</p>
 
-    ```bash
-    ATLAS GUI -i input.ini       # set up the case, then Run (Cmd/Ctrl+R): GPB, BCB, ICB
-    ```
+<div class="atlas-tools" markdown>
 
-=== "Install"
-
-    ```bash
-    git clone https://github.com/open-hydra/ATLAS.git
-    cd ATLAS
-    ./install.sh build           # Fortran tools, the ATLAS command, the conda environment ct-env
-    ```
-
-The [Quick Start](getting-started/quick-start.md) builds a 3-D nozzle case with these commands.
-
-## Where to start
-
-<div class="grid cards" markdown>
-
--   :material-monitor-dashboard:{ .lg .middle } __Set up a case in a window__
-
-    ---
-
-    The phases, the boundary conditions on the 3-D mesh, the initial state, the checks, and the runs of GPB, BCB
-    and ICB, with what they wrote drawn back.
-
-    [:octicons-arrow-right-24: ATLAS GUI](user-guide/gui.md)
-
--   :material-console:{ .lg .middle } __Run the tools from the shell__
-
-    ---
-
-    Install ATLAS, then build the phase tables, the boundary conditions and the initial field of a nozzle.
-
-    [:octicons-arrow-right-24: Getting Started](getting-started/index.md)
-
--   :material-file-cog-outline:{ .lg .middle } __Look up a key__
-
-    ---
-
-    Every key of every tool, with its default and its allowed values, and what the tools check in an INI file.
-
-    [:octicons-arrow-right-24: INI Files](user-guide/ini.md)
-
--   :material-database:{ .lg .middle } __Choose a mechanism or a database__
-
-    ---
-
-    42 mechanism files (Cantera yaml), the NASA and Burcat thermodynamics, CEA and Lennard-Jones transport, real-fluid
-    equations of state.
-
-    [:octicons-arrow-right-24: Databases](databases/index.md)
-
--   :material-school-outline:{ .lg .middle } __Learn from the reference cases__
-
-    ---
-
-    The cases of the test suite, tool by tool, with what each one proves.
-
-    [:octicons-arrow-right-24: Tutorials](tutorials/index.md)
-
--   :material-source-branch:{ .lg .middle } __Work on ATLAS__
-
-    ---
-
-    The build, the code layout, the regression tests and how to contribute.
-
-    [:octicons-arrow-right-24: Developer Guide](development/index.md)
+[:material-flask-outline: <b>Phase building</b> <i>Define gas, liquid, and solid phases with consistent property models.</i>](user-guide/gpb/index.md){ .atlas-tool }
+[:material-cube-outline: <b>Boundary conditions</b> <i>Configure inlets, outlets, walls, and multi-patch boundaries for complex simulation domains.</i>](user-guide/bcb/index.md){ .atlas-tool }
+[:material-gradient-horizontal: <b>Fields initialization</b> <i>Initialize every sort of fields using constants, profiles, or interpolation procedures.</i>](user-guide/icb/index.md){ .atlas-tool }
+[:material-database-outline: <b>Data libraries</b> <i>Standardize and customize thermodynamic and transport databases for application-specific modeling.</i>](databases/index.md){ .atlas-tool }
+[:material-view-split-vertical: <b>Mesh decomposition</b> <i>Split multi-block meshes for optimal MPI load balance.</i>](user-guide/mdb/index.md){ .atlas-tool }
+[:material-chart-bell-curve-cumulative: <b>Kinetic engines</b> <i>Load, validate, and inspect reaction mechanisms with dedicated thermo-chemical analysis tools.</i>](user-guide/kant/index.md){ .atlas-tool }
 
 </div>
 
-## The tools
+<p class="atlas-kicker"></p>
 
-| Tool | Name | Builds | Language |
-|---|---|---|---|
-| [**GPB**](user-guide/gpb/index.md) | General Phase Builder | thermodynamic, transport and chemistry tables of ideal-gas, real-fluid, condensed and solid phases | Python |
-| [**BCB**](user-guide/bcb/index.md) | Boundary Condition Builder | the BC record of every boundary cell: inlets, walls, connections, chimera, gas-surface interaction | Fortran |
-| [**ICB**](user-guide/icb/index.md) | Initial Condition Builder | the initial field: uniform, profiles, zones, nozzle law, interpolation of a previous solution | Fortran |
-| [**STB**](user-guide/stb/index.md) | Source Terms Builder | volumetric heat sources, remapped conservatively from another mesh; the area tables of Q2D | Fortran |
-| [**MDB**](user-guide/mdb/index.md) | Mesh Decomposition Builder | more, smaller blocks for MPI balance, with the BC files of every multigrid level rewritten | Fortran |
-| [**KAnT**](user-guide/kant/index.md) | Kinetic Analyzer and Tester | 0-D and 1-D Cantera runs to check a mechanism before a CFD run | Python |
+## Hydra CFD Suite { .atlas-heading }
 
-Each tool stops on an input it cannot honour, naming the section, the key and, for a misspelt key, the closest
-known one ([INI Files](user-guide/ini.md#what-the-tools-check)).
+<p class="atlas-sub">Hydra couples solvers of gases, real fluids, solids, particles and radiation in one
+simulation. ATLAS writes the files each of them reads.</p>
 
-## The GUI
+<div class="hydra" markdown>
 
-<div class="atlas-shot" markdown>
+<div class="hydra__case" markdown>
 
-![The Initial stage of the ATLAS GUI on the nozzle of the Quick Start: the nozzle law with its A/A* plot, and the pressure field ICB wrote](user-guide/images/gui-initial-field.png){ loading=lazy }
+<p class="hydra__label">Your case</p>
+
+<p class="hydra__file" markdown>:material-grid: structured mesh</p>
+
+<p class="hydra__file" markdown>:material-database: [databases](databases/index.md)</p>
 
 </div>
 
-`ATLAS GUI` holds the case in six stages, in the order the tools run: **Case**, **Phases** (GPB, with the tables
-it wrote), **Boundaries** (BCB, the BC of every face, or of every cell as written), **Initial** (ICB, the state of
-every cell, or the field written), **Review** (the INI and every check) and **Run**. What it saves is the
-`input.ini` the tools read: a case set up in the window runs from the shell, and the reverse.
+<div class="hydra__atlas is-here" markdown>
 
-[:octicons-arrow-right-24: The ATLAS GUI](user-guide/gui.md)
+<p class="hydra__name">ATLAS</p>
 
-## In the Hydra suite
+<p class="hydra__tools" markdown>[GPB](user-guide/gpb/index.md) [BCB](user-guide/bcb/index.md) [ICB](user-guide/icb/index.md) [STB](user-guide/stb/index.md) [MDB](user-guide/mdb/index.md) [KAnT](user-guide/kant/index.md)</p>
 
-Each phase GPB builds is the input of one Hydra solver; [Hydra](https://github.com/open-hydra) couples them.
+</div>
 
-| Phase (`[GPB-Phase*] type`) | Solver | |
-|---|---|---|
-| `ideal-gas`, `heavy-gas` | [MOSE](https://github.com/open-hydra/MOSE) | compressible Euler and Navier–Stokes on multi-block structured grids |
-| `ideal-gas` on a 2-D mesh | [Q2D](https://github.com/open-hydra/Q2D) | the 2-D (x, y) cases, planar or axisymmetric |
-| `real-fluid` | [ARES](https://github.com/open-hydra/ARES) | real-fluid flow |
-| `solid` | [FUSS](https://github.com/open-hydra/FUSS) | heat conduction in solids |
-| dispersed, `modeling = lagrangian` | [IGLOO](https://github.com/open-hydra/IGLOO) | Lagrangian particles |
-| dispersed, `modeling = eulerian` | [ICE](https://github.com/open-hydra/ICE) | Eulerian condensed phase |
+<div class="hydra__link">
+<span class="hydra__link-line"></span>
+<span class="hydra__link-bottom">input files for each run</span>
+</div>
 
-[GROOT](https://github.com/open-hydra/GROOT), the radiative-transfer solver of the suite, takes no ATLAS phase.
-ATLAS is not required by the solvers: their input files can be written by hand or by another pre-processor.
+<div class="hydra__suite" markdown>
+
+<p class="hydra__label" markdown>[Hydra](https://github.com/open-hydra) · the coupled simulation</p>
+
+<div class="hydra__solvers" markdown>
+
+[<b>MOSE</b> compressible flow <i>ideal-gas</i>](https://github.com/open-hydra/MOSE){ .hydra__solver .hydra__solver--gas }
+[<b>GROOT</b> radiative transfer <i>no ATLAS phase</i>](https://github.com/open-hydra/GROOT){ .hydra__solver .hydra__solver--radiation }
+[<b>ARES</b> real-fluid flow <i>real-fluid</i>](https://github.com/open-hydra/ARES){ .hydra__solver .hydra__solver--fluid }
+[<b>FUSS</b> heat conduction in solids <i>solid</i>](https://github.com/open-hydra/FUSS){ .hydra__solver .hydra__solver--solid }
+[<b>IGLOO</b> Lagrangian particles <i>dispersed</i>](https://github.com/open-hydra/IGLOO){ .hydra__solver .hydra__solver--particle }
+[<b>ICE</b> Eulerian particles <i>dispersed</i>](https://github.com/open-hydra/ICE){ .hydra__solver .hydra__solver--particle }
+
+</div>
+
+</div>
+
+<div class="hydra__libs" markdown>
+
+<p class="hydra__label">Built on</p>
+
+[<b>ORION</b> Tecplot, VTK and PLOT3D I/O](https://MarcoGrossi92.github.io/ORION/){ .hydra__lib }
+[<b>FLINT</b> thermochemistry](https://MarcoGrossi92.github.io/FLINT/){ .hydra__lib }
+[<b>OSLO</b> ODE integrators](https://github.com/MarcoGrossi92/OSLO){ .hydra__lib }
+[<b>FiNeR</b> INI file parser](https://github.com/szaghi/FiNeR){ .hydra__lib }
+
+</div>
+
+</div>
+
+<div class="atlas-links" markdown>
+
+[Quick Start](getting-started/quick-start.md)
+[User Guide](user-guide/index.md)
+[ATLAS GUI](user-guide/gui.md)
+[Tutorials](tutorials/index.md)
+[Databases](databases/index.md)
+[Developer Guide](development/index.md)
+
+</div>

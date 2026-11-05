@@ -112,7 +112,7 @@ boundary conditions, and a new BC cannot take their name.
   tools read, else the one mesh file there — and the files of its
   `fromATLAStoSolver/`. A folder with **no INI** opens too: the case is then
   the files alone, to look at — the tables, the boundary file, the initial
-  field — and a deck written from there is a new one. Choosing a
+  field — and a deck written from there is a new one. Choosing an
   `fromATLAStoSolver/` folder itself opens the case around it; a folder of the
   tools' files with no `fromATLAStoSolver/` (copied out of a run) is read as
   it is.
@@ -303,8 +303,8 @@ shows a card for each thing the state needs, for the phases of the block:
 | **Solid**, **Dispersed phase**, **Real fluid** | `T` and `material`; `krho`, `kT`, `dp` or `rp`, `Pp`; `p` with `T` or `h` |
 | **Nozzle flow**, **Interpolation** | `p0`, `T0`, `nozzle-direction`, `nozzle-threshold`; the source, the law, `old-block-id`, `old-species` |
 
-The species are those of the phase files ICB reads (`*phase.txt` in the case
-directory, then `fromATLAStoSolver/`, where GPB writes them), else the species
+The species are those of the phase files ICB reads (each `*phase.txt` of the case directory, else the one GPB
+wrote into `fromATLAStoSolver/`), else the species
 list of the gas in the Phases stage. The angles `alpha` and `beta` are shown in
 degrees and written in radians, which is what ICB reads ([Velocity](./icb/ic-setup.md#velocity)).
 A gas given by total conditions takes its speed either way: ICB expands `p0` and
@@ -568,26 +568,24 @@ window's title the INI and whether it has unsaved changes.
 
 ### Before the run
 
-BCB and ICB read what they need from the case directory under fixed names;
-two of them a GUI case does not always have there, and the run provides them,
-saying so in the log:
+BCB and ICB read what they need under fixed names: the mesh in the case
+directory, the phase files there or in `fromATLAStoSolver/`. The list says which
+files they will read:
 
 * **The mesh.** BCB and ICB read `mesh.tec`, `mesh.p3d` or `mesh.szplt`, the
   first that exists. A mesh loaded under another name (`chamber.p3d`) is
   linked under the default name of its format (`mesh.p3d → chamber.p3d`)
-  before BCB or ICB runs. When another default mesh comes first (a
-  `mesh.tec` next to the `mesh.p3d` on the screen), the run warns that the
-  tools read that one.
-* **The phase files.** BCB and ICB read the `*phase.txt` of the case
-  directory, with their `thermo.dat` or `properties.dat`; GPB writes them into
-  `fromATLAStoSolver/`. With **Give BCB and ICB the phase tables GPB writes**
-  (on by default, remembered), the tables GPB has just written are copied into
-  the case directory after GPB, before BCB and ICB; its other products
-  (`transport.dat`, `composition.txt`, ...) are for the solver and stay where
-  they are. Without GPB in the run, the list names the phase files BCB and ICB
-  will read, and warns when one is older than GPB's last, when one belongs to
-  no phase of the deck, and when there is none (the tools then look for the
-  `phase.txt` of one ideal gas, and stop without it).
+  before BCB or ICB runs, and the log says so. When another default mesh
+  comes first (a `mesh.tec` next to the `mesh.p3d` on the screen), the run
+  warns that the tools read that one.
+* **The phase files.** BCB and ICB read each `*phase.txt` of the case
+  directory, else the one GPB wrote into `fromATLAStoSolver/`, with its
+  `thermo.dat` or `properties.dat` from the same directory: with GPB in the
+  run, the list names those GPB will write, and nothing is copied. The list
+  warns when a phase file of the case directory hides one GPB writes or wrote
+  (remove it to read GPB's), when one belongs to no phase of the deck, and
+  when there is none (the tools then look for the `phase.txt` of one ideal
+  gas, and stop without it).
 
 The list also says when the INI is saved first, when a tool is not built or
 GPB has no Python with Cantera (the run cannot start), when a `filelist.txt` in

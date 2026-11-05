@@ -1,7 +1,7 @@
 """The screenshots of the ATLAS GUI in the documentation (gui-*.png, next to this file).
 
 usage, with the Python of ct-env, from the ATLAS directory, on a case the tools have run on
-(the Quick Start case, after its three steps):
+(the Quick Start case, after `ATLAS GPB BCB ICB`):
 
     python -B docs/user-guide/images/gui-screenshots.py <case-folder>
 

@@ -214,16 +214,25 @@ patch1 = inj1
 range1 = 0.0 1.5e-3 -30.0 30.0
 patch2 = adiabatic
 range2 = 1.5e-3 9.5e-3 -30.0 30.0
-patch3 = inj2
-range3 = 9.5e-3 12.5e-3 -6.0 6.0
-patch4 = adiabatic
-range4 = 9.5e-3 12.5e-3 6.0 30.0
+patch3 = adiabatic
+range3 = 9.5e-3 12.5e-3 -30.0 -6.0
+patch4 = inj2
+range4 = 9.5e-3 12.5e-3 -6.0 6.0
+patch5 = adiabatic
+range5 = 9.5e-3 12.5e-3 6.0 30.0
+patch6 = adiabatic
+range6 = 12.5e-3 50.0e-3 -30.0 30.0
 ```
 
 Each `rangeN` is four numbers: `r_lo r_hi theta_lo theta_hi`.
 
 Cells are assigned to the **first** patch whose range they fall within. Ranges may overlap —
 order matters.
+
+The ranges must cover the whole face. A cell in none of them would be written `0`, the code of a face with no BC:
+BCB stops instead, naming the face, the number of cells left out and the first of them —
+`[ERROR] block 1 face 1 ([plate]): 300 of its 960 cells lie in none of the ranges of its patches and would be written
+0 (no BC)`. Cells that [`BC-force-connect`](connectivity.md) turns into connections count as covered.
 
 ### Multipatch via file (`range-file`)
 

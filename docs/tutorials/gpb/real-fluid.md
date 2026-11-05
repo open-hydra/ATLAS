@@ -1,6 +1,6 @@
-# Tutorial: Real-Fluid Phase — CO₂
+# Real-Fluid Phase — CO₂
 
-**Source case:** `test/GPB/RF-co2`
+**Tool:** GPB · **Case:** `test/GPB/RF-co2` · **Run time:** a few seconds
 
 This tutorial shows how to generate a $(p, h)$ lookup table for supercritical $\text{CO}_2$ using the CoolProp backend.
 
@@ -11,7 +11,7 @@ This tutorial shows how to generate a $(p, h)$ lookup table for supercritical $\
 - Choosing the EOS backend
 - Grid sizing trade-offs
 
-## The Input File
+## The Case
 
 ```ini
 [GPB-Phase1]
@@ -47,18 +47,17 @@ $\text{CO}_2$ critical point: $T_c = 304.1\,\text{K}$, $p_c = 7.38\,\text{MPa}$.
 
 The chosen range $[8\,\text{MPa}, 15\,\text{MPa}] \times [320\,\text{K}, 450\,\text{K}]$ covers the supercritical regime used in transcritical injection studies.
 
-## Running
+## Run It
 
-Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
-deck of the repository.
+In a folder of your own (the run writes `fromATLAStoSolver/` where it runs, so not in the test folder):
 
 ```bash
-cp -r $ATLASDIR/test/GPB/RF-co2 .
-cd RF-co2
+mkdir -p ~/atlas-tutorials/gpb-real-fluid && cd ~/atlas-tutorials/gpb-real-fluid
+cp $ATLASDIR/test/GPB/RF-co2/input.ini .
 ATLAS GPB
 ```
 
-## Expected Output
+## What It Writes
 
 ```
 fromATLAStoSolver/co2-phase.txt

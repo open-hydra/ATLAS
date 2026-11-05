@@ -1,6 +1,6 @@
-# Tutorial: Cantera Ideal-Gas
+# Cantera Ideal-Gas
 
-**Source case:** `test/GPB/IG-reactive`
+**Tool:** GPB · **Case:** `test/GPB/IG-reactive` · **Run time:** a few seconds
 
 This tutorial shows how to build a reactive gas phase using a Cantera mechanism file for species thermodynamics and transport properties.
 
@@ -10,7 +10,7 @@ This tutorial shows how to build a reactive gas phase using a Cantera mechanism 
 - How to add inert species to a reactive mixture
 - How `thermo = NASA9` and `transport = cantera` interact
 
-## The Input File
+## The Case
 
 ```ini
 [GPB-Phase1]
@@ -34,18 +34,17 @@ Tmax      = 5000
 !!! info
     When `type` is not specified, GPB defaults to `type = ideal-gas`.
 
-## Running
+## Run It
 
-Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
-deck of the repository.
+In a folder of your own (the run writes `fromATLAStoSolver/` where it runs, so not in the test folder):
 
 ```bash
-cp -r $ATLASDIR/test/GPB/IG-reactive .
-cd IG-reactive
+mkdir -p ~/atlas-tutorials/gpb-cantera && cd ~/atlas-tutorials/gpb-cantera
+cp $ATLASDIR/test/GPB/IG-reactive/input.ini .
 ATLAS GPB
 ```
 
-## Expected Output
+## What It Writes
 
 ```
 fromATLAStoSolver/phase.txt

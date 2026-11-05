@@ -22,8 +22,8 @@ ATLAS is an open-source pre-processing toolbox for Hydra simulation workflows. I
 - **Source Terms Builder (STB)** - builds volumetric source term datasets for coupled simulations.
 - **Mesh Decomposition Builder (MDB)** - splits blocks to load-balance a mesh over a given number of MPI ranks, rewriting grid, solution, and BC files.
 - **KAnT (Kinetic Analyzer and Tester)** - runs 0-D and 1-D chemistry analyses (equilibrium, ignition delay, time evolution, counterflow flame).
-- **ATLAS GUI** - sets up the case (phases, boundary conditions on the 3-D mesh, initial state), checks it, runs GPB, BCB and ICB, and draws what they wrote.
-- **One input file** - the tools can be run independently or in sequence from a shared `input.ini`.
+- **ATLAS GUI** - sets up the case from the mesh alone (phases, boundary conditions on the 3-D mesh, initial state), writes the setup of every tool, checks it, runs GPB, BCB and ICB, and draws what they wrote.
+- **GUI or shell** - the same tools run from the GUI or from the shell, independently or in sequence.
 
 ## Quick Start
 
@@ -56,19 +56,22 @@ See the [Installation Guide](docs/getting-started/installation.md) for all optio
 
 ### Run a Minimal Workflow
 
-From a case directory holding `input.ini` and the mesh:
+From a case directory holding the mesh:
 
 ```bash
-ATLAS GPB
-cp fromATLAStoSolver/*phase.txt fromATLAStoSolver/*thermo.dat .   # BCB and ICB read the phase files here
-ATLAS BCB ICB
+ATLAS GUI            # set up the phases, the boundary conditions and the initial state, then Run
 ```
 
-or, in a window, with the mesh in 3-D and the runs of GPB, BCB and ICB:
+The GUI writes the setup of every tool (`input.ini`) and runs them. The same run from the shell, once the case is
+set up:
 
 ```bash
-ATLAS GUI
+ATLAS GPB BCB ICB    # phase tables, boundary conditions, initial field: all into fromATLAStoSolver/
 ```
+
+Every tool writes into `fromATLAStoSolver/`, and BCB and ICB read there the phase files GPB wrote, so nothing is
+copied between the runs; a phase file of the case directory, written by hand, is read in its place. The files of
+`fromATLAStoSolver/` are the input of a solver run (figaro moves them into its `INPUT/`).
 
 Chemistry validation:
 

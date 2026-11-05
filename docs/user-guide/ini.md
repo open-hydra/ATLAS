@@ -1,9 +1,10 @@
 # INI Files
 
 Every ATLAS tool reads its setup from an INI file, `input.ini` in the case directory unless `--input <file>` names
-another. A tool reads only the sections of its own namespace (`[GPB-*]`, `[BCB-*]`, `[ICB-*]`, `[STB-*]`, `[MDB-*]`,
-`[KAnT-*]`), the sections these name (a boundary condition, a zone), and `[ATLAS-Parameters]`: one file can hold
-the whole case, which is what the [ATLAS GUI](gui.md) writes.
+another. The [ATLAS GUI](gui.md) writes it from the case set up in its window; this page describes it for a run from
+the shell, or to edit it by hand. A tool reads only the sections of its own namespace (`[GPB-*]`, `[BCB-*]`,
+`[ICB-*]`, `[STB-*]`, `[MDB-*]`, `[KAnT-*]`), the sections these name (a boundary condition, a zone), and
+`[ATLAS-Parameters]`: one file holds the whole case.
 
 ```ini
 [ATLAS-Parameters]     ; shared by the tools

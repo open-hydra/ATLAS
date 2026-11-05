@@ -1,6 +1,6 @@
-# Tutorial: Fixed-Gas Mixture
+# Fixed-Gas Mixture
 
-**Source case:** `test/GPB/IG-fixgas`
+**Tool:** GPB · **Case:** `test/GPB/IG-fixgas` · **Run time:** a few seconds
 
 This tutorial shows how to define an ideal-gas phase entirely from explicit physical constants — no species database required. Use this approach when you have experimental or reference values for viscosity and thermal conductivity.
 
@@ -9,7 +9,7 @@ This tutorial shows how to define an ideal-gas phase entirely from explicit phys
 - How to specify a multi-species ideal-gas phase using scalar property lists
 - Which properties are required and which are derived automatically
 
-## The Input File
+## The Case
 
 ```ini
 [GPB-Phase1]
@@ -37,18 +37,17 @@ GPB derives $c_p = \gamma R / (\gamma - 1)$, $c_v = c_p / \gamma$, and $R = R_u 
 !!! tip "Over-specified sets"
     You can provide more keys than strictly needed (e.g. both `gamma` and `cp`). GPB will check consistency and raise an error if the set is contradictory.
 
-## Running
+## Run It
 
-Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
-deck of the repository.
+In a folder of your own (the run writes `fromATLAStoSolver/` where it runs, so not in the test folder):
 
 ```bash
-cp -r $ATLASDIR/test/GPB/IG-fixgas .
-cd IG-fixgas
+mkdir -p ~/atlas-tutorials/gpb-fixed-gas && cd ~/atlas-tutorials/gpb-fixed-gas
+cp $ATLASDIR/test/GPB/IG-fixgas/input.ini .
 ATLAS GPB
 ```
 
-## Expected Output
+## What It Writes
 
 ```
 fromATLAStoSolver/gasmix-phase.txt

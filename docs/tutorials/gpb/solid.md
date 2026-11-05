@@ -1,6 +1,6 @@
-# Tutorial: Solid Phase
+# Solid Phase
 
-**Source case:** `test/GPB/SP-Tvar`
+**Tool:** GPB · **Case:** `test/GPB/SP-Tvar` · **Run time:** a few seconds
 
 This tutorial shows how to define a solid material phase using the ATLAS internal solid-phase database.
 
@@ -9,7 +9,7 @@ This tutorial shows how to define a solid material phase using the ATLAS interna
 - `type = solid` configuration
 - Reading properties from the `SP-database`
 
-## The Input File
+## The Case
 
 ```ini
 [GPB-Phase1]
@@ -32,18 +32,17 @@ thermo   = SP-database
 
 The ATLAS solid-phase database is located in `database/thermo/` and includes a curated set of solid propellant and structural materials (ceramics, metals, carbides).
 
-## Running
+## Run It
 
-Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
-deck of the repository.
+In a folder of your own (the run writes `fromATLAStoSolver/` where it runs, so not in the test folder):
 
 ```bash
-cp -r $ATLASDIR/test/GPB/SP-Tvar .
-cd SP-Tvar
+mkdir -p ~/atlas-tutorials/gpb-solid && cd ~/atlas-tutorials/gpb-solid
+cp $ATLASDIR/test/GPB/SP-Tvar/input.ini .
 ATLAS GPB
 ```
 
-## Expected Output
+## What It Writes
 
 ```
 fromATLAStoSolver/solido-phase.txt

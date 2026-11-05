@@ -145,6 +145,7 @@ If plotting is enabled, KAnT also opens a Matplotlib window for the computed res
 
 ## Reference Cases
 
-Reference datasets for the ignition-delay examples are stored under `database/KAnT/data/reference/`. The packaged cases are the same ones used by the tutorial page and the regression tests.
+Reference datasets for the ignition-delay examples are stored under `database/KAnT/data/reference/`; the cases of
+`test/KAnT/` use them ([Testing](../../development/testing.md#kant-cases-testkant)).
 
-See the [KAnT tutorials](../../tutorials/kant/index.md) for case-by-case walkthroughs.
+The tutorial [Checking a Mechanism](../../tutorials/kant/index.md) runs an equilibrium and an ignition-delay case.

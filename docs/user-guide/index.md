@@ -1,8 +1,9 @@
 # ATLAS Tools — User Guide
 
-Each tool reads its sections of the case's INI file and writes its products into `fromATLAStoSolver/`, the
-directory the solvers read. Each guide opens with **what the tool can do**, then covers how to configure it;
-[INI Files](ini.md) describes what all of them share.
+Each tool builds part of the input of a Hydra run from the mesh and the [databases](../databases/index.md), and
+writes it into `fromATLAStoSolver/`, whose files a solver run reads in its `INPUT/`. The [ATLAS GUI](gui.md) sets the
+case up and runs the tools; each guide opens with **what the tool can do**, then describes its setup, the sections the
+GUI writes for it ([INI Files](ini.md) describes what all of them share).
 
 <div class="grid cards" markdown>
 
@@ -80,29 +81,34 @@ directory the solvers read. Each guide opens with **what the tool can do**, then
 
 ## Common Workflow
 
-With the `ATLAS` command in the shell, from the case directory:
+In the [GUI](gui.md), the **Run** stage runs the tools of the case in this order. From the shell, with the `ATLAS`
+command, in the case directory:
 
 ```bash
 # 1 — phase property tables (first: BCB and ICB read the phase files)
 ATLAS GPB
 
-# 2 — hand the phase files to BCB and ICB, which read them in the case directory
-cp fromATLAStoSolver/*phase.txt fromATLAStoSolver/*thermo.dat .   # *properties.dat for condensed and solid phases
-
-# 3 — boundary conditions, initial field
+# 2 — boundary conditions, initial field
 ATLAS BCB ICB
 
-# 4 — source terms (optional)
+# 3 — source terms (optional)
 ATLAS STB
 
-# 5 — decomposition for a parallel MOSE or ICE run (optional, in the solver directory)
+# 4 — decomposition for a parallel MOSE or ICE run (optional)
 ATLAS MDB
 ```
 
+The same in one command: `ATLAS GPB BCB ICB STB MDB`, which stops at the first tool that fails.
+
 !!! warning "GPB comes first"
-    The order of BCB, ICB and STB is free, but GPB must run first: BCB and ICB read the phase files GPB writes,
-    from the case directory (see the [Quick Start](../getting-started/quick-start.md#build-the-case)). MDB splits
-    what BCB and ICB wrote, so it runs last.
+    The order of BCB, ICB and STB is free, but GPB must run first: BCB and ICB read the phase files GPB writes
+    into `fromATLAStoSolver/`. MDB splits what BCB and ICB wrote there, so it runs last.
+
+!!! note "Phase files written by hand"
+    BCB, ICB, STB and MDB read each `*phase.txt` of the case directory, with its `thermo.dat` or `properties.dat`,
+    and those GPB wrote into `fromATLAStoSolver/` that the case directory does not hold. A phase file of the case
+    directory is therefore read in place of GPB's file of the same name: the launcher warns when the two differ.
+    Remove the copy to read GPB's.
 
 !!! note "Passive scalars"
     ATLAS does not write passive-scalar (`Pass`) bands: MOSE and Q2D read them by position from the initial

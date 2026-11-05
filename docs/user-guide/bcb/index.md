@@ -77,8 +77,7 @@ Use the full reference in [BC Types](./bc-types.md) for summary tables and INI s
 
 ## Workflow
 
-1. Provide the [required files](required-files.md): the mesh, and the phase files GPB wrote, copied from
-   `fromATLAStoSolver/` into the case directory.
+1. Provide the [required files](required-files.md): the mesh, and the phase files GPB wrote into `fromATLAStoSolver/`.
 2. In the INI file (`input.ini` by default), define a `[BCB-BlockN]` section for each block of the mesh and map
    `face1` … `face6` to BC names.
 3. Define each BC section that takes parameters (inlet, wall, periodic pair, ...).
@@ -97,7 +96,7 @@ ATLAS BCB --input input.ini
 - [Output Files](./output.md)
 - [Input Reference](./input-reference.md)
 
-See the [BCB reference cases](../../tutorials/bcb/index.md) for worked examples.
+See the [BCB tutorials](../../tutorials/bcb/index.md) for worked examples, and [Testing](../../development/testing.md#bcb-cases-testbcb) for the test cases.
 
 ## Next
 

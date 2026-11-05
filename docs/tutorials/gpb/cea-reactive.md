@@ -1,6 +1,6 @@
-# Tutorial: CEA Reactive Phase
+# CEA Reactive Phase
 
-**Source case:** `test/GPB/IG-ceafile-reactive-OG`
+**Tool:** GPB · **Case:** `test/GPB/IG-ceafile-reactive-OG` · **Run time:** a few seconds
 
 This tutorial shows how to use a pre-run CEA output file as the source for equilibrium composition, combined with a Cantera reaction mechanism for transport properties.
 
@@ -10,7 +10,7 @@ This tutorial shows how to use a pre-run CEA output file as the source for equil
 - Combining CEA composition with `transport = CEA`
 - The `inerts-mixing` flag
 
-## The Input File
+## The Case
 
 ```ini
 [GPB-Phase1]
@@ -34,18 +34,17 @@ inerts-mixing = true
 
 The `CEA.inp` file must be located in the same directory as `input.ini` (or an absolute path must be given). GPB reads the equilibrium composition from the section matching `CEA-section` (if specified; otherwise the first section is used).
 
-## Running
+## Run It
 
-Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
-deck of the repository.
+In a folder of your own (the run writes `fromATLAStoSolver/` where it runs, so not in the test folder):
 
 ```bash
-cp -r $ATLASDIR/test/GPB/IG-ceafile-reactive-OG .
-cd IG-ceafile-reactive-OG
+mkdir -p ~/atlas-tutorials/gpb-cea && cd ~/atlas-tutorials/gpb-cea
+cp $ATLASDIR/test/GPB/IG-ceafile-reactive-OG/{input.ini,CEA.inp} .
 ATLAS GPB
 ```
 
-## Expected Output
+## What It Writes
 
 ```
 fromATLAStoSolver/phase.txt

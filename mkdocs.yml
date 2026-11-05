@@ -93,6 +93,7 @@ extra_javascript:
 
 extra_css:
   - stylesheets/extra.css
+  - stylesheets/hydra.css      # the Hydra scheme of the home page, shared with the other codes
 
 nav:
   - Home: index.md
@@ -158,24 +159,40 @@ nav:
 
   - Tutorials:
     - Overview: tutorials/index.md
-    - GPB:
+    - Phases (GPB):
       - Overview: tutorials/gpb/index.md
-      - Fixed Gas: tutorials/gpb/fixed-gas.md
+      - Fixed-Gas Mixture: tutorials/gpb/fixed-gas.md
       - Cantera Ideal Gas: tutorials/gpb/cantera-ideal-gas.md
       - Cantera Equilibrium: tutorials/gpb/cantera-equilibrium.md
       - CEA Reactive: tutorials/gpb/cea-reactive.md
-      - Heavy Gas: tutorials/gpb/heavy-gas.md
+      - Heavy-Gas Mixture: tutorials/gpb/heavy-gas.md
       - Condensed Phase: tutorials/gpb/condensed.md
       - Solid Phase: tutorials/gpb/solid.md
       - Real Fluid: tutorials/gpb/real-fluid.md
-    - BCB:
+    - Boundary Conditions (BCB):
       - Overview: tutorials/bcb/index.md
-    - ICB:
+      - Inlets, Outlets and Walls: tutorials/bcb/walls-and-inlets.md
+      - Several Conditions on One Face: tutorials/bcb/multipatch.md
+      - Inlets From Reservoir Conditions: tutorials/bcb/reservoir-inlets.md
+      - Boundary Data From Tables: tutorials/bcb/data-files.md
+      - Connections and Periodic Faces: tutorials/bcb/connections.md
+      - Overset Blocks (Chimera): tutorials/bcb/chimera.md
+      - Particles at the Boundaries: tutorials/bcb/particles.md
+      - Gas-Surface Interaction: tutorials/bcb/gas-surface.md
+    - Initial Fields (ICB):
       - Overview: tutorials/icb/index.md
-    - KAnT:
-      - Overview: tutorials/kant/index.md
-    - MDB:
-      - Overview: tutorials/mdb/index.md
+      - A Uniform State: tutorials/icb/uniform.md
+      - Zones in a Block: tutorials/icb/zones.md
+      - Nozzle Flow: tutorials/icb/nozzle.md
+      - Profiles From Tables: tutorials/icb/profiles.md
+      - Restart From Another Solution: tutorials/icb/restart.md
+      - A Gas With Particles: tutorials/icb/particles.md
+    - Source Terms (STB):
+      - Overview: tutorials/stb/index.md
+      - A Volumetric Heat Source: tutorials/stb/heat-source.md
+      - Area Tables for Q2D: tutorials/stb/area-tables.md
+    - A Case for MPI (MDB): tutorials/mdb/index.md
+    - Checking a Mechanism (KAnT): tutorials/kant/index.md
 
   - Development:
     - Overview: development/index.md

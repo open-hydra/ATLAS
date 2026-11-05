@@ -6,7 +6,8 @@ This quick start builds the input of a 3-D De Laval nozzle case:
 - an inlet, an isothermal wall, symmetry planes and an outflow, built by BCB;
 - the nozzle initial field, built by ICB.
 
-The [ATLAS GUI](../user-guide/gui.md) builds and runs the same case in a window (`ATLAS GUI`).
+The [ATLAS GUI](../user-guide/gui.md) builds and runs the same case in a window from the mesh alone
+(`ATLAS GUI`): it writes the setup of every tool. This page runs it from the shell, with the setup written out.
 
 ## Prerequisites
 
@@ -29,10 +30,10 @@ cp $ATLASDIR/test/ICB/IG-nozzle3D/mesh.tec .
 cp $ATLASDIR/test/BCB/IG-xtheta-variable-T/Twall.dat .
 ```
 
-## One Combined input.ini
+## The Setup Of The Tools
 
-Each tool reads only its own sections of an INI file, so one `input.ini` can hold the case of all of them.
-Create `input.ini` in the case directory:
+The setup of every tool is one file, `input.ini`, in which each tool reads only its own sections: the GUI writes it
+when the case is set up in its window. For the shell, create it in the case directory:
 
 ```ini
 [GPB-Phase1]
@@ -85,32 +86,24 @@ values out of range) is described in [INI Files](../user-guide/ini.md).
 From the case directory:
 
 ```bash
-# 1. phase tables, written into fromATLAStoSolver/
-ATLAS GPB
-
-# 2. hand the phase files to BCB and ICB, which read them in the case directory
-cp fromATLAStoSolver/phase.txt fromATLAStoSolver/thermo.dat .
-
-# 3. boundary conditions and initial field, written into fromATLAStoSolver/
-ATLAS BCB ICB
+ATLAS GPB BCB ICB    # phase tables, then boundary conditions, then the initial field
 ```
 
-GPB prints one warning, `no CEApolynomials record for species 'Ar': simplified law applied`: argon has no CEA
-transport fit, and its viscosity and conductivity follow a simplified law.
+The tools run one after the other and the chain stops at the first that fails. GPB prints one warning,
+`no CEApolynomials record for species 'Ar': simplified law applied`: argon has no CEA transport fit, and its
+viscosity and conductivity follow a simplified law.
 
-!!! warning "BCB and ICB read the phase files of the case directory"
-    GPB writes `<name>phase.txt` with `<name>thermo.dat` (`<name>properties.dat` for a condensed or solid
-    phase) into `fromATLAStoSolver/`; BCB and ICB read the `*phase.txt` files, and their tables, in the
-    directory they run in. Copy them after every GPB run that changes a phase: `ATLAS GPB BCB ICB` in one command
-    works only when the case directory already holds them. The **Run** stage of the
-    [GUI](../user-guide/gui.md#before-the-run) makes this copy itself.
-
-    The phase here has no `name`, so its files have no prefix (`phase.txt`). Without the copy, BCB and ICB find no
-    phase file, look for the `phase.txt` of one ideal gas and stop with `[ERROR] phase file phase.txt not found`.
+!!! note "One directory for every tool: `fromATLAStoSolver/`"
+    Every tool writes into `fromATLAStoSolver/` of the case. GPB writes the phase files there (`phase.txt` and
+    `thermo.dat`: the phase has no `name`, so its files have no prefix), and BCB and ICB read them from there, so
+    nothing is copied. The tools can also run one at a time (`ATLAS GPB`, then `ATLAS BCB`, ...). A phase file of the
+    same name in the case directory is read in place of GPB's (a phase written by hand); the launcher warns when the
+    two differ.
 
 ## What Each Step Writes
 
-All the products go into `fromATLAStoSolver/`, the directory the solvers read their input from:
+All the products go into `fromATLAStoSolver/`. They are the input of a solver run, which reads them in its own
+`INPUT/` directory (figaro moves them there).
 
 | Tool | Files | Content |
 |---|---|---|
@@ -128,4 +121,4 @@ ls fromATLAStoSolver
 - [INI Files](../user-guide/ini.md): the shared parameters and what the tools check
 - [User Guide](../user-guide/index.md): every tool, its keys and its files
 - [ATLAS GUI](../user-guide/gui.md): the same case in a window, with the mesh in 3-D
-- [Tutorials](../tutorials/index.md): the reference cases of `test/`
+- [Tutorials](../tutorials/index.md): step-by-step cases, tool by tool

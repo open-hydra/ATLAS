@@ -1,21 +1,13 @@
-# ICB Tutorials
+# Initial Fields (ICB)
 
-All test cases referenced here are available in `test/ICB/`.
+ICB writes the state of every cell at the start of a run. Each tutorial uses the mesh and the phases of a test case
+of `test/ICB/`.
 
-!!! warning "Work in progress"
-    Detailed tutorial pages are being written.
-
-| Case | Test objective |
-|------|----------------|
-| `IG-1D` | Validate baseline uniform ideal-gas initialization on a 1D block. |
-| `IG-2D` | Validate baseline uniform ideal-gas initialization on a 2D block. |
-| `IG+CD` | Validate mixed ideal-gas and condensed-phase initial-field generation. |
-| `IG+SP` | Validate mixed ideal-gas and solid-phase initial-field generation. |
-| `IG-nozzle2D` | Validate 2D nozzle-driven initialization and exported IC field layout. |
-| `IG-nozzle3D` | Validate 3D nozzle-driven initialization and exported IC field layout. |
-| `IG-interp-mindist` | Validate interpolation using minimum-distance mapping strategy. |
-| `IG-interp-species` | Validate interpolation of multi-species ideal-gas fields. |
-| `IG-interp-species-decomposition` | Validate interpolation when species decomposition is enabled. |
-| `IG-multizone` | Validate multi-zone initialization consistency inside one domain. |
-| `RF-basic` | Validate baseline real-fluid initialization workflow. |
-| `SP-basic` | Validate baseline solid-phase/particle initialization workflow. |
+| Tutorial | Case | You learn |
+|----------|------|-----------|
+| [A Uniform State, Block by Block](uniform.md) | `IG-2D` | `[ICB-Block*]` and `[ICB-BlockN]`, and the IC file |
+| [Zones in a Block](zones.md) | `IG-multizone` | several states in one block |
+| [Nozzle Flow](nozzle.md) | `IG-nozzle2D` | the isentropic flow of a De Laval nozzle |
+| [Profiles From Tables](profiles.md) | `IG-species-profile-linear` | quantities that vary along the block |
+| [Restart From Another Solution](restart.md) | `IG-interp-mindist` | a solution of another mesh as the start |
+| [A Gas With Particles](particles.md) | `IG+DP` | a gas and its dispersed phase |

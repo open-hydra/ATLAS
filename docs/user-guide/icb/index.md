@@ -63,8 +63,7 @@ Use the full reference in [IC Strategies](./ic-strategies.md) for summary tables
 
 ## Workflow
 
-1. Provide the [required files](required-files.md): the mesh, and the phase files GPB wrote, copied from
-   `fromATLAStoSolver/` into the case directory.
+1. Provide the [required files](required-files.md): the mesh, and the phase files GPB wrote into `fromATLAStoSolver/`.
 2. In the INI file (`input.ini` by default), define an `[ICB-BlockN]` section for each block, or one
    `[ICB-Block*]` section for every block without a section of its own.
 3. Choose the block type (`homogeneous`, `variable`, `interpolation`, `nozzle`, `multizone`) and add its keys.
@@ -84,7 +83,7 @@ Generated files are in `fromATLAStoSolver/`.
 - [Output Files](./output.md)
 - [Input Reference](./input-reference.md) — INI keys and their meaning
 
-See the [ICB reference cases](../../tutorials/icb/index.md) for worked examples.
+See the [ICB tutorials](../../tutorials/icb/index.md) for worked examples, and [Testing](../../development/testing.md#icb-cases-testicb) for the test cases.
 
 ## Next
 

@@ -1,6 +1,6 @@
-# Tutorial: Cantera Equilibrium
+# Cantera Equilibrium
 
-**Source case:** `test/GPB/IG-ct-equilibrium`
+**Tool:** GPB · **Case:** `test/GPB/IG-ct-equilibrium` · **Run time:** a few seconds
 
 This tutorial shows how to compute the equilibrium composition of a fuel–oxidizer mixture with Cantera and use it as the base for the property tables.
 
@@ -10,7 +10,7 @@ This tutorial shows how to compute the equilibrium composition of a fuel–oxidi
 - How to specify pressure with units
 - Oxidizer-to-fuel (O/F) ratio
 
-## The Input File
+## The Case
 
 ```ini
 [GPB-Phase1]
@@ -39,17 +39,17 @@ Cantera computes the adiabatic flame composition at the given conditions, and GP
 
 GPB delegates unit parsing to Cantera. Supported unit strings include `Pa`, `atm`, `bar`, `psi`, `Torr`.
 
-## Running
+## Run It
 
-Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in.
+In a folder of your own (the run writes `fromATLAStoSolver/` where it runs, so not in the test folder):
 
 ```bash
-cp -r $ATLASDIR/test/GPB/IG-ct-equilibrium .
-cd IG-ct-equilibrium
+mkdir -p ~/atlas-tutorials/gpb-equilibrium && cd ~/atlas-tutorials/gpb-equilibrium
+cp $ATLASDIR/test/GPB/IG-ct-equilibrium/input.ini .
 ATLAS GPB
 ```
 
-## Expected Output
+## What It Writes
 
 ```
 fromATLAStoSolver/gasmix-phase.txt
