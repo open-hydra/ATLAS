@@ -65,6 +65,9 @@ project that uses ATLAS to change with it.
 - BCB: on a face with a theta direction and no `range`, the bounds that stand for no range (±`huge()`) were
   converted to radians too, which overflows: an infinity, still read as no bound, in a normal build, and a stop in
   a build that traps floating-point exceptions. Only the bounds given are converted now.
+- BCB: the input reference (`docs/user-guide/bcb/input-reference.md`) gave the `p0-time-file` series of BC 402 in
+  bar; it is in Pa, as in `bc-types.md` and in the text of the key. MOSE reads the series as written, so a series
+  in bar gives it a `p0` 1e5 times too small.
 - KAnT: `KAnT-out.dat` separates the names of its `VARIABLES` line and quotes the zone titles, so that a
   Tecplot reader parses it.
 
