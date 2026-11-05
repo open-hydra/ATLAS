@@ -380,7 +380,8 @@ key, the key left out), and refuses `g <= 0` for `420`.
 **Direction and `rf` in MOSE.** BCB writes `alpha`, `beta` and `rf` as the section gives them, `normal` for an angle
 left out and `1` for `rf` left out. MOSE reads the angles in radians. For `405` the velocity is along
 (cos `alpha` cos `beta`, sin `alpha` cos `beta`, sin `beta`); for `401`-`404`, `407` and `408` it enters the domain with
-v = u tan `alpha` and w = u tan `beta`, so in 3-D the same two angles can give different directions in the two forms.
+v = u tan `alpha` and w = u tan `beta`, so the same two angles can give different directions in the two forms: in 3-D the
+line (the two agree when one angle is 0), and on any mesh the sense.
 An angle written `normal` is that of the normal of the face into the domain: with both `normal` the gas enters along
 that normal. `rf` blends the imposed value with one computed from the boundary cell (`rf = 1`: the imposed value) for
 `404` (`g`), `405` (`mach` and `p`), `406` (`p`) and `408` (`un`); on `401`, `402`, `403`, `407` and `420` it has no
