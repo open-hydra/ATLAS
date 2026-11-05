@@ -67,6 +67,14 @@ project that uses ATLAS to change with it.
   a build that traps floating-point exceptions. Only the bounds given are converted now.
 - KAnT: `KAnT-out.dat` separates the names of its `VARIABLES` line and quotes the zone titles, so that a
   Tecplot reader parses it.
+- GPB: with `transport = CEA`, below the lowest bound of the NASA fits of a record (200 K for N2, O2 and Ar, up to
+  1000 K for other species) the viscosity and the conductivity were held at their value at the bound. Below it the
+  viscosity now follows its value and slope at the bound (or keeps its value, with an `[INFO]` line, where it does
+  not increase with temperature), the conductivity keeps the Prandtl number of its lowest bound, and N2, O2, Ar,
+  He, Ne and Kr have fits to reference data below 200 K. Rows at or above the bounds do not change. For the air of
+  the GPB guide, at 100 K the viscosity goes from 87.5 % to 0.01 % above the dilute-gas air of Lemmon and Jacobsen
+  (2004) and the conductivity from 96.9 % above to 1.85 % below; at 37 K the viscosity goes from 428 % above to
+  0.31 % below. A record that cannot give a value stops GPB with a message that names it.
 
 ### Removed
 
