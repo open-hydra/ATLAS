@@ -18,6 +18,21 @@ project that uses ATLAS to change with it.
   submodule out of its pin by its tags.
 - `install.sh build --update-deps`: the newest ORION 2.x again.
 - `CHANGELOG.md`, and the release steps in the versioning guide.
+- The ATLAS GUI covers the whole case. The Initial stage sets up ICB: a state for every block, zones with their
+  coverage on the mesh, profiles (`<key>-file`), the nozzle law and the interpolation of a previous solution, and a
+  3-D view of the state every cell takes. The Run stage runs GPB, BCB and ICB on the case, checks beforehand what
+  would stop them, and logs their output. Every stage draws what its tool wrote (the property tables, the BC of
+  every boundary cell, the initial field), and Review lists the errors and warnings of the last run on the sections
+  they name. A case opens from its INI or from a folder of the tools' files, and Settings holds the themes, a theme
+  editor and the text size.
+- Tutorials: 26 pages, from one feature of one tool to a whole case cut for MPI, each on a case of the test suite.
+  `ctest -L tutorial` runs every case they use; the INI files the pages write are in `test/tutorials/`.
+- Tests: the cases of the tutorials, the GUI (`GUI-icmodel`, `GUI-icgeom`, `GUI-runner`, `GUI-icfield`,
+  `GUI-outputs`, `GUI-layout`), and the new BCB refusals. Large tables and fields are compared on a sample
+  (`test/sample_rows.awk`); `test/numdiff.awk -v rel=1` compares with a relative tolerance only.
+- The documentation is built with Zensical (`requirements-docs.txt`), in strict mode in CI. It has a new home page,
+  an INI Files page, and Testing lists every registered test. The home page's Hydra scheme
+  (`docs/stylesheets/hydra.css`) is meant for the home pages of the other Hydra codes too.
 
 ### Changed
 
@@ -32,6 +47,20 @@ project that uses ATLAS to change with it.
   were pinned at.
 - CEA: the submodule `lib/cea` follows `nasa/cea` v3.3.4 in place of a fork of v3.3.0. An existing clone needs
   `git submodule sync && git submodule update --init lib/cea`.
+- **Breaking.** BCB stops on a multipatch face whose ranges leave cells out, naming the face, the count and the
+  first cell: those cells were written `0`, a face with no BC. It also stops on a face declared `chimera` with
+  `BC-chimera = false`, whose cells that match no cell of another block were written `100`, which no solver reads.
+  Make the ranges cover the face, or set `BC-chimera = true`.
+- BCB, ICB, STB and MDB read each `*phase.txt` of the case directory, else the one GPB wrote into
+  `fromATLAStoSolver/`, so `ATLAS GPB BCB ICB` needs no copy of the phase files. `ATLAS.sh` warns when a copy in
+  the case directory differs from GPB's file. The GUI no longer copies the phase tables before BCB and ICB.
+
+### Fixed
+
+- BCB: overlapping multipatch ranges stopped BCB (a later patch built a cell again); a cell now takes the first
+  patch whose range holds it, as the BC setup guide says.
+- KAnT: `KAnT-out.dat` separates the names of its `VARIABLES` line and quotes the zone titles, so that a
+  Tecplot reader parses it.
 
 ### Removed
 
