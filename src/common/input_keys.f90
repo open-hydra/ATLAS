@@ -66,9 +66,9 @@ module input_keys_mod
   character(len=*), parameter :: ESCAPE = 'ignore-'
   ! keys of earlier decks that are not read any more: an unknown key like any other
   ! (ERROR, or WARNING with strict-keys = false), whose hint names the current key.
-  integer, parameter :: NHINTS = 10
+  integer, parameter :: NHINTS = 11
   character(len=KLEN), parameter :: hint_key(NHINTS) = [character(len=KLEN) :: 'rt', 'force-connect', &
-    'mit', 'kappa', 'nut', 'mut', 'rhoNuTilde', 'rhoK', 'rhoOmega', 'rhoRij']
+    'mit', 'kappa', 'nut', 'mut', 'rhoNuTilde', 'rhoK', 'rhoOmega', 'rhoRij', 'grain-bc']
   character(len=120), parameter :: hint_text(NHINTS) = [character(len=120) :: &
     "key 'rt' was renamed 'g' (nozzle mass flux, kg m-2 s-1)", &
     "the option is BC-force-connect in [ATLAS-Parameters]", &
@@ -79,7 +79,8 @@ module input_keys_mod
     "a boundary takes the specific nuTilde: the solver multiplies it by the density of the boundary state", &
     "a boundary takes the specific k: the solver multiplies it by the density of the boundary state", &
     "a boundary takes the specific omega: the solver multiplies it by the density of the boundary state", &
-    "a boundary takes the specific Rij: the solver multiplies it by the density of the boundary state"]
+    "a boundary takes the specific Rij: the solver multiplies it by the density of the boundary state", &
+    "key 'grain-bc' was replaced by the logical grain-wall: T a wall (mode 1), F (default) an inlet (mode 2)"]
 
 contains
 

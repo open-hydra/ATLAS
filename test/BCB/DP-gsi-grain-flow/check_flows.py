@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """DP-gsi-grain-flow: the gas flow of a grain shared with the dispersed phases entering through it.
 
-    check_flows.py <gas-bc.txt> <drop-bc.txt> <ash-bc.txt>
+    check_flows.py <gas-bc.txt> <drop-bc.txt> <ash-bc.txt> [--inflow NU]
 
-One block of 50 x 20 cells and one layer (IG-ablation's mesh). gas-bc.txt: 502 on faces 3 and 4, whose second
-field, the propellant mass flux a*rhoGrain*SF = 0.0052 x 1750 x 1, is times 1 - krho_tot: 0.8 on face 3 (drop 0.2),
-0.63 on face 4 (drop 0.2, ash 0.05 + 0.1 + 0.02), whose grain has SF = 1.25.
+One block of 50 x 20 cells and one layer (IG-ablation's mesh). gas-bc.txt: 502 on faces 3 and 4, mdot_ref n pRef Taf
+mode and the three mass fractions, whose first field, the propellant mass flux a*rhoGrain*SF = 0.0052 x 1750 x 1, is
+times 1 - krho_tot: 0.8 on face 3 (drop 0.2), 0.63 on face 4 (drop 0.2, ash 0.05 + 0.1 + 0.02), whose grain has
+SF = 1.25; mode 1 and no turbulence variable, or with --inflow (grain-wall = T dropped: an inlet, the default; nuTilde = NU in both grains)
+mode 2 and the turbulence variable NU after the mass fractions.
 drop-bc.txt (one copy of the table): 401 with krho 0.2 on faces 3 and 4. ash-bc.txt (three copies: alumina's two
 populations, then water's): 300 on face 3, 401 on face 4 with krho 0.05, 0.1, 0.02 in copies 1, 2, 3. Faces 1
 and 2 are symmetries (300) and faces 5 and 6 null (0) in every file.
@@ -34,7 +36,7 @@ def fields(line):
     return line.replace(",", " ").split()
 
 
-def main(gas_path, drop_path, ash_path):
+def main(gas_path, drop_path, ash_path, nu=None):
     bad = []
     gas = records(gas_path, {502: 1})
     drop = records(drop_path, {401: 1})
@@ -48,10 +50,16 @@ def main(gas_path, drop_path, ash_path):
         if code != want:
             bad.append(f"gas face {f} i={i} j={j}: {code}, expected {want}")
         elif code == 502:
-            a = float(fields(pay[0])[1])
+            t = [float(v) for v in fields(pay[0])]
             ref = A * (1.0 - 0.2) if f == 3 else A * 1.25 * (1.0 - (0.2 + 0.05 + 0.1 + 0.02))
-            if abs(a - ref) > 1e-12 * ref:
-                bad.append(f"gas face {f} i={i}: a*rhoGrain*SF = {a!r}, expected {ref!r}")
+            if abs(t[0] - ref) > 1e-12 * ref:
+                bad.append(f"gas face {f} i={i}: a*rhoGrain*SF = {t[0]!r}, expected {ref!r}")
+            want_t = [ref, 0.35, 4.829e6, 0.0, 1.0, 0.7, 0.3, 1e-20]          # O2, H2 and H20 (1e-20) of gas-phase.txt
+            if nu is not None:
+                want_t[4] = 2.0
+                want_t.append(nu)
+            if len(t) != len(want_t) or any(abs(x - y) > 1e-12 * abs(y) for x, y in zip(t[1:], want_t[1:])):
+                bad.append(f"gas face {f} i={i}: {t}, expected {want_t}")
 
     def check_dp(name, recs, copy, krho_face3, krho_face4):
         for (i, j, k, f, code, pay) in recs:
@@ -83,4 +91,5 @@ def main(gas_path, drop_path, ash_path):
 
 
 if __name__ == "__main__":
-    sys.exit(main(*sys.argv[1:4]))
+    nu = float(sys.argv[sys.argv.index("--inflow") + 1]) if "--inflow" in sys.argv else None
+    sys.exit(main(*sys.argv[1:4], nu=nu))

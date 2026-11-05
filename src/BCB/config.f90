@@ -12,13 +12,15 @@ module bcb_config_mod
   private
 
   integer, parameter         :: max_faces = 6
-  integer, parameter, public :: n_variable_file_keys = 20
+  integer, parameter, public :: n_variable_file_keys = 18
 
+  ! No Taf-file (the flame temperature of a grain comes from its eq-CEA-file only) and no SFgeo-file (the scale factor
+  ! of a grain is SF): neither had a key read by a builder, the file was accepted and changed nothing
   character(len=10), parameter, public :: variable_file_keys(n_variable_file_keys) = [ &
     'ks        ', 'q         ', 'T         ', 'Tref      ', 'hconv     ', &
     'qrad      ', 'eps       ', 'alpha     ', 'beta      ', 'g         ', &
     'krho      ', 'a         ', 'n         ', 'pRef      ', 'rhoGrain  ', &
-    'Taf       ', 'SFgeo     ', 'SF        ', 'mach      ', 'p         ' ]
+    'SF        ', 'mach      ', 'p         ' ]
 
   type, public :: bcb_block_config_t
     logical             :: has_phase = .false.
@@ -107,6 +109,10 @@ module bcb_config_mod
     real(R8) :: pRef = 1.0_R8
     real(R8) :: rhoGrain = 0.0_R8
     real(R8) :: SF = 1.0_R8
+    logical  :: has_a = .false.
+    ! how the solver applies the grain (the mode of the 502 record): grain-wall = T, a wall that blows the gas in (mode 1);
+    ! F, the default, an inlet (mode 2)
+    logical  :: grain_wall = .false.
     type(config_turbulence_t) :: turbulence
   end type bcb_gsi_fluid_config_t
 
@@ -651,6 +657,7 @@ contains
     call load_shared_turbulence_config(sourceini, cfg%turbulence, section, boundary=.true.)
 
     call sourceini%get(section_name=section, option_name='a', val=cfg%a, error=error)
+    cfg%has_a = error == 0
     if (error /= 0) cfg%a = 0.0_R8
     call sourceini%get(section_name=section, option_name='n', val=cfg%n, error=error)
     if (error /= 0) cfg%n = 0.0_R8
@@ -660,6 +667,9 @@ contains
     if (error /= 0) cfg%rhoGrain = 0.0_R8
     call sourceini%get(section_name=section, option_name='SF', val=cfg%SF, error=error)
     if (error /= 0) cfg%SF = 1.0_R8
+    ! grain-wall: T the grain is a wall that blows the products in (mode 1); F, the default, an inlet (mode 2)
+    call sourceini%get(section_name=section, option_name='grain-wall', val=cfg%grain_wall, error=error)
+    if (error /= 0) cfg%grain_wall = .false.
 
     call sourceini%get(section_name=section, option_name='T', val=cfg%T, error=error)
     cfg%has_T = error == 0
@@ -1143,7 +1153,8 @@ contains
     endif
 
     call bcb_registry%generate_markdown(trim(fileout), 'BCB Input Parameters', preamble= &
-      'Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s).')
+      'Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file` '// &
+      'series (BC 402) is in bar, as the solvers read it.')
 
   contains
 
@@ -1222,11 +1233,17 @@ contains
       call bcb_registry%add('bc-section', 'Ti', gsi_cfg%Ti, '0.0', 'GSI boundary ignition temperature.', '', .false.)
       call bcb_registry%add('bc-section', 'dh', gsi_cfg%dh, '0.0', 'GSI boundary heat of reaction.', '', .false.)
       call add_turbulence_registry_entries(bcb_registry, 'bc-section', gsi_cfg%turbulence, boundary=.true.)
-      call bcb_registry%add('bc-section', 'a', gsi_cfg%a, '0.0', 'Burn-rate pre-exponential coefficient.', '', .false.)
+      call bcb_registry%add('bc-section', 'a', gsi_cfg%a, '0.0', 'Burn-rate coefficient a of r = a (p/pRef)^n [m/s] '// &
+        'of a solid-propellant grain (BC 502), required: the key or an a-file; a = 0 is a surface '// &
+        'that does not burn (grain-wall = T).', '', .false.)
       call bcb_registry%add('bc-section', 'n', gsi_cfg%n, '0.0', 'Burn-rate pressure exponent.', '', .false.)
       call bcb_registry%add('bc-section', 'pRef', gsi_cfg%pRef, '1.0', 'Reference pressure for the burn law.', '', .false.)
       call bcb_registry%add('bc-section', 'rhoGrain', gsi_cfg%rhoGrain, '0.0', 'Solid propellant density.', '', .false.)
       call bcb_registry%add('bc-section', 'SF', gsi_cfg%SF, '1.0',  'Scale factor for the grain propellant.', '', .false.)
+      call bcb_registry%add('bc-section', 'grain-wall', gsi_cfg%grain_wall, 'F', 'How the solver applies a grain (BC 502, '// &
+        'the mode of its record): T, a wall that blows the products in (mode 1); F, the default, the mass-flux inlet '// &
+        '(mode 2) with the mass flux of the burn law and the turbulence keys of the section (nuTilde; k, omega; Rij, '// &
+        'omega), as the inlets 401-404. Taf is the total temperature of the products in both.', '', .false.)
     end subroutine add_gsi_entries
 
     subroutine add_variable_file_entries()
