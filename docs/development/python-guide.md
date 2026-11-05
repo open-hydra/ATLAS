@@ -59,6 +59,8 @@ src/
 ├── GPB/                       # General Phase Builder
 │   ├── __main__.py            # CLI entry point: argparse setup
 │   ├── __init__.py            # Package initialization
+│   ├── cea_transport_records.py  # Index of the CEA transport records by name and alias
+│   ├── cea_transport_rule.py  # CEA transport table of a record, inside, below and above its intervals
 │   ├── config.py              # Global constants: ATLASDIR, OUTPATH
 │   ├── input_registry.py      # INI section dispatcher
 │   ├── mixing_rules.py        # Mixture property combinators

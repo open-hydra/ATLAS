@@ -19,7 +19,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-ceafile-reactive-OG"
 )
 set_tests_properties(ceafile-reactive-OG PROPERTIES
-    LABELS      "GPB;regression"
+    LABELS      "GPB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -471,7 +471,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-species-profile-linear"
 )
 set_tests_properties(IG-species-profile-linear PROPERTIES
-    LABELS      "ICB;regression"
+    LABELS      "ICB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -641,7 +641,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-mindist"
 )
 set_tests_properties(IG-interp-mindist PROPERTIES
-    LABELS      "ICB;regression"
+    LABELS      "ICB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -850,7 +850,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-chimera"
 )
 set_tests_properties(IG-chimera PROPERTIES
-    LABELS      "BCB;regression"
+    LABELS      "BCB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -982,7 +982,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-basic"
 )
 set_tests_properties(DP-basic PROPERTIES
-    LABELS      "BCB;regression"
+    LABELS      "BCB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -1162,6 +1162,22 @@ set_tests_properties(DP-two-phases PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-mixture-401 (the mixture rule of the 401 inlet across the dispersed phases of a cell) -------------
+# DP-two-phases' mesh, partE and partL and a third phase partG on [injCH4]: partE krho 0.2 and partL krho 0.3 (401),
+# partG gp 7.0 (402): the 401 records carry krho/(1 - krho_tot), 0.4 and 0.6, and G = 7.0 after ds; partG's 402
+# carries gp and no G; [injOX], no key of any phase: 401 with 0 and G 0 (check_mix.py). _run-sum: partE 0.6 and
+# partL 0.5 (a sum of 1.1) stop BCB; _run-neg: partE -0.1 stops BCB.
+add_test(
+    NAME    DP-mixture-401
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-sum _run-neg && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_mix.py fromATLAStoSolver/partE-bc.txt fromATLAStoSolver/partL-bc.txt fromATLAStoSolver/partG-bc.txt && mkdir _run-sum && cp input.ini mesh.tec partE-phase.txt partL-phase.txt partG-phase.txt _run-sum/ && cd _run-sum && sed -i 's/^partE-krho = 0.20$/partE-krho = 0.60/; s/^partL-krho = 0.30$/partL-krho = 0.50/' input.ini && { out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); test $? -eq 1; } && grep -q -F '[ERROR] section [injCH4] (inlet of the dispersed phases, BC 401): the krho of the dispersed phases of the cell sum to 1.10000E+00' <<< \"$out\" && test ! -e fromATLAStoSolver/partE-bc.txt && cd .. && mkdir _run-neg && cp input.ini mesh.tec partE-phase.txt partL-phase.txt partG-phase.txt _run-neg/ && cd _run-neg && sed -i 's/^partE-krho = 0.20$/partE-krho = -0.10/' input.ini && { out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); test $? -eq 1; } && grep -q -F '[ERROR] section [injCH4] (inlet of the dispersed phases, BC 401): a negative krho of the dispersed phase partE' <<< \"$out\""
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-mixture-401"
+)
+set_tests_properties(DP-mixture-401 PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-distribution-missing (a size-distribution file that does not exist) ----
 # DP-basic with drop-sigmap = 0.0 and drop-distribution = ./missing-dist.txt on injCH4 (mesh.tec
 # and drop-phase.txt are symlinks to DP-basic's). sigmap = 0 turns only a law name into Dirac, so
@@ -1233,6 +1249,67 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-axis-refused"
 )
 set_tests_properties(DP-axis-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-gsi-manifold (a dispersed phase on the faces of the 500 family) ----------
+# IG-ablation's mesh with a gas phase and a dispersed phase (drop): face 1 a manifold drawing on face 2, faces 3
+# and 4 one patch per gsi variant (502 with and without drop's inlet keys, 503, 504, 505, 506). drop-bc.txt
+# carries 300 on the manifold and on every gsi patch but the grain that gives drop's keys, which injects drop as an
+# inlet does (401). gas-bc.txt is the fluid's file without drop -- what the BCB of 3fc73f4 writes for the deck
+# without drop and its keys (with drop that BCB stopped on the manifold, allocating its record twice) but for the
+# 502 records, mdot_ref n pRef Taf mode and the mass fractions (that BCB wrote Taf a n pRef rhoGrain SF and the mass
+# fractions): mdot_ref the propellant mass flux a*rhoGrain*SF (that BCB wrote a), times 1 - 0.2 on the grain with
+# drop's keys, mode 1: computed, compared at 1e-12. check_codes.py pins the codes per face and patch, that field,
+# the mode and the length of the 502 line, and the 401 payload, independently of the references.
+add_test(
+    NAME    DP-gsi-manifold
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && diff fromATLAStoSolver/drop-bc.txt reference/drop-bc.txt && python3 -B check_codes.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-gsi-manifold"
+)
+set_tests_properties(DP-gsi-manifold PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-gsi-keys-refused (an inlet key of drop on a 500 face that does not inject it) ----------
+# DP-gsi-manifold's deck with drop-krho in its surface-reactions patch [abl] (505): exit 1, the message naming the
+# key, the section, the BC and the face's role for drop, no drop-bc.txt. _run-lenient: strict-keys = false, one
+# WARNING for the twelve cells of the patch, the files of DP-gsi-manifold. _run-manifold: the key in [man] (501)
+# instead, refused alike.
+add_test(
+    NAME    DP-gsi-keys-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-lenient _run-manifold && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && mkdir _run-lenient && cp input.ini mesh.tec gas-phase.txt drop-phase.txt _run-lenient/ && cd _run-lenient && sed -i 's/^strict-keys = .*/strict-keys = false/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null) && test $(grep -c -F '[WARNING] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\") -eq 1 && diff fromATLAStoSolver/drop-bc.txt ../../DP-gsi-manifold/reference/drop-bc.txt && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../DP-gsi-manifold/reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-manifold && cp input.ini mesh.tec gas-phase.txt drop-phase.txt _run-manifold/ && cd _run-manifold && sed -i -e '/^drop-krho         = 0.2$/d' -e 's/^face  = 2$/face  = 2\\ndrop-krho = 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [man]: not honoured by BC 501 (manifold)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-gsi-keys-refused"
+)
+set_tests_properties(DP-gsi-keys-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-gsi-grain-flow (the gas flow of a grain shared with the dispersed phases) ----------
+# IG-ablation's mesh with its gas phase and two dispersed phases, drop (one pair) and ash (DP-population-list's
+# phase file: three (material, population) pairs). The gas of a solid-propellant grain (502) takes the flow left by
+# every pair of every phase entering through it: the record's propellant mass flux a*rhoGrain*SF (0.0052 x 1750 x SF)
+# times 1 - krho_tot, 0.8 with drop alone (face 3), 0.63 with drop and ash's 0.05 0.1 0.02 on a grain of SF 1.25
+# (face 4). Both grains are walls (grain-wall = T). check_flows.py checks that field, the rest of the 502 line (n pRef
+# Taf, mode 1, the mass fractions, no turbulence variable) and the 401 records of both phases, one krho per copy of
+# ash's table.
+# _run-full: ash's krho raised to a krho_tot of 1.1, refused, no file; _run-gp: drop-gp (a mass flux, BC 403) on
+# the grain, refused, no file; _run-inflow: grain-wall = T dropped (an inlet, the default) and nuTilde in both grains:
+# mode 2 and nuTilde after the mass fractions, the same mass fluxes; _run-inflow-a0: an inflow grain with a = 0,
+# refused, no file; _run-grain-bc: grain-bc = wall, the string key grain-wall replaced, in [grain-drop]: refused as
+# an unknown key (strict-keys = T, the default) whose hint names grain-wall, no file.
+add_test(
+    NAME    DP-gsi-grain-flow
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-full _run-gp _run-inflow _run-inflow-a0 _run-grain-bc && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_flows.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/drop-bc.txt fromATLAStoSolver/ash-bc.txt && mkdir _run-full && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-full/ && cd _run-full && sed -i 's/^ash-krho  = 0.05 0.1 0.02$/ash-krho  = 0.4 0.3 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] section [grain-both] (gsi, BC 502): the dispersed phases entering the grain take krho = 1.10000E+00' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-gp && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-gp/ && cd _run-gp && sed -i '0,/^drop-krho = 0.2$/s//drop-gp   = 10.0/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-gp of section [grain-drop]: not honoured by BC 502 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-inflow && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-inflow/ && cd _run-inflow && sed -i -e '/^grain-wall = T$/d' -e 's/^rhoGrain  = 1750.0$/rhoGrain  = 1750.0\\nnuTilde   = 1.5e-5/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_flows.py fromATLAStoSolver/gas-bc.txt fromATLAStoSolver/drop-bc.txt fromATLAStoSolver/ash-bc.txt --inflow 1.5e-5 && cd .. && mkdir _run-inflow-a0 && cp _run-inflow/input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-inflow-a0/ && cd _run-inflow-a0 && sed -i '0,/^a         = 0.0052$/s//a         = 0.0/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] section [grain-drop] (gsi, BC 502): an inlet grain (grain-wall = F, the default) needs a burn rate a > 0' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-grain-bc && cp input.ini mesh.tec gas-phase.txt drop-phase.txt ash-phase.txt _run-grain-bc/ && cd _run-grain-bc && sed -i '0,/^grain-wall = T$/s//grain-bc  = wall/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key grain-bc of section [grain-drop]: unknown key' <<< \"$out\" && grep -q -F 'was replaced by the logical grain-wall: T a wall (mode 1), F (default) an inlet (mode 2)' <<< \"$out\" && test ! -e fromATLAStoSolver/gas-bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-gsi-grain-flow"
+)
+set_tests_properties(DP-gsi-grain-flow PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -1402,6 +1479,42 @@ set_tests_properties(IG-2D-inlet-408-refused PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-2D-grain-inflow (a grain on a pure 2-D mesh, which Q2D reads, in both modes) -------------
+# IG-2D-inlet-408-refused's mesh and phase, face 1 a solid-propellant grain (gsi) with nuTilde, an inlet by default:
+# 502 on the three cells of face 1, mode 2 (mdot_ref = 0.0052 x 1750, n, pRef, Taf, 2, the mass fraction of O2,
+# nuTilde), no WARNING of a zero turbulence band; _run-rsm: Rij and omega instead, the 5 bands of an inflow of Q2D
+# (R11 R22 R33 R12 omega); _run-wall: grain-wall=.true. (a wall), mode 1, 6 fields, no turbulence variable although
+# the deck gives nuTilde (check_2d.py); _run-wallF: grain-wall = .false. given, the default's record; _run-noturb:
+# nrans = 1 in place of nuTilde, the band written as 0 with the WARNING of the inlets 401-404; _run-badlogic:
+# grain-wall = si, refused (not a logical), no file.
+add_test(
+    NAME    IG-2D-grain-inflow
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-rsm _run-wall _run-wallF _run-noturb _run-badlogic && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && ! grep -q -F 'written into the inlet record' <<< \"$out\" && python3 -B check_2d.py fromATLAStoSolver/bc.txt 2 1.5e-5 && mkdir _run-rsm && cp input.ini mesh.tec phase.txt _run-rsm/ && cd _run-rsm && sed -i 's/^nuTilde  = 1.5e-5$/Rij      = 1.0e-3\\nomega    = 1.0e3/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 2 1e-3 1e-3 1e-3 1e-8 1e3 && cd .. && mkdir _run-wall && cp input.ini mesh.tec phase.txt _run-wall/ && cd _run-wall && sed -i 's/^rhoGrain = 1750.0$/rhoGrain = 1750.0\\ngrain-wall=.true./' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 1 && cd .. && mkdir _run-wallF && cp input.ini mesh.tec phase.txt _run-wallF/ && cd _run-wallF && sed -i 's/^rhoGrain = 1750.0$/rhoGrain = 1750.0\\ngrain-wall = .false./' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 2 1.5e-5 && cd .. && mkdir _run-noturb && cp input.ini mesh.tec phase.txt _run-noturb/ && cd _run-noturb && sed -i 's/^nuTilde  = 1.5e-5$/nrans    = 1/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1) && grep -q -F '[WARNING] grain (gsi, BC 502, inlet): nuTilde = 0 written into the inlet record under Spalart-Allmaras (nrans = 1)' <<< \"$out\" && python3 -B ../check_2d.py fromATLAStoSolver/bc.txt 2 0 && cd .. && mkdir _run-badlogic && cp input.ini mesh.tec phase.txt _run-badlogic/ && cd _run-badlogic && sed -i 's/^rhoGrain = 1750.0$/rhoGrain = 1750.0\\ngrain-wall = si/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key grain-wall of section [grain]: value si is not a logical (T or F)' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D-grain-inflow"
+)
+set_tests_properties(IG-2D-grain-inflow PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-grain-a-missing-refused (a solid-propellant grain without its burn rate coefficient a) -------------
+# IG-2D-grain-inflow's mesh and phase, face 1 a grain (gsi) as a wall (grain-wall = T) without a: BCB stops naming
+# the key and writes no bc.txt (the grain was written with a = 0, a surface that does not burn, in silence); _run-a0:
+# the same deck with a = 0 given, that surface: 502 on the three cells of face 1, mdot_ref 0, mode 1 (check_mdot.py);
+# _run-afile: no key a, an a-file along y (a.dat, a = 0.004 + 0.02 y) over the face: mdot_ref = 1750 a at the
+# three cell centres, y = 0.025, 0.075, 0.125.
+add_test(
+    NAME    IG-grain-a-missing-refused
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-a0 _run-afile; out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 3; test $rc -eq 1 && grep -q -F '[ERROR] section [grain] (gsi, BC 502): no burn rate coefficient a (the key a or an a-file)' <<< \"$out\" && test ! -e fromATLAStoSolver/bc.txt && mkdir _run-a0 && cp input.ini mesh.tec phase.txt _run-a0/ && cd _run-a0 && sed -i 's/^n        = 0.35$/a        = 0.0\\nn        = 0.35/' input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_mdot.py fromATLAStoSolver/bc.txt 1 0 && cd .. && mkdir _run-afile && cp input.ini mesh.tec phase.txt a.dat _run-afile/ && cd _run-afile && echo 'direction = y' >> input.ini && echo 'a-file    = a.dat' >> input.ini && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B ../check_mdot.py fromATLAStoSolver/bc.txt 1 7.875 9.625 11.375"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-grain-a-missing-refused"
+)
+set_tests_properties(IG-grain-a-missing-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-force-connect-plate -------------
 # Injection plate with holes, the designed use of BC-force-connect (default true): block 1 face 1 is declared
 # inlet [plate]; the cells that coincide with the hole blocks 2 and 3 are written as connections (101, with the
@@ -1471,7 +1584,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-ablation"
 )
 set_tests_properties(IG-ablation PROPERTIES
-    LABELS      "BCB;regression"
+    LABELS      "BCB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -1540,7 +1653,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/x-variable"
 )
 set_tests_properties(x-variable PROPERTIES
-    LABELS      "STB;regression"
+    LABELS      "STB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -1554,7 +1667,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/area-any-order"
 )
 set_tests_properties(area-any-order PROPERTIES
-    LABELS      "STB;regression"
+    LABELS      "STB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -1970,7 +2083,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-dispersed"
 )
 set_tests_properties(CP-Tvar-dispersed PROPERTIES
-    LABELS      "GPB;regression"
+    LABELS      "GPB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -2190,7 +2303,7 @@ set_tests_properties(IG-transport-CEA-species-without-data PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : IG-transport-CEA-nasa-names (transport = CEA with the names of nasa9.yaml, the default thermo database: Ar and He take their CEApolynomials records like N2, with no simplified law and no WARNING; transport.dat holds the NASA CEA fits of lib/cea/data/trans.inp, at their 200 K value below 200 K. Reference: the product of GPB, equal to those fits within the print precision) -------------
+# ---- GPB : IG-transport-CEA-nasa-names (transport = CEA with the names of nasa9.yaml, the default thermo database: Ar and He take their CEApolynomials records like N2, with no simplified law and no WARNING; transport.dat holds from 200 K the NASA CEA fits of lib/cea/data/trans.inp, within the print precision, and below 200 K the intervals that ATLAS adds to the three records and, below those, the viscosity rule and the Prandtl number of their lowest bound (src/GPB/cea_transport_rule.py). Reference: the product of GPB) -------------
 add_test(
     NAME    IG-transport-CEA-nasa-names
     COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && { ! grep -F '[WARNING] GPB: transport = CEA' gpb.log; } && diff fromATLAStoSolver/transport.dat reference/transport.dat"
@@ -2202,10 +2315,10 @@ set_tests_properties(IG-transport-CEA-nasa-names PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : IG-transport-CEA-aliases (transport = CEA with the capital names AR and HE of a Chemkin-style mechanism file, with the thermo records of the file and with thermo = Burcat: AR and HE take the records Ar and He through their aliases, with no WARNING; their columns equal those of Ar and He in IG-transport-CEA-nasa-names. Reference: the product of GPB, a regression witness for the other columns) -------------
+# ---- GPB : IG-transport-CEA-aliases (transport = CEA with the capital names AR and HE of a Chemkin-style mechanism file, with the thermo records of the file and with thermo = Burcat: AR and HE take the records Ar and He through their aliases, with no WARNING; their columns equal those of Ar and He in IG-transport-CEA-nasa-names. References: the products of GPB, regression witnesses for the other columns, one per thermo: below the lowest conductivity bound of a record the conductivity keeps the Prandtl number of that bound with the specific heat of the run, so the H2O column, whose bound is 373.2 K and whose specific heat changes from 200 K, differs between the two thermo databases; the H2, O2, N2, AR and HE columns of the two runs are equal) -------------
 add_test(
     NAME    IG-transport-CEA-aliases
-    COMMAND bash -c "rm -rf fromATLAStoSolver _run-file-thermo && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && { ! grep -F '[WARNING] GPB: transport = CEA' gpb.log; } && diff fromATLAStoSolver/transport.dat reference/transport.dat && bash check_columns.sh fromATLAStoSolver/transport.dat AR ../IG-transport-CEA-nasa-names/reference/transport.dat Ar && bash check_columns.sh fromATLAStoSolver/transport.dat HE ../IG-transport-CEA-nasa-names/reference/transport.dat He && mv fromATLAStoSolver _run-file-thermo && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input burcat.ini > gpb-burcat.log 2>&1 || { cat gpb-burcat.log; false; }; } && { ! grep -F '[WARNING] GPB: transport = CEA' gpb-burcat.log; } && diff fromATLAStoSolver/transport.dat reference/transport.dat"
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-file-thermo && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && { ! grep -F '[WARNING] GPB: transport = CEA' gpb.log; } && diff fromATLAStoSolver/transport.dat reference/transport.dat && bash check_columns.sh fromATLAStoSolver/transport.dat AR ../IG-transport-CEA-nasa-names/reference/transport.dat Ar && bash check_columns.sh fromATLAStoSolver/transport.dat HE ../IG-transport-CEA-nasa-names/reference/transport.dat He && mv fromATLAStoSolver _run-file-thermo && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input burcat.ini > gpb-burcat.log 2>&1 || { cat gpb-burcat.log; false; }; } && { ! grep -F '[WARNING] GPB: transport = CEA' gpb-burcat.log; } && diff fromATLAStoSolver/transport.dat reference/transport-burcat.dat && for z in H2 O2 N2 AR HE; do bash check_columns.sh fromATLAStoSolver/transport.dat $z _run-file-thermo/transport.dat $z || exit 1; done"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-transport-CEA-aliases"
 )
 set_tests_properties(IG-transport-CEA-aliases PROPERTIES
@@ -2238,7 +2351,7 @@ set_tests_properties(GPB-cea-transport-records PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : database-cea-transport (database/transport/CEApolynomials.yaml equal to the transport file of NASA CEA, lib/cea/data/trans.inp: the same names, intervals and coefficients, except the fits ATLAS defines itself, listed in ATLAS_RECORDS of test/tools/cea_trans_inp_check.py, where a new record absent from trans.inp is added; no name or alias twice; not run (exit 77) without the CEA submodule) -------------
+# ---- GPB : database-cea-transport (database/transport/CEApolynomials.yaml equal to the transport file of NASA CEA, lib/cea/data/trans.inp: the same names, the same NASA intervals, counted also by the code V<n>C<n> of the source of the record, and the same coefficients, except the fits ATLAS defines itself: the records of ATLAS_RECORDS of test/tools/cea_trans_inp_check.py, where a new record absent from trans.inp is added, and the intervals with a source of their own, which come before the NASA intervals of their property, each ending where the next begins, the last at the lowest NASA bound; no name or alias twice; not run (exit 77) without the CEA submodule) -------------
 add_test(
     NAME    database-cea-transport
     COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/tools/cea_trans_inp_check.py ${CMAKE_SOURCE_DIR}"
@@ -2248,6 +2361,42 @@ set_tests_properties(database-cea-transport PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     SKIP_RETURN_CODE 77
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : GPB-cea-transport-low-temperature (the CEA transport tables below and above the intervals of a record, without Cantera, test/tools/cea_transport_low_temperature_check.py: the intervals with their own source in CEApolynomials.yaml increase strictly (exact minimum of the slope), join their neighbours in value and slope within the rounding error, and reproduce Lemmon and Jacobsen (2004) and Bich, Millat and Vogel (1990) within the bounds of the tool; every record gives positive rows from 1 K, increasing except a record whose viscosity falls at its lowest bound, with the Prandtl number constant below the lowest conductivity bound; the rule on records built in the tool: the three forms below the lowest viscosity bound, different bounds for viscosity and conductivity, the records that stop GPB with their messages, the malformed records handled without a stop) -------------
+add_test(
+    NAME    GPB-cea-transport-low-temperature
+    COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/tools/cea_transport_low_temperature_check.py ${CMAKE_SOURCE_DIR}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tools"
+)
+set_tests_properties(GPB-cea-transport-low-temperature PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-transport-CEA-air-low-temperature (the air of the guide, N2 75.4, O2 23.3 and Ar 1.3 by mass, with transport = CEA: below the 200 K bound of the NASA fits, the viscosity at 100 K and 37 K and the conductivity at 100 K of the air zone within the bounds of check_air.py from the dilute-gas air of Lemmon and Jacobsen (2004); no WARNING or INFO line of transport = CEA) -------------
+add_test(
+    NAME    IG-transport-CEA-air-low-temperature
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && { ! grep -F 'GPB: transport = CEA' gpb.log; } && \"\${ATLAS_PYTHON:-python3}\" -B check_air.py fromATLAStoSolver/transport.dat air"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-transport-CEA-air-low-temperature"
+)
+set_tests_properties(IG-transport-CEA-air-low-temperature PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-transport-CEA-falling-viscosity (transport = CEA with the mechanism CKJLR-10sp, whose species RP-1 has a CEApolynomials record with a viscosity that falls with temperature at its lowest bound, 270 K: with the default Tmin the table has rows below 270 K and one INFO line says that the viscosity keeps its 270 K value there; with Tmin = 300 there is no such row and no line) -------------
+add_test(
+    NAME    IG-transport-CEA-falling-viscosity
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && { test $(grep -c -F '[INFO] GPB: transport = CEA' gpb.log) -eq 1 && grep -q -F \"[INFO] GPB: transport = CEA: record 'RP-1': the viscosity of the record does not increase with temperature at its lowest bound 270 K\" gpb.log || { cat gpb.log; false; }; } && rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input tmin.ini > gpb-tmin.log 2>&1 || { cat gpb-tmin.log; false; }; } && { ! grep -F '[INFO] GPB: transport = CEA' gpb-tmin.log; }"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-transport-CEA-falling-viscosity"
+)
+set_tests_properties(IG-transport-CEA-falling-viscosity PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
@@ -2332,7 +2481,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-ct-equilibrium"
 )
 set_tests_properties(IG-ct-equilibrium PROPERTIES
-    LABELS      "GPB;regression"
+    LABELS      "GPB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -2361,5 +2510,398 @@ add_test(
 set_tests_properties(GPB-launcher-atlasdir PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GUI : GUI-icmodel (the ICB model of the GUI: every deck of the suite goes through the case document and back with
+# ----       its ICB sections unchanged, the zone sections of an ICB block are never read as BCs, the keys the GUI
+# ----       names are those of ICB's input reference, and the checks of the Initial stage flag no ICB deck the tool
+# ----       accepts while catching the refusals the deck alone shows; standard library only, no Qt) -------------
+add_test(
+    NAME    GUI-icmodel
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_icmodel.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-icmodel PROPERTIES
+    LABELS      "GUI;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GUI : GUI-icgeom (where the GUI puts the zones of an ICB block on the mesh: on random zone decks over a pure 2-D,
+# ----       an extruded 2-D and a 3-D mesh, along every letter, the cells written after each zone, the count of cells
+# ----       no zone writes and the first of them are those ICB reports; so are the plenum rows of the nozzle decks of
+# ----       the suite and the cells of a zone a random profile table misses; numpy, no Qt; skipped (77) without numpy) ----
+add_test(
+    NAME    GUI-icgeom
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_icgeom.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-icgeom PROPERTIES
+    LABELS           "GUI;regression"
+    TIMEOUT          300
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT      "${_TEST_ENV}"
+)
+
+# ---- GUI : GUI-runner (how the GUI runs the tools: the checks before a run -- the mesh BCB and ICB read and the link to
+# ----       the mesh on the screen, the phase files they read (those of the case directory, else those GPB writes into
+# ----       fromATLAStoSolver/, there only those of the GPB phases of the deck), filelist.txt, a tool not built, the
+# ----       GUI's errors by stage -- with the standard library only; ATLAS ICB typed in a shell leaves out the phase file
+# ----       an earlier deck left in fromATLAStoSolver/, and reads it when the INI has no GPB phase; with PyQt6, a chain stops at the tool that fails, Stop ends the tool the launcher started and removes the
+# ----       filelist.txt it made, BCB finds in fromATLAStoSolver/ the tables GPB wrote, nothing copied, ICB run by the GUI
+# ----       writes what ATLAS ICB writes, and GPB then ICB run as a chain when
+# ----       this Python has Cantera; the errors and warnings of a run land on the section, file, GPB phase or ICB block
+# ----       they name, also as BCB and ICB print them on two refused decks of the suite) -------------
+# ---- GUI : GUI-icfield (the initial field the GUI reads back from ICB: the colour scales, one hue running one way for a
+# ----       magnitude and two arms of equal lightness about a grey for a signed quantity; on fields ICB writes from decks of
+# ----       the suite, ASCII Tecplot and VTK alike, every zone on its block and the deck given back -- p, T from total
+# ----       conditions, the Mach number under a variable cp, the mass fractions; numpy; skipped (77) without numpy) ------
+add_test(
+    NAME    GUI-icfield
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_icfield.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-icfield PROPERTIES
+    LABELS           "GUI;regression"
+    TIMEOUT          300
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT      "${_TEST_ENV}"
+)
+
+add_test(
+    NAME    GUI-runner
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_runner.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-runner PROPERTIES
+    LABELS      "GUI;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GUI : GUI-outputs (what the GUI reads back of GPB and BCB: the tables of a gas, a condensed, a solid phase and the
+# ----       (p, h) grid of a real fluid, the thermodynamics and the transport of a gas as one sheet, the reactions named
+# ----       from chemistry-info.txt; the BC id of every cell of every face of a boundary file whatever the payload lines
+# ----       in between, the tables a dispersed phase repeats, the blocks of a phase placed on the mesh, a multigrid level
+# ----       drawn on its cells; the scales of the plots and the cases remembered (with PyQt6); GPB writes Cantera's cp
+# ----       of O2 (with Cantera) and BCB the id each face of a suite deck implies; numpy; skipped (77) without it) ------
+add_test(
+    NAME    GUI-outputs
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_outputs.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-outputs PROPERTIES
+    LABELS           "GUI;regression"
+    TIMEOUT          300
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT      "${_TEST_ENV}"
+)
+
+# ---- GUI : GUI-layout (the window on simulated laptop screens, at three text sizes, as fitted and at its smallest: the
+# ----       stages, the header and the status bar are searched for a widget squeezed below the least it asks for, a label
+# ----       or button narrower than its text, and text printed over text -- on a case with a mechanism of sixty reactions,
+# ----       a real fluid, a mesh, a boundary file and a state; the blocks the Initial counter of the status bar counts;
+# ----       the elided label; offscreen, with PyQt6 and pyvistaqt; skipped (77) without them) -------------------------
+add_test(
+    NAME    GUI-layout
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_layout.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-layout PROPERTIES
+    LABELS           "GUI;regression"
+    TIMEOUT          600
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT      "${_TEST_ENV}"
+)
+
+# ===========================================================================
+#  The cases the tutorials run (docs/tutorials): label "tutorial"
+#
+#  Every page of the tutorials copies the files of a case of the suite and runs one tool on them. The pages that run a
+#  case as it is are held by its test (labelled "tutorial" too); the pages that write an INI of their own find it in
+#  test/tutorials/<page>/, shown on the page from that file, and run it here on the files of the case they name. The
+#  large tables and fields are compared on a sample (test/sample_rows.awk: the header lines and one value in 250, or
+#  in 97 for a field, whose step must not follow the mesh), against the same sample of the reference run.
+#
+#    ctest -L tutorial
+# ===========================================================================
+
+# ---- GPB : IG-fixgas (tutorial Fixed-Gas Mixture: two species from gamma, mw, mil, kl) -------------
+add_test(
+    NAME    IG-fixgas
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/gasmix-phase.txt reference/gasmix-phase.txt && diff fromATLAStoSolver/gasmix-composition.txt reference/gasmix-composition.txt && for t in thermo transport; do awk -v tol=1e-9 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-gasmix-$t.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/gasmix-$t.dat) || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-fixgas"
+)
+set_tests_properties(IG-fixgas PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-reactive (tutorial Cantera Ideal-Gas: a mechanism read by Cantera, NASA9 thermo, Cantera transport) ---
+# The tables (12 MB) are compared on a sample: the rows of every 250 K of each species, reaction and species pair.
+add_test(
+    NAME    IG-reactive
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/phase.txt reference/phase.txt && diff fromATLAStoSolver/composition.txt reference/composition.txt && awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/chemistry-info.txt fromATLAStoSolver/chemistry-info.txt && for t in thermo transport diffusion chemistry-Arrhenius; do awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-$t.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/$t.dat) || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-reactive"
+)
+set_tests_properties(IG-reactive PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-mixture-HG (tutorial Heavy-Gas Mixture: air and liquid alumina as one gas of mean properties) ---------
+add_test(
+    NAME    IG-mixture-HG
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/phase.txt reference/phase.txt && diff fromATLAStoSolver/composition.txt reference/composition.txt && for t in thermo transport; do awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-$t.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/$t.dat) || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-mixture-HG"
+)
+set_tests_properties(IG-mixture-HG PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : SP-Tvar (tutorial Solid Phase: uranium carbide from the solid database) -------------
+add_test(
+    NAME    SP-Tvar
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/solido-phase.txt reference/solido-phase.txt && awk -v tol=1e-9 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-solido-properties.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/solido-properties.dat)"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/SP-Tvar"
+)
+set_tests_properties(SP-Tvar PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : RF-co2 (tutorial Real-Fluid Phase: CO2 tables on a 40 x 40 grid of pressure and enthalpy, from CoolProp) -------
+# The tables are written one value per line (DATAPACKING=BLOCK): one value in 100 is compared.
+add_test(
+    NAME    RF-co2
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/co2-phase.txt reference/co2-phase.txt && for t in thermo transport; do awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-co2-$t.dat <(awk -v every=100 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/co2-$t.dat) || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/RF-co2"
+)
+set_tests_properties(RF-co2 PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-2D (tutorial Inlets, Outlets and Walls: four blocks, mass-flux inlets, a wall, an outlet) -------------
+add_test(
+    NAME    IG-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D"
+)
+set_tests_properties(IG-2D PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-multipatch-2D (tutorial Several Conditions on One Face: six patches of an injector plate along r and theta) ---------
+add_test(
+    NAME    IG-multipatch-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-2D"
+)
+set_tests_properties(IG-multipatch-2D PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-multipatch-gap (the deck of IG-multipatch-2D with the last range moved from 12.5 to 20 mm: the cells
+# ----       between lie in no range of the face; BCB stops naming the face, their count and the first of them, and
+# ----       writes nothing, where it wrote them 0, a face with no BC) -------------
+add_test(
+    NAME    IG-multipatch-gap
+    COMMAND bash -c "rm -rf _run-gap && mkdir _run-gap && cp mesh.tec phase.txt _run-gap/ && sed 's/^range6 = 12.5d-3 50.0d-3/range6 = 20.0d-3 50.0d-3/' input.ini > _run-gap/input.ini && cd _run-gap && if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] block 1 face 1 ([plate]): 300 of its 960 cells lie in none of the ranges of its patches and would be written 0 (no BC)' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-2D"
+)
+set_tests_properties(IG-multipatch-gap PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-multipatch-overlap (the deck of IG-multipatch-2D with range1 over the whole face: every cell of the plate
+# ----       is in the range of inj1 and of a later patch, and takes the first, inj1 (404), as bc-setup.md says; a later
+# ----       patch built such a cell again and BCB stopped on a record allocated twice) -------------
+add_test(
+    NAME    IG-multipatch-overlap
+    COMMAND bash -c "rm -rf _run-overlap && mkdir _run-overlap && cp mesh.tec phase.txt _run-overlap/ && sed 's/^range1 = 0.0 1.5d-3 -30.0 30.0/range1 = 0.0 50.0d-3 -30.0 30.0/' input.ini > _run-overlap/input.ini && cd _run-overlap && { ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 || { cat bcb.log; false; }; } && test \"$(awk '$1 == 1 && $5 == 1 && NF == 6 {print $6}' fromATLAStoSolver/bc.txt | sort | uniq -c | tr -s ' ')\" = ' 960 404'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-2D"
+)
+set_tests_properties(IG-multipatch-overlap PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-chimera-off (the deck of IG-chimera with BC-chimera = false: the chimera faces of both blocks would keep
+# ----       100, the placeholder of a face before its search; BCB stops naming each, and writes nothing) -------------
+add_test(
+    NAME    IG-chimera-off
+    COMMAND bash -c "rm -rf _run-off && mkdir _run-off && cp mesh.tec phase.txt _run-off/ && sed 's/^BC-chimera *=.*/BC-chimera = false/' input.ini > _run-off/input.ini && cd _run-off && if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] block 1 face 4 ([chimera]) is declared chimera, but BC-chimera = false: 50 of its cells match no cell of another block' bcb.log && grep -q -F '[ERROR] block 2 face 3 ([chimera]) is declared chimera' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-chimera"
+)
+set_tests_properties(IG-chimera-off PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-xtheta-variable-T (tutorial Boundary Data From Tables: a wall temperature read from a table over x and
+# ----       theta, 302 on the cells of the face; the interpolated temperatures differ in the last digit where the compiler
+# ----       fuses other multiply-adds -- 1e-16 between aarch64 and a build without FMA -- hence numdiff.awk) -------------
+add_test(
+    NAME    IG-xtheta-variable-T
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-xtheta-variable-T"
+)
+set_tests_properties(IG-xtheta-variable-T PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-inflow-p0time (tutorial Boundary Data From Tables: a total pressure read from a time table, 402) ------
+add_test(
+    NAME    IG-inflow-p0time
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-p0time"
+)
+set_tests_properties(IG-inflow-p0time PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-periodic (tutorial Connections and Periodic Faces: connections between blocks and a periodic pair) ----
+add_test(
+    NAME    IG-periodic
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-periodic"
+)
+set_tests_properties(IG-periodic PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : tutorial-reservoir-inlets (tutorial Inlets From Reservoir Conditions: the three inlets of one reservoir,
+# ----       401, 405 and 420, on the mesh and table of IG-nozzle-arearatio) -------------
+add_test(
+    NAME    tutorial-reservoir-inlets
+    COMMAND bash -c "rm -rf _run-tutorial && mkdir _run-tutorial && cp ../../BCB/IG-nozzle-arearatio/{mesh.tec,phase.txt,thermo.dat} *.ini _run-tutorial/ && cd _run-tutorial && for c in subsonic supersonic nozzle; do ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB -i $c.ini > bcb-$c.log 2>&1 || { cat bcb-$c.log; exit 1; }; awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/bc-$c.txt fromATLAStoSolver/bc.txt || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tutorials/bcb-reservoir-inlets"
+)
+set_tests_properties(tutorial-reservoir-inlets PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-2D (a uniform state per block on the four blocks of BCB's IG-2D) -------------
+add_test(
+    NAME    ICB-IG-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB > icb.log 2>&1 && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-ic.tec <(awk -v every=97 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/ic.tec)"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-2D"
+)
+set_tests_properties(ICB-IG-2D PROPERTIES
+    LABELS      "ICB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-nozzle2D (the nozzle law of a 2-D nozzle from its reservoir, with k-omega turbulence) -------------
+add_test(
+    NAME    IG-nozzle2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB > icb.log 2>&1 && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-ic.tec <(awk -v every=97 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/ic.tec)"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle2D"
+)
+set_tests_properties(IG-nozzle2D PROPERTIES
+    LABELS      "ICB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : tutorial-uniform, tutorial-nozzle, tutorial-zones, tutorial-particles (tutorials A Uniform State, Block by
+# ----       Block; Nozzle Flow; Zones in a Block; A Gas With Particles: the INI of each page on the mesh and phase files
+# ----       of IG-2D, IG-nozzle2D, IG-multizone and IG+DP) -------------
+foreach(_t uniform nozzle zones particles)
+    if(_t STREQUAL "uniform")
+        set(_files "../../ICB/IG-2D/{mesh.p3d,phase.txt,thermo.dat}")
+        set(_fields "ic")
+    elseif(_t STREQUAL "nozzle")
+        set(_files "../../ICB/IG-nozzle2D/{mesh.tec,phase.txt,thermo.dat}")
+        set(_fields "ic")
+    elseif(_t STREQUAL "zones")
+        set(_files "../../ICB/IG-multizone/{mesh.tec,gas-phase.txt,gas-thermo.dat}")
+        set(_fields "gas-ic")
+    else()
+        set(_files "../../ICB/IG+DP/{mesh.tec,gas-phase.txt,gas-thermo.dat,particles-phase.txt,particles-properties.dat}")
+        set(_fields "gas-ic particles-ic")
+    endif()
+    add_test(
+        NAME    tutorial-${_t}
+        COMMAND bash -c "rm -rf _run-tutorial && mkdir _run-tutorial && cp ${_files} input.ini _run-tutorial/ && cd _run-tutorial && { ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB > icb.log 2>&1 || { cat icb.log; false; }; } && for f in ${_fields}; do awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/sampled-$f.tec <(awk -v every=97 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/$f.tec) || exit 1; done"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tutorials/icb-${_t}"
+    )
+    set_tests_properties(tutorial-${_t} PROPERTIES
+        LABELS      "ICB;regression;tutorial"
+        TIMEOUT     300
+        ENVIRONMENT "${_TEST_ENV}"
+    )
+endforeach()
+
+# ---- STB : uniform (tutorial A Volumetric Heat Source: one volumetric source over the whole block) -------------
+add_test(
+    NAME    STB-uniform
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh STB > stb.log 2>&1 && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-st.tec <(awk -v every=97 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/st.tec)"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/uniform"
+)
+set_tests_properties(STB-uniform PROPERTIES
+    LABELS      "STB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : tutorial-mdb-split (tutorial A Case for MPI: GPB, BCB, ICB and MDB from one INI on the mesh of split-solution;
+# ----       the split field carries the field ICB wrote, cell by cell, and the map and the split BC file are the
+# ----       reference ones; label GPB too: GPB runs, and needs the conda environment) -------------
+add_test(
+    NAME    tutorial-mdb-split
+    COMMAND bash -c "rm -rf _run-tutorial && mkdir _run-tutorial && cp ../../MDB/split-solution/mesh.tec input.ini _run-tutorial/ && cd _run-tutorial && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB BCB ICB MDB > run.log 2>&1 || { cat run.log; false; }; } && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py fromATLAStoSolver/gas-ic.tec fromATLAStoSolver/gas-ic-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && diff fromATLAStoSolver/decomposition.map ../reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt ../reference/gas-bc-split.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tutorials/mdb-split"
+)
+set_tests_properties(tutorial-mdb-split PROPERTIES
+    LABELS      "MDB;GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- KAnT : KAnT-equilibrium (tutorial Checking a Mechanism: the HP equilibrium of three mechanisms at 20 chamber
+# ----       pressures) and tutorial-kant-ignition (the ignition delay of two mechanisms at 10 initial temperatures).
+# ----       Cantera integrates them: the delays, far below 1 s, are compared with a relative tolerance only, of 5 %: KAnT
+# ----       takes the first state past T0 + 300 K of those it stores, one every ten steps of the integrator, and another
+# ----       Cantera build takes other steps -- storing every step moves the delays by up to 1.2 %, an rtol 30 % larger by
+# ----       1.1 %. Both need the conda environment (Cantera), as the GPB-labelled tests do ----------
+add_test(
+    NAME    KAnT-equilibrium
+    COMMAND bash -c "rm -rf _run-test && mkdir _run-test && cp input.ini _run-test/ && cd _run-test && { ${CMAKE_SOURCE_DIR}/ATLAS.sh KAnT > kant.log 2>&1 || { cat kant.log; false; }; } && awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/KAnT-out.dat KAnT-out.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/KAnT/equilibrium"
+)
+add_test(
+    NAME    tutorial-kant-ignition
+    COMMAND bash -c "rm -rf _run-tutorial && mkdir _run-tutorial && cp input.ini _run-tutorial/ && cd _run-tutorial && { ${CMAKE_SOURCE_DIR}/ATLAS.sh KAnT > kant.log 2>&1 || { cat kant.log; false; }; } && awk -v tol=5e-2 -v rel=1 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/KAnT-out.dat KAnT-out.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tutorials/kant-ignition"
+)
+set_tests_properties(KAnT-equilibrium tutorial-kant-ignition PROPERTIES
+    LABELS      "KAnT;regression;tutorial"
+    TIMEOUT     600
     ENVIRONMENT "${_TEST_ENV}"
 )

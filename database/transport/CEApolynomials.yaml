@@ -2,6 +2,12 @@
     aliases: ["AR"]
     source: "V3C3 BICH ET AL (1990)"
     viscosity:
+      - temperature_range: [50.0, 131.0]
+        coefficients: [0.9085575449042335, -12.234764827638452, 42.068079510473446, 0.33889958996291547]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (2), 50-200 K"
+      - temperature_range: [131.0, 200.0]
+        coefficients: [2.3002606399045673, 463.7922321200238, -19196.19181391104, -8.958676095888379]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (2), 50-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.61205763, -0.67714354E+02, 0.19040660E+03, 0.21588272E+01]
       - temperature_range: [1000.0, 5000.0]
@@ -9,6 +15,12 @@
       - temperature_range: [5000.0, 15000.0]
         coefficients: [0.76608935, 0.67867215E+03, -0.84991417E+06, 0.77935167E+00]
     conductivity:
+      - temperature_range: [50.0, 131.0]
+        coefficients: [0.8687099194104912, -19.764348372315492, 163.7937903554072, 0.33384022863149454]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (5), 50-200 K"
+      - temperature_range: [131.0, 200.0]
+        coefficients: [1.7480244655201083, 285.4347134939088, -12281.786298988716, -5.557530881388695]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (5), 50-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.60968928, -0.70892249E+02, 0.58420624E+03, 0.19337152E+01]
       - temperature_range: [1000.0, 5000.0]
@@ -296,6 +308,12 @@
     aliases: ["HE"]
     source: "V3C3 BICH ET AL (1990)"
     viscosity:
+      - temperature_range: [5.0, 66.0]
+        coefficients: [0.6545160796579125, 0.3739432152031827, -4.083939544040083, 1.5401725442231262]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 5, 5-200 K"
+      - temperature_range: [66.0, 200.0]
+        coefficients: [0.7371484208517489, 13.667841662046811, -262.80934916970386, 1.0519440416286776]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 5, 5-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.75015944, 0.35763243E+02, -0.22121291E+04, 0.92126352E+00]
       - temperature_range: [1000.0, 5000.0]
@@ -303,6 +321,12 @@
       - temperature_range: [5000.0, 15000.0]
         coefficients: [0.86316349, 0.96205176E+03, -0.12498705E+07, -0.14115714E+00]
     conductivity:
+      - temperature_range: [5.0, 66.0]
+        coefficients: [0.6555582043771073, 0.3956407670692719, -4.239318788463398, 3.5929814555452255]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 5, 5-200 K"
+      - temperature_range: [66.0, 200.0]
+        coefficients: [0.7618489036151921, 19.242271684156236, -394.67699611178455, 2.9517372668824082]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 5, 5-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.75007833, 0.36577987E+02, -0.23636600E+04, 0.29766475E+01]
       - temperature_range: [1000.0, 5000.0]
@@ -314,6 +338,12 @@
     aliases: ["KR"]
     source: "V3C3 BICH ET AL (1990)"
     viscosity:
+      - temperature_range: [119.78, 166.0]
+        coefficients: [1.8741498128825742, 240.61065663460099, -7938.31604418326, -5.765743922385401]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 8, 119.78-200 K"
+      - temperature_range: [166.0, 200.0]
+        coefficients: [6.159372049979074, 1895.2038506104284, -86227.75916146138, -34.79807322705109]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 8, 119.78-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.58597795, -0.12924832E+03, 0.47495759E+04, 0.25793650E+01]
       - temperature_range: [1000.0, 5000.0]
@@ -321,6 +351,12 @@
       - temperature_range: [5000.0, 15000.0]
         coefficients: [0.76582939, 0.68610377E+03, -0.82537190E+06, 0.97565128E+00]
     conductivity:
+      - temperature_range: [119.78, 155.0]
+        coefficients: [-4.534167861881522, -1495.2340782777464, 50569.126368333236, 34.32808428400662]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 8, 119.78-200 K"
+      - temperature_range: [155.0, 200.0]
+        coefficients: [-6.305511013667441, -2614.999278414594, 116072.66976811056, 47.75953820919264]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 8, 119.78-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.58008139, -0.13792556E+03, 0.60771460E+04, 0.16420039E+01]
       - temperature_range: [1000.0, 5000.0]
@@ -414,6 +450,12 @@
   - element: "N2"
     source: "V3C3 BOUSHEHRI ET AL (1987) SVEHLA (1994)"
     viscosity:
+      - temperature_range: [20.0, 100.0]
+        coefficients: [0.8527651843832514, -14.020240061690032, 89.0291640223081, 0.4399233827328959]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (2), 20-200 K"
+      - temperature_range: [100.0, 200.0]
+        coefficients: [0.9534732309214649, 37.07656649600844, -1962.2709311715478, -0.3296923667315861]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (2), 20-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.62526577, -0.31779652E+02, -0.16407983E+04, 0.17454992E+01]
       - temperature_range: [1000.0, 5000.0]
@@ -421,6 +463,12 @@
       - temperature_range: [5000.0, 15000.0]
         coefficients: [0.88503551, 0.90902171E+03, -0.73129061E+06, -0.53503838E+00]
     conductivity:
+      - temperature_range: [80.0, 126.0]
+        coefficients: [-1.2159183423875082, -429.8462726920013, 10064.041080302803, 13.422351317782622]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (5), 80-200 K"
+      - temperature_range: [126.0, 200.0]
+        coefficients: [-0.7164942302744661, -544.3391975175504, 21241.52394626572, 11.211620467694477]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (5), 80-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.85439436, 0.10573224E+03, -0.12347848E+05, 0.47793128E+00]
       - temperature_range: [1000.0, 5000.0]
@@ -472,6 +520,12 @@
     aliases: ["NE"]
     source: "V3C3 BICH ET AL (1990)"
     viscosity:
+      - temperature_range: [27.09, 78.0]
+        coefficients: [0.6062822970739103, -26.36589129803016, 221.57791001620868, 2.4226361149439546]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 6, 27.09-200 K"
+      - temperature_range: [78.0, 200.0]
+        coefficients: [0.6563901341491828, -6.405213226104163, -404.4604944059264, 2.0513238757705268]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 6, 27.09-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.68398511, 0.18732366E+02, -0.23663189E+04, 0.18284755E+01]
       - temperature_range: [1000.0, 5000.0]
@@ -479,6 +533,12 @@
       - temperature_range: [5000.0, 15000.0]
         coefficients: [0.77549350, 0.59414850E+03, -0.69670786E+06, 0.97885712E+00]
     conductivity:
+      - temperature_range: [27.09, 73.0]
+        coefficients: [0.6150862763707523, -25.76022946407746, 216.3356051171956, 2.8134755091852504]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 6, 27.09-200 K"
+      - temperature_range: [73.0, 200.0]
+        coefficients: [0.6245681707363827, -15.512485393510788, -132.44254592126572, 2.697862850920851]
+        source: "ATLAS fit to Bich, Millat and Vogel (1990), Table 6, 27.09-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.68509965, 0.19794924E+02, -0.24525539E+04, 0.22586136E+01]
       - temperature_range: [1000.0, 5000.0]
@@ -515,6 +575,12 @@
   - element: "O2"
     source: "V3C3 BOUSHEHRI ET AL (1987) SVEHLA (1994)"
     viscosity:
+      - temperature_range: [54.33, 104.0]
+        coefficients: [0.8780516113057643, -12.546604875391475, 36.233456858150895, 0.422523892719874]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (2), 54.33-200 K"
+      - temperature_range: [104.0, 200.0]
+        coefficients: [0.9343935007536135, 20.664630908343884, -1386.0538657621191, -0.02699021340249086]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (2), 54.33-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.60916180, -0.52244847E+02, -0.59974009E+03, 0.20410801E+01]
       - temperature_range: [1000.0, 5000.0]
@@ -522,6 +588,12 @@
       - temperature_range: [5000.0, 15000.0]
         coefficients: [0.73981127, 0.39194906E+03, -0.37833168E+06, 0.90931780E+00]
     conductivity:
+      - temperature_range: [86.5, 155.0]
+        coefficients: [1.1458798512530988, 40.59668102205173, -1746.182290584679, -1.0144255884152837]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (5), 86.5-200 K"
+      - temperature_range: [155.0, 200.0]
+        coefficients: [7.185283232538142, 2182.3436464200854, -95183.23899124571, -41.40226716214115]
+        source: "ATLAS fit to Lemmon and Jacobsen (2004), dilute gas, Eq. (5), 86.5-200 K"
       - temperature_range: [200.0, 1000.0]
         coefficients: [0.77229167, 0.68463210E+01, -0.58933377E+04, 0.12210365E+01]
       - temperature_range: [1000.0, 5000.0]

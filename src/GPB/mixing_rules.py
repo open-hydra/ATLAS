@@ -127,30 +127,3 @@ def simplified_law(T,wm,cp):
     exit(1)
   return mu, k
 
-
-def CEA_polynomials(T,database):
-
-    for v in database['viscosity']:
-        if np.min(v['temperature_range']) <= T <= np.max(v['temperature_range']):
-            VC = v['coefficients']
-
-    for c in database['conductivity']:
-        if np.min(c['temperature_range']) <= T <= np.max(c['temperature_range']):
-            CC = c['coefficients']
-
-    if T < np.min(database['viscosity'][0]['temperature_range']):
-        T = np.min(database['viscosity'][0]['temperature_range'])
-        VC = database['viscosity'][0]['coefficients']
-        CC = database['conductivity'][0]['coefficients']
-
-    if T > np.max(database['viscosity'][len(database['viscosity'])-1]['temperature_range']):
-        T = np.max(database['viscosity'][len(database['viscosity'])-1]['temperature_range'])
-        VC = database['viscosity'][len(database['viscosity'])-1]['coefficients']
-        CC = database['conductivity'][len(database['conductivity'])-1]['coefficients']
-
-    mu = VC[0] * np.log(T) + VC[1] / T + VC[2] / (T * T) + VC[3]
-    mu = 1.0e-07 * np.exp(mu)
-    k = CC[0] * np.log(T) + CC[1] / T + CC[2] / (T * T) + CC[3]
-    k = 1.0e-04 * np.exp(k) # 1e-4 derives from the conversion \muW/cm*K -> W/m*k
-
-    return mu, k

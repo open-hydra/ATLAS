@@ -1,9 +1,9 @@
 module st_io_mod
   use Lib_ORION_data
   use IR_Precision
+  use global_mod, only: outpath
   implicit none
 
-  character(len=18), parameter :: outpath = 'fromATLAStoSolver/'
 
 contains
 

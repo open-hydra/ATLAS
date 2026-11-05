@@ -25,6 +25,12 @@ contains
     self % dp(k) % properties   = 1.0_R8
     self % dp(k) % distribution = 'none'
     self % dp(k) % ds           = 0.0_R8
+    self % dp(k) % krho_sum     = 0.0_R8
+    self % dp(k) % krho_min     = 0.0_R8
+    self % dp(k) % gp_sum       = 0.0_R8
+    self % dp(k) % gp_min       = 0.0_R8
+    self % dp(k) % g_fixed      = 0.0_R8
+    self % dp(k) % mixed        = .false.
 
     call load_bcb_dp_boundary_config(sourceini, section, phase, cfg)
 
@@ -46,16 +52,22 @@ contains
         self % dp(k) % properties(m,1:npCP,1) = cfg%materials(m)%krho
         self % dp(k) % properties(m,1:npCP,2) = cfg%materials(m)%kV
         self % dp(k) % properties(m,1:npCP,5) = cfg%materials(m)%kT
+        self % dp(k) % krho_sum = self % dp(k) % krho_sum + sum(cfg%materials(m)%krho(1:npCP))
+        self % dp(k) % krho_min = min(self % dp(k) % krho_min, minval(cfg%materials(m)%krho(1:npCP)))
 
       elseif (self % dp(k) % id == 402) then
         self % dp(k) % properties(m,1:npCP,1) = cfg%materials(m)%gp
         self % dp(k) % properties(m,1:npCP,2) = cfg%materials(m)%velocity_magnitude
         self % dp(k) % properties(m,1:npCP,5) = cfg%materials(m)%Tp
+        self % dp(k) % gp_sum = self % dp(k) % gp_sum + sum(cfg%materials(m)%gp(1:npCP))
+        self % dp(k) % gp_min = min(self % dp(k) % gp_min, minval(cfg%materials(m)%gp(1:npCP)))
 
       elseif (self % dp(k) % id == 403) then
         self % dp(k) % properties(m,1:npCP,1) = cfg%materials(m)%gp
         self % dp(k) % properties(m,1:npCP,2) = cfg%materials(m)%kV
         self % dp(k) % properties(m,1:npCP,5) = cfg%materials(m)%Tp
+        self % dp(k) % gp_sum = self % dp(k) % gp_sum + sum(cfg%materials(m)%gp(1:npCP))
+        self % dp(k) % gp_min = min(self % dp(k) % gp_min, minval(cfg%materials(m)%gp(1:npCP)))
 
       else
         self % dp(k) % id = 400
@@ -72,5 +84,58 @@ contains
     enddo
 
   end procedure build_inflow_outflow_dp
+
+
+  !> The mixture rule of the 401 inlet across the dispersed phases of the cell, once every phase of the block is built
+  !> on it (builder_block, correct_grain_flows). krho_tot, the sum of krho over every (material, population) of every
+  !> 401 record of the cell, and G, the sum of gp over every (material, population) of every 402/403 record, are the
+  !> cell's: each 401 record carries krho/(1 - krho_tot) in place of krho, and G after ds, and the solvers inject
+  !> krho/(1 - krho_tot) (mdot_gas + G A) per (material, population), the gas flow not in G. A krho sum of 1 or more (an
+  !> infinite or negative flow), a negative krho or a negative gp stops BCB with the cell's section.
+  module procedure mix_dp_inlets
+    implicit none
+    real(R8) :: krho_tot, g_tot
+    character(len=24) :: txt
+    integer :: k
+
+    if (.not. allocated(self % dp)) return
+    krho_tot = 0.0_R8
+    g_tot = 0.0_R8
+    do k = 1, size(self % dp)
+      select case (self % dp(k) % id)
+      case (401)
+        if (self % dp(k) % mixed) return
+        krho_tot = krho_tot + self % dp(k) % krho_sum
+        if (self % dp(k) % krho_min < 0.0_R8) call refuse('a negative krho of the dispersed phase '// &
+                                                          trim(self % dp(k) % phase_name))
+      case (402, 403)
+        g_tot = g_tot + self % dp(k) % gp_sum
+        if (self % dp(k) % gp_min < 0.0_R8) call refuse('a negative gp of the dispersed phase '// &
+                                                        trim(self % dp(k) % phase_name))
+      end select
+    enddo
+    if (.not. (krho_tot < 1.0_R8)) then
+      write(txt,'(ES12.5)') krho_tot
+      call refuse('the krho of the dispersed phases of the cell sum to '//trim(adjustl(txt))// &
+                  ', 1 or more (an infinite or negative flow)')
+    endif
+
+    do k = 1, size(self % dp)
+      if (self % dp(k) % id /= 401) cycle
+      self % dp(k) % properties(:,:,1) = self % dp(k) % properties(:,:,1) / (1.0_R8 - krho_tot)
+      self % dp(k) % g_fixed = g_tot
+      self % dp(k) % mixed = .true.
+    enddo
+
+  contains
+
+    subroutine refuse(what)
+      implicit none
+      character(len=*), intent(in) :: what
+      write(*,'(A)') '[ERROR] section ['//trim(self % name)//'] (inlet of the dispersed phases, BC 401): '//what
+      stop 1
+    end subroutine refuse
+
+  end procedure mix_dp_inlets
 
 end submodule dp_inflow_outflow_mod

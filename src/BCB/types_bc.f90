@@ -16,6 +16,12 @@ module bc_mod
     real(8),       allocatable :: properties(:,:,:)     ! material x population x property
     character(llen), allocatable :: distribution(:,:)  ! material x population
     real(8),       allocatable :: ds(:,:)              ! material x population (meters)
+    real(8)                    :: krho_sum = 0.0d0     ! a 401 record: the sum of its krho over the (material, population) pairs
+    real(8)                    :: krho_min = 0.0d0     ! a 401 record: its smallest krho, or 0
+    real(8)                    :: gp_sum = 0.0d0       ! a 402/403 record: the sum of its gp over the (material, population) pairs
+    real(8)                    :: gp_min = 0.0d0       ! a 402/403 record: its smallest gp, or 0
+    real(8)                    :: g_fixed = 0.0d0      ! a 401 record: G, the sum of gp over the 402/403 records of the cell
+    logical                    :: mixed = .false.      ! a 401 record: krho divided by 1 - krho_tot already (mix_dp_inlets)
   end type dp_slot_t
 
   type, public:: bc_t
@@ -56,6 +62,9 @@ module bc_mod
     procedure, pass(self)      :: build_periodic
     procedure, pass(self)      :: build_manifold
     procedure, pass(self)      :: build_gsi_ig
+    procedure, pass(self)      :: build_special_dp
+    procedure, pass(self)      :: correct_grain_flux
+    procedure, pass(self)      :: mix_dp_inlets
 
   end type bc_t
 
@@ -117,6 +126,28 @@ module bc_mod
       type(phase_t),        intent(in)    :: phase
     end subroutine
 
+    !> A face of the 500 family (manifold, gsi) seen by one dispersed phase, in its slot k: a symmetry,
+    !> or an inlet on a solid-propellant grain that gives the phase's inlet keys (builder_500)
+    module subroutine build_special_dp(self, k, sourceini, section, phase)
+      class(bc_t),          intent(inout) :: self
+      integer,              intent(in)    :: k
+      type(file_ini),       intent(in)    :: sourceini
+      character(len=*),     intent(in)    :: section
+      type(phase_t),        intent(in)    :: phase
+    end subroutine
+
+    !> The gas flow of a solid-propellant grain that injects dispersed phases, once every phase of the block
+    !> is built on the cell (builder_500)
+    module subroutine correct_grain_flux(self)
+      class(bc_t),          intent(inout) :: self
+    end subroutine
+
+    !> The mixture rule of the 401 inlet across the dispersed phases of the cell, once every phase of the block is
+    !> built on it (builder_400dp)
+    module subroutine mix_dp_inlets(self)
+      class(bc_t),          intent(inout) :: self
+    end subroutine
+
     !> The x,y (pure-2D) deck format is read by Q2D only: a BC that Q2D does not implement (408, 410
     !> inlets; 501 manifold) is refused at build time, naming the solver and the alternative (advice)
     module subroutine refuse_on_2d_mesh(self, id, what, advice)
@@ -124,6 +155,17 @@ module bc_mod
       integer,              intent(in)    :: id
       character(len=*),     intent(in)    :: what
       character(len=*),     intent(in)    :: advice
+    end subroutine
+
+    !> The record of an inlet carries a zero turbulence band under a model: a WARNING, for the inlets 401-404
+    !> (builder_400ig) and the solid-propellant grain applied as an inlet (502, grain-wall = F, builder_500).
+    !> bc_kind: the type the message names after the section
+    module subroutine warn_turbulence_zero(self, bc_kind, what, model, keys)
+      class(bc_t),          intent(in)    :: self
+      character(len=*),     intent(in)    :: bc_kind
+      character(len=*),     intent(in)    :: what
+      character(len=*),     intent(in)    :: model
+      character(len=*),     intent(in)    :: keys
     end subroutine
 
   end interface
@@ -192,7 +234,15 @@ contains
       return
 
     case(trim(MARKER_MANIFOLD))
-      call build_manifold(self, sourceini, section, phase)
+      ! A dispersed phase does not follow a manifold: a symmetry in its own slot (write_dp_bc prints the slot's
+      ! id where the fluid's file keeps 501). The fluid's record is built by the fluid phase alone: built
+      ! again for a dispersed phase of the block, its allocation stopped BCB.
+      if (phase % type == 'DP') then
+        k = self % dp_slot(phase % name)
+        call build_special_dp(self, k, sourceini, section, phase)
+      else
+        call build_manifold(self, sourceini, section, phase)
+      endif
       return
 
      ! case default
@@ -241,6 +291,9 @@ contains
 
       case (trim(MARKER_INLET), trim(MARKER_OUTLET))
         call build_inflow_outflow_dp(self, k, sourceini, section, phase)
+
+      case (trim(MARKER_GSI))
+        call build_special_dp(self, k, sourceini, section, phase)
 
       ! case default
       !   write(*,*) '[ERROR] BC definition ', trim(self % definition), ' not implemented for dispersed phase'

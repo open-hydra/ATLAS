@@ -35,6 +35,7 @@ module input_keys_mod
   use finer, only: file_ini
   use registry_mod, only: registry_t, lowercase
   use phase_mod, only: phase_t
+  use global_mod, only: phase_dir
   implicit none
   private
   public :: input_keys_snapshot, input_keys_set_phases, input_keys_check_section, &
@@ -65,9 +66,9 @@ module input_keys_mod
   character(len=*), parameter :: ESCAPE = 'ignore-'
   ! keys of earlier decks that are not read any more: an unknown key like any other
   ! (ERROR, or WARNING with strict-keys = false), whose hint names the current key.
-  integer, parameter :: NHINTS = 10
+  integer, parameter :: NHINTS = 11
   character(len=KLEN), parameter :: hint_key(NHINTS) = [character(len=KLEN) :: 'rt', 'force-connect', &
-    'mit', 'kappa', 'nut', 'mut', 'rhoNuTilde', 'rhoK', 'rhoOmega', 'rhoRij']
+    'mit', 'kappa', 'nut', 'mut', 'rhoNuTilde', 'rhoK', 'rhoOmega', 'rhoRij', 'grain-bc']
   character(len=120), parameter :: hint_text(NHINTS) = [character(len=120) :: &
     "key 'rt' was renamed 'g' (nozzle mass flux, kg m-2 s-1)", &
     "the option is BC-force-connect in [ATLAS-Parameters]", &
@@ -78,7 +79,8 @@ module input_keys_mod
     "a boundary takes the specific nuTilde: the solver multiplies it by the density of the boundary state", &
     "a boundary takes the specific k: the solver multiplies it by the density of the boundary state", &
     "a boundary takes the specific omega: the solver multiplies it by the density of the boundary state", &
-    "a boundary takes the specific Rij: the solver multiplies it by the density of the boundary state"]
+    "a boundary takes the specific Rij: the solver multiplies it by the density of the boundary state", &
+    "key 'grain-bc' was replaced by the logical grain-wall: T a wall (mode 1), F (default) an inlet (mode 2)"]
 
 contains
 
@@ -321,7 +323,7 @@ contains
   end subroutine input_keys_snapshot
 
   !> Names that depend on the phases of the run (called after read_phase). The
-  !> species of an ideal-gas phase are read from its <phase>phase.txt (one
+  !> species of an ideal-gas phase are read from its <phase>phase.txt (in the case directory or fromATLAStoSolver/, phase_dir; one
   !> species per line after the header, name = first token: the layout
   !> read_idealgas_properties reads) when the caller has not loaded them yet
   !> (BCB loads them per block, after the deck is checked).
@@ -345,7 +347,7 @@ contains
           species_names = [character(len=KLEN) :: species_names, trim(adjustl(phase(p)%species%name(j)))]
         enddo
       elseif (phase(p)%type == 'IG') then
-        call phase_file_species(trim(phase_prefixes(p))//'phase.txt', names)
+        call phase_file_species(phase_dir(trim(phase_prefixes(p)))//trim(phase_prefixes(p))//'phase.txt', names)
         if (allocated(names)) species_names = [character(len=KLEN) :: species_names, names]
       endif
     enddo

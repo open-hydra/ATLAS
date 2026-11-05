@@ -104,7 +104,9 @@ transport    = CEA
 
 ### Prescribed mixture
 
-One species representing a mixture.
+One species representing a mixture. The values of `mixture` are the mass fractions of its components, in any
+scale (GPB normalises them: `{N2: 75.4} {O2: 23.3} {Ar: 1.3}` are mass percentages); `mixture-name` names the
+species.
 
 Thermodynamics and transport databases can be both selected.
 
@@ -118,18 +120,18 @@ transport    = CEA
 
 ### Complex definitions
 
-GPB is capable to deal with more complex scenarios. A complete set of test and tutorials is available in the `test` folder. 
-
-As an example, it is reported an input defintion that computes the combustion products of a CEA equilibrium (`CEA-equilibrium = SRM.inp`). The species from the equilibrium composition are compared with the ones of the Troyes mechanism (`reactions = troyes`), and the ones not included in the latter are added as a single species component (`inerts-mixing = true`).
+The approaches combine; the cases of `test/GPB/` cover them. The input below computes the combustion products of a
+CEA equilibrium (`CEA-file = SRM.inp`); the species of the equilibrium composition are compared with those of the
+Troyes mechanism (`reactions = troyes`), and the ones the mechanism lacks are lumped into a single species
+(`inerts-mixing = true`). With `CEA-file` the thermodynamics is NASA9 (`thermo` may be left out).
 
 ```ini
 [GPB-Phase1]
-type            = ideal-gas
-CEA-equilibrium = SRM.inp
-reactions       = troyes
-inerts-mixing   = true
-thermo          = NASA9
-transport       = CEA
+type          = ideal-gas
+CEA-file      = SRM.inp
+reactions     = troyes
+inerts-mixing = true
+transport     = CEA
 ```
 
 ### Which keys apply to which approach
@@ -164,6 +166,8 @@ Every diagnostic goes to standard output only; nothing is ever written into the 
 | a file Cantera cannot load, or no file of that name (the error names the database files the key may have meant: `phase` and `reactions` take the file name, not the phase name) | ERROR | `[ERROR] key reactions|phase of section [<s>]: <file>.yaml cannot be loaded by Cantera: <Cantera's line>` | fix the file, or write the file name suggested by the message |
 | `transport = CEA` with a species whose name is not the `element` or one of the `aliases` of a record of `CEApolynomials.yaml` (compared character by character) | WARNING | `[WARNING] GPB: transport = CEA: no CEApolynomials record for species '<sp>'` | add the species, or its name to the `aliases` of its record, in `database/transport/CEApolynomials.yaml` ([records](../../databases/transport/cea-polynomials.md#records)), or use `transport = cantera` |
 | `transport = CEA` or `CEA-file` with a name or alias that appears in two records of `database/transport/CEApolynomials.yaml`, or a record whose `element` is not a non-empty string or whose `aliases` is not a list of non-empty strings (also a record that is not a mapping, or a file that is not a list of records) | ERROR | `[ERROR] GPB: database/transport/CEApolynomials.yaml: name or alias '<n>' appears in records <i> and <j>` (`appears twice in record <i>` when a record repeats its own name or alias) / `[ERROR] GPB: database/transport/CEApolynomials.yaml: record <i>...` / `[ERROR] GPB: database/transport/CEApolynomials.yaml: the file must be a list of records` | remove the duplicate record or alias (records are numbered from 1 in the order of the file), or fix the record |
+| `transport = CEA` with a record whose viscosity does not increase with temperature at its lowest bound (`RP-1`, from 270 K) and a table with rows below that bound | INFO | `[INFO] GPB: transport = CEA: record '<r>': the viscosity of the record does not increase with temperature at its lowest bound <T> K` | nothing: below that bound the viscosity keeps its value at the bound ([below and above the intervals](../../databases/transport/cea-polynomials.md#below-and-above-the-intervals)); `Tmin` at or above the bound prints no line |
+| `transport = CEA` with a record of a species of the run that cannot give a value at a table temperature: a temperature between the lowest and the highest bound of a property that no interval contains, a property without intervals, an interval used by the table whose coefficients are not four finite numbers, any interval of the property whose temperature range is not a list of finite numbers, or a specific heat of the species that is not a positive finite number below the lowest conductivity bound | ERROR | `[ERROR] GPB: database/transport/CEApolynomials.yaml: record '<r>', <property>: ...` (`record '<r>': the specific heat ...`) | fix the record ([records](../../databases/transport/cea-polynomials.md#records)): every interval has exactly four coefficients `[A, B, C, D]`, finite numbers, and a temperature range of finite numbers |
 | `transport =` with a value other than `cantera`, `CEA` or `constant` (the values are case-sensitive) | WARNING | `[WARNING] GPB: transport = <v> is not cantera, CEA or constant: simplified law applied for species '<sp>'` | write `cantera` or `CEA` |
 | phase named `gas` | WARNING | `[WARNING] GPB: phase name 'gas' identifies no mechanism` | give the phase the mechanism's name in the yaml (FLINT selects the routine by that name) |
 

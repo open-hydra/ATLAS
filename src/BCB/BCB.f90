@@ -93,6 +93,7 @@ program BCB
       call find_connect(blk,force_connect,chimeraon)
       if (chimeraon) call chimera_wrapper(blk,force_chimera,m)
     endif
+    call check_face_coverage(blk, chimeraon)
 
     ! BC writing
     do b = 1, size(phase)
