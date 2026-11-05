@@ -104,10 +104,13 @@ contains
     else
       do i = 1, 4 ; rng(i) = (-1.0)**i*huge(rng(i)) ; enddo
     endif
-    ! Convert theta range (if present) from degrees to rad
-    if (dir(1)==5) rng(1:2) = rng(1:2)*pi/180
-    if (dirSize>1) then
-      if (dir(2)==5) rng(3:4) = rng(3:4)*pi/180
+    ! Convert a theta range given in degrees to rad. Only the bounds the INI gives: the +-huge() of a
+    ! bound not given overflows when multiplied by pi (an Inf, or a floating-point trap)
+    if (face_cfg%has_range) then
+      if (dir(1)==5) rng(1:2) = rng(1:2)*pi/180
+      if (dirSize>1) then
+        if (dir(2)==5) rng(3:4) = rng(3:4)*pi/180
+      endif
     endif
 
     if (index_based) then

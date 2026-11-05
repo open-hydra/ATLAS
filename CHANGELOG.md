@@ -62,6 +62,9 @@ project that uses ATLAS to change with it.
 
 - BCB: overlapping multipatch ranges stopped BCB (a later patch built a cell again); a cell now takes the first
   patch whose range holds it, as the BC setup guide says.
+- BCB: on a face with a theta direction and no `range`, the bounds that stand for no range (±`huge()`) were
+  converted to radians too, which overflows: an infinity, still read as no bound, in a normal build, and a stop in
+  a build that traps floating-point exceptions. Only the bounds given are converted now.
 - KAnT: `KAnT-out.dat` separates the names of its `VARIABLES` line and quotes the zone titles, so that a
   Tecplot reader parses it.
 
