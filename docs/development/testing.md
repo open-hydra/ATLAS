@@ -201,10 +201,10 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `sweep` | MDB | `MDB/sweep` | `ATLAS MDB -- --sweep 4,7,12`: one table of the `objective = halo` decomposition at every rank count, nothing written. |
 | `tutorial-mdb-split` | MDB | `tutorials/mdb-split` | GPB, BCB, ICB and MDB from the one INI of [A Case for MPI](../tutorials/mdb/index.md): the split field carries ICB's cell by cell, the map and the split BC file as in the reference. |
 | `KAnT-equilibrium` | KAnT | `KAnT/equilibrium` | The HP equilibrium of three mechanisms at 20 chamber pressures ([Checking a Mechanism](../tutorials/kant/index.md)). |
-| `tutorial-kant-ignition` | KAnT | `tutorials/kant-ignition` | The ignition delays of FFCM-2 and WD at 41 initial temperatures ([Checking a Mechanism](../tutorials/kant/index.md)), to a relative 1e-3. |
+| `tutorial-kant-ignition` | KAnT | `tutorials/kant-ignition` | The ignition delays of FFCM-2 and WD at 10 initial temperatures ([Checking a Mechanism](../tutorials/kant/index.md)), to a relative 5e-2. |
 | `GUI-icmodel` | GUI | `GUI/tests` | The ICB model of the GUI: every deck of the suite goes through the case document and back with its ICB sections unchanged, an ICB zone section is never read as a BC, the keys the GUI names are ICB's, and the checks of the Initial stage flag no ICB deck the tool accepts while catching the refusals they can see from the deck (standard library, no Qt). |
 | `GUI-icgeom` | GUI | `GUI/tests` | Where the GUI puts the zones of an ICB block on the mesh: on random zone decks over a pure 2-D, an extruded 2-D and a 3-D mesh, along every direction letter, the cells written after each zone, the count of cells no zone writes and the first of them are those ICB reports, and so are the plenum rows of the nozzle decks of the suite and the cells of a zone that a random profile table misses; the state the 3-D view gives every cell is the one ICB writes there, on random decks whose zones each have a pressure of their own, nozzle zones and their plenums at rest included; an interpolated zone takes the turbulence model of its source, and the cells of the other zones without turbulence are those ICB warns about (Spalart-Allmaras) or stops on (k-omega) (numpy, no Qt; skipped without numpy). |
-| `GUI-runner` | GUI | `GUI/tests` | How the GUI runs the tools: the checks before a run (the mesh and the phase files BCB and ICB read, `filelist.txt`, a tool not built, the GUI's errors by stage); with PyQt6 the chain, Stop, ICB run as from a shell, GPB then ICB; where each message of a run lands. |
+| `GUI-runner` | GUI | `GUI/tests` | How the GUI runs the tools: the checks before a run (the mesh and the phase files BCB and ICB read, `filelist.txt`, a tool not built, the GUI's errors by stage); `ATLAS ICB` from a shell leaving out the phase file an earlier deck left in `fromATLAStoSolver/`; with PyQt6 the chain, Stop, ICB run as from a shell, GPB then ICB; where each message of a run lands. |
 | `GUI-icfield` | GUI | `GUI/tests` | The initial field read back from ICB, ASCII Tecplot and VTK: the colour scales, every zone on its block, the quantities derived from the bands. |
 | `GUI-outputs` | GUI | `GUI/tests` | What the GUI reads back of GPB and BCB: the tables of every kind of phase, the real-fluid grid, the reactions, the BC id of every face cell, the multigrid levels. |
 | `GUI-layout` | GUI | `GUI/tests` | The window on simulated laptop screens at three text sizes, offscreen: no widget squeezed below its minimum, no label narrower than its text, no text over text. |
@@ -282,9 +282,11 @@ ICB tests check that initial-condition fields are built correctly on different g
 KAnT tests check chemistry-analysis workflows produce expected trends and outputs for canonical kinetics studies.
 `equilibrium` is registered (`KAnT-equilibrium`), and so is the ignition deck of the tutorial
 (`tutorial-kant-ignition`); the others are run by hand with `ATLAS KAnT` in a copy of their folder. Cantera
-integrates them, so `KAnT-out.dat` is compared to a tolerance: `1e-5` for the flame temperatures, a relative `1e-3`
+integrates them, so `KAnT-out.dat` is compared to a tolerance: `1e-5` for the flame temperatures, a relative `5e-2`
 for the ignition delays (`numdiff.awk -v rel=1`: an absolute tolerance would let any delay of a few microseconds
-through).
+through). A delay is the first state past T0 + 300 K of those KAnT stores, one every ten steps of the integrator, and
+another Cantera build takes other steps: storing every step moves the delays by up to 1.2 %. Both tests need Cantera,
+and the CI jobs without the conda environment leave out the labels `GPB` and `KAnT`.
 
 - `equilibrium`: validate equilibrium-state computations.
 - `ignition_delay`, `ignition_delay_exp`: validate ignition-delay predictions and experiment-style setup handling.

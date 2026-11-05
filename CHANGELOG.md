@@ -51,9 +51,12 @@ project that uses ATLAS to change with it.
   first cell: those cells were written `0`, a face with no BC. It also stops on a face declared `chimera` with
   `BC-chimera = false`, whose cells that match no cell of another block were written `100`, which no solver reads.
   Make the ranges cover the face, or set `BC-chimera = true`.
-- BCB, ICB, STB and MDB read each `*phase.txt` of the case directory, else the one GPB wrote into
+- BCB, ICB and MDB read each `*phase.txt` of the case directory, else the one GPB wrote into
   `fromATLAStoSolver/`, so `ATLAS GPB BCB ICB` needs no copy of the phase files. `ATLAS.sh` warns when a copy in
   the case directory differs from GPB's file. The GUI no longer copies the phase tables before BCB and ICB.
+  GPB never removes a file of `fromATLAStoSolver/`, so the phase of an earlier deck stays there: when the INI has
+  `[GPB-Phase*]` sections, BCB and ICB read there only their phase files, and `ATLAS.sh` and the GUI name the
+  others.
 
 ### Fixed
 

@@ -6,7 +6,7 @@ module global_mod
 
   !> The directory the tools write into, in the case directory: its files go into the INPUT/ of a
   !> solver run (figaro moves them), never written there directly, where they would replace the
-  !> solver's own inputs. GPB writes the phase files there too, and BCB, ICB, STB and MDB read them
+  !> solver's own inputs. GPB writes the phase files there too, and BCB, ICB and MDB read them
   !> from there when the case directory has none of the same name (phase_dir).
   character(len=*), parameter :: outpath = 'fromATLAStoSolver/'
 

@@ -263,16 +263,34 @@ def case_phase_files(case_dir):
     return sorted(os.path.basename(p) for p in glob.glob(os.path.join(case_dir, "*phase.txt")))
 
 
-def phase_files_read(case_dir):
-    """``{name: path}`` of the ``*phase.txt`` BCB, ICB, STB and MDB read in
-    *case_dir* (``ATLAS.sh``, ``phase_dir`` of ``global.f90``): those of the
-    case directory, and those GPB wrote into ``fromATLAStoSolver/`` that the
-    case directory does not hold."""
+def phase_files_read(case_dir, prefixes=()):
+    """``{name: path}`` of the ``*phase.txt`` BCB and ICB read in *case_dir*
+    (``write_filelist`` of ``ATLAS.sh``, ``phase_dir`` of ``global.f90``): those
+    of the case directory, and those GPB wrote into ``fromATLAStoSolver/`` that
+    the case directory does not hold -- only those of the GPB phases of the deck
+    (*prefixes*, :func:`gpb_prefixes`) when it has some: GPB never removes a
+    file there, and the phase of an earlier deck stays (:func:`stale_gpb_files`)."""
+    expected = {f"{p}phase.txt" for p in prefixes}
     found = {}
-    for directory in (case_dir, os.path.join(case_dir, OUTPUT_DIR)):
-        for path in sorted(glob.glob(os.path.join(directory, "*phase.txt"))):
-            found.setdefault(os.path.basename(path), path)
+    for path in sorted(glob.glob(os.path.join(case_dir, "*phase.txt"))):
+        found[os.path.basename(path)] = path
+    for path in sorted(glob.glob(os.path.join(case_dir, OUTPUT_DIR, "*phase.txt"))):
+        name = os.path.basename(path)
+        if not expected or name in expected:
+            found.setdefault(name, path)
     return dict(sorted(found.items()))
+
+
+def stale_gpb_files(case_dir, prefixes):
+    """The ``*phase.txt`` of ``fromATLAStoSolver/`` that BCB and ICB do not read
+    (:func:`phase_files_read`): no GPB phase of the deck writes them, and the
+    case directory holds none of the same name."""
+    if not prefixes:
+        return []
+    expected = {f"{p}phase.txt" for p in prefixes}
+    return sorted(name for name in (os.path.basename(p) for p in glob.glob(
+        os.path.join(case_dir, OUTPUT_DIR, "*phase.txt")))
+        if name not in expected and not os.path.isfile(os.path.join(case_dir, name)))
 
 
 def read_filelist(case_dir):
@@ -402,8 +420,14 @@ def _phase_checks(doc, case_dir, gpb_runs, who):
     prefixes = gpb_prefixes(doc.gpb)
     expected = {f"{p}phase.txt" for p in prefixes}
     in_case = set(case_phase_files(case_dir))
-    read = phase_files_read(case_dir)
+    read = phase_files_read(case_dir, prefixes)
     out = os.path.join(case_dir, OUTPUT_DIR)
+    left = stale_gpb_files(case_dir, prefixes)
+    if left:
+        checks.append(Check("warning", None, (
+            f"{', '.join(left)} of {OUTPUT_DIR}/ {'is' if len(left) == 1 else 'are'} not read: no phase "
+            f"of the deck writes {'it' if len(left) == 1 else 'them'} (an earlier GPB run left "
+            f"{'it' if len(left) == 1 else 'them'})")))
 
     def where(name):
         return "the case directory" if name in in_case else f"{OUTPUT_DIR}/"
@@ -434,7 +458,8 @@ def _phase_checks(doc, case_dir, gpb_runs, who):
             ("the case directory", [n for n in names if n in in_case]),
             (f"{OUTPUT_DIR}/", [n for n in names if n not in in_case])) if group]
         checks.append(Check("info", None, f"{who} read the phases {' and '.join(parts)}"))
-        shadowed([n for n in names if n in in_case and os.path.isfile(os.path.join(out, n))
+        shadowed([n for n in names if n in in_case and (not expected or n in expected)
+                  and os.path.isfile(os.path.join(out, n))
                   and not filecmp.cmp(os.path.join(case_dir, n), os.path.join(out, n), shallow=False)])
     if prefixes:
         stale = [n for n in names if n not in expected]

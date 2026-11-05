@@ -5,8 +5,10 @@ usage: python3 -B GUI/tests/test_runner.py [-v]
 The checks before a run need the standard library only: the mesh BCB and
 ICB read and the link the run makes to the mesh on the screen, the phase
 files they read (those of the case directory, else those GPB writes into
-fromATLAStoSolver/), a filelist.txt kept as it is, a tool not built, the GUI's own errors in the stage of a tool, what each
-tool has to build, and the environment of the tools.  The runs need PyQt6
+fromATLAStoSolver/, there only those of the GPB phases of the deck), a filelist.txt kept as it is, a tool not built, the
+GUI's own errors in the stage of a tool, what each tool has to build, and the environment of the tools.  ATLAS ICB typed in
+a shell leaves out the phase file an earlier deck left in fromATLAStoSolver/, and reads it when the INI has no GPB phase
+(skipped when ICB is not built).  The runs need PyQt6
 (QtCore): a chain stops at the tool that fails and skips the others; Stop
 ends the tool a launcher started, not only the launcher, and removes the
 filelist.txt the launcher made; BCB finds in fromATLAStoSolver/ the phase
@@ -204,6 +206,26 @@ class TestPreflight(CaseDir):
         self.assertIn("old-phase.txt, which no phase of the deck writes", warnings)
         self.assertNotIn("gas-phase.txt, which", warnings)
 
+    def test_earlier_gpb_phase_not_read(self):
+        # GPB never removes a file of fromATLAStoSolver/: the phase of an earlier deck stays there, and
+        # BCB and ICB read there only the phases of the deck (write_filelist of ATLAS.sh)
+        self.touch("mesh.tec")
+        for name in ("gas-phase.txt", "drop-phase.txt", "old-phase.txt"):
+            self.touch(f"{runner.OUTPUT_DIR}/{name}")
+        for selected in (["BCB"], ["GPB", "BCB"]):
+            checks = self.checks(doc_of(GAS_AND_DROP), selected)
+            warnings = " ".join(self.texts(checks, "warning"))
+            self.assertIn(f"old-phase.txt of {runner.OUTPUT_DIR}/ is not read: no phase of the deck "
+                          "writes it (an earlier GPB run left it)", warnings, selected)
+            self.assertNotIn("which no phase of the deck writes", warnings, selected)
+        checks = self.checks(doc_of(GAS_AND_DROP), ["BCB"])
+        self.assertIn(f"BCB read the phases drop-phase.txt, gas-phase.txt of {runner.OUTPUT_DIR}/",
+                      self.texts(checks, "info"))
+        self.assertEqual(list(runner.phase_files_read(self.case, ["gas-", "drop-"])),
+                         ["drop-phase.txt", "gas-phase.txt"])
+        self.assertEqual(list(runner.phase_files_read(self.case)),      # a deck without GPB phases
+                         ["drop-phase.txt", "gas-phase.txt", "old-phase.txt"])
+
     def test_no_phase_file_without_gpb(self):
         self.touch("mesh.tec")
         checks = self.checks(doc_of(GAS_AND_DROP), ["ICB"])
@@ -293,6 +315,42 @@ class TestPreflight(CaseDir):
         self.assertNotIn("ATLAS_PYTHON", mine)
         self.assertNotIn("OMP_NUM_THREADS", mine)
         self.assertEqual(runner.gpb_python("/my/python"), ("/my/python", "set in Settings"))
+
+
+class TestLauncher(CaseDir):
+    """ATLAS.sh typed in a shell, no Qt: the phase files it lists for BCB and ICB."""
+
+    @unittest.skipUnless(os.access(os.path.join(ATLAS, "bin", "ICB"), os.X_OK), "ICB is not built")
+    def test_earlier_gpb_phase_not_read(self):
+        # GPB never removes a file of fromATLAStoSolver/: the phase of an earlier deck stays there, and
+        # of fromATLAStoSolver/ ATLAS.sh lists only the phases of the [GPB-Phase*] sections of the INI
+        shutil.copy(os.path.join(SP_BASIC, "mesh.tec"), self.case)
+        out = os.path.join(self.case, runner.OUTPUT_DIR)
+        os.makedirs(out)
+        for name in ("solid-phase.txt", "old-phase.txt"):
+            shutil.copy(os.path.join(SP_BASIC, "solid-phase.txt"), os.path.join(out, name))
+        with open(os.path.join(SP_BASIC, "input.ini")) as handle:
+            deck = handle.read()
+
+        def icb(text):
+            self.touch("input.ini", text=text)
+            for name in ("solid-ic.tec", "old-ic.tec"):
+                if os.path.exists(os.path.join(out, name)):
+                    os.remove(os.path.join(out, name))
+            run = subprocess.run(["bash", runner.launcher(ATLAS), "ICB"], cwd=self.case, capture_output=True,
+                                 text=True, env=runner.environment(ATLAS), timeout=120)
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertFalse(os.path.exists(os.path.join(self.case, "filelist.txt")))
+            return run, sorted(n for n in os.listdir(out) if n.endswith("-ic.tec"))
+
+        run, written = icb("[GPB-Phase1]\nname = solid\ntype = solid\n\n" + deck)
+        self.assertIn(f"[WARNING] {runner.OUTPUT_DIR}/old-phase.txt is not read: no [GPB-Phase*] section of "
+                      "input.ini writes it (an earlier GPB run left it)", run.stderr)
+        self.assertEqual(written, ["solid-ic.tec"])
+        # a deck without [GPB-Phase*] sections (GPB run on another INI): every phase file there is read
+        run, written = icb(deck)
+        self.assertNotIn("is not read", run.stderr)
+        self.assertEqual(written, ["old-ic.tec", "solid-ic.tec"])
 
 
 # ----------------------------------------------------------------- runs

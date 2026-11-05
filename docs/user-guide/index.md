@@ -105,10 +105,12 @@ The same in one command: `ATLAS GPB BCB ICB STB MDB`, which stops at the first t
     into `fromATLAStoSolver/`. MDB splits what BCB and ICB wrote there, so it runs last.
 
 !!! note "Phase files written by hand"
-    BCB, ICB, STB and MDB read each `*phase.txt` of the case directory, with its `thermo.dat` or `properties.dat`,
+    BCB, ICB and MDB read each `*phase.txt` of the case directory, with its `thermo.dat` or `properties.dat`,
     and those GPB wrote into `fromATLAStoSolver/` that the case directory does not hold. A phase file of the case
     directory is therefore read in place of GPB's file of the same name: the launcher warns when the two differ.
-    Remove the copy to read GPB's.
+    Remove the copy to read GPB's. GPB never removes a file of `fromATLAStoSolver/`, so the phase of an earlier
+    deck stays there: when the INI has `[GPB-Phase*]` sections, BCB and ICB read there only the phase files of
+    those sections, and the launcher names the others it leaves out.
 
 !!! note "Passive scalars"
     ATLAS does not write passive-scalar (`Pass`) bands: MOSE and Q2D read them by position from the initial

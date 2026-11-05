@@ -583,7 +583,8 @@ files they will read:
   `thermo.dat` or `properties.dat` from the same directory: with GPB in the
   run, the list names those GPB will write, and nothing is copied. The list
   warns when a phase file of the case directory hides one GPB writes or wrote
-  (remove it to read GPB's), when one belongs to no phase of the deck, and
+  (remove it to read GPB's), when one belongs to no phase of the deck (one
+  of `fromATLAStoSolver/`, left by an earlier deck, is not read), and
   when there is none (the tools then look for the `phase.txt` of one ideal
   gas, and stop without it).
 
