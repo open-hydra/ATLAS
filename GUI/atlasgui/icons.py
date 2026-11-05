@@ -1,24 +1,31 @@
 """Vector icons for the BCB GUI, drawn at runtime with QPainter.
 
-The GUI ships no image files: every icon is a short stroked path drawn on a
-transparent pixmap in a 24x24 design grid and tinted with a colour token, so
-the whole icon set re-colours when the theme changes.
+Every interface icon is a short stroked path drawn on a transparent pixmap in
+a 24x24 design grid and tinted with a colour token, so the whole icon set
+re-colours when the theme changes.  The one image file is the application
+icon, ``assets/atlas-icon.png`` (rendered from ``atlas-icon.svg``), which is
+a placeholder until ATLAS has its logo: replace both files to change it.
 
 Public helpers
 --------------
 ``icon(name, color, size)``   -> :class:`QIcon` for buttons / tabs / tree items
 ``pixmap(name, color, size)`` -> the same artwork as a :class:`QPixmap`
 ``dot(color, size)``          -> filled colour swatch used for BC colours
-``app_icon(accent, bg)``      -> window icon
+``app_icon(accent, bg)``      -> window / Dock icon (the asset, else drawn)
 """
 
 from __future__ import annotations
+
+import math
+import os
 
 from PyQt6.QtCore import QPointF, QRectF, Qt
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap
 
 GRID = 24.0          # design grid every path is drawn in
 _SCALE = 2           # supersampling factor for crisp icons on any DPI
+APP_ICON_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "assets", "atlas-icon.png")
 
 
 # --------------------------------------------------------------- primitives
@@ -201,6 +208,54 @@ def _chevron_down(p, c):
     _poly(p, [(6, 9.5), (12, 15.5), (18, 9.5)])
 
 
+def _chevron_up(p, c):
+    _stroke(p, c, 2.1)
+    _poly(p, [(6, 14.5), (12, 8.5), (18, 14.5)])
+
+
+def _split(p, c):
+    """A block cut in two: the zones of a block."""
+    _stroke(p, c, 1.7)
+    _poly(p, [(3.5, 5), (10, 5), (10, 19), (3.5, 19)], True)
+    _poly(p, [(14, 5), (20.5, 5), (20.5, 19), (14, 19)], True)
+    _stroke(p, c, 1.3)
+    for y in (3, 8, 13, 18):
+        _poly(p, [(12, y), (12, y + 2.5)])
+
+
+def _profile(p, c):
+    """Axes and a curve: a value given cell by cell from a file."""
+    _stroke(p, c, 1.6)
+    _poly(p, [(4, 3.5), (4, 20), (20.5, 20)])
+    _stroke(p, c, 2.0)
+    _poly(p, [(6.5, 16.5), (9.5, 13), (12.5, 14.5), (15.5, 8.5), (19, 6)])
+
+
+def _chart(p, c):
+    """Axes and two curves: the tables of a phase."""
+    _stroke(p, c, 1.6)
+    _poly(p, [(4, 3.5), (4, 20), (20.5, 20)])
+    _stroke(p, c, 1.9)
+    _poly(p, [(7, 16.5), (10.5, 13), (14.5, 11.5), (19.5, 6)])
+    _poly(p, [(7, 8.5), (11, 11), (15, 14.5), (19.5, 15.5)])
+
+
+def _nozzle(p, c):
+    """A de Laval nozzle in section, the flow through it: the special
+    initialisations."""
+    _stroke(p, c, 1.7)
+    for side in (1, -1):
+        path = QPainterPath(QPointF(2.5, 12 - side * 7))
+        path.cubicTo(QPointF(7.5, 12 - side * 7), QPointF(8.5, 12 - side * 3.6),
+                     QPointF(11.5, 12 - side * 3.6))
+        path.cubicTo(QPointF(15, 12 - side * 3.6), QPointF(17.5, 12 - side * 8.5),
+                     QPointF(21.5, 12 - side * 9.5))
+        p.drawPath(path)
+    _stroke(p, c, 1.5)
+    _poly(p, [(6.5, 12), (17, 12)])
+    _poly(p, [(14.5, 10), (17, 12), (14.5, 14)])
+
+
 def _chevron_right(p, c):
     _stroke(p, c, 2.1)
     _poly(p, [(9.5, 6), (15.5, 12), (9.5, 18)])
@@ -233,6 +288,145 @@ def _alert(p, c):
     p.drawEllipse(QRectF(10.85, 15.6, 2.3, 2.3))
 
 
+def _gear(p, c):
+    _stroke(p, c, 1.8)
+    p.drawEllipse(QRectF(9.2, 9.2, 5.6, 5.6))
+    p.drawEllipse(QRectF(5.6, 5.6, 12.8, 12.8))
+    _stroke(p, c, 2.6)
+    for i in range(8):
+        a = math.radians(i * 45 + 22.5)
+        _poly(p, [(12 + 6.6 * math.cos(a), 12 + 6.6 * math.sin(a)),
+                  (12 + 9.4 * math.cos(a), 12 + 9.4 * math.sin(a))])
+
+
+def _reset(p, c):
+    _stroke(p, c)
+    path = QPainterPath()
+    path.arcMoveTo(QRectF(4.5, 4.5, 15, 15), 135)
+    path.arcTo(QRectF(4.5, 4.5, 15, 15), 135, -290)
+    p.drawPath(path)
+    _poly(p, [(4.4, 4.6), (6.7, 6.7), (9.6, 5.8)])
+
+
+def _type(p, c):
+    _stroke(p, c)
+    _poly(p, [(9.5, 19), (14.5, 5), (19.5, 19)])
+    _poly(p, [(11.4, 14), (17.6, 14)])
+    _poly(p, [(3, 19), (6, 11), (9, 19)])
+
+
+def _thermo(p, c):
+    """A thermometer: the initial state of the flow."""
+    _stroke(p, c)
+    stem = QPainterPath()
+    stem.addRoundedRect(QRectF(9.6, 2.8, 4.8, 13.6), 2.4, 2.4)
+    bulb = QPainterPath()
+    bulb.addEllipse(QRectF(7.4, 13.2, 9.2, 9.2))
+    p.drawPath(stem.united(bulb))
+    _fill(p, c)
+    p.drawEllipse(QRectF(9.7, 15.5, 4.6, 4.6))
+    _stroke(p, c, 2.2)
+    _poly(p, [(12, 9), (12, 16)])
+    _stroke(p, c, 1.6)
+    for y in (6, 9, 12):
+        _poly(p, [(16.8, y), (19.2, y)])
+
+
+def _grid(p, c):
+    """A structured block, its grid lines bent over a bump of the wall: the
+    mesh."""
+    def point(u, v):
+        x = 3.0 + 18.0 * u
+        y = 20.5 - 16.5 * v - 5.0 * math.sin(math.pi * u) * (1.0 - v) ** 1.3
+        return QPointF(x, y)
+
+    def line(points):
+        path = QPainterPath(points[0])
+        for q in points[1:]:
+            path.lineTo(q)
+        p.drawPath(path)
+
+    steps = [n / 12 for n in range(13)]
+    _stroke(p, c, 1.25)
+    for k in (1, 2):
+        line([point(k / 3, t) for t in steps])
+        line([point(t, k / 3) for t in steps])
+    _stroke(p, c, 1.8)
+    outline = ([point(t, 0) for t in steps] + [point(1, t) for t in steps[1:]]
+               + [point(1 - t, 1) for t in steps[1:]] + [point(0, 1 - t) for t in steps[1:]])
+    line(outline)
+
+
+def _case(p, c):
+    """A briefcase: the case and what it holds."""
+    _stroke(p, c)
+    p.drawRoundedRect(QRectF(3, 7.5, 18, 12.5), 2.2, 2.2)
+    _poly(p, [(9, 7.5), (9, 5.4), (10.3, 4.1), (13.7, 4.1), (15, 5.4), (15, 7.5)])
+    _poly(p, [(3, 12.9), (10.4, 12.9)])
+    _poly(p, [(13.6, 12.9), (21, 12.9)])
+    _stroke(p, c, 1.6)
+    p.drawRoundedRect(QRectF(10.4, 11.4, 3.2, 3.0), 0.6, 0.6)
+
+
+def _boundary(p, c):
+    """A block with one face shaded: the boundary conditions on its faces."""
+    shade = QColor(c)
+    shade.setAlphaF(0.4)
+    p.setPen(Qt.PenStyle.NoPen)
+    p.setBrush(shade)
+    _poly(p, [(12, 12), (20, 8), (20, 16), (12, 20)], True)
+    _stroke(p, c, 1.7)
+    _poly(p, [(4, 8), (12, 4), (20, 8), (20, 16), (12, 20), (4, 16)], True)
+    _poly(p, [(4, 8), (12, 12), (20, 8)])
+    _poly(p, [(12, 12), (12, 20)])
+
+
+def _initial(p, c):
+    """A stopwatch at zero: the state the run starts from, at t = 0."""
+    _stroke(p, c)
+    p.drawEllipse(QRectF(4.5, 6.6, 15, 15))
+    _poly(p, [(12, 6.6), (12, 3.8)])
+    _poly(p, [(9.8, 3.3), (14.2, 3.3)])
+    _poly(p, [(18.1, 7.9), (19.7, 6.3)])
+    _stroke(p, c, 2.1)
+    _poly(p, [(12, 14.1), (12, 9.7)])
+    _fill(p, c)
+    p.drawEllipse(QRectF(10.85, 12.95, 2.3, 2.3))
+
+
+def _review(p, c):
+    """A page and a check mark: the file as written, and what was checked."""
+    _stroke(p, c)
+    _poly(p, [(14, 3), (5.5, 3), (5.5, 21), (18.5, 21), (18.5, 7.5)], True)
+    _poly(p, [(14, 3), (14, 7.5), (18.5, 7.5)])
+    _stroke(p, c, 2.1)
+    _poly(p, [(8.6, 14.4), (11, 16.8), (15.6, 11.3)])
+
+
+def _play(p, c):
+    """A triangle pointing on: run."""
+    _stroke(p, c)
+    path = QPainterPath(QPointF(8, 5.2))
+    path.lineTo(QPointF(18.6, 12))
+    path.lineTo(QPointF(8, 18.8))
+    path.closeSubpath()
+    p.drawPath(path)
+
+
+def _stop(p, c):
+    """A square: stop the run."""
+    _stroke(p, c)
+    p.drawRoundedRect(QRectF(6, 6, 12, 12), 2.2, 2.2)
+
+
+def _terminal(p, c):
+    """A window with a prompt: the log of a tool."""
+    _stroke(p, c)
+    p.drawRoundedRect(QRectF(3, 4.5, 18, 15), 2.4, 2.4)
+    _poly(p, [(7, 9.6), (10, 12.2), (7, 14.8)])
+    _poly(p, [(12.2, 15.2), (16.6, 15.2)])
+
+
 DRAW = {
     "mesh": _mesh, "cube": _cube, "open": _open, "save": _save,
     "save-as": _save_as, "fit": _fit, "tag": _tag, "eye": _eye,
@@ -240,7 +434,12 @@ DRAW = {
     "pencil": _pencil, "trash": _trash, "check": _check, "target": _target,
     "layers": _layers, "sliders": _sliders, "code": _code, "info": _info,
     "chevron-down": _chevron_down, "chevron-right": _chevron_right,
-    "circle": _circle, "file": _file, "alert": _alert,
+    "chevron-up": _chevron_up, "split": _split, "profile": _profile,
+    "nozzle": _nozzle, "chart": _chart,
+    "circle": _circle, "file": _file, "alert": _alert, "gear": _gear,
+    "reset": _reset, "type": _type, "thermo": _thermo,
+    "grid": _grid, "case": _case, "boundary": _boundary, "initial": _initial,
+    "review": _review, "play": _play, "stop": _stop, "terminal": _terminal,
 }
 
 
@@ -293,6 +492,22 @@ def dot_pixmap(color, size=12, ring=None):
     return px
 
 
+def swatch_pixmap(color, width, height, border="#808080"):
+    """A rounded colour sample of *width* x *height*, outlined so a colour
+    close to its background still shows its edge."""
+    px = QPixmap(int(width * _SCALE), int(height * _SCALE))
+    px.setDevicePixelRatio(float(_SCALE))
+    px.fill(Qt.GlobalColor.transparent)
+    p = QPainter(px)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    p.setPen(QPen(QColor(border), 1.0))
+    p.setBrush(QColor(color))
+    radius = min(width, height) * 0.22
+    p.drawRoundedRect(QRectF(0.5, 0.5, width - 1, height - 1), radius, radius)
+    p.end()
+    return px
+
+
 def dot(color, size=12, ring=None):
     key = ("d", color, size, ring)
     if key not in _icon_cache:
@@ -301,7 +516,12 @@ def dot(color, size=12, ring=None):
 
 
 def app_icon(accent, bg="#0b1017", size=64):
-    """Window icon: an accent cube on a rounded dark tile."""
+    """The application icon: :data:`APP_ICON_FILE`, or -- when the file is
+    missing -- the mesh glyph in *accent* on a rounded *bg* tile."""
+    if os.path.isfile(APP_ICON_FILE):
+        icon = QIcon(APP_ICON_FILE)
+        if not icon.isNull():
+            return icon
     px = QPixmap(size * _SCALE, size * _SCALE)
     px.setDevicePixelRatio(float(_SCALE))
     px.fill(Qt.GlobalColor.transparent)

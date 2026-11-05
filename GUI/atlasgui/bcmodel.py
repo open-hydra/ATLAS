@@ -7,7 +7,9 @@ A BCB ``input.ini`` has three kinds of sections:
 * named BC sections       -- ``[name]`` with ``type = ...`` plus parameters.
 
 A face value is either a *keyword* BC that needs no section (``symmetry``,
-``connection``, ``chimera``, ...) or the name of a defined section.
+``connection``, ``chimera``, ...) or the name of a defined section.  A named
+section that an ICB block lists as one of its zones is an initial state, not a
+BC (:func:`atlasgui.icmodel.zone_section_names`).
 
 This module is intentionally free of any GUI / Qt / VTK dependency so it can be
 unit-tested headlessly.
@@ -16,6 +18,8 @@ unit-tested headlessly.
 from __future__ import annotations
 
 from collections import OrderedDict
+
+from .icmodel import zone_section_names
 
 # BC keywords that are assigned directly on the face line and need no section.
 KEYWORD_BCS = [
@@ -88,6 +92,27 @@ def file_keys_of(bc_type):
             keys.append(key)
     return keys
 
+
+# Keys BCB refuses in a BC section with a hint (hint_key of
+# src/common/input_keys.f90): keys of earlier decks, and the density-weighted
+# turbulence of an ICB zone -- a boundary takes nuTilde, k, omega and Rij
+# specific, and the solver multiplies them by the density of the state it
+# builds there.
+_BOUNDARY_SPECIFIC = ("a boundary takes the specific {0}: the solver multiplies it "
+                      "by the density of the boundary state")
+REFUSED_BC_KEYS = OrderedDict([
+    ("rt", "renamed g, the nozzle mass flux [kg m-2 s-1]"),
+    ("force-connect", "the option is BC-force-connect in [ATLAS-Parameters]"),
+    ("mit", "renamed nuTilde (specific, m2/s)"),
+    ("kappa", "renamed k (specific, m2/s2)"),
+    ("nut", "nut names the eddy viscosity, not an input: give the Spalart-Allmaras "
+            "variable nuTilde (m2/s)"),
+    ("mut", "mut names the eddy viscosity, not an input: give nuTilde (m2/s)"),
+    ("rhoNuTilde", _BOUNDARY_SPECIFIC.format("nuTilde")),
+    ("rhoK", _BOUNDARY_SPECIFIC.format("k")),
+    ("rhoOmega", _BOUNDARY_SPECIFIC.format("omega")),
+    ("rhoRij", _BOUNDARY_SPECIFIC.format("Rij")),
+])
 
 # Keys whose value must be one of a fixed set of names. BCB stops with an error
 # on an unknown name, so the editor pre-fills the first entry and lists the rest.
@@ -273,6 +298,13 @@ class BCBDocument:
                 for f, val in sorted(faces.items())
                 if val and val not in names]
 
+    def refused_keys(self):
+        """``(section, key, why)`` of the keys of the BC sections that BCB
+        refuses with a hint (:data:`REFUSED_BC_KEYS`)."""
+        return [(name, key, REFUSED_BC_KEYS[key])
+                for name, section in self.sections.items()
+                for key in section.params if key in REFUSED_BC_KEYS]
+
     # -- serialisation ---------------------------------------------------
     def to_ini_blocks(self):
         """The BCB part of the file: one string per section, no parameters."""
@@ -333,7 +365,8 @@ class BCBDocument:
 
         Sections owned by another tool are left alone (see
         :func:`is_bc_section`): in a shared case file they belong to GPB or
-        ICB, not to a boundary condition.
+        ICB, not to a boundary condition.  So are the zone sections of the
+        ICB blocks, which carry no prefix.
         """
         doc = cls()
 
@@ -370,8 +403,9 @@ class BCBDocument:
             extras_map[idx] = extras
 
         # Named BC sections: everything this GUI does not route elsewhere.
+        icb_zones = set(zone_section_names(sections))
         for name, kv in sections:
-            if not is_bc_section(name):
+            if not is_bc_section(name) or name in icb_zones:
                 continue
             kv_dict = OrderedDict(kv)
             bc_type = kv_dict.pop("type", "wall")

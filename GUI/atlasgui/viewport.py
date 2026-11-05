@@ -1,8 +1,14 @@
-"""Interactive PyVista viewport: block toggling, rotate/pan/zoom, face picking.
+"""Interactive PyVista viewports: rotate/pan/zoom, and a click picks what is
+under the cursor.
 
-Every assignable block face is drawn as its own pickable actor so a single left
-click selects exactly one face.  The k-planes of 2-D blocks are drawn faintly for
-context but are not pickable (BCB assigns them automatically).
+:class:`MeshViewport` is the Boundaries stage's: every assignable block face is
+drawn as its own pickable actor so a single left click selects exactly one face.
+The k-planes of 2-D blocks are drawn faintly for context but are not pickable
+(BCB assigns them automatically).
+
+:class:`StateViewport` is the Initial stage's: the outer surfaces of the blocks,
+every cell in a colour the stage gives it (the state ICB writes into the cell
+beneath), and a click names the cell.
 
 Picking uses a depth-correct ``vtkCellPicker`` driven by our own click handler so
 the face actually in the foreground under the cursor is selected (rather than an
@@ -13,7 +19,9 @@ from __future__ import annotations
 
 import numpy as np
 import pyvista as pv
-import vtk
+# Not ``import vtk``: that loads every VTK module, including vtkGUISupportQt,
+# which on conda links its own Qt6 next to PyQt6's and aborts the QApplication.
+from vtkmodules.vtkRenderingCore import vtkCellPicker
 from pyvistaqt import QtInteractor
 from PyQt6.QtWidgets import QWidget, QVBoxLayout
 from PyQt6.QtCore import pyqtSignal
@@ -35,10 +43,14 @@ CONTEXT_ALPHA = 0.12          # base opacity of the faint k-plane context surfac
 GHOST_OPACITY = 0.16          # per-block manual transparency toggle
 
 
-class MeshViewport(QWidget):
-    """Qt widget wrapping a :class:`pyvistaqt.QtInteractor`."""
+class _View(QWidget):
+    """Qt widget wrapping a :class:`pyvistaqt.QtInteractor`: the themed
+    background and axes, a caption until a mesh is loaded, the camera presets,
+    and a left click told from a drag and handed to :meth:`_picked`."""
 
-    face_picked = pyqtSignal(int, int)  # (block_idx, face)
+    PLACEHOLDER = "No mesh loaded\nUse  Load Mesh  to open a Tecplot or Plot3D grid"
+    THEME_KEYS = ("viewport_bg", "viewport_bg2", "edge", "unassigned", "context",
+                  "highlight_edge", "label_text", "label_shape")
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -48,18 +60,7 @@ class MeshViewport(QWidget):
         layout.addWidget(self.plotter.interactor)
 
         self.blocks = []
-        self.face_actors = {}         # (b, f) -> pyvista actor
-        self.face_base_color = {}     # (b, f) -> current fill colour
-        self.context_actors = {}      # (b, f) -> actor
-        self.block_actors = {}        # b -> [actors...]
-        self.block_visible = {}       # b -> bool
-        self.block_opacity = {}       # b -> base opacity (1.0 or GHOST_OPACITY)
-        self.selected = None          # (b, f)
-        self.auto_reveal = True
-        self._labels_actor = None
         self._placeholder = None
-        self._show_labels = True
-        self._face_by_addr = {}       # vtk actor address -> (b, f)
 
         # Themeable colours (overwritten by apply_theme).
         self.theme = {
@@ -70,7 +71,7 @@ class MeshViewport(QWidget):
             "label_text": "white", "label_shape": "#1f3550",
         }
 
-        self._picker = vtk.vtkCellPicker()
+        self._picker = vtkCellPicker()
         self._picker.SetTolerance(0.005)
         self._press_pos = None
         self._observers_set = False
@@ -100,8 +101,7 @@ class MeshViewport(QWidget):
             return
         try:
             self._placeholder = self.plotter.add_text(
-                "No mesh loaded\nUse  Load Mesh  to open a Tecplot or Plot3D grid",
-                position=(0.5, 0.5), viewport=True, font_size=11,
+                self.PLACEHOLDER, position=(0.5, 0.5), viewport=True, font_size=11,
                 color=self.theme["unassigned"], name="placeholder")
             prop = self._placeholder.GetTextProperty()
             prop.SetJustificationToCentered()
@@ -129,12 +129,109 @@ class MeshViewport(QWidget):
             self.plotter.add_axes()
 
     def apply_theme(self, tokens):
-        for k in ("viewport_bg", "viewport_bg2", "edge", "unassigned", "context",
-                  "highlight_edge", "label_text", "label_shape"):
+        for k in self.THEME_KEYS:
             if k in tokens:
                 self.theme[k] = tokens[k]
         self._apply_background()
         self._add_axes()
+
+    def _clear_scene(self, blocks):
+        """Drop every actor and take *blocks* as the mesh."""
+        self.plotter.clear()
+        self._placeholder = None     # dropped by clear()
+        self._add_axes()
+        self.blocks = blocks
+        self._show_placeholder()
+
+    # -- picking ---------------------------------------------------------
+    def _install_click_observers(self):
+        if self._observers_set:
+            return
+        iren = self.plotter.iren
+        iren.add_observer("LeftButtonPressEvent", self._on_left_press)
+        iren.add_observer("LeftButtonReleaseEvent", self._on_left_release)
+        self._observers_set = True
+
+    def _on_left_press(self, obj, event):
+        self._press_pos = obj.GetEventPosition()
+
+    def _on_left_release(self, obj, event):
+        if self._press_pos is None:
+            return
+        x0, y0 = self._press_pos
+        x, y = obj.GetEventPosition()
+        self._press_pos = None
+        if abs(x - x0) > 4 or abs(y - y0) > 4:
+            return  # a drag (rotate/pan/zoom), not a click
+        self._pick_at(x, y)
+
+    def _pick_at(self, x, y):
+        ren = self.plotter.renderer
+        self._picker.Pick(x, y, 0, ren)
+        actor = self._picker.GetActor()
+        if actor is not None:
+            self._picked(actor, self._picker.GetCellId())
+
+    def _picked(self, actor, cell):
+        """A click on cell *cell* of *actor*."""
+
+    # -- camera ----------------------------------------------------------
+    def view_isometric(self):
+        self.plotter.view_isometric(); self.plotter.render()
+
+    def view_xy(self):
+        self.plotter.view_xy(); self.plotter.render()
+
+    def view_xz(self):
+        self.plotter.view_xz(); self.plotter.render()
+
+    def view_yz(self):
+        self.plotter.view_yz(); self.plotter.render()
+
+    def reset_camera(self):
+        self.plotter.reset_camera(); self.plotter.render()
+
+    def close(self):  # ensure the render window is torn down cleanly
+        try:
+            self.plotter.close()
+        except Exception:
+            pass
+        super().close()
+
+
+class MeshViewport(_View):
+    """The Boundaries stage's view: a face is picked with the mouse.
+
+    It also shows what BCB wrote (:meth:`set_written`): every cell of a face
+    in the colour of its BC, in place of the face; a click on one emits
+    ``cell_picked``."""
+
+    face_picked = pyqtSignal(int, int)  # (block_idx, face)
+    cell_picked = pyqtSignal(int, int, int, int)   # (block from 0, face, m, n from 0)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.face_actors = {}         # (b, f) -> pyvista actor
+        self.face_base_color = {}     # (b, f) -> current fill colour
+        self.context_actors = {}      # (b, f) -> actor
+        self.block_actors = {}        # b -> [actors...]
+        self.block_visible = {}       # b -> bool
+        self.block_opacity = {}       # b -> base opacity (1.0 or GHOST_OPACITY)
+        self.selected = None          # (b, f)
+        self.auto_reveal = True
+        self._labels_actor = None
+        self._show_labels = True
+        self._face_by_addr = {}       # vtk actor address -> (b, f)
+        self.written = {}             # (b, f) -> (grid, actor) of the cells BCB wrote
+        self._written_by_addr = {}    # vtk actor address -> (b, f)
+        self._written_shape = {}      # (b, f) -> cells along m, n
+        self._mark = None             # outline of the cell picked
+        self._written_mode = False
+
+    def apply_theme(self, tokens):
+        super().apply_theme(tokens)
+        for _grid, actor in self.written.values():
+            actor.prop.edge_color = self.theme["edge"]
         # Restyle existing actors: edges of non-selected faces and context planes.
         for key, actor in self.face_actors.items():
             if key != self.selected:
@@ -149,9 +246,7 @@ class MeshViewport(QWidget):
 
     # -- mesh setup ------------------------------------------------------
     def set_mesh(self, blocks):
-        self.plotter.clear()
-        self._placeholder = None     # dropped by clear()
-        self._add_axes()
+        self._clear_scene(blocks)
         self.face_actors.clear()
         self.face_base_color.clear()
         self.context_actors.clear()
@@ -159,9 +254,12 @@ class MeshViewport(QWidget):
         self.block_visible.clear()
         self.block_opacity.clear()
         self._face_by_addr.clear()
+        self.written.clear()
+        self._written_by_addr.clear()
+        self._written_shape.clear()
+        self._mark = None
         self.selected = None
         self._labels_actor = None
-        self.blocks = blocks
 
         for b, block in enumerate(blocks):
             self.block_actors[b] = []
@@ -193,7 +291,8 @@ class MeshViewport(QWidget):
         self.plotter.reset_camera()
         self.view_isometric()
 
-    def _face_mesh(self, block, face):
+    @staticmethod
+    def _face_mesh(block, face):
         xf, yf, zf = facemod.extract_face(block, face)
         if 1 in xf.shape:
             # Degenerate face (2-D block edge): render as a poly-line tube.
@@ -214,33 +313,109 @@ class MeshViewport(QWidget):
             zf[:, :, None].astype(float),
         )
 
+    # -- what BCB wrote --------------------------------------------------
+    def set_written(self, faces):
+        """Show the cells of *faces* ``{(b, f): (M, N, 3) uint8}`` in their
+        colours, in place of the faces; the other faces of the mesh faint.
+        None: the faces again."""
+        for grid, actor in self.written.values():
+            self.plotter.remove_actor(actor, render=False)
+            for b, actors in self.block_actors.items():
+                if actor in actors:
+                    actors.remove(actor)
+        self.written.clear()
+        self._written_by_addr.clear()
+        self._written_shape.clear()
+        self.mark_cell(None)
+        self._written_mode = faces is not None
+        if faces is None:
+            for (b, f), actor in self.face_actors.items():
+                actor.SetVisibility(bool(self.block_visible.get(b, True)))
+                actor.SetPickable(True)
+            self._refresh_opacity()
+            self.plotter.render()
+            return
+        for (b, f), rgb in faces.items():
+            block = self.blocks[b]
+            grid = self._cell_mesh(block, f)
+            if grid is None:
+                continue
+            m_cells, n_cells = rgb.shape[:2]
+            flat = rgb.reshape(-1, 3, order="F")
+            index = grid.cell_data["cell"]
+            if index.max() >= len(flat):
+                continue                      # not the size of the face
+            grid.cell_data["rgb"] = flat[index]
+            edges = not facemod.face_is_degenerate(block, f)
+            actor = self.plotter.add_mesh(
+                grid, scalars="rgb", rgb=True, show_edges=edges,
+                edge_color=self.theme["edge"], line_width=1, pickable=True,
+                name=f"written_{b}_{f}", reset_camera=False, **MATERIAL)
+            actor.SetVisibility(bool(self.block_visible.get(b, True)))
+            self.written[(b, f)] = (grid, actor)
+            self._written_by_addr[_addr(actor)] = (b, f)
+            self._written_shape[(b, f)] = (m_cells, n_cells)
+            self.block_actors.setdefault(b, []).append(actor)
+        for key, actor in self.face_actors.items():
+            shown = key not in self.written
+            actor.SetVisibility(shown and bool(self.block_visible.get(key[0], True)))
+            actor.SetPickable(False)
+        self._refresh_opacity()
+        self.plotter.render()
+
+    @staticmethod
+    def _cell_mesh(block, face):
+        """The cells of *face* of *block*, each carrying ``cell`` = m + n M
+        (m along the first node axis of the face, as BCB counts them)."""
+        xf, yf, zf = facemod.extract_face(block, face)
+        if 1 in xf.shape:
+            # a 2-D block's edge: one tube segment per cell
+            pts = np.column_stack([np.squeeze(a).ravel() for a in (xf, yf, zf)])
+            n = len(pts)
+            if n < 2:
+                return None
+            lines = np.hstack([[2, i, i + 1] for i in range(n - 1)])
+            poly = pv.PolyData(pts.astype(float), lines=lines)
+            poly.cell_data["cell"] = np.arange(n - 1)
+            diag = np.linalg.norm(pts.max(0) - pts.min(0)) or 1.0
+            try:
+                return poly.tube(radius=diag * 0.004)
+            except Exception:
+                return poly
+        grid = pv.StructuredGrid(xf[:, :, None].astype(float), yf[:, :, None].astype(float),
+                                 zf[:, :, None].astype(float))
+        grid.cell_data["cell"] = np.arange(grid.n_cells)    # VTK: m fastest
+        return grid
+
+    def mark_cell(self, key, cell=None):
+        """Outline cell *cell* (m + n M) of written face *key*; None: none."""
+        if self._mark is not None:
+            self.plotter.remove_actor(self._mark, render=False)
+            self._mark = None
+        if key is None or key not in self.written:
+            self.plotter.render()
+            return
+        grid, _actor = self.written[key]
+        ids = np.flatnonzero(grid.cell_data["cell"] == cell)
+        if ids.size:
+            piece = grid.extract_cells(ids)
+            style = "surface" if facemod.face_is_degenerate(self.blocks[key[0]], key[1]) \
+                else "wireframe"
+            self._mark = self.plotter.add_mesh(
+                piece, style=style, color=self.theme["highlight_edge"], line_width=4,
+                pickable=False, name="written_mark", reset_camera=False, lighting=False)
+        self.plotter.render()
+
     # -- picking ---------------------------------------------------------
-    def _install_click_observers(self):
-        if self._observers_set:
-            return
-        iren = self.plotter.iren
-        iren.add_observer("LeftButtonPressEvent", self._on_left_press)
-        iren.add_observer("LeftButtonReleaseEvent", self._on_left_release)
-        self._observers_set = True
-
-    def _on_left_press(self, obj, event):
-        self._press_pos = obj.GetEventPosition()
-
-    def _on_left_release(self, obj, event):
-        if self._press_pos is None:
-            return
-        x0, y0 = self._press_pos
-        x, y = obj.GetEventPosition()
-        self._press_pos = None
-        if abs(x - x0) > 4 or abs(y - y0) > 4:
-            return  # a drag (rotate/pan/zoom), not a click
-        self._pick_at(x, y)
-
-    def _pick_at(self, x, y):
-        ren = self.plotter.renderer
-        self._picker.Pick(x, y, 0, ren)
-        actor = self._picker.GetActor()
-        if actor is None:
+    def _picked(self, actor, cell):
+        key = self._written_by_addr.get(_addr(actor))
+        if key is not None:
+            grid, _actor = self.written[key]
+            if 0 <= cell < grid.n_cells:
+                flat = int(grid.cell_data["cell"][cell])
+                m_cells = self._written_shape[key][0]
+                self.mark_cell(key, flat)
+                self.cell_picked.emit(key[0], key[1], flat % m_cells, flat // m_cells)
             return
         key = self._face_by_addr.get(_addr(actor))
         if key is not None:
@@ -290,8 +465,9 @@ class MeshViewport(QWidget):
 
     def set_block_visible(self, block_idx, visible):
         self.block_visible[block_idx] = visible
+        covered = {self.face_actors[k] for k in self.written if k in self.face_actors}
         for actor in self.block_actors.get(block_idx, []):
-            actor.SetVisibility(bool(visible))
+            actor.SetVisibility(bool(visible) and actor not in covered)
         self.plotter.render()
 
     def set_block_opacity(self, block_idx, opacity):
@@ -325,6 +501,13 @@ class MeshViewport(QWidget):
         for (b, f), actor in self.context_actors.items():
             base = self.block_opacity.get(b, 1.0) * CONTEXT_ALPHA
             actor.prop.opacity = min(base, REVEAL_OPACITY * CONTEXT_ALPHA) if revealing else base
+        if self._written_mode:
+            # the faces BCB wrote nothing for (another phase's blocks) stay faint
+            for key, actor in self.face_actors.items():
+                if key not in self.written:
+                    actor.prop.opacity = min(self.block_opacity.get(key[0], 1.0), 0.25)
+            for (b, f), (_grid, actor) in self.written.items():
+                actor.prop.opacity = self.block_opacity.get(b, 1.0)
 
     def update_labels(self, label_map):
         """Draw a text label at the centroid of each assigned face.
@@ -368,28 +551,144 @@ class MeshViewport(QWidget):
         if label_map is not None:
             self.update_labels(label_map)
 
-    # -- camera ----------------------------------------------------------
-    def view_isometric(self):
-        self.plotter.view_isometric(); self.plotter.render()
 
-    def view_xy(self):
-        self.plotter.view_xy(); self.plotter.render()
 
-    def view_xz(self):
-        self.plotter.view_xz(); self.plotter.render()
+class StateViewport(_View):
+    """The Initial stage's view: the outer surfaces of every block, each cell
+    of a surface in the colour of the cell of the block beneath it.
 
-    def view_yz(self):
-        self.plotter.view_yz(); self.plotter.render()
+    The owner gives the colours per block cell (:meth:`set_colors`, the cells
+    i fastest, as :class:`icgeom.BlockCells` holds them) and the cells to
+    outline (:meth:`set_outline`); a click on a surface emits the block and
+    the cell beneath.  A pure 2-D block (one node plane) is drawn as its plane,
+    which shows every cell; a 3-D block shows the cells along its six faces.
+    """
 
-    def reset_camera(self):
-        self.plotter.reset_camera(); self.plotter.render()
+    cell_picked = pyqtSignal(int, int)   # (block from 0, cell from 0, i fastest)
 
-    def close(self):  # ensure the render window is torn down cleanly
-        try:
-            self.plotter.close()
-        except Exception:
-            pass
-        super().close()
+    PLACEHOLDER = "No mesh loaded\nLoad the mesh to see which state every cell takes"
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.surfaces = {}            # b -> [(grid, block cells under it, actor)]
+        self.outlines = {}            # b -> actor of the outlined cells
+        self.block_opacity = {}       # b -> opacity
+        self.edges = False            # the cell edges hide the colours of a fine mesh
+        self._surface_by_addr = {}    # vtk actor address -> (b, n)
+
+    @staticmethod
+    def _surfaces(block):
+        """``[(x, y, z, cells)]``: the node planes drawn for *block*, with the
+        cells (flat, i fastest) beneath each of their quads."""
+        ni, nj, nk = block.dims
+        shape = (ni - 1, nj - 1, max(nk - 1, 1))
+        flat = np.arange(shape[0] * shape[1] * shape[2]).reshape(shape, order="F")
+        if nk == 1:
+            planes = [((slice(None), slice(None), 0), flat[:, :, 0])]
+        else:
+            planes = [((0, slice(None), slice(None)), flat[0]),
+                      ((-1, slice(None), slice(None)), flat[-1]),
+                      ((slice(None), 0, slice(None)), flat[:, 0]),
+                      ((slice(None), -1, slice(None)), flat[:, -1]),
+                      ((slice(None), slice(None), 0), flat[:, :, 0]),
+                      ((slice(None), slice(None), -1), flat[:, :, -1])]
+        return [(block.xn[nodes], block.yn[nodes], block.zn[nodes], cells.ravel(order="F"))
+                for nodes, cells in planes]
+
+    def set_mesh(self, blocks):
+        self._clear_scene(blocks)
+        self.surfaces.clear()
+        self.outlines.clear()
+        self.block_opacity.clear()
+        self._surface_by_addr.clear()
+        for b, block in enumerate(blocks):
+            self.surfaces[b] = []
+            self.block_opacity[b] = 1.0
+            for n, (x, y, z, cells) in enumerate(self._surfaces(block)):
+                grid = pv.StructuredGrid(x[:, :, None].astype(float),
+                                         y[:, :, None].astype(float),
+                                         z[:, :, None].astype(float))
+                grid.cell_data["rgb"] = np.full((grid.n_cells, 3), 160, dtype=np.uint8)
+                actor = self.plotter.add_mesh(
+                    grid, scalars="rgb", rgb=True, show_edges=self.edges,
+                    edge_color=self.theme["edge"], line_width=1, pickable=True,
+                    name=f"state_{b}_{n}", reset_camera=False, **MATERIAL)
+                self.surfaces[b].append((grid, cells, actor))
+                self._surface_by_addr[_addr(actor)] = (b, n)
+        self._install_click_observers()
+        self.plotter.reset_camera()
+        # a mesh of 2-D blocks is seen face on
+        if blocks and all(block.nk <= 2 for block in blocks):
+            self.view_xy()
+        else:
+            self.view_isometric()
+
+    def apply_theme(self, tokens):
+        super().apply_theme(tokens)
+        for surfaces in self.surfaces.values():
+            for _grid, _cells, actor in surfaces:
+                actor.prop.edge_color = self.theme["edge"]
+        self.plotter.render()
+
+    def set_colors(self, b, rgb):
+        """Paint block *b* (from 0): *rgb* is ``(cells, 3)`` uint8, a row per
+        block cell, i fastest."""
+        for grid, cells, _actor in self.surfaces.get(b, []):
+            grid.cell_data["rgb"] = rgb[cells]
+        # the render is left to the caller, once every block is painted
+
+    def set_outline(self, b, cells, color):
+        """Outline the block cells *cells* (flat, i fastest) of block *b* in
+        *color* where they meet the surface; none when *cells* is empty."""
+        actor = self.outlines.pop(b, None)
+        if actor is not None:
+            self.plotter.remove_actor(actor, render=False)
+        if len(cells) == 0:
+            return
+        ni, nj, nk = self.blocks[b].dims
+        marked = np.zeros((ni - 1) * (nj - 1) * max(nk - 1, 1), dtype=bool)
+        marked[cells] = True
+        pieces = []
+        for grid, under, _actor in self.surfaces.get(b, []):
+            ids = np.flatnonzero(marked[under])
+            if ids.size:
+                pieces.append(grid.extract_cells(ids))
+        if not pieces:
+            return
+        merged = pieces[0].merge(pieces[1:]) if len(pieces) > 1 else pieces[0]
+        self.outlines[b] = self.plotter.add_mesh(
+            merged, style="wireframe", color=color, line_width=2.5, pickable=False,
+            name=f"outline_{b}", reset_camera=False, lighting=False,
+            opacity=self.block_opacity.get(b, 1.0))
+
+    def set_block_opacity(self, b, opacity):
+        """See-through below 1, without its cell edges."""
+        self.block_opacity[b] = float(opacity)
+        for _grid, _cells, actor in self.surfaces.get(b, []):
+            actor.prop.opacity = opacity
+            actor.prop.show_edges = self.edges and opacity >= 1.0
+        if b in self.outlines:
+            self.outlines[b].prop.opacity = opacity
+
+    def set_edges(self, on):
+        """Show the cell edges (the mesh lines) of the opaque blocks or not."""
+        self.edges = bool(on)
+        for b, surfaces in self.surfaces.items():
+            for _grid, _cells, actor in surfaces:
+                actor.prop.show_edges = self.edges and self.block_opacity.get(b, 1.0) >= 1.0
+        self.plotter.render()
+
+    def redraw(self):
+        self.plotter.render()
+
+    def _picked(self, actor, cell):
+        key = self._surface_by_addr.get(_addr(actor))
+        if key is None or cell < 0:
+            return
+        b, n = key
+        _grid, cells, _actor = self.surfaces[b][n]
+        if cell < len(cells):
+            self.cell_picked.emit(b, int(cells[cell]))
 
 
 def _addr(actor):

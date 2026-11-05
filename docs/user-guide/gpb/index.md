@@ -45,6 +45,22 @@ GPB builds property tables for one or more phases. Each phase is an independent 
 
 </div>
 
+### The Solver Of Each Phase
+
+Each phase GPB builds is the input of one Hydra solver; [Hydra](https://github.com/open-hydra) couples them.
+
+| Phase (`[GPB-Phase*] type`) | Solver | |
+|---|---|---|
+| `ideal-gas`, `heavy-gas` | [MOSE](https://github.com/open-hydra/MOSE) | compressible Euler and Navier–Stokes on multi-block structured grids |
+| `ideal-gas` on a 2-D mesh | [Q2D](https://github.com/open-hydra/Q2D) | the 2-D (x, y) cases, planar or axisymmetric |
+| `real-fluid` | [ARES](https://github.com/open-hydra/ARES) | real-fluid flow |
+| `solid` | [FUSS](https://github.com/open-hydra/FUSS) | heat conduction in solids |
+| dispersed, `modeling = lagrangian` | [IGLOO](https://github.com/open-hydra/IGLOO) | Lagrangian particles |
+| dispersed, `modeling = eulerian` | [ICE](https://github.com/open-hydra/ICE) | Eulerian condensed phase |
+
+[GROOT](https://github.com/open-hydra/GROOT), the radiative-transfer solver of the suite, takes no ATLAS phase.
+ATLAS is not required by the solvers: their input files can be written by hand or by another pre-processor.
+
 ---
 
 ## Backends

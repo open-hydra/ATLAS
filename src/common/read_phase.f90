@@ -1,6 +1,7 @@
 module io_phase_mod
   use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
   use Lib_ORION_data
+  use global_mod, only: outpath, phase_dir
   implicit none
   private
   public :: read_idealgas_properties
@@ -17,13 +18,16 @@ contains
     implicit none
     character(len=*), intent(in):: prefix
     type(species_t), intent(inout) :: sp
+    character(len=:), allocatable :: dir
     integer           :: ios, i, n, unitfile, start, Ti1, Ti2, dummy1, dummy23
     character(256)    :: wholestring, args(2)
     type(ORION_data)  :: orion
 
-    open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
+    dir = phase_dir(prefix)
+    open(newunit=unitFile,file=dir//trim(prefix)//'phase.txt',status='old',iostat=ios)
     if (ios/=0) then
-      write(*,*) '[ERROR] phase file '//trim(prefix)//'phase.txt'//' not found'
+      write(*,*) '[ERROR] phase file '//trim(prefix)//'phase.txt not found, neither in the case directory'// &
+                 ' nor in '//outpath
       stop 1
     endif
     ios = 0; n = -1
@@ -45,9 +49,10 @@ contains
     end do
     close(unitFile)
 
-    ios = tec_read_structured_multiblock(orion=orion,filename=trim(prefix)//'thermo.dat')
+    ! File 2: thermo
+    ios = tec_read_structured_multiblock(orion=orion,filename=dir//trim(prefix)//'thermo.dat')
     if (ios/=0) then
-      write(*,*) '[WARNING] thermo file, '//trim(prefix)//'thermo.dat'//' not found'
+      write(*,*) '[WARNING] thermo file, '//dir//trim(prefix)//'thermo.dat'//' not found'
       return
     endif
     dummy1  = lbound(orion%block(1)%mesh, dim=2)
@@ -84,13 +89,16 @@ contains
     implicit none
     character(len=*), intent(in):: prefix
     type(real_fluid_t), intent(inout) :: sp
+    character(len=:), allocatable :: dir
     integer           :: ios, i, j, unitfile
     character(256)    :: wholestring, args(2)
     type(ORION_data)  :: orion
 
-    open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
+    dir = phase_dir(prefix)
+    open(newunit=unitFile,file=dir//trim(prefix)//'phase.txt',status='old',iostat=ios)
     if (ios/=0) then
-      write(*,*) '[WARNING] phase file '//trim(prefix)//'phase.txt'//' not found'
+      write(*,*) '[WARNING] phase file '//trim(prefix)//'phase.txt not found, neither in the case directory'// &
+                 ' nor in '//outpath
       return
     endif
     ios = 0
@@ -101,9 +109,9 @@ contains
     close(unitFile)
 
     !! File 2: thermo — use ORION to get mesh (p, h node coords), read T directly
-    ios = tec_read_structured_multiblock(orion=orion,filename=trim(prefix)//'thermo.dat')
+    ios = tec_read_structured_multiblock(orion=orion,filename=dir//trim(prefix)//'thermo.dat')
     if (ios/=0) then
-      write(*,*) '[WARNING] thermo file, '//trim(prefix)//'thermo.dat'//' not found'
+      write(*,*) '[WARNING] thermo file, '//dir//trim(prefix)//'thermo.dat'//' not found'
       return
     endif
 
@@ -131,11 +139,13 @@ contains
     implicit none
     character(len=*), intent(in):: prefix
     type(material_t), intent(inout) :: mat
+    character(len=:), allocatable :: dir
     integer :: i, n, ios, Ti1, Ti2, unitfile, k
     character(len=512) :: wholestring, token, rest, groups
     type(orion_data) :: orion
 
-    open(newunit=unitFile,file=trim(prefix)//'phase.txt',status='old',iostat=ios)
+    dir = phase_dir(prefix)
+    open(newunit=unitFile,file=dir//trim(prefix)//'phase.txt',status='old',iostat=ios)
     if (ios/=0) return!error stop ("Error reading phase file")
     ios = 0; n = -1
     read(unitfile,*)!skip first line
@@ -163,12 +173,12 @@ contains
       k = index(rest, ' ')
       groups = rest(1:k-1)
       if (len_trim(token) == 0) then
-        write(*,'(*(g0))') '[ERROR] phase file '//trim(prefix)//'phase.txt line ', i+1, &
+        write(*,'(*(g0))') '[ERROR] phase file '//dir//trim(prefix)//'phase.txt line ', i+1, &
                            ': expected "<material> <groups>", got an empty line'
         stop 1
       endif
       if (len_trim(token) > len(mat%name)) then
-        write(*,'(*(g0))') '[ERROR] phase file '//trim(prefix)//'phase.txt line ', i+1, &
+        write(*,'(*(g0))') '[ERROR] phase file '//dir//trim(prefix)//'phase.txt line ', i+1, &
                            ': material name "'//trim(token)//'" exceeds ', len(mat%name), ' characters'
         stop 1
       endif
@@ -178,7 +188,7 @@ contains
       else
         read(groups,*,iostat=ios) mat%npCP(i)
         if (ios /= 0) then
-          write(*,'(*(g0))') '[ERROR] phase file '//trim(prefix)//'phase.txt line ', i+1, &
+          write(*,'(*(g0))') '[ERROR] phase file '//dir//trim(prefix)//'phase.txt line ', i+1, &
                              ': groups count "'//trim(groups)//'" is not an integer'
           stop 1
         endif
@@ -186,7 +196,7 @@ contains
     end do
     close(unitFile)
 
-    ios = tec_read_structured_multiblock(orion=orion,filename=trim(prefix)//'properties.dat')
+    ios = tec_read_structured_multiblock(orion=orion,filename=dir//trim(prefix)//'properties.dat')
     if (ios/=0) return!error stop ("Error reading ideal-gas thermo file")
     Ti1 = nint(orion%block(1)%mesh(1,0,0,0))
     Ti2 = Ti1 + orion%block(1)%Ni
@@ -211,10 +221,11 @@ contains
     integer :: i, j, k, num_files, u, ios
     character(len=128), allocatable :: file_list(:)
     character(len=128) :: type
+    logical :: here
 
     if (allocated(phase)) deallocate(phase)
 
-    ! Get the list of .txt files in the current directory
+    ! The phase files listed by ATLAS.sh: those of the case directory and those GPB wrote into fromATLAStoSolver/
     call get_file_list(file_list, num_files)
 
     ! Check if the file is a species file (ideal-gas) or a material file
@@ -237,7 +248,13 @@ contains
           stringa(1) = ''
         endif
         if (index(stringa(2),'phase')>0) then
-          open(newunit=u, file=filename, status="old", iostat=ios)
+          ! from the case directory, else from fromATLAStoSolver/, as the readers above (phase_dir)
+          inquire(file=trim(filename), exist=here)
+          if (here) then
+            open(newunit=u, file=filename, status="old", iostat=ios)
+          else
+            open(newunit=u, file=outpath//trim(filename), status="old", iostat=ios)
+          endif
           if (ios==0) then
             read(u,'(A)',iostat=ios) type
             if (ios==0) then
