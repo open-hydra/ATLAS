@@ -21,7 +21,7 @@ that ATLAS adds to database/transport/CEApolynomials.yaml (those with a `source`
 5. The rule on records built here: the three forms below the lowest viscosity bound against their formulas, with the value and the slope
    at the bound; the Prandtl number below the lowest conductivity bound with a specific heat that changes with T; different bounds for
    viscosity and conductivity; the records that stop GPB, each with its message; the malformed records handled without a stop.
-Exit status 1 on any failure.   Usage: cea_transport_low_temperature_check.py <ATLAS directory>   (Python >= 3.6, numpy, PyYAML)
+Exit status 1 on any failure.   Usage: cea_transport_low_temperature_check.py <ATLAS directory>   (Python >= 3.9, numpy, PyYAML)
 """
 import csv
 import decimal
