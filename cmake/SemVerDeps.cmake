@@ -22,7 +22,8 @@
 #
 # The first call for <name> in the build tree selects the release; a later call (from a nested project) checks it
 # against its own requirement and stops the configure when it is not satisfied. The release is, in order:
-#   1. the checkout given with -DFETCHCONTENT_SOURCE_DIR_<NAME>=<dir>, as it is (its version is its newest tag)
+#   1. the checkout given with -DFETCHCONTENT_SOURCE_DIR_<NAME>=<dir>, as it is (its version is the newest vX.Y.Z tag
+#      in its history; pre-releases are skipped)
 #   2. the release of the lock file deps.lock, in the top-level source directory, if it satisfies the requirement
 #   3. the newest release on <url> that satisfies the requirement (git ls-remote); pre-releases are skipped
 # At the end of the configure deps.lock lists the releases selected: the next configure uses them without the
@@ -30,7 +31,7 @@
 #
 # Every project carries a copy of this file: the newest copy in a build tree is the one used.
 
-set(_semver_deps_version 1.1.0)
+set(_semver_deps_version 1.1.1)
 get_property(_semver_deps_loaded GLOBAL PROPERTY SEMVER_DEPS_VERSION)
 if(_semver_deps_loaded AND _semver_deps_loaded VERSION_GREATER_EQUAL _semver_deps_version)
   return()
@@ -401,13 +402,21 @@ function(semver_dependency name)
     set(_source "local")
     set(_tag "${FETCHCONTENT_SOURCE_DIR_${_N}}")
     if(GIT_EXECUTABLE)
+      # The newest vX.Y.Z tag merged into HEAD: the nearest tag (git describe) may be a pre-release, such as
+      # v2.2.0-rc1, with a release before it
       execute_process(
-        COMMAND "${GIT_EXECUTABLE}" describe --tags --abbrev=0 --match "v[0-9]*"
+        COMMAND "${GIT_EXECUTABLE}" tag --merged HEAD --list "v[0-9]*"
         WORKING_DIRECTORY "${FETCHCONTENT_SOURCE_DIR_${_N}}"
-        OUTPUT_VARIABLE _described OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET RESULT_VARIABLE _rc)
+        OUTPUT_VARIABLE _merged OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET RESULT_VARIABLE _rc)
       if(_rc EQUAL 0)
-        _semver_tag_version("${_described}" _version)
-        set(_tag "${_described}+ (${FETCHCONTENT_SOURCE_DIR_${_N}})")
+        string(REPLACE "\n" ";" _merged "${_merged}")
+        foreach(_t IN LISTS _merged)
+          _semver_tag_version("${_t}" _v)
+          if(_v AND (_version STREQUAL "" OR _v VERSION_GREATER _version))
+            set(_version "${_v}")
+            set(_tag "${_t}+ (${FETCHCONTENT_SOURCE_DIR_${_N}})")
+          endif()
+        endforeach()
       endif()
     endif()
     if(_version AND _arg_VERSION)
