@@ -73,6 +73,9 @@ project that uses ATLAS to change with it.
   degrees). The guides describe as the code does a face left out of a block, the axis of a 2-D axisymmetric mesh
   in MOSE, the zones and the 1-D tables of ICB, the `T0` range of the stagnation states, the zone times of a
   line-file (also in a BCB warning), the BC file names that MOSE reads and the `rank` column of the MDB map.
+- BCB, ICB and MDB guides: the inflow angles `alpha` and `beta` and how MOSE applies them, `rf`, an outlet without
+  `p`, the names of the series files, a MOSE solution split by MDB and the old solution that ICB reads are
+  described as the code does them.
 - KAnT: `KAnT-out.dat` separates the names of its `VARIABLES` line and quotes the zone titles, so that a
   Tecplot reader parses it.
 - GPB: with `transport = CEA`, below the lowest bound of the NASA fits of a record (200 K for N2, O2 and Ar, up to
