@@ -77,7 +77,7 @@ read the keys without the prefix ([BC Types](../../user-guide/bcb/bc-types.md#in
 
 | Inlet | Keys | Variant |
 |---|---|---|
-| `injCH4` | `krho`, `kV`, `kT`: the density, the speed and the temperature of the particles as fractions of those of the gas | `401` |
+| `injCH4` | `krho`, `kV`, `kT`: the fraction of the flow of the mixture (gas and every dispersed phase) that the particles take, and their speed and temperature as fractions of those of the gas | `401` |
 | `injOX` | `gp` (kg m⁻² s⁻¹), `Vp` (m/s), `Tp` (K), and a direction angle `alphap` | `402` |
 
 ## Run It
@@ -94,13 +94,15 @@ ATLAS BCB
 
 ```text
        3       1       1       1       1     401
-  2.5000000000000000E-01  8.0000000000000004E-01         normal,         normal,  2.9999999999999999E-01  1.0000000000000000E-04  5.0000000000000000E-01 ./size-dist.txt  0.0000000000000000E+00
+  3.3333333333333331E-01  8.0000000000000004E-01         normal,         normal,  2.9999999999999999E-01  1.0000000000000000E-04  5.0000000000000000E-01 ./size-dist.txt  0.0000000000000000E+00  0.0000000000000000E+00
        2       1       1       1       1     402
   3.4500000000000000E+02  1.0000000000000000E+02  2.6000000000000000E+01         normal,  4.5000000000000000E+02  5.0000000000000001E-03  0.0000000000000000E+00 Dirac  0.0000000000000000E+00
 ```
 
-- `401`: `krho`, `kV`, the two angles, `kT`, the radius `rp`, the width `sigmap` of the distribution, the file of the
-  distribution, and the injection spacing `ds` (0: the solver's own).
+- `401`: `krho/(1 - krho_tot)`, here 0.25/(1 - 0.25), with `krho_tot` the sum of `krho` over the dispersed phases of the
+  cell; `kV`, the two angles, `kT`, the radius `rp`, the width `sigmap` of the distribution, the file of the
+  distribution, the injection spacing `ds` (0: the solver's own), and `G`, the mass flux of the phases given by `gp` on
+  the cell (0 here).
 - `402`: `gp`, the speed, `alphap` = 26 and `betap` normal, `Tp`, the radius 0.005 m (`drop-dp` is a diameter: BCB
   writes half of it), `sigmap`, and `Dirac`: a `Normal` distribution of width 0 is one size.
 
