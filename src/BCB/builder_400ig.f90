@@ -603,11 +603,12 @@ contains
 
       else
 
-        ! Explicit thresholds. Solver regimes (MOSE/Q2D BC_Inflow_Nozzle) on the
-        ! boundary-cell pressure: [psub,p0) subsonic from (T0,p0) | [psup,psub)
-        ! choked, g | below psup supersonic, g. All three exist only if
-        ! 0 < psup <= psub < p0 (Q2D refuses the record otherwise, MOSE loses
-        ! the choked band silently).
+        ! Explicit thresholds: 0 < psup <= psub < p0, the order of the exit
+        ! pressures of the nozzle. MOSE (BC_Inflow_Nozzle) switches on the
+        ! boundary-cell pressure: [psub,p0) subsonic from (T0,p0) | [p_shock,psub)
+        ! choked, g | below both: the design supersonic exit state, p_shock the
+        ! pressure behind a normal shock at the exit, computed from the record;
+        ! it stops at set-up on a record out of that order.
         if (.not. (psup > 0.0_R8 .and. psup <= psub .and. psub < p0)) then
           write(*,*) '[ERROR] nozzle inlet (BC 420) requires 0 < psup <= psub < p0'
           write(*,*) '        psup =', psup, ' psub =', psub, ' p0 =', p0
@@ -623,7 +624,7 @@ contains
 
       endif
 
-      ! Record as read by MOSE and Q2D (IO_BC, case 420):
+      ! Record as read by MOSE (IO_BC, case 420):
       !   T0, p0, psub, psup, g, rel_fac, massf(1:ns), turb(1:nrans)
       ! dim = index of the first tail field, as in standard(): 5 properties + 1.
       self%ig_id = 420

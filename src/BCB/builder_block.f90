@@ -191,6 +191,10 @@ contains
           endif
         endif
 
+        ! A solid-propellant grain that injects dispersed phases leaves the gas the rest of its flow: applied once
+        ! every phase of the block has been built on the face (correct_grain_flux, builder_500)
+        call correct_grain_flows(blk%face(ff))
+
       enddo
       write(*,*)
       endassociate
@@ -279,6 +283,22 @@ contains
     end subroutine say_first_cell
 
   end subroutine check_face_coverage
+
+
+  !> correct_grain_flux on every cell of a face.
+  subroutine correct_grain_flows(face)
+    use bc_block_mod, only: obj_face
+    implicit none
+    type(obj_face), intent(inout) :: face
+    integer :: m, n
+
+    do n = 1, face%Nn
+      do m = 1, face%Nm
+        call face%center(m,n)%bc%correct_grain_flux()
+      enddo
+    enddo
+
+  end subroutine correct_grain_flows
 
 
   !> Copy face-level uniform BC properties to every cell center.

@@ -9,7 +9,8 @@ How to build ATLAS from source, and how to rebuild it while you work on it. The 
 
 - **Compilers**: GNU `gfortran` and `g++`, or Intel oneAPI `ifx` and `icpx` (CI builds with both)
 - **CMake**: version 3.23 or later
-- **Git**: for cloning and managing submodules
+- **Git**: for cloning ATLAS and its submodules (CEA, FiNeR, PiNeR); the first configure also checks out the
+  release of ORION, so it needs the network
 - **Make or Ninja**: for running the build (CMake generates build files for either)
 
 **Optional:**
@@ -46,10 +47,13 @@ Options of the script:
 # optional features
 ./install.sh build --use-openmp --use-tecio
 
-# external dependency paths
+# external clones in place of the release of ORION and the submodules (checked against what ATLAS requires)
 ./install.sh build --include-cea=/path/to/cea \
                    --include-orion=/path/to/ORION \
                    --include-finer=/path/to/FiNeR
+
+# select again the newest release of ORION that ATLAS accepts (deps.lock)
+./install.sh build --update-deps
 
 # no conda environment
 ./install.sh build --no-conda
@@ -66,11 +70,11 @@ scripts/compile.sh
 ```
 
 After switching branches (`git checkout`, `git switch`), run `git submodule update --init --recursive`
-before rebuilding: git does not move the submodule checkouts, and an existing build directory would
-otherwise compile ATLAS against the ORION, cea or FiNeR commits of the previous branch. `./install.sh build`
-does this for the bundled paths (and so resets any other commit checked out in them); CMake stops with
-an error when a bundled submodule is not at the commit recorded by ATLAS (configure with
-`-DATLAS_PIN_CHECK=WARNING` to build against another checkout on purpose).
+before rebuilding: git does not move the submodule checkouts (`lib/FiNeR`, `lib/cea`, `lib/PiNeR`), and CMake
+stops with an error when one is not at the commit recorded by ATLAS (configure with `-DATLAS_PIN_CHECK=WARNING`
+to build against another checkout on purpose). ORION is not a submodule: the configure checks out in
+`lib/ORION` the release the branch requires (see
+[Libraries: releases, pins and external clones](#libraries-releases-pins-and-external-clones)).
 
 ## Configuration Variables
 
@@ -84,12 +88,14 @@ cmake --build build
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `CMAKE_BUILD_TYPE` | String | `RELEASE` (install.sh) | `RELEASE` or `DEBUG` |
-| `ORION_PATH` | Path | `lib/ORION` | Path to ORION |
-| `FINER_PATH` | Path | `lib/third_party/FiNeR` | Path to FiNeR |
-| `CEA_PATH` | Path | `lib/cea` | Path to CEA |
+| `FETCHCONTENT_SOURCE_DIR_ORION` | Path | empty (the release) | an external ORION clone, built in place of the release |
+| `FETCHCONTENT_SOURCE_DIR_FINER` | Path | empty (the submodule) | an external FiNeR clone, built in place of `lib/FiNeR` |
+| `CEA_PATH` | Path | `lib/cea` | an external CEA clone, built in place of the submodule |
+| `SEMVER_UPDATE` | String | `OFF` | `ALL` or `ORION`: select the newest release of ORION again at the next configure |
+| `ATLAS_FINER_DEPS` | String | `FREE` | FiNeR's dependencies: `FREE` (as `fobis fetch`) or `BACKUP` (known-good releases) |
+| `ATLAS_PIN_CHECK` | String | `FATAL_ERROR` | `WARNING`: build a library that differs from what ATLAS requires |
 | `USE_OPENMP` | Bool | `false` | Enable OpenMP support |
 | `USE_TECIO` | Bool | `false` | Enable TecIO support |
-| `ATLAS_PIN_CHECK` | String | `FATAL_ERROR` | `WARNING` builds against submodule checkouts that are not at the recorded commits |
 | `CMAKE_Fortran_COMPILER` | Path | auto-detected | Explicit Fortran compiler |
 | `CMAKE_CXX_COMPILER` | Path | auto-detected | Explicit C++ compiler |
 
@@ -98,12 +104,13 @@ The executables are written into `bin/` (`BCB`, `ICB`, `MDB`, `STB`); there is n
 ### TecIO (`USE_TECIO=true`)
 
 TecIO is vendored inside ORION (`lib/ORION/lib/TecIO/`). When ORION is configured with TecIO it looks for an
-installed copy in `<ORION_PATH>/lib/TecIO/tecio-install-<suffix>` (`teciompi-install-<suffix>` with MPI), where
-`<suffix>` names the compiler pair (`lib/ORION/cmake/SetCompilerID.cmake`), e.g. `GNU` for gfortran + g++ and
-`IntelLLVM-IntelLLVM` for ifx + icpx. If that directory does not exist, ORION configures, builds and installs
-TecIO there during the CMake configure step (a few minutes, not parallel). The location is set in
-`lib/ORION/CMakeLists.txt` and has no `-D` override; an existing install is reused as it is, also after a
-compiler upgrade (remove the directory to rebuild it).
+installed copy in `lib/TecIO/tecio-install-<suffix>` of the ORION folder (`lib/ORION`, or the external clone;
+`teciompi-install-<suffix>` with MPI), where `<suffix>` names the compiler pair
+(`lib/ORION/cmake/SetCompilerID.cmake`), e.g. `GNU` for gfortran + g++ and `IntelLLVM-IntelLLVM` for ifx + icpx.
+If that directory does not exist, ORION configures, builds and installs TecIO there during the CMake configure
+step (a few minutes, not parallel). From ORION 2.1.0, `-DORION_TECIO_DIR=<folder>` puts the TecIO builds in
+another folder, which several builds can share. An existing install is reused as it is, also after a compiler
+upgrade (remove the directory to rebuild it).
 
 ## Parallel Build
 
@@ -158,8 +165,8 @@ cmake -B build -DCMAKE_BUILD_TYPE=RELEASE
 
 Common causes:
 
-- **Missing dependency path** (`ORION_PATH`, `FINER_PATH`, or `CEA_PATH`)
-- **Incomplete submodule checkout**
+- **Wrong external clone** (`FETCHCONTENT_SOURCE_DIR_ORION`, `FETCHCONTENT_SOURCE_DIR_FINER`, or `CEA_PATH`)
+- **Incomplete submodule checkout** (`lib/cea`, `lib/PiNeR`)
 - **Compiler/toolchain mismatch between cached and current configuration**
 
 ```bash
@@ -168,9 +175,7 @@ git submodule update --init --recursive
 
 # reconfigure from a clean build tree
 rm -rf build
-cmake -B build -DORION_PATH=$PWD/lib/ORION \
-               -DFINER_PATH=$PWD/lib/third_party/FiNeR \
-               -DCEA_PATH=$PWD/lib/cea
+cmake -B build
 cmake --build build
 ```
 
@@ -201,19 +206,47 @@ ctest --test-dir build --output-on-failure
 
 See: [Testing](testing.md), [Project Structure](structure.md)
 
-## Submodule pins and external libraries
+## Libraries: releases, pins and external clones
 
-The configure step compares the checkout of every bundled submodule (`lib/ORION`, `lib/PiNeR`,
-`lib/cea`, `lib/third_party/FiNeR`) with the commit this ATLAS commit records and **stops with an
-error** when they differ (`lib/ORION is checked out at ..., but this ATLAS commit records ...`): run
-`git submodule update --init --recursive` and configure again. To build on purpose against another
-checkout of a submodule (an ORION pull request under test inside `lib/ORION`), configure with
-`-DATLAS_PIN_CHECK=WARNING`. Tarballs, plain copies and libraries taken from outside the tree
-(`-DORION_PATH=/path/to/ORION`, an external ORION route) are not checked: nothing in them is a
-registered submodule.
+ATLAS requires its libraries in two ways, described in [Versioning](./versioning.md#how-atlas-requires-its-libraries):
 
-The pinned ORION reads PLOT3D meshes (`mesh.p3d`) with both compiler
+- **ORION**, by a range of releases, with `semver_dependency` of `cmake/SemVerDeps.cmake` (the copy of FLINT's)
+  in `CMakeLists.txt`: its major version (`VERSION 2`: the newest 2.x). The configure checks it out in
+  `lib/ORION` (ignored by git, kept from a build to the next) and moves the checkout to another release when the
+  requirement changes, if it has no changes of its own. The release selected is kept in `deps.lock` (not
+  committed); `-DSEMVER_UPDATE=ORION` (or `./install.sh build --update-deps`) selects the newest one again.
+- **FiNeR, CEA and PiNeR**, one release each, are git submodules (`lib/FiNeR`, `lib/cea`, `lib/PiNeR`). The
+  configure compares each checkout with the commit this ATLAS commit records and **stops with an error** when
+  they differ (`lib/cea is checked out at ..., but this ATLAS commit records ...`): run
+  `git submodule update --init --recursive` and configure again. The release of FiNeR, in its `VERSION` file, is
+  checked against `ATLAS_FINER_TAG`, and the one of CEA, which its `project()` declares, against
+  `ATLAS_CEA_VERSION`, also for an external clone (`FETCHCONTENT_SOURCE_DIR_FINER`, `CEA_PATH`).
+
+FiNeR's own dependencies (PENF, StringiFor, FACE, FLAP, BeFoR64) are fetched in its `src/third_party` as its
+author does with `fobis fetch`: the default branch of each URL listed in FiNeR's `fobos`
+(`ATLAS_FINER_DEPS=FREE`, the default). If an upstream change breaks ATLAS, `ATLAS_FINER_DEPS=BACKUP` checks out
+instead the releases of `ATLAS_FINER_BACKUP_PINS` in `CMakeLists.txt`, with which ATLAS builds and passes its
+tests.
+
+### External clones
+
+A parent project such as hydra gives ATLAS its own clones of ORION and FiNeR:
+
+```bash
+cmake -B build -DFETCHCONTENT_SOURCE_DIR_ORION=/path/to/ORION -DFETCHCONTENT_SOURCE_DIR_FINER=/path/to/FiNeR
+# or: ./install.sh build --include-orion=/path/to/ORION --include-finer=/path/to/FiNeR
+```
+
+A clone is built as it is, uncommitted changes included, and nothing in it is moved or fetched. It must
+satisfy ATLAS's requirement, or the configure **stops with an error**: ORION's version is the newest `vX.Y.Z`
+tag in the history of its HEAD (an ORION 1.7.0 clone is refused), FiNeR's the content of its `VERSION` file.
+FiNeR's dependencies must be in the clone's `src/third_party` (`fobis fetch --no-build`), and with
+`ATLAS_FINER_DEPS=BACKUP` at their backup releases. To build a clone that does not satisfy the requirement on
+purpose (an ORION branch under test), configure with `-DATLAS_PIN_CHECK=WARNING`; `-UFETCHCONTENT_SOURCE_DIR_ORION`
+goes back to the release, `-UFETCHCONTENT_SOURCE_DIR_FINER` to the submodule.
+
+ORION 2 reads PLOT3D meshes (`mesh.p3d`) with both compiler
 suites and exports the variable names of `.szplt` files (adopted by name by ICB, see the ICB
 strategies page). Binary Tecplot output (`IC-format = tec-binary`, STB `-o tec-binary`)
 needs a build with `-DUSE_TECIO=true`; without it the request is refused at start. The float32 output
-option of ORION is an ORION-side default: ATLAS reads both precisions with the pinned readers.
+option of ORION is an ORION-side default: ATLAS reads both precisions with the ORION readers.

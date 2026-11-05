@@ -13,6 +13,7 @@ with open(CONFIG, "r", encoding="utf-8") as f:
     cfg = yaml.safe_load(f)
 
 original_authors = cfg.get("original_authors", [])
+maintainers = cfg.get("maintainers", [])
 exclude = set(cfg.get("exclude", []))
 
 result = subprocess.check_output(
@@ -42,17 +43,21 @@ for line in result.splitlines():
     contributors.append(name)
 
 original_author_names = {a["name"] for a in original_authors}
+maintainer_names = {m["name"] for m in maintainers}
 
 contributors = sorted(
     set(contributors)
     - original_author_names
+    - maintainer_names
 )
+
 
 def format_author_link(name, github_username):
     """Format author name with optional GitHub link."""
     if github_username:
         return f"[{name}](https://github.com/{github_username})"
     return name
+
 
 with open(OUTPUT, "w", encoding="utf-8") as f:
     f.write("# Authors\n\n")
@@ -62,6 +67,13 @@ with open(OUTPUT, "w", encoding="utf-8") as f:
         for a in original_authors:
             github_user = a.get("github_username", "")
             link = format_author_link(a["name"], github_user)
+            f.write(f"- {link}\n")
+
+    if maintainers:
+        f.write("\n## Maintainers\n\n")
+        for m in maintainers:
+            github_user = m.get("github_username", "")
+            link = format_author_link(m["name"], github_user)
             f.write(f"- {link}\n")
 
     f.write("\n## Contributors\n\n")

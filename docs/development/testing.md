@@ -11,7 +11,7 @@ If outputs match, the test objective is considered met.
 
 ## Registered Tests
 
-Every test registered in `test/CMakeLists.txt` (191; `IG-ic-write-failure` only in a build with TecIO), by
+Every test registered in `test/CMakeLists.txt` (199; `IG-ic-write-failure` only in a build with TecIO), by
 tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md): `ctest -L tutorial` runs them.
 
 | Test name | Tool | Case folder | Main goal |
@@ -22,6 +22,11 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `IG-strict-thermo` | GPB | `GPB/IG-strict-thermo` | `strict-thermo = true` refuses a database thermo record that differs from the file record by more than 1 kJ/mol. |
 | `IG-fixgas-gas-constant` | GPB | `GPB/IG-fixgas-gas-constant` | A species given by `gamma` and `mw`: `cp = gamma/(gamma-1) R_u/mw` with the exact `R_u`. |
 | `IG-transport-CEA-species-without-data` | GPB | `GPB/IG-transport-CEA-species-without-data` | `transport = CEA` with a mechanism species that has no transport data but is in the thermo database: accepted, `transport.dat` equal to the one with transport records. |
+| `IG-transport-CEA-nasa-names` | GPB | `GPB/IG-transport-CEA-nasa-names` | `transport = CEA` with the names of `nasa9.yaml` (`species = Ar He N2`): every species takes its `CEApolynomials.yaml` record, with no WARNING; `transport.dat` equal to the NASA CEA fits of `lib/cea/data/trans.inp` within the print precision. |
+| `IG-transport-CEA-aliases` | GPB | `GPB/IG-transport-CEA-aliases` | `transport = CEA` with `AR` and `HE` of a Chemkin-style file, with the thermo of the file and with `thermo = Burcat`: the records `Ar` and `He` through their aliases, with no WARNING; the `AR` and `HE` columns equal the `Ar` and `He` columns of `IG-transport-CEA-nasa-names`. |
+| `IG-transport-CEA-exact-names` | GPB | `GPB/IG-transport-CEA-exact-names` | `transport = CEA` with `CO` and `Co` (cobalt) of a mechanism file: `CO` takes its record, `Co` the simplified law with its WARNING (names compared character by character). |
+| `GPB-cea-transport-records` | GPB | `tools` | The index of the `CEApolynomials.yaml` records, without Cantera: a name finds its record by name or alias, character by character (`AR` finds `Ar`, `Co` finds no record); malformed records and a name or alias given twice are refused with their messages. |
+| `database-cea-transport` | GPB | `tools` | `CEApolynomials.yaml` equal to `lib/cea/data/trans.inp` of NASA CEA (names, intervals, coefficients), except the fits ATLAS defines itself, listed in `ATLAS_RECORDS` of `test/tools/cea_trans_inp_check.py`, where a new record absent from `trans.inp` is added; not run (exit 77) without the CEA submodule. |
 | `CP-tmin-noninteger` | GPB | `GPB/CP-tmin-noninteger` | A non-integer `Tmin` of a condensed phase is refused naming the key; an integer `Tmin = 300` is accepted; no product is left behind. |
 | `GPB-tmin-range` | GPB | `GPB/GPB-tmin-range` | `Tmin` at or below 0 K, or above `Tmax`, stops GPB naming the key (ideal gas and condensed phase). |
 | `IG-falloff-irreversible-orders` | GPB | `GPB/IG-falloff-irreversible-orders` | `k_c = 0` on the rows of an irreversible falloff reaction; the explicit orders written as the orders block of `chemistry-info.txt`. |
@@ -119,6 +124,9 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `IG-inflow-p0time` | BCB | `BCB/IG-inflow-p0time` | A total pressure from a time table: `402` records naming `p0time.txt` ([Boundary Data From Tables](../tutorials/bcb/data-files.md)). |
 | `IG-periodic` | BCB | `BCB/IG-periodic` | Connections between blocks and a periodic pair, `201` ([Connections and Periodic Faces](../tutorials/bcb/connections.md)). |
 | `tutorial-reservoir-inlets` | BCB | `tutorials/bcb-reservoir-inlets` | The three inlets of one reservoir, `401`, `405` and `420`, from the INI files of [Inlets From Reservoir Conditions](../tutorials/bcb/reservoir-inlets.md) on the mesh and table of `IG-nozzle-arearatio`. |
+| `DP-gsi-manifold` | BCB | `BCB/DP-gsi-manifold` | A dispersed phase on the faces of the 500 family: `300` on a manifold and on every gsi patch but a grain (`502`) that gives inlet keys of the phase, which injects it as an inlet does (`401`); the gas file's `502` records carry the propellant mass flux `a·rhoGrain·SF`, times `1 − krho_tot`. |
+| `DP-gsi-grain-flow` | BCB | `BCB/DP-gsi-grain-flow` | The gas flow of a solid-propellant grain shared with the dispersed phases it injects: `a·rhoGrain·SF` times `1 − krho_tot`, one `krho` per (material, population) pair; a `krho_tot` above 1, or a mass flux (`403`) on the grain, is refused. |
+| `DP-gsi-keys-refused` | BCB | `BCB/DP-gsi-keys-refused` | An inlet key of a dispersed phase on a 500 face that does not inject it (`505`, `501`) stops BCB naming the key, the section, the BC and the face's role; with `strict-keys = false`, one warning and the files of `DP-gsi-manifold`. |
 | `SP-basic` | ICB | `ICB/SP-basic` | Basic solid initial-condition field generation. |
 | `IG-nozzle3D` | ICB | `ICB/IG-nozzle3D` | 3D nozzle initial-condition generation and VTK export path. |
 | `IG-interp-mindist` | ICB | `ICB/IG-interp-mindist` | Minimum-distance interpolation onto a grid carrying solver-style extra variables. |

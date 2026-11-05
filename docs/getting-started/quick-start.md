@@ -89,9 +89,8 @@ From the case directory:
 ATLAS GPB BCB ICB    # phase tables, then boundary conditions, then the initial field
 ```
 
-The tools run one after the other and the chain stops at the first that fails. GPB prints one warning,
-`no CEApolynomials record for species 'Ar': simplified law applied`: argon has no CEA transport fit, and its
-viscosity and conductivity follow a simplified law.
+The tools run one after the other and the chain stops at the first that fails. Every species of the air
+mixture, argon included, has a CEA transport fit, so GPB prints no warning.
 
 !!! note "One directory for every tool: `fromATLAStoSolver/`"
     Every tool writes into `fromATLAStoSolver/` of the case. GPB writes the phase files there (`phase.txt` and

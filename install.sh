@@ -25,8 +25,9 @@ Commands:
   build                     Perform a full build
     --compilers=<name>      Set compilers suite (intel,gnu)
     --include-cea=<path>    Set external CEA path
-    --include-orion=<path>  Set external ORION path
-    --include-finer=<path>  Set external FiNeR path
+    --include-orion=<path>  Build an external ORION clone instead of the release ATLAS selects
+    --include-finer=<path>  Build an external FiNeR clone instead of the submodule lib/FiNeR
+    --update-deps           Select again the newest release of ORION (deps.lock)
     --use-openmp            Use OpenMP
     --use-tecio             Use TecIO
     --no-conda              Do not create Conda environment
@@ -76,8 +77,17 @@ function define_path () {
 
 # Create default CMakePresets.json if it doesn't exist
 function write_presets() {
-  FC=$(grep '^CMAKE_Fortran_COMPILER:FILEPATH=' "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-)
-  CXX=$(grep '^CMAKE_CXX_COMPILER:FILEPATH=' "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-)
+  # the type is FILEPATH when CMake finds the compiler (FC, CXX), STRING when it is given with -D
+  FC=$(grep -E '^CMAKE_Fortran_COMPILER:(FILEPATH|STRING)=' "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-)
+  CXX=$(grep -E '^CMAKE_CXX_COMPILER:(FILEPATH|STRING)=' "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-)
+  # the external clones, when given
+  local sources=""
+  if [[ -n $ORION_PATH ]]; then
+    sources+="        \"FETCHCONTENT_SOURCE_DIR_ORION\": \"${ORION_PATH}\","$'\n'
+  fi
+  if [[ -n $FINER_PATH ]]; then
+    sources+="        \"FETCHCONTENT_SOURCE_DIR_FINER\": \"${FINER_PATH}\","$'\n'
+  fi
 
   cat <<EOF > CMakePresets.json
 {
@@ -92,9 +102,7 @@ function write_presets() {
       "description": "Default preset",
       "binaryDir": "\${sourceDir}/build",
       "cacheVariables": {
-        "ORION_PATH": "${ORION_PATH}",
-        "FINER_PATH": "${FINER_PATH}",
-        "CEA_PATH": "${CEA_PATH}",
+${sources}        "CEA_PATH": "${CEA_PATH}",
         "CMAKE_BUILD_TYPE": "${BUILD_TYPE}",
         "CMAKE_Fortran_COMPILER": "${FC}",
         "CMAKE_CXX_COMPILER": "${CXX}",
@@ -113,8 +121,10 @@ EOF
 COMMAND=""
 COMPILERS=""
 CEA_PATH=$(pwd)'/lib/cea/'
-ORION_PATH=$(pwd)'/lib/ORION/'
-FINER_PATH=$(pwd)'/lib/third_party/FiNeR/'
+# ORION and FiNeR: the release ATLAS selects and the submodule (see CMakeLists.txt), or external clones
+ORION_PATH=""
+FINER_PATH=""
+UPDATE_DEPS="false"
 USE_OPENMP="false"
 USE_TECIO="false"
 NO_CONDA="false"
@@ -123,7 +133,7 @@ BUILD_TYPE="RELEASE"
 
 # Define allowed options for each command using regular arrays
 CMD=("build")
-CMD_OPTIONS_build=("--include-cea --include-orion --include-finer --compilers --use-openmp --use-tecio --no-conda")
+CMD_OPTIONS_build=("--include-cea --include-orion --include-finer --update-deps --compilers --use-openmp --use-tecio --no-conda")
 
 # Parse global options
 while getopts "v-:" opt; do
@@ -163,11 +173,17 @@ while [[ $# -gt 0 ]]; do
           ;;
         --include-orion=*)
             [[ "$COMMAND" == "build" ]] || { error " --include-orion is only valid for 'build' command"; exit 1; }
-            ORION_PATH="${1#*=}"
+            # absolute: CMake takes the folder from the build directory
+            ORION_PATH=$(cd "${1#*=}" && pwd) || { error "No folder ${1#*=}"; exit 1; }
             ;;
         --include-finer=*)
             [[ "$COMMAND" == "build" ]] || { error " --include-finer is only valid for 'build' command"; exit 1; }
-            FINER_PATH="${1#*=}"
+            # absolute: CMake takes the folder from the build directory
+            FINER_PATH=$(cd "${1#*=}" && pwd) || { error "No folder ${1#*=}"; exit 1; }
+            ;;
+        --update-deps)
+            [[ "$COMMAND" == "build" ]] || { error " --update-deps is only valid for 'build' command"; exit 1; }
+            UPDATE_DEPS="true"
             ;;
         --compilers=*)
             [[ "$COMMAND" == "build" ]] || { error " --compilers is only valid for 'build' command"; exit 1; }
@@ -205,9 +221,10 @@ case "$COMMAND" in
         task "Building $project"
         
         task "Cloning submodules"
+        # sync first: a clone made before a submodule changed URL (lib/cea, to nasa/cea) still fetches the old one
+        git submodule sync --quiet
         [[ $CEA_PATH == $(pwd)'/lib/cea/' ]] && git submodule update --init lib/cea
-        [[ $ORION_PATH == $(pwd)'/lib/ORION/' ]] && git submodule update --init lib/ORION
-        [[ $FINER_PATH == $(pwd)'/lib/third_party/FiNeR/' ]] && git submodule update --init --recursive lib/third_party/FiNeR
+        [[ -z $FINER_PATH ]] && git submodule update --init lib/FiNeR
         git submodule update --init lib/PiNeR
 
         task "Configuring and building $project"
@@ -223,8 +240,9 @@ case "$COMMAND" in
         log "Build dir: $BUILD_DIR"
         log "Build type: $BUILD_TYPE"
         log "CEA path: $CEA_PATH"
-        log "ORION path: $ORION_PATH"
-        log "FINER path: $FINER_PATH"
+        log "ORION: ${ORION_PATH:-release}"
+        log "FiNeR: ${FINER_PATH:-lib/FiNeR}"
+        log "Update ORION: $UPDATE_DEPS"
         log "Use TecIO: $USE_TECIO"
         log "Use OpenMP: $USE_OPENMP"
         if [[ -z "${FC+x}" || -z "${CXX+x}" ]]; then
@@ -233,7 +251,16 @@ case "$COMMAND" in
           log "Compilers: FC=$FC, CXX=$CXX"
         fi
         rm -rf $BUILD_DIR
-        CMAKE_ARGS=(-B "$BUILD_DIR" -DORION_PATH="$ORION_PATH" -DFINER_PATH="$FINER_PATH" -DUSE_TECIO="$USE_TECIO" -DUSE_OPENMP="$USE_OPENMP" -DCMAKE_BUILD_TYPE="$BUILD_TYPE")
+        CMAKE_ARGS=(-B "$BUILD_DIR" -DUSE_TECIO="$USE_TECIO" -DUSE_OPENMP="$USE_OPENMP" -DCMAKE_BUILD_TYPE="$BUILD_TYPE")
+        if [[ -n $ORION_PATH ]]; then
+          CMAKE_ARGS+=(-DFETCHCONTENT_SOURCE_DIR_ORION="$ORION_PATH")
+        fi
+        if [[ -n $FINER_PATH ]]; then
+          CMAKE_ARGS+=(-DFETCHCONTENT_SOURCE_DIR_FINER="$FINER_PATH")
+        fi
+        if [[ $UPDATE_DEPS == true ]]; then
+          CMAKE_ARGS+=(-DSEMVER_UPDATE=ALL)
+        fi
         if [[ -n "$CEA_PATH" ]]; then
           CMAKE_ARGS+=( -DCEA_PATH="$CEA_PATH" )
         fi

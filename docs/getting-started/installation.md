@@ -31,14 +31,14 @@ cmake --version
 
 ## Dependencies
 
-The Fortran tools are built against libraries bundled as git submodules; the Python tools run in the conda
-environment `ct-env`.
+The Fortran tools are built against the submodules CEA and FiNeR and a release of ORION that the configure checks
+out; the Python tools run in the conda environment `ct-env`.
 
 | Library | Role | Used by | Source |
 |---------|------|---------|--------|
-| [CEA](https://github.com/nasa/cea) | NASA chemical equilibrium (Chemical Equilibrium with Applications) | GPB, BCB, ICB, MDB, STB | submodule `lib/cea` |
-| [ORION](https://github.com/MarcoGrossi92/ORION) | multi-block I/O: Tecplot, VTK, PLOT3D | BCB, ICB, MDB, STB | submodule `lib/ORION` |
-| [FiNeR](https://github.com/szaghi/FiNeR) | Fortran INI parser | BCB, ICB, MDB, STB | submodule `lib/third_party/FiNeR` |
+| [CEA](https://github.com/nasa/cea) | NASA chemical equilibrium (Chemical Equilibrium with Applications) | GPB, BCB, ICB, MDB, STB | submodule `lib/cea` (v3.3.4) |
+| [ORION](https://github.com/MarcoGrossi92/ORION) | multi-block I/O: Tecplot, VTK, PLOT3D | BCB, ICB, MDB, STB | a 2.x release, checked out in `lib/ORION` by the configure |
+| [FiNeR](https://github.com/szaghi/FiNeR) | Fortran INI parser | BCB, ICB, MDB, STB | submodule `lib/FiNeR` (v2.3.0) |
 | [PiNeR](https://github.com/MarcoGrossi92/PiNeR) | Python INI parser | GPB, KAnT | submodule `lib/PiNeR`, installed in `ct-env` |
 | [Cantera](https://cantera.org) 3.0 or later | thermodynamics, transport and kinetics | GPB, KAnT | `ct-env` (tested with 3.0.1) |
 | [CoolProp](http://www.coolprop.org) | real-fluid equations of state | GPB | `ct-env` |
@@ -80,11 +80,14 @@ General form:
 # no conda environment
 ./install.sh build --no-conda
 
-# external dependency paths instead of the bundled submodules
+# external clones in place of the release of ORION and the submodules (checked against what ATLAS requires)
 ./install.sh build \
   --include-cea=/path/to/cea \
   --include-orion=/path/to/ORION \
   --include-finer=/path/to/FiNeR
+
+# select again the newest release of ORION that ATLAS accepts (deps.lock)
+./install.sh build --update-deps
 ```
 
 Options of `build`:
@@ -92,7 +95,8 @@ Options of `build`:
 | Option | Effect |
 |---|---|
 | `--compilers=<gnu\|intel>` | `gfortran`/`g++` or `ifx`/`icpx`; without it CMake chooses |
-| `--include-cea=<path>`, `--include-orion=<path>`, `--include-finer=<path>` | build against that checkout instead of the submodule |
+| `--include-cea=<path>`, `--include-orion=<path>`, `--include-finer=<path>` | build against that clone instead of the submodule or the release; ATLAS checks it is the version it requires |
+| `--update-deps` | select again the newest release of ORION that ATLAS accepts (`deps.lock`) |
 | `--use-openmp` | OpenMP in the Fortran tools |
 | `--use-tecio` | binary Tecplot input and output (TecIO is built on the first configure, a few minutes) |
 | `--no-conda` | do not create `ct-env` |
@@ -115,15 +119,17 @@ The equivalent CMake commands, without the presets, the shell integration and th
 
 ```bash
 cmake -B build \
-  -DORION_PATH=$(pwd)/lib/ORION/ \
-  -DFINER_PATH=$(pwd)/lib/third_party/FiNeR/ \
-  -DCEA_PATH=$(pwd)/lib/cea/ \
   -DUSE_TECIO=false \
   -DUSE_OPENMP=false \
   -DCMAKE_BUILD_TYPE=RELEASE
 
 cmake --build build
 ```
+
+The first configure checks out the release of ORION in `lib/ORION` (it needs the network) and initializes the
+submodules if `git clone --recursive` did not. External clones replace ORION and FiNeR with
+`-DFETCHCONTENT_SOURCE_DIR_ORION=<path>` and `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>`, CEA with `-DCEA_PATH=<path>`;
+see [Libraries: releases, pins and external clones](../development/build.md#libraries-releases-pins-and-external-clones).
 
 ## Conda Environment
 
@@ -134,7 +140,7 @@ conda env create -f ct-env.yaml
 ```
 
 The environment `ct-env` holds Python with NumPy, Cantera and CoolProp, PyQt, PyVista and pyvistaqt (the GUI),
-Matplotlib (KAnT plots), Ninja, and the editable installs of `lib/PiNeR`, `lib/cea` and `lib/ORION`.
+Matplotlib (KAnT plots), Ninja, and the editable installs of `lib/PiNeR` and `lib/cea`.
 
 `ATLAS GPB`, `ATLAS KAnT` and `ATLAS GUI` activate it for the run. Two variables change that:
 
@@ -173,10 +179,10 @@ ctest --test-dir build --output-on-failure
 - wrong compiler, or compiler not found:
     - pass `--compilers=gnu` or `--compilers=intel`
     - check that the compilers are on `PATH` (`source /opt/intel/oneapi/setvars.sh` for oneAPI)
-- dependency path errors for ORION, FiNeR or CEA:
-    - run `git submodule update --init --recursive` to check out the bundled submodules at the commits ATLAS
-      records
-    - or give explicit paths with `--include-orion`, `--include-finer`, `--include-cea`
+- dependency errors for ORION, FiNeR or CEA:
+    - run `git submodule update --init --recursive` to check out the submodules at the commits ATLAS records;
+      the release of ORION needs the network at the first configure
+    - or give external clones with `--include-orion`, `--include-finer`, `--include-cea`
 - `ATLAS` command not found:
     - open a new terminal, or run `source scripts/setvars.sh` from the ATLAS directory
 - `ct-env` already exists and the creation fails:

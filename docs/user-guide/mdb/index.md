@@ -169,7 +169,7 @@ evaluated **after** the solvers' LPT assignment on cell counts, with the ranks i
     - Every block dimension must be a multiple of `2^(MG-levels-1)`, which the solvers require for coarsening.
     - BC ids must be the current ATLAS set; files written with legacy numeric ids are rejected with the offending line quoted.
     - A dispersed phase is read with its own conventions, taken from the first line of `<prefix>phase.txt` (override with `phase-type`): no property line under the 300-series, and the whole boundary table repeated once per (material, population) pair. Every copy is split the same way and they are written back in the same order.
-    - A manifold (BC 501) names a whole source face: MDB refuses a cut tangential to either face of the pair, and a pair the solvers' partitioner would put on two ranks (MOSE aborts on such a pair at start-up). Restrict the cuts with `[MDB-Block#] split-directions` or change `ranks`.
+    - A manifold (BC 501) names a whole source face: MDB refuses a cut tangential to either face of the pair, and a pair the solvers' partitioner would put on two ranks. Restrict the cuts with `[MDB-Block#] split-directions` or change `ranks`. MOSE stops at set-up on a `bc.txt` with a record of type 501.
     - `objective = cost` needs the fine-level BC file before the decomposition, to price the faces.
 
 ---

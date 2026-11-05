@@ -1,0 +1,90 @@
+description: |-
+  Test mechanism with carbon monoxide (CO) and cobalt (Co), two NASA species whose names differ only in case: the species and the
+  reaction of test/GPB/IG-transport-CEA-species-without-data/tiny-notr.yaml, and CO and Co with their records of
+  database/thermo/nasa9.yaml.
+phases:
+  - name: tiny-co-cobalt
+    kinetics: gas
+    thermo: ideal-gas
+    elements: [H, O, C, Co]
+    species: [H2, O2, H2O, CO, Co]
+    state:
+      T: 300.0
+      P: 1 atm
+species:
+  - name: H2
+    composition: {H: 2.0}
+    thermo:
+      model: NASA7
+      temperature-ranges: [200.0, 1000.0, 3500.0]
+      data:
+        - [2.34433112, 7.98052075e-03, -1.9478151e-05, 2.01572094e-08,
+        -7.37611761e-12, -917.935173, 0.683010238]
+        - [3.3372792, -4.94024731e-05, 4.99456778e-07, -1.79566394e-10,
+        2.00255376e-14, -950.158922, -3.20502331]
+      note: TPIS78
+    transport:
+      model: gas
+      geometry: linear
+      diameter: 2.92
+      well-depth: 38.0
+      polarizability: 0.79
+      rotational-relaxation: 280.0
+  - name: O2
+    composition: {O: 2.0}
+    thermo:
+      model: NASA7
+      temperature-ranges: [200.0, 1000.0, 3500.0]
+      data:
+        - [3.78245636, -2.99673416e-03, 9.84730201e-06, -9.68129509e-09,
+        3.24372837e-12, -1063.94356, 3.65767573]
+        - [3.28253784, 1.48308754e-03, -7.57966669e-07, 2.09470555e-10,
+        -2.16717794e-14, -1088.45772, 5.45323129]
+      note: TPIS89
+    transport:
+      model: gas
+      geometry: linear
+      diameter: 3.458
+      well-depth: 107.4
+      polarizability: 1.6
+      rotational-relaxation: 3.8
+  - name: H2O
+    composition: {H: 2.0, O: 1.0}
+    thermo:
+      model: NASA7
+      temperature-ranges: [200.0, 1000.0, 3500.0]
+      data:
+        - [4.19864056, -2.0364341e-03, 6.52040211e-06, -5.48797062e-09,
+        1.77197817e-12, -3.02937267e+04, -0.849032208]
+        - [3.03399249, 2.17691804e-03, -1.64072518e-07, -9.7041987e-11,
+        1.68200992e-14, -3.00042971e+04, 4.9667701]
+      note: L8/89
+  - name: CO
+    composition: {C: 1, O: 1}
+    thermo:
+      model: NASA9
+      temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+      data:
+        - [1.489045326e+04, -292.2285939, 5.72452717, -8.17623503e-03, 1.456903469e-05,
+          -1.087746302e-08, 3.027941827e-12, -1.303131878e+04, -7.85924135]
+        - [4.61919725e+05, -1944.704863, 5.91671418, -5.66428283e-04, 1.39881454e-07,
+          -1.787680361e-11, 9.62093557e-16, -2466.261084, -13.87413108]
+        - [8.86866296e+08, -7.50037784e+05, 249.5474979, -0.039563511, 3.29777208e-06,
+          -1.318409933e-10, 1.998937948e-15, 5.70142113e+06, -2060.704786]
+      note: Gurvich,1979 pt1 p25 pt2 p29. [tpis79]
+  - name: Co
+    composition: {Co: 1}
+    thermo:
+      model: NASA9
+      temperature-ranges: [200.0, 1000.0, 6000.0, 2.0e+04]
+      data:
+        - [-2598.939184, 246.1989844, -0.610605837, 0.01393005772, -2.210012979e-05,
+          1.623755261e-08, -4.534904351e-12, 4.98461376e+04, 22.57584199]
+        - [1.381841305e+06, -3756.03668, 6.65713065, -1.269246675e-03, 1.464092329e-07,
+          6.57494657e-12, -1.102384178e-15, 7.49444291e+04, -22.58500836]
+        - [-5.46801575e+08, 4.03770495e+05, -114.2413163, 0.01663014422, -1.156228007e-06,
+          3.86251515e-11, -5.002032746e-16, -3.076031798e+06, 1003.028648]
+      note: Hf:Hultgren,1973. Sugar,1985. Gordon,1999. [g 7/97]
+reactions:
+  - equation: 2 H2 + O2 <=> 2 H2O
+    rate-constant: {A: 1.0e+10, b: 0.0, Ea: 2.0e+04}

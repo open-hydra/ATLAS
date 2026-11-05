@@ -224,7 +224,7 @@ Example (`id = 302`, prescribed wall temperature, solid phase):
 | `420` | `T0, p0, psub, psup, g, rf, massf(1:ns) [, turb…]` — no angle fields: the MOSE/Q2D nozzle kernels inject along the face normal (`alpha`/`beta` are refused on a 420 section) |
 | `421` | `T0, p0, A1_A3, rf, massf(1:ns) [, turb…]` — Borda choked injector (Q2D only); no angle fields, injection is face-normal |
 
-`p0`, `T0` = total pressure/temperature; `p`, `T` = static pressure/temperature; `g` = mass flux [kg m⁻² s⁻¹]; `un` = normal velocity [m s⁻¹] (for MOSE both into the domain, positive on every face: see [the sign of `g` and `un`](./bc-types.md#sign-of-g-and-un)); `mach` = Mach number; `alpha`, `beta` = inflow direction angles (`normal,` sentinel when free-stream normal); `rf` = relaxation factor; `massf(1:ns)` = injected species mass fractions; `psub`/`psup` = regime thresholds of the injector nozzle (`psup <= psub < p0`): exit pressure of the just-choked subsonic solution / design supersonic exit pressure. The `420` record carries 17 significant digits (`ES24.16`, like every record): on the `Ae_At` path its `psub`, `psup`, `g` are computed on the solvers' own `thermo.dat` tables and compared by their kernels with states recomputed from `T0`, `p0`, `massf` to 1e-9, and a 6-digit `g` rounded up would leave the supersonic kernel without a root at `Ae_At = 1`. `A1_A3` = Borda injector throat-to-face area ratio, in (0, 1] (`a1-a3 = 0`, the default, means not given, as `Ae_At = 0`).
+`p0`, `T0` = total pressure/temperature; `p`, `T` = static pressure/temperature; `g` = mass flux [kg m⁻² s⁻¹]; `un` = normal velocity [m s⁻¹] (for MOSE both into the domain, positive on every face: see [the sign of `g` and `un`](./bc-types.md#sign-of-g-and-un)); `mach` = Mach number; `alpha`, `beta` = inflow direction angles (`normal,` sentinel when free-stream normal); `rf` = relaxation factor; `massf(1:ns)` = injected species mass fractions; `psub`/`psup` = exit pressures of the injector nozzle (`psup <= psub < p0`): of the just-choked subsonic solution / of the design supersonic exit (MOSE switches regime on `psub` and on the pressure behind a normal shock at the exit, which it computes from the record: see [the inlet](./bc-types.md#inlet)). The `420` record carries 17 significant digits (`ES24.16`, like every record): on the `Ae_At` path its `psub`, `psup`, `g` are computed on the solvers' own `thermo.dat` tables and compared by their kernels with states recomputed from `T0`, `p0`, `massf` to 1e-9, and a 6-digit `g` rounded up would leave the supersonic kernel without a root at `Ae_At = 1`. `A1_A3` = Borda injector throat-to-face area ratio, in (0, 1] (`a1-a3 = 0`, the default, means not given, as `Ae_At = 0`).
 
 !!! tip "Time-file option"
     For time-varying inlet conditions, the payload line contains the time-file name string instead of numeric values.
@@ -301,29 +301,36 @@ Example (DP inlet, `id = 402`, `Dirac`, `ds` unset):
 
 `block`, `face` = source block/face index from which the manifold draws its conditions.
 
+In a dispersed phase's file the face is a `300` record (no payload).
+
 ### `502`–`506` — Gas-surface interaction (GSI) { #gsi-ids }
 
 All five IDs are produced by the single `gsi` marker; BCB selects the variant
 from the keys present in the section (see [BC Types](./bc-types.md#gsi)).
 
+They are written in the fluid's file. In a dispersed phase's file a gsi face is a `300` record (no payload), or,
+on a solid-propellant grain (`502`) whose section gives inlet keys of that phase, a `401` record with the inlet
+payload; the grain's `502` record then carries its propellant mass flux times `1 − krho_tot`, the gas flow left by
+the dispersed phases entering through the cell (see [Dispersed phase on a gsi face](./bc-types.md#dispersed-phase-on-a-gsi-face)).
+
 | ID | Variant | Payload fields (in order) | Payload length |
 |----|---------|---------------------------|----------------|
-| `502` | Solid propellant | `Taf, a, n, pRef, rhoGrain, SF, massf(1:ns) [, turb…]` | `6 + ns [+ nrans]` |
+| `502` | Solid propellant | `Taf, a·rhoGrain·SF, n, pRef, rhoGrain, SF, massf(1:ns) [, turb…]` | `6 + ns [+ nrans]` |
 | `503` | Melting | `cp, Tm, Ti, dh, qrad, eps, massf(1:ns)` | `6 + ns` |
 | `504` | Pyrolysis | `pyro, qrad, eps, massf(1:ns)` | `3 + ns` |
 | `505` | Surface reactions | `surf, qrad, eps` | `3` |
 | `506` | Pyrolysis + surface reactions | `pyro, surf, qrad, eps, massf(1:ns)` | `4 + ns` |
 
-Field key: `Taf` = adiabatic flame temperature [K]; `a` = burn-rate pre-exponential coefficient; `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `rhoGrain` = propellant grain density [kg m⁻³]; `SF` = geometric scale factor (default 1); `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
+Field key: `Taf` = adiabatic flame temperature [K]; `a·rhoGrain·SF` = the propellant mass flux at `pRef` [kg m⁻² s⁻¹], `a` the linear burn rate coefficient [m s⁻¹] (times `1 − krho_tot` with dispersed phases); `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `rhoGrain` = propellant grain density [kg m⁻³]; `SF` = geometric scale factor (default 1); `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
 
 Only `502` carries a turbulence suffix, using the same layout as the inlet IDs
 (depends on `nrans`). `505` is the only GSI variant that writes **no** mass
 fractions.
 
 !!! note "Model codes"
-    `pyro` and `surf` are written as integers (`I8`, like the `501` payload: MOSE reads them
-    list-directed into `integer` variables, and gfortran rejects a real such as `0.100000E+01`
-    there) encoding the model chosen in the INI file:
+    `pyro` and `surf` are written as integers (`I8`, like the `501` payload: MOSE reads those of
+    `504` and `505` list-directed into `integer` variables, and gfortran rejects a real such as
+    `0.100000E+01` there) encoding the model chosen in the INI file:
 
     | Field | INI key | Value → code |
     |---|---|---|
@@ -334,7 +341,7 @@ Example (`id = 502`, single-species, no turbulence; `Taf` as the CEA file gives 
 
 ```
        1       1      20       1       4     502
-  3.4205300000000002E+03,  5.1999999999999998E-03,  3.4999999999999998E-01,  4.8290000000000000E+06,  1.7500000000000000E+03,  1.0000000000000000E+00,  1.0000000000000000E+00,
+  3.4205300000000002E+03,  9.0999999999999996E+00,  3.4999999999999998E-01,  4.8290000000000000E+06,  1.7500000000000000E+03,  1.0000000000000000E+00,  1.0000000000000000E+00,
 ```
 
 Example (`id = 503`, melting, 3 species — `cp = 1000`, `Tm = 500`, `Ti = 300`, `dh = -500`, `qrad = 1e4`, `eps` unset):
