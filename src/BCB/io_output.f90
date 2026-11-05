@@ -422,6 +422,8 @@ module io_write_bc_mod
                   enddo
                   write(unitfile,'(X,A)',advance='no') trim(this % dp(k) % distribution(mm,p))
                   write(unitfile,'(ES24.16)',advance='no') this % dp(k) % ds(mm,p)
+                  ! 401: G, the sum of gp over the 402/403 records of the cell (mix_dp_inlets), after ds
+                  if (this % dp(k) % id == 401) write(unitfile,'(ES24.16)',advance='no') this % dp(k) % g_fixed
                   write(unitfile,'(A)') ''
 
                 end select

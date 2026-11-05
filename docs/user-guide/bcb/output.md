@@ -255,13 +255,13 @@ Turbulence suffix:
     materials, one of them in two populations, therefore produces three copies of
     every boundary cell, and the solver reads them back in that order.
 
-| ID | Payload fields (7 numeric values + 1 string + 1 numeric, in order) |
+| ID | Payload fields (7 numeric values + 1 string + 1 numeric, in order; `401` one numeric more, `G`) |
 |----|-------------------------------------|
-| `401` | `krho, kV, alphap, betap, kT, rp, sigmap, distribution, ds` |
+| `401` | `krho/(1 - krho_tot), kV, alphap, betap, kT, rp, sigmap, distribution, ds, G` |
 | `402` | `gp, velocity_magnitude, alphap, betap, Tp, rp, sigmap, distribution, ds` |
 | `403` | `gp, kV, alphap, betap, Tp, rp, sigmap, distribution, ds` |
 
-Field key: `krho`/`kV`/`kT` = scaling coefficients for mass/velocity/temperature wrt the gaseous phase; `gp` = mass flux; `alphap`/`betap` = direction angles; `Tp` = particle temperature; `rp` = particle radius; `sigmap` = width of the size law (standard deviation of the diameter [m] for `Normal` and `LogNormal`, spread exponent for `RosinRammler`); `distribution` = size-distribution law (a string); `ds` = injection-point spacing (last token, meters).
+Field key: `krho`/`kV`/`kT` = scaling coefficients for mass/velocity/temperature wrt the gaseous phase; `krho_tot` = the sum of `krho` over every (material, population) of every `401` record of the cell, in the files of all the dispersed phases; `G` = the sum of `gp` over every (material, population) of every `402`/`403` record of the cell, in all those files [kg m⁻² s⁻¹], the gas not included: the solvers inject `krho/(1 - krho_tot) (mdot_gas + G A)` per (material, population), `A` the area of the face cell (the mixture rule; a solver refuses a `401` record without `G`, written by an earlier BCB); `gp` = mass flux; `alphap`/`betap` = direction angles; `Tp` = particle temperature; `rp` = particle radius; `sigmap` = width of the size law (standard deviation of the diameter [m] for `Normal` and `LogNormal`, spread exponent for `RosinRammler`); `distribution` = size-distribution law (a string); `ds` = injection-point spacing (last token, meters).
 
 !!! note "Direction angles"
     For normal injection, write `normal,` in place of numeric `alphap` and `betap`.
