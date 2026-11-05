@@ -11,7 +11,7 @@ If outputs match, the test objective is considered met.
 
 ## Registered Tests
 
-Every test registered in `test/CMakeLists.txt` (202; `IG-ic-write-failure` only in a build with TecIO), by
+Every test registered in `test/CMakeLists.txt` (204; `IG-ic-write-failure` only in a build with TecIO), by
 tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md): `ctest -L tutorial` runs them.
 
 | Test name | Tool | Case folder | Main goal |
