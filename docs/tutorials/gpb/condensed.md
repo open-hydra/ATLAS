@@ -35,13 +35,21 @@ GPB looks up the Burcat polynomial coefficients for the given `material` name. T
 
 ## Running
 
+Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
+deck of the repository.
+
 ```bash
-cd test/GPB/CP-Tvar-dispersed
+cp -r $ATLASDIR/test/GPB/CP-Tvar-dispersed .
+cd CP-Tvar-dispersed
 ATLAS GPB
 ```
 
 ## Expected Output
 
 ```
-fromATLAStoSolver/AL2O3(L).bin     # (or the name key value if set)
+fromATLAStoSolver/phase.txt
+fromATLAStoSolver/properties.dat
 ```
+
+`phase.txt` starts with `condensed-dispersed`; `properties.dat` holds cp, density and the absolute enthalpy
+(`Enthalpy_abs`) of `AL2O3(L)` from the Burcat database.

@@ -49,15 +49,22 @@ The chosen range $[8\,\text{MPa}, 15\,\text{MPa}] \times [320\,\text{K}, 450\,\t
 
 ## Running
 
+Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
+deck of the repository.
+
 ```bash
-cd test/GPB/RF-co2
+cp -r $ATLASDIR/test/GPB/RF-co2 .
+cd RF-co2
 ATLAS GPB
 ```
 
 ## Expected Output
 
 ```
-fromATLAStoSolver/co2_rf.bin
+fromATLAStoSolver/co2-phase.txt
+fromATLAStoSolver/co2-thermo.dat
+fromATLAStoSolver/co2-transport.dat
 ```
 
-The table contains $\rho$, $T$, $c$ (speed of sound), $\mu$, $\lambda$ sampled on the $(p, h)$ grid.
+`co2-thermo.dat` holds density, temperature, cp, entropy, the derivatives of the density and the speed of sound,
+`co2-transport.dat` the viscosity and the conductivity, on the (p, h) grid of `NP` × `NH` points.

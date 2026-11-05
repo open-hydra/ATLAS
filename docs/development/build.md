@@ -1,38 +1,68 @@
 # Build Instructions
 
-How to build ATLAS from source.
+How to build ATLAS from source, and how to rebuild it while you work on it. The first build is described in
+[Installation](../getting-started/installation.md).
 
 ## Prerequisites
 
 **Required:**
-- **Fortran Compiler**: GFortran ≥ 9 or Intel `ifort` ≥ 2021
-- **CMake**: Version 3.23 or later
-- **Git**: For cloning and managing submodules
-- **Make or Ninja**: For running the build (CMake generates build files for either)
+
+- **Compilers**: GNU `gfortran` and `g++`, or Intel oneAPI `ifx` and `icpx` (CI builds with both)
+- **CMake**: version 3.23 or later
+- **Git**: for cloning and managing submodules
+- **Make or Ninja**: for running the build (CMake generates build files for either)
 
 **Optional:**
-- **OpenMP**: For shared-memory parallelization (off by default; enable with `USE_OPENMP=ON`)
-- **MPI**: Not currently wired up — the `USE_MPI` option is commented out in `CMakeLists.txt`
-- **Doxygen**: For generating API documentation (if needed)
 
-**Python (for GPB tool):**
-- Python 3.9 or later
-- Required packages: `cantera`, `coolprop`, `numpy<2`, `pyyaml`
-- Optional conda environment: Use `ct-env.yaml`
+- **OpenMP**: shared-memory parallelization (off by default; `--use-openmp`, or `-DUSE_OPENMP=true`)
+- **TecIO**: binary Tecplot files (off by default; `--use-tecio`, or `-DUSE_TECIO=true`)
+- **MPI**: not wired up; the `USE_MPI` option is commented out in `CMakeLists.txt`
 
-## Quick Build
+**Python (GPB, KAnT, GUI):**
+
+- the conda environment of `ct-env.yaml`, created by `install.sh`;
+- or any Python 3 with `cantera` (3.0 or later), `coolprop`, `numpy<2` and `pyyaml`, given to the launcher with
+  `ATLAS_PYTHON` (PyQt and PyVista for the GUI)
+
+## First Build
 
 ```bash
-# Clone repository and initialize submodules
 git clone https://github.com/open-hydra/ATLAS.git
 cd ATLAS
-git submodule update --init --recursive
+./install.sh build
+```
 
-# Build with default preset
-mkdir build
-cd build
-cmake --preset default
-cmake --build .
+`install.sh build` initializes the submodules, removes `build/`, configures and compiles, and writes
+`CMakePresets.json` from the configuration it used (compilers, library paths, TecIO, OpenMP). The preset is
+machine-local and git-ignored, so `cmake --preset default` only works after a first `./install.sh build`.
+
+Options of the script:
+
+```bash
+# compiler suite
+./install.sh build --compilers=gnu
+./install.sh build --compilers=intel
+
+# optional features
+./install.sh build --use-openmp --use-tecio
+
+# external dependency paths
+./install.sh build --include-cea=/path/to/cea \
+                   --include-orion=/path/to/ORION \
+                   --include-finer=/path/to/FiNeR
+
+# no conda environment
+./install.sh build --no-conda
+```
+
+## Rebuild After Editing
+
+Do not run `install.sh` again for an incremental build: it removes `build/`. From the source root:
+
+```bash
+cmake --preset default && cmake --build build
+# or
+scripts/compile.sh
 ```
 
 After switching branches (`git checkout`, `git switch`), run `git submodule update --init --recursive`
@@ -42,61 +72,28 @@ does this for the bundled paths (and so resets any other commit checked out in t
 an error when a bundled submodule is not at the commit recorded by ATLAS (configure with
 `-DATLAS_PIN_CHECK=WARNING` to build against another checkout on purpose).
 
-## Build Options
+## Configuration Variables
 
-ATLAS supports two common build paths:
-
-- **Scripted build** using `install.sh` (recommended for first setup)
-- **Direct CMake** configuration (recommended for iterative development)
+To configure by hand, without the preset:
 
 ```bash
-# Debug build with symbols
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-
-# Release build with optimizations
-cmake -DCMAKE_BUILD_TYPE=Release ..
-
-# Enable OpenMP
-cmake -DUSE_OPENMP=ON ..
-
-# Custom installation directory
-cmake -DCMAKE_INSTALL_PREFIX=/custom/path ..
+cmake -B build -DCMAKE_BUILD_TYPE=DEBUG -DUSE_OPENMP=true
+cmake --build build
 ```
-
-Scripted equivalents:
-
-```bash
-# Full default setup
-./install.sh build
-
-# Select compiler suite
-./install.sh build --compilers=gnu
-./install.sh build --compilers=intel
-
-# Optional features
-./install.sh build --use-openmp --use-tecio
-
-# External dependency paths
-./install.sh build --include-cea=/path/to/cea \
-				   --include-orion=/path/to/ORION \
-				   --include-finer=/path/to/FiNeR
-
-# Skip conda environment creation
-./install.sh build --no-conda
-```
-
-### Configuration Variables
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `CMAKE_BUILD_TYPE` | String | `RELEASE` | Build mode (`Debug`/`Release`) |
-| `ORION_PATH` | Path | `lib/ORION/` | Path to ORION dependency |
-| `FINER_PATH` | Path | `lib/third_party/FiNeR/` | Path to FiNeR dependency |
-| `CEA_PATH` | Path | `lib/cea/` (if available) | Path to CEA dependency |
-| `USE_OPENMP` | Bool | `false` (script default) | Enable OpenMP support |
-| `USE_TECIO` | Bool | `false` (script default) | Enable TecIO support |
+| `CMAKE_BUILD_TYPE` | String | `RELEASE` (install.sh) | `RELEASE` or `DEBUG` |
+| `ORION_PATH` | Path | `lib/ORION` | Path to ORION |
+| `FINER_PATH` | Path | `lib/third_party/FiNeR` | Path to FiNeR |
+| `CEA_PATH` | Path | `lib/cea` | Path to CEA |
+| `USE_OPENMP` | Bool | `false` | Enable OpenMP support |
+| `USE_TECIO` | Bool | `false` | Enable TecIO support |
+| `ATLAS_PIN_CHECK` | String | `FATAL_ERROR` | `WARNING` builds against submodule checkouts that are not at the recorded commits |
 | `CMAKE_Fortran_COMPILER` | Path | auto-detected | Explicit Fortran compiler |
 | `CMAKE_CXX_COMPILER` | Path | auto-detected | Explicit C++ compiler |
+
+The executables are written into `bin/` (`BCB`, `ICB`, `MDB`, `STB`); there is no install step.
 
 ### TecIO (`USE_TECIO=true`)
 
@@ -115,70 +112,46 @@ to a directory of its own, `build/modules/<program>` (ORION's modules stay in `b
 the targets can be built at once with any number of jobs.
 
 ```bash
-# Build using 4 cores
-make -j 4
+cmake --build build -j 4
 
-# Ninja with parallel build
-cmake -G Ninja ..
-ninja -j 4
-```
-
-## Installation
-
-```bash
-# Install to default location
-make install
-
-# Install to specific prefix
-make install DESTDIR=/custom/prefix
+# or with Ninja
+cmake -B build -G Ninja && cmake --build build -j 4
 ```
 
 ## Verification
 
-After compiling, verify both executable availability and regression tests.
-
 ```bash
-# Confirm executables are present
-ls -l ../bin/BCB ../bin/ICB ../bin/STB
+# the executables
+ls -l bin/BCB bin/ICB bin/MDB bin/STB
 
-# Run registered regression tests
-ctest
+# the registered regression tests
+ctest --test-dir build --output-on-failure
 
-# Run with verbose output
-ctest --output-on-failure
-
-# Run one focused regression case
-ctest -R IG-nozzle3D --output-on-failure
+# one focused case
+ctest --test-dir build -R IG-nozzle3D --output-on-failure
 ```
+
+See [Testing](testing.md) for the labels and the test families.
 
 ## Build Troubleshooting
 
-### Common Issues
-
 #### CMake not found
+
 ```bash
-# Install CMake
 apt-get install cmake  # Debian/Ubuntu
 brew install cmake     # macOS
 ```
 
 #### Compiler not found
 
-Use one of the following approaches:
-
 ```bash
-# Option 1: use install.sh compiler selector
+# Option 1: the install.sh compiler selector
 ./install.sh build --compilers=gnu
 
-# Option 2: export compilers before configure
+# Option 2: export the compilers before configuring
 export FC=gfortran
 export CXX=g++
 cmake -B build -DCMAKE_BUILD_TYPE=RELEASE
-```
-
-```bash
-# Specify compiler explicitly
-cmake -DCMAKE_Fortran_COMPILER=gfortran ..
 ```
 
 #### Link errors
@@ -190,83 +163,43 @@ Common causes:
 - **Compiler/toolchain mismatch between cached and current configuration**
 
 ```bash
-# Re-sync submodules
+# re-sync the submodules
 git submodule update --init --recursive
 
-# Reconfigure from clean build tree
+# reconfigure from a clean build tree
 rm -rf build
 cmake -B build -DORION_PATH=$PWD/lib/ORION \
-			   -DFINER_PATH=$PWD/lib/third_party/FiNeR \
-			   -DCEA_PATH=$PWD/lib/cea
+               -DFINER_PATH=$PWD/lib/third_party/FiNeR \
+               -DCEA_PATH=$PWD/lib/cea
 cmake --build build
 ```
 
 #### Out of memory during build
-```bash
-# Build with fewer parallel jobs
-make -j 2
-```
-
-## Development Builds
-
-For development, use Debug mode:
 
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_TESTING=ON ..
-make
-ctest --output-on-failure
+cmake --build build -j 2
 ```
-
-## Clean Build
-
-```bash
-# Remove all build artifacts
-rm -rf build/
-mkdir build
-cd build
-cmake ..
-make
-```
-
-## Using Install Script
-
-Alternatively, use the provided install script for automated configuration and build:
-
-```bash
-./install.sh
-```
-
-The script will:
-1. Check prerequisites (compilers, CMake, Git)
-2. Initialize submodules if needed
-3. Create and configure the build directory
-4. Run the build
-5. Optionally install to a system location
-
-**Note**: The script uses the `default` CMake preset. For custom configurations, use CMake directly.
 
 ## Continuous Integration
 
-ATLAS uses GitHub Actions for automated testing:
+GitHub Actions (`.github/workflows/`):
 
-- **Trigger**: Every push and pull request
-- **Platforms**: Linux (GFortran), macOS (GFortran/Intel)
-- **Status**: Visible in PR checks
-- **Logs**: Available in GitHub Actions tab
+| Workflow | When | What |
+|---|---|---|
+| `ctest.yml` | every pull request to `main` | Ubuntu: the full build with `install.sh` and every test (gfortran, conda); TecIO builds with gfortran and with ifx/icpx; an OpenMP build under AddressSanitizer and UndefinedBehaviorSanitizer |
+| `docs.yml` | pull requests that change the docs; pushes to `main` | the site built with Zensical in strict mode; published from `main` |
+| `authors.yml` | pushes to `main` | regenerates `AUTHORS.md` |
 
-### Local Pre-Commit Checks
-
-Before pushing, verify the build locally:
+### Local Checks Before Pushing
 
 ```bash
-cd build
-cmake --build .
-ctest --output-on-failure
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-This ensures your changes pass the same checks as CI.
+`git config core.hooksPath .githooks` enables the pre-push hook, which runs the full CTest suite before every push.
 
-See: [Testing](./testing.md), [Project Structure](./structure.md)
+See: [Testing](testing.md), [Project Structure](structure.md)
 
 ## Submodule pins and external libraries
 

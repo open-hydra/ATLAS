@@ -12,16 +12,19 @@ equally be opened from its INI or from a folder of files the tools wrote, to
 look at them.
 
 ```bash
-ATLAS GUI                      # the whole case
-ATLAS GUI -i input.ini         # open an existing case
-ATLAS GUI --case run_folder    # open a case folder: its INI, mesh and files
-ATLAS BCB-GUI                  # the same window, opened on Boundaries
+ATLAS GUI                         # the whole case
+ATLAS GUI -i input.ini            # open an existing case
+ATLAS GUI -- --case run_folder    # open a case folder: its INI, mesh and files
+ATLAS GUI -- --stage icb          # open on a stage: case, gpb, bcb, icb, review, run
+ATLAS BCB-GUI                     # the same window, opened on Boundaries
 ```
 
-or directly:
+The options of the GUI itself (`--case`, `--stage`, a mesh file) follow `--`, which passes them on unread;
+`ATLAS GUI --case run_folder` is refused by the launcher. Or, with the Python of `ct-env`, from the ATLAS
+directory:
 
 ```bash
-python utils/ATLAS/GUI/ATLAS_GUI.py [mesh] [--ini input.ini | --case folder] [--stage gpb]
+python GUI/ATLAS_GUI.py [mesh] [--ini input.ini | --case folder] [--stage gpb]
 ```
 
 The window opens fitted to the screen. **Display** (top right) sets the
@@ -124,6 +127,8 @@ with the button that draws them in its stage.
 
 ## Phases (GPB)
 
+![The Phases stage: the prescribed-mixture air of the Quick Start, and the cp table GPB wrote for it](images/gui-phases.png)
+
 Each phase becomes one property table in `fromATLAStoSolver/`, named after the
 phase `name`. **Add phase** offers the types of
 [the GPB input reference](./gpb/input-reference.md); the editor then shows only
@@ -216,6 +221,8 @@ the Run or the Case stage) brings the card back.
 
 ## Boundaries (BCB)
 
+![The Boundaries stage, Written: every boundary cell of the Quick Start nozzle in the colour of the BC id BCB wrote](images/gui-boundaries-written.png)
+
 See [BCB GUI](./bcb/gui.md) for the mesh view, face picking and BC assignment.
 
 **New** opens a small dialog: the name of the section, its type (with a line
@@ -272,6 +279,8 @@ view.
 ---
 
 ## Initial (ICB)
+
+![The Initial stage: the nozzle law of the Quick Start block, its A/A* plot, and the pressure field ICB wrote](images/gui-initial-field.png)
 
 The list holds **All blocks** — the `[ICB-Block*]` section, the state of every
 block without a section of its own — and one row per block of the mesh (of the
@@ -577,8 +586,8 @@ saying so in the log:
   (`transport.dat`, `composition.txt`, ...) are for the solver and stay where
   they are. Without GPB in the run, the list names the phase files BCB and ICB
   will read, and warns when one is older than GPB's last, when one belongs to
-  no phase of the deck, and when there is none (the tools then assume one
-  ideal gas).
+  no phase of the deck, and when there is none (the tools then look for the
+  `phase.txt` of one ideal gas, and stop without it).
 
 The list also says when the INI is saved first, when a tool is not built or
 GPB has no Python with Cantera (the run cannot start), when a `filelist.txt` in

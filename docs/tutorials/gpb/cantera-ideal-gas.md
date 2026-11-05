@@ -36,13 +36,26 @@ Tmax      = 5000
 
 ## Running
 
+Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
+deck of the repository.
+
 ```bash
-cd test/GPB/IG-reactive
+cp -r $ATLASDIR/test/GPB/IG-reactive .
+cd IG-reactive
 ATLAS GPB
 ```
 
 ## Expected Output
 
 ```
-fromATLAStoSolver/<mechanism-name>.bin
+fromATLAStoSolver/phase.txt
+fromATLAStoSolver/thermo.dat
+fromATLAStoSolver/transport.dat
+fromATLAStoSolver/diffusion.dat
+fromATLAStoSolver/composition.txt
+fromATLAStoSolver/chemistry-info.txt
+fromATLAStoSolver/chemistry-Arrhenius.dat
 ```
+
+The section has no `name`, so the files have no prefix. The mechanism's reactions give `chemistry-info.txt` and
+`chemistry-Arrhenius.dat`, Cantera's transport `diffusion.dat` (binary diffusion of every pair).

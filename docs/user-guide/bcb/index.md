@@ -12,7 +12,7 @@ It supports simple single-patch boundaries, multipatch definitions, periodic lin
     assign boundary conditions, and export the `input.ini` directly. Launch it
     with `ATLAS BCB-GUI`.
 
-    [![BCB GUI preview](images/bcb-gui.png)](./gui.md)
+    [![The Boundaries stage of the ATLAS GUI](../images/gui-boundaries-written.png)](./gui.md)
 
 ---
 
@@ -22,41 +22,54 @@ It supports simple single-patch boundaries, multipatch definitions, periodic lin
 
 -   :material-arrow-right-bold: **Inlet / Outlet**
 
-	---
+    ---
 
-	For pressure, mass-flux, and time-varying inflow/outflow models in IG and DP setups.
+    Total conditions, mass flux, supersonic, back-pressure, normal velocity, time series and injector nozzles,
+    for gas and dispersed phases.
+
+    [:octicons-arrow-right-24: Inlet](bc-types.md#inlet), [outlet](bc-types.md#outlet)
 
 -   :material-wall: **Wall**
 
-	---
+    ---
 
-	Thermal wall definitions for fluid and solid phases: heat flux, temperature, radiative/convective forms.
+    Heat flux or temperature, uniform or from a table; convective and radiative forms on a solid.
 
--   :material-shape: **Physics-Based**
+    [:octicons-arrow-right-24: Wall](bc-types.md#wall)
 
-	---
+-   :material-fire-circle: **Gas-Surface Interaction**
 
-	Dedicated BC models for physical boundary behavior.
+    ---
+
+    `gsi`: solid-propellant burning, melting, pyrolysis and surface reactions, selected from the keys of the
+    section; `manifold` draws its state from another face.
+
+    [:octicons-arrow-right-24: gsi](bc-types.md#gsi), [manifold](bc-types.md#manifold)
 
 -   :material-link-variant: **Connection / Periodic**
 
-	---
+    ---
 
-	Face-to-face coupling between blocks, including periodic pairing through explicit face mapping.
+    Face-to-face coupling between blocks, found by matching face centres, and periodic pairs.
+
+    [:octicons-arrow-right-24: Block Connectivity](connectivity.md)
 
 -   :material-vector-intersection: **Chimera**
 
-	---
+    ---
 
-	Overset-grid connectivity with donor/receiver interpolation payloads.
+    Overset-grid connectivity with donor/receiver interpolation payloads.
 
-	[Requirements and limits](./connectivity.md)
+    [:octicons-arrow-right-24: Requirements and limits](connectivity.md#chimera)
 
--   :material-shape: **Multi-solver**
+-   :material-link-lock: **Multi-solver**
 
-	---
+    ---
 
-	BC building blocks for multi-solver coupling frameworks.
+    Connection and chimera records between the phases of a coupled case (`103`, `104`), for the multi-solver
+    runs of Hydra.
+
+    [:octicons-arrow-right-24: Output IDs](output.md#103-multi-solver-connection)
 
 </div>
 
@@ -64,11 +77,13 @@ Use the full reference in [BC Types](./bc-types.md) for summary tables and INI s
 
 ## Workflow
 
-0. Provide the required files, mesh and phase information.
-1. Open a file and save it with an `.ini` extension (for example `input.ini`).
-2. For each grid block, define a BCB-BlockN section and map face1..face6 to BC section names.
-3. Define each BC section (for example inlet, outlet, wall, periodic pair).
-4. Run BCB with the BCB INI file as input (if none is specified, it will use the default `input.ini`). Generated files are in `fromATLAStoSolver/`.
+1. Provide the [required files](required-files.md): the mesh, and the phase files GPB wrote, copied from
+   `fromATLAStoSolver/` into the case directory.
+2. In the INI file (`input.ini` by default), define a `[BCB-BlockN]` section for each block of the mesh and map
+   `face1` … `face6` to BC names.
+3. Define each BC section that takes parameters (inlet, wall, periodic pair, ...).
+4. Run BCB; the BC files are written into `fromATLAStoSolver/`.
+
 ```bash
 ATLAS BCB --input input.ini
 ```
@@ -82,7 +97,7 @@ ATLAS BCB --input input.ini
 - [Output Files](./output.md)
 - [Input Reference](./input-reference.md)
 
-See the [tutorials](/tutorials/bcb/) for worked examples.
+See the [BCB reference cases](../../tutorials/bcb/index.md) for worked examples.
 
 ## Next
 

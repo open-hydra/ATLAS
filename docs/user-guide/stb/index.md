@@ -84,16 +84,18 @@ qvol-remap = fraction
 
 ```bash
 ATLAS STB --input input.ini
+ATLAS STB -- -o vtk          # the output format, an option of STB itself (default tec-ascii)
 ```
 
-Generated files are written to `fromATLAStoSolver/`.
+Generated files are written to `fromATLAStoSolver/`; [Output Files](output.md) lists the formats.
 
 ## References
 
 - [Input Reference](./input-reference.md) — INI keys and supported parameters
 - [Output Files](./output.md) — Files written for Hydra
 
-See the [tutorials](/tutorials/stb/) for worked examples.
+The STB cases of `test/STB/` (`uniform`, `x-variable`, `qvol-3D-conservative`, `area-any-order`) are worked
+examples.
 
 ## Next
 

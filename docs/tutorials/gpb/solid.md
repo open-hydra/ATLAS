@@ -34,13 +34,18 @@ The ATLAS solid-phase database is located in `database/thermo/` and includes a c
 
 ## Running
 
+Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
+deck of the repository.
+
 ```bash
-cd test/GPB/SP-Tvar
+cp -r $ATLASDIR/test/GPB/SP-Tvar .
+cd SP-Tvar
 ATLAS GPB
 ```
 
 ## Expected Output
 
 ```
-fromATLAStoSolver/solido.bin
+fromATLAStoSolver/solido-phase.txt
+fromATLAStoSolver/solido-properties.dat
 ```

@@ -685,7 +685,7 @@ face2 = outlet          ; bare keyword, no section needed
 ```ini
 [outlet_main]
 type = outlet
-p    = 1.0
+p    = 1.0e+5
 rf   = 1.0
 ```
 

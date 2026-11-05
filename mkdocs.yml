@@ -1,3 +1,5 @@
+# Built with Zensical (zensical build), which reads this file: see requirements-docs.txt. MkDocs with Material for
+# MkDocs builds it too
 site_name: ATLAS Documentation
 site_url: https://open-hydra.github.io/ATLAS/
 repo_name: open-hydra/ATLAS
@@ -5,24 +7,23 @@ repo_url: https://github.com/open-hydra/ATLAS
 
 docs_dir: docs
 exclude_docs: |
-  README.md
-  overrides/
+  *.py
 
+# Strict mode turns these warnings into errors: a link to a missing page or anchor, an absolute link (it would
+# leave https://open-hydra.github.io/ATLAS/ on the published site) and a link to a directory
 validation:
   nav:
-    omitted_files: ignore
+    omitted_files: warn
     not_found: warn
-    absolute_links: ignore
+    absolute_links: warn
   links:
     not_found: warn
-    absolute_links: ignore
-    unrecognized_links: ignore
+    absolute_links: warn
+    unrecognized_links: warn
+    anchors: warn
 
 theme:
   name: material
-  custom_dir: docs/overrides
-  highlightjs: true
-  code_style: monokai
   font:
     text: Roboto
     code: Fira Code
@@ -49,7 +50,7 @@ theme:
     - search.suggest
     - search.highlight
     - content.tabs.link
-    - content.code.annotation
+    - content.code.annotate
   icon:
     repo: fontawesome/brands/github
 
@@ -59,7 +60,8 @@ markdown_extensions:
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      check_paths: true        # a missing file (a figure) fails the build
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -83,7 +85,6 @@ markdown_extensions:
 
 # Plugins
 plugins:
-  - macros
   - search:
       lang: en
 
@@ -95,7 +96,6 @@ extra_css:
 
 nav:
   - Home: index.md
-  - Overview: overview.md
 
   - Getting Started:
     - Overview: getting-started/index.md
@@ -104,6 +104,7 @@ nav:
 
   - User Guide:
     - Overview: user-guide/index.md
+    - INI Files: user-guide/ini.md
     - ATLAS GUI: user-guide/gui.md
     - General Phase Builder:
       - Overview: user-guide/gpb/index.md

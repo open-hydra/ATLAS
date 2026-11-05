@@ -15,7 +15,7 @@ This page covers the full BCB input setup:
 BCB assigns BCs to block faces based on the face mapping defined in the `[BCB-BlockN]` sections. Each face of a block is numbered according to the following convention:
 
 <figure style="margin-top: -90px; margin-bottom: -90px; overflow: hidden;">
-  {% include "user-guide/bcb/images/block-faces.svg" %}
+  --8<-- "docs/user-guide/bcb/images/block-faces.svg"
 </figure>
 
 !!! warning
@@ -48,7 +48,7 @@ T = 300.0
 
 [out]
 type = outlet
-p = 1.0
+p = 1.0e+5
 
 [wall_hot]
 type = wall
@@ -72,7 +72,8 @@ T = 1200.0
 | `face1` … `face6` | Name of the BC section assigned to each face (up to 6 for 3-D blocks) |
 | `phase` | Space-separated list of phase names active in this block (omit to use all phases) |
 
-If a face is not listed an error is generated. Except for 2-D plane or axisymmetric meshes, in these cases BCB automatically assigns `null` or `axisymmetric` to face 5 and face 6.
+A face that is not listed stops BCB, except faces 5 and 6 of a 2-D planar or axisymmetric mesh, to which BCB
+assigns `null` or `axisymmetric` itself.
 
 **Multi-phase example** — restricting a block to a single phase:
 
@@ -182,7 +183,7 @@ range2 = 0.1 1.0
 
 [inflow]
 type = inlet
-p0 = 3.0
+p0 = 3.0e+5
 T0 = 500.0
 ```
 
@@ -253,7 +254,7 @@ outer-patch = isoth
 
 [inflow]
 type = inlet
-p0 = 10d+5
+p0 = 1.0e+6
 T0 = 300
 yN2 = 0.7435
 yO2 = 0.228

@@ -1,6 +1,6 @@
 <p align="center">
 	<h1 align="center">ATLAS</h1>
-	<p align="center"><b>Auxiliary Toolbox and Libraries for an hydrA Solvers</b></p>
+	<p align="center"><b>Auxiliary Toolbox and Libraries for hydrA Solvers</b></p>
 </p>
 
 <p align="center">
@@ -22,7 +22,8 @@ ATLAS is an open-source pre-processing toolbox for Hydra simulation workflows. I
 - **Source Terms Builder (STB)** - builds volumetric source term datasets for coupled simulations.
 - **Mesh Decomposition Builder (MDB)** - splits blocks to load-balance a mesh over a given number of MPI ranks, rewriting grid, solution, and BC files.
 - **KAnT (Kinetic Analyzer and Tester)** - runs 0-D and 1-D chemistry analyses (equilibrium, ignition delay, time evolution, counterflow flame).
-- **Workflow chaining** - tools can be run independently or in sequence from a shared `input.ini`.
+- **ATLAS GUI** - sets up the case (phases, boundary conditions on the 3-D mesh, initial state), checks it, runs GPB, BCB and ICB, and draws what they wrote.
+- **One input file** - the tools can be run independently or in sequence from a shared `input.ini`.
 
 ## Quick Start
 
@@ -55,18 +56,18 @@ See the [Installation Guide](docs/getting-started/installation.md) for all optio
 
 ### Run a Minimal Workflow
 
-From a case directory:
+From a case directory holding `input.ini` and the mesh:
 
 ```bash
 ATLAS GPB
-ATLAS BCB
-ATLAS ICB
+cp fromATLAStoSolver/*phase.txt fromATLAStoSolver/*thermo.dat .   # BCB and ICB read the phase files here
+ATLAS BCB ICB
 ```
 
-Combined execution with one shared input file:
+or, in a window, with the mesh in 3-D and the runs of GPB, BCB and ICB:
 
 ```bash
-ATLAS GPB BCB ICB
+ATLAS GUI
 ```
 
 Chemistry validation:
@@ -96,7 +97,7 @@ Optional ecosystem components: **OpenMP**, **TecIO**, and Python packages from `
 ATLAS/
 |- src/                  # Fortran core and tool sources
 |- database/             # Databases and KAnT package
-|- docs/                 # MkDocs documentation source
+|- docs/                 # documentation source (Zensical, mkdocs.yml)
 |- test/                 # Reference and regression cases
 |- scripts/              # Build and workflow helpers
 |- lib/                  # Dependencies/submodules

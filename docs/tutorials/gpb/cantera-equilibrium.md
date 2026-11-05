@@ -41,8 +41,11 @@ GPB delegates unit parsing to Cantera. Supported unit strings include `Pa`, `atm
 
 ## Running
 
+Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in.
+
 ```bash
-cd test/GPB/IG-ct-equilibrium
+cp -r $ATLASDIR/test/GPB/IG-ct-equilibrium .
+cd IG-ct-equilibrium
 ATLAS GPB
 ```
 

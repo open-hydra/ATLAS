@@ -104,7 +104,9 @@ transport    = CEA
 
 ### Prescribed mixture
 
-One species representing a mixture.
+One species representing a mixture. The values of `mixture` are the mass fractions of its components, in any
+scale (GPB normalises them: `{N2: 75.4} {O2: 23.3} {Ar: 1.3}` are mass percentages); `mixture-name` names the
+species.
 
 Thermodynamics and transport databases can be both selected.
 
@@ -118,18 +120,18 @@ transport    = CEA
 
 ### Complex definitions
 
-GPB is capable to deal with more complex scenarios. A complete set of test and tutorials is available in the `test` folder. 
-
-As an example, it is reported an input defintion that computes the combustion products of a CEA equilibrium (`CEA-equilibrium = SRM.inp`). The species from the equilibrium composition are compared with the ones of the Troyes mechanism (`reactions = troyes`), and the ones not included in the latter are added as a single species component (`inerts-mixing = true`).
+The approaches combine; the cases of `test/GPB/` cover them. The input below computes the combustion products of a
+CEA equilibrium (`CEA-file = SRM.inp`); the species of the equilibrium composition are compared with those of the
+Troyes mechanism (`reactions = troyes`), and the ones the mechanism lacks are lumped into a single species
+(`inerts-mixing = true`). With `CEA-file` the thermodynamics is NASA9 (`thermo` may be left out).
 
 ```ini
 [GPB-Phase1]
-type            = ideal-gas
-CEA-equilibrium = SRM.inp
-reactions       = troyes
-inerts-mixing   = true
-thermo          = NASA9
-transport       = CEA
+type          = ideal-gas
+CEA-file      = SRM.inp
+reactions     = troyes
+inerts-mixing = true
+transport     = CEA
 ```
 
 ### Which keys apply to which approach

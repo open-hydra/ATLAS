@@ -33,13 +33,20 @@ The heavy-gas model represents propellant-loaded flows where the mixture contain
 
 ## Running
 
+Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
+deck of the repository.
+
 ```bash
-cd test/GPB/IG-mixture-HG
+cp -r $ATLASDIR/test/GPB/IG-mixture-HG .
+cd IG-mixture-HG
 ATLAS GPB
 ```
 
 ## Expected Output
 
 ```
-fromATLAStoSolver/<name>-HG.bin
+fromATLAStoSolver/phase.txt
+fromATLAStoSolver/thermo.dat
+fromATLAStoSolver/transport.dat
+fromATLAStoSolver/composition.txt
 ```

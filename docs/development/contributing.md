@@ -11,6 +11,7 @@ ATLAS currently follows standard open-source collaboration expectations:
 - Avoid discriminatory, harassing, or hostile language
 
 Until a dedicated `CODE_OF_CONDUCT.md` is added, treat GitHub community standards as the baseline for project interactions.
+
 - Be respectful
 - Be inclusive
 - Help others
@@ -107,6 +108,7 @@ Use this before submitting:
 ### Reporting Bugs
 
 Include:
+
 - Clear description of issue
 - Steps to reproduce
 - Expected vs actual behavior
@@ -116,6 +118,7 @@ Include:
 ### Feature Requests
 
 Include:
+
 - Clear description of feature
 - Use case and motivation
 - Possible implementation approach
@@ -176,13 +179,16 @@ cmake --build . && ctest --output-on-failure
 
 ### How to Update Docs
 
-1. Edit relevant `.md` files in `docs/`
-2. Follow MkDocs + Material markdown conventions already used in the docs
-3. Test locally:
-   ```bash
-   mkdocs build
-   mkdocs serve
-   ```
+1. Edit relevant `.md` files in `docs/`, and add a new page to the `nav` of `mkdocs.yml`
+2. Follow the Markdown conventions already used in the docs (admonitions, tabs, grid cards); leave a blank line
+   before a list, or it is read as part of the paragraph above
+3. Build and preview the site with [Zensical](https://zensical.org):
+
+    ```bash
+    pip install -r requirements-docs.txt
+    zensical serve            # preview at http://localhost:8000
+    zensical build --strict   # as the workflow: a broken link fails the pull request
+    ```
 
 ## Questions?
 
@@ -194,6 +200,7 @@ cmake --build . && ctest --output-on-failure
 ## Attribution
 
 Contributors are recognized in:
+
 - GitHub contributor graph
 - `AUTHORS.md` updates when applicable
 - Release notes and changelog entries for notable features/fixes

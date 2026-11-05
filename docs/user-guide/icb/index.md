@@ -27,7 +27,7 @@ ICB writes the initial solution field for one or more Hydra blocks. The strategy
 
     **When to use:** prescribed non-uniform temperature, pressure, or velocity starts.
 
--   :material-arrow-decision: **Interpolate** (`interpolate`)
+-   :material-arrow-decision: **Interpolation** (`interpolation`)
 
     ---
 
@@ -35,7 +35,7 @@ ICB writes the initial solution field for one or more Hydra blocks. The strategy
 
     **When to use:** mesh refinement studies, transferring results between grid generations.
 
--   :material-nozzle: **Physics informed**
+-   :material-cone: **Physics informed**
 
     ---
 
@@ -55,6 +55,7 @@ ICB writes the initial solution field for one or more Hydra blocks. The strategy
 | Variable (file-backed) | IG / RF / SP | `<key>-file`, `<key>-direction` |
 | Nozzle | Ideal gas | `p0`, `T0`, `nozzle-direction` |
 | Interpolation | Any | `old-solution`, `interpolation-law` |
+| Zones | Any | `direction`, `zone<n>`, `range<n>` |
 
 ---
 
@@ -62,11 +63,13 @@ Use the full reference in [IC Strategies](./ic-strategies.md) for summary tables
 
 ## Workflow
 
-0. Provide the required files (mesh, ICB INI, phase files).
-1. Open a file and save it with an `.ini` extension (for example `input.ini`).
-2. For each grid block, define an `ICB-BlockN` section.
-3. Choose block type (`homogeneous`, `variable`, `interpolation`, `nozzle`) and add required keys.
-4. Run ICB with the ICB INI file as input (if none is specified, it uses `input.ini`).
+1. Provide the [required files](required-files.md): the mesh, and the phase files GPB wrote, copied from
+   `fromATLAStoSolver/` into the case directory.
+2. In the INI file (`input.ini` by default), define an `[ICB-BlockN]` section for each block, or one
+   `[ICB-Block*]` section for every block without a section of its own.
+3. Choose the block type (`homogeneous`, `variable`, `interpolation`, `nozzle`, `multizone`) and add its keys.
+4. Run ICB:
+
 ```bash
 ATLAS ICB --input input.ini
 ```
@@ -81,7 +84,7 @@ Generated files are in `fromATLAStoSolver/`.
 - [Output Files](./output.md)
 - [Input Reference](./input-reference.md) — INI keys and their meaning
 
-See the [tutorials](/tutorials/icb/) for worked examples.
+See the [ICB reference cases](../../tutorials/icb/index.md) for worked examples.
 
 ## Next
 

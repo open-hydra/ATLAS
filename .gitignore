@@ -30,10 +30,9 @@ node_modules/
 package-lock.json
 yarn.lock
 
-# Build output
-docs/.vitepress/dist/
-docs/.vitepress/cache/
+# Documentation site (zensical build) and Zensical's cache
 site
+.cache
 
 # Development
 .DS_Store

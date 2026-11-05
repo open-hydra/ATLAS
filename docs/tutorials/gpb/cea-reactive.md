@@ -36,13 +36,22 @@ The `CEA.inp` file must be located in the same directory as `input.ini` (or an a
 
 ## Running
 
+Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
+deck of the repository.
+
 ```bash
-cd test/GPB/IG-ceafile-reactive-OG
+cp -r $ATLASDIR/test/GPB/IG-ceafile-reactive-OG .
+cd IG-ceafile-reactive-OG
 ATLAS GPB
 ```
 
 ## Expected Output
 
 ```
-fromATLAStoSolver/<name>.bin
+fromATLAStoSolver/phase.txt
+fromATLAStoSolver/thermo.dat
+fromATLAStoSolver/transport.dat
+fromATLAStoSolver/composition.txt
+fromATLAStoSolver/chemistry-info.txt
+fromATLAStoSolver/chemistry-Arrhenius.dat
 ```

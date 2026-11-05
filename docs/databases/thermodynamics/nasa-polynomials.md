@@ -1,6 +1,8 @@
 # NASA Polynomial Databases
 
-ATLAS ships two NASA-format thermodynamic databases for ideal-gas species. Both are stored in Cantera YAML.
+ATLAS ships two NASA-format thermodynamic databases for ideal-gas species, both stored in Cantera YAML:
+`nasa9.yaml` (`thermo = NASA9`) and `burcat.yaml` (`thermo = Burcat`). `thermo = NASA7` selects a third one that
+Cantera ships, `nasa_gas.yaml` (748 gas species, 200–6000 K, the NASA7 form below).
 
 ---
 

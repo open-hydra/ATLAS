@@ -20,22 +20,22 @@ Each tutorial maps to one or more regression cases and explains the test objecti
 
 | Tutorial | Description |
 |----------|-------------|
-| [BCB Reference Cases](./bcb/) | Objectives for ideal-gas, multipatch, chimera, nozzle, periodic, condensed, and solid BC tests |
+| [BCB Reference Cases](bcb/index.md) | Objectives for ideal-gas, multipatch, chimera, nozzle, periodic, condensed, and solid BC tests |
 
 ## ICB Tutorials
 
 | Tutorial | Description |
 |----------|-------------|
-| [ICB Reference Cases](./icb/) | Objectives for uniform, nozzle, interpolation, multizone, and multi-physics IC tests |
+| [ICB Reference Cases](icb/index.md) | Objectives for uniform, nozzle, interpolation, multizone, and multi-physics IC tests |
 
 ## KAnT Tutorials
 
 | Tutorial | Description |
 |----------|-------------|
-| [KAnT Reference Cases](./kant/) | Objectives for equilibrium, ignition-delay, counterflow, and time-evolution kinetics tests |
+| [KAnT Reference Cases](kant/index.md) | Objectives for equilibrium, ignition-delay, counterflow, and time-evolution kinetics tests |
 
 ## MDB Tutorials
 
 | Tutorial | Description |
 |----------|-------------|
-| [MDB Reference Cases](./mdb/) | Objectives for mesh decomposition and BC-splitting tests |
+| [MDB Reference Cases](mdb/index.md) | Objectives for mesh decomposition and BC-splitting tests |

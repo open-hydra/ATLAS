@@ -39,15 +39,23 @@ GPB derives $c_p = \gamma R / (\gamma - 1)$, $c_v = c_p / \gamma$, and $R = R_u 
 
 ## Running
 
+Run the case on a copy: GPB writes `fromATLAStoSolver/` in the directory it runs in, which would change the test
+deck of the repository.
+
 ```bash
-cd test/GPB/IG-fixgas
+cp -r $ATLASDIR/test/GPB/IG-fixgas .
+cd IG-fixgas
 ATLAS GPB
 ```
 
 ## Expected Output
 
 ```
-fromATLAStoSolver/gasmix.bin
+fromATLAStoSolver/gasmix-phase.txt
+fromATLAStoSolver/gasmix-thermo.dat
+fromATLAStoSolver/gasmix-transport.dat
+fromATLAStoSolver/gasmix-composition.txt
 ```
 
-The file contains constant $c_p$, $\mu$, $\lambda$ arrays on the requested $T$ grid (default 1–5000 K).
+`gasmix-thermo.dat` holds the constant $c_p$ (with $h$ and $s$) of each species and `gasmix-transport.dat` the constant
+$\mu$ and $\lambda$, from 1 K to 5000 K with a 1 K step.

@@ -6,7 +6,7 @@ and the shared `input.ini` is written for you — no hand-editing of face number
 required. The same window also holds the GPB phases and the global parameters
 of the case.
 
-![The BCB GUI showing an 11-block 3-D scramjet mesh with per-face boundary conditions](images/bcb-gui.png)
+![The Boundaries stage on the Quick Start nozzle: the faces and their BCs, the boundary cells as BCB wrote them, the Assign tab](../images/gui-boundaries-written.png)
 
 !!! tip "When to use it"
     The GUI writes exactly the same `input.ini` described in
@@ -22,23 +22,23 @@ The GUI runs in the `ct-env` conda environment (it needs `pyqt`, `pyvista` and
 
 ```bash
 ATLAS BCB-GUI      # opens the GUI on the Boundaries stage
-ATLAS GUI          # the whole case: phases, boundaries, review
+ATLAS GUI          # the whole case: phases, boundaries, initial state, review, run
 ```
 
-or directly:
+or directly, from the ATLAS directory:
 
 ```bash
-python utils/ATLAS/GUI/ATLAS_GUI.py [mesh] [--ini input.ini] [--stage bcb]
+python GUI/ATLAS_GUI.py [mesh] [--ini input.ini] [--stage bcb]
 ```
 
-If the GUI dependencies are missing, refresh the environment with
-`conda env update -f utils/ATLAS/ct-env.yaml`.
+If the GUI dependencies are missing, refresh the environment from the ATLAS directory with
+`conda env update -f ct-env.yaml`.
 
 ---
 
 ## Loading a mesh
 
-Use **Load Mesh** to open a grid in either format:
+Use **Load Mesh** (header) to open a grid in either format; **Open** loads the mesh of a case with its INI:
 
 | Format | Extensions | Notes |
 |--------|-----------|-------|
@@ -126,13 +126,12 @@ faces using it.
 
 **Save INI** (or **Save As**) writes the `input.ini`:
 
-- `[ATLAS-Parameters]` from the **Global** tab (e.g. `MG-levels`, `BC-chimera`);
+- `[ATLAS-Parameters]` from the **Case** stage (e.g. `MG-levels`, `BC-chimera`);
 - one `[BCB-BlockN]` per block mapping `face1…faceN`;
 - a `[name]` section for each referenced built BC.
 
-The **INI Preview** tab shows the exact file live as you edit. If any face is
-left unassigned the GUI warns before saving (BCB requires every face to be
-mapped).
+The **Review** stage shows the exact file live as you edit, with the faces that
+have no BC among its checks (BCB requires every face to be mapped).
 
 ---
 
