@@ -90,8 +90,9 @@ direction is set by the flow angles `alpha` and `beta`, in radians:
 $$\mathbf{u} = V\,(\cos\alpha\cos\beta,\ \sin\alpha\cos\beta,\ \sin\beta)$$
 
 `alpha` turns the flow in the x-y plane from x towards y, and `beta` lifts it out of that plane
-towards z; without angles the flow is along x. This is the direction the solvers give the `alpha`
-and `beta` of an inflow BC, so an inlet and an initial field written from the same keys agree. An
+towards z; without angles the flow is along x. With the angles given this is the direction of the
+supersonic inlet of MOSE (`405`); the other inlets of MOSE take the two angles in another form, see
+[the direction and `rf` in MOSE](../bcb/bc-types.md#direction-and-rf-in-mose). An
 ideal-gas zone that gives any of `u`, `v`, `w` takes the three components and ignores the angles;
 in a real-fluid zone each component given replaces its own term.
 

@@ -171,6 +171,11 @@ old-block-id = 0
 interpolation-law = outlaw
 ```
 
+`old-solution` is a Tecplot file, `.tec` or `.szplt` (the latter with a TecIO build), optionally numbered
+(`.tec.NNN`, `.szplt.NNN`); any other extension stops ICB. A MOSE solution to interpolate is therefore written with
+`sol-format = tecplot ascii` or `tecplot binary` (`field.tec`, `field.szplt`), not `vtk ascii` or `vtk raw`
+(`field.vtm`).
+
 Optional keys:
 
 - `old-species` for ideal-gas species remapping. It names where the phase file
@@ -271,7 +276,8 @@ adopting N turbulence band(s) ... by name`; components the source solver did not
 write, such as `R13`/`R23` of a 2D source, are set to 0). Any other trailing band
 (`T`, soot, passive scalars, ...) is ignored with a notice; a set that is not one of
 the three (for example k-epsilon) is not adopted and a `[WARNING]` lists the names.
-Without names (VTK sources; `.szplt` sources carry their names with the pinned ORION)
+Without names (a source whose variable list does not give one name per coordinate and per
+band; `.szplt` sources carry their names with the pinned ORION)
 nothing is adopted: `variable names unavailable or inconsistent with the data,
 turbulence not adopted`. When names are present, the last mandatory band must be
 named `p` (IG) or `h` (RF): otherwise the species count of `old-species` does not

@@ -11,7 +11,7 @@ MDB writes its outputs to the paths configured in `[MDB-Parameters]`. No output 
 | Not set | `<input-grid>-split.<ext>` |
 | Explicit path | As specified |
 
-The output file is written in the same format as the input (Tecplot ASCII `.tec`, Tecplot binary `.szplt` or PLOT3D `.p3d`). If the input grid file also carries a solution field (restart data), the solution is partitioned block-by-block into the output file — no interpolation is performed and the field values are unchanged.
+The output file is written in the same format as the input (Tecplot ASCII `.tec`, Tecplot binary `.szplt` or PLOT3D `.p3d`). If the input grid file also carries a solution field (restart data), the solution is partitioned block-by-block into the output file — no interpolation is performed and the field values are unchanged. The data set auxiliary data of a MOSE solution (`CYCLE` and the `MOSE_*` counters of its restart) are not written into the split file: MOSE restarts from it with the field and the time (in a steady run, the global iteration count), and starts its other counters as a new run does (the CFL ramp, the numbering of the solutions, a multigrid sequence and the reference of `res-threshold` start again).
 
 ---
 

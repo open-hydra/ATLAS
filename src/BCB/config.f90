@@ -393,9 +393,10 @@ contains
     cfg%has_connection = (error == 0)
   end subroutine load_bcb_periodic_config
 
-  !> A file name written into the BC record (time-file, p0-time-file, p-time-file, q-time-file,
-  !> T-time-file): ATLAS keeps 32 characters of it (the record field; MOSE reads the 402 series name
-  !> and FUSS the wall series name with 32 characters too). A longer name of a file the user provides
+  !> A file name written into the BC record (time-file, p0-time-file, q-time-file, T-time-file; the
+  !> p-time-file name, which no record carries, is checked the same way): ATLAS keeps 32 characters of
+  !> it (the record field; FUSS reads the wall series name with 32 characters too, MOSE the 402 series
+  !> name as written, up to 256). A longer name of a file the user provides
   !> would be truncated in the record and the solver would look for a file that does not exist:
   !> refused. The time-file of a section with line-file is written by ATLAS itself under the same
   !> 32 characters (file and record agree, as upstream): accepted, with one LOG line per name.
@@ -1168,10 +1169,12 @@ contains
       call bcb_registry%add('bc-section', 'g', ig_cfg%g, '0.0', 'Mass flux for inlet boundaries.', '', .false.)
       call bcb_registry%add('bc-section', 'p', ig_cfg%p, '0.0', 'Static pressure for outlet or far-field boundaries.', '', .false.)
       call bcb_registry%add('bc-section', 'p0-time-file', ig_cfg%p0_time_file, 'none', 'Time-series file for total pressure (two columns: time [s], p0 [Pa]).', '', .false.)
-      call bcb_registry%add('bc-section', 'p-time-file', ig_cfg%p_time_file, 'none', 'Time-series file for static pressure.', '', .false.)
+      call bcb_registry%add('bc-section', 'p-time-file', ig_cfg%p_time_file, 'none', 'Time-series file for static'// &
+                            ' pressure, which no BC record carries: BCB writes nothing for it.', '', .false.)
       call bcb_registry%add('bc-section', 'time-file', time_file, 'none', 'Time-series file of full boundary state.', '', .false.)
       call bcb_registry%add('bc-section', 'periodic', periodic, 'F', 'Treat a time-file series as periodic.', '', .false.)
-      call bcb_registry%add('bc-section', 'rf', relaxation_factor, '1.0', 'Boundary relaxation factor.', '', .false.)
+      call bcb_registry%add('bc-section', 'rf', relaxation_factor, '1.0', 'Boundary relaxation factor'// &
+                            ' (MOSE uses it on BC 404, 405, 406 and 408 only).', '', .false.)
       call bcb_registry%add('bc-section', 'Ae_At', nozzle_scalar, '0.0', 'Nozzle exit-to-throat area ratio (0 = not given).', '0 or >=1', .false.)
       call bcb_registry%add('bc-section', 'psub', nozzle_scalar, '0.0', 'Nozzle (BC 420) exit pressure of the just-choked subsonic solution; given with g and psup, or computed from Ae_At.', '', .false.)
       call bcb_registry%add('bc-section', 'psup', nozzle_scalar, '0.0', 'Nozzle (BC 420) design exit pressure of the supersonic expansion; given with g and psub, or computed from Ae_At.', '', .false.)

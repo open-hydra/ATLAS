@@ -68,7 +68,7 @@ Per-block overrides. `*` is replaced by the 1-based block index (e.g. `MDB-Block
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| split-directions | *(from MDB-Parameters)* | any subset of `i`, `j`, `k` | no | Restrict the cut directions for this block. Typical uses: `ik` on a boundary-layer block to prevent wall-normal (`j`) cuts; the normal direction of a manifold face, which MDB requires to stay whole. |
+| split-directions | *(from MDB-Parameters)* | any subset of `i`, `j`, `k` | no | Restrict the cut directions for this block. Typical uses: `ik` on a boundary-layer block to prevent wall-normal (`j`) cuts; the normal direction of a manifold face, which MDB requires to stay whole; `ij` on a block closed by type `200` on its two k faces, which MOSE needs whole in k. |
 
 ## Coupled mode
 

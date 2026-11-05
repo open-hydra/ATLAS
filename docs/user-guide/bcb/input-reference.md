@@ -49,8 +49,8 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s, rad), with two
 | eq-CEA-file |  |  |  no | CEA input file used to derive equilibrium composition. |
 | eq-CEA-section | 1 | >=1 |  no | CEA section index used when eq-CEA-file is provided. |
 | yspecies | 0.0 |  |  no | Mass fraction assigned to a species name suffix: one number in [0, 1]. |
-| alpha | 0.0 |  |  no | Flow angle [rad] in the x-y plane, from x towards y: the direction is (cos alpha cos beta, sin alpha cos beta, sin beta). |
-| beta | 0.0 |  |  no | Flow angle [rad] out of the x-y plane, towards z. |
+| alpha | 0.0 |  |  no | Flow angle [rad] from x towards y. ICB takes the direction (cos alpha cos beta, sin alpha cos beta, sin beta); BCB writes the angle into the record as given, or normal when the key is left out, and the solver gives it its meaning (MOSE: see the BC types page of BCB). |
+| beta | 0.0 |  |  no | Flow angle [rad] towards z (see alpha). |
 | u | 0.0 |  |  no | Prescribed x-velocity component. |
 | v | 0.0 |  |  no | Prescribed y-velocity component. |
 | w | 0.0 |  |  no | Prescribed z-velocity component. |
@@ -84,10 +84,10 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s, rad), with two
 | g | 0.0 |  |  no | Mass flux for inlet boundaries. |
 | p | 0.0 |  |  no | Static pressure for outlet or far-field boundaries. |
 | p0-time-file | none |  |  no | Time-series file for total pressure (two columns: time [s], p0 [Pa]). |
-| p-time-file | none |  |  no | Time-series file for static pressure. |
+| p-time-file | none |  |  no | Time-series file for static pressure, which no BC record carries: BCB writes nothing for it. |
 | time-file | none |  |  no | Time-series file of full boundary state. |
 | periodic | F |  |  no | Treat a time-file series as periodic. |
-| rf | 1.0 |  |  no | Boundary relaxation factor. |
+| rf | 1.0 |  |  no | Boundary relaxation factor (MOSE uses it on BC 404, 405, 406 and 408 only). |
 | Ae_At | 0.0 | 0 or >=1 |  no | Nozzle exit-to-throat area ratio (0 = not given). |
 | psub | 0.0 |  |  no | Nozzle (BC 420) exit pressure of the just-choked subsonic solution; given with g and psup, or computed from Ae_At. |
 | psup | 0.0 |  |  no | Nozzle (BC 420) design exit pressure of the supersonic expansion; given with g and psub, or computed from Ae_At. |
