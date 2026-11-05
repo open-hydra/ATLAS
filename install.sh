@@ -221,6 +221,8 @@ case "$COMMAND" in
         task "Building $project"
         
         task "Cloning submodules"
+        # sync first: a clone made before a submodule changed URL (lib/cea, to nasa/cea) still fetches the old one
+        git submodule sync --quiet
         [[ $CEA_PATH == $(pwd)'/lib/cea/' ]] && git submodule update --init lib/cea
         [[ -z $FINER_PATH ]] && git submodule update --init lib/FiNeR
         git submodule update --init lib/PiNeR
