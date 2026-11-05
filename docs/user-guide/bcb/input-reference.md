@@ -1,6 +1,6 @@
 # BCB Input Parameters
 
-Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file` series (BC 402) is in bar, as the solvers read it.
+Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s).
 
 
 ## ATLAS-Parameters

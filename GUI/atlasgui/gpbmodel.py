@@ -347,6 +347,22 @@ class GPBPhase:
         """Calorically-perfect gas: species with constant properties."""
         return any(self.has(k) for k, _ in FIXED_GAS_COLUMNS)
 
+    def thermo_database(self):
+        """The database GPB looks a species or material name up in.
+
+        ``thermo`` when set, else NASA9 -- except that CEA-file forces NASA9
+        on a gas, and a condensed phase given cp without thermo reads no
+        database at all (every material is constant): ``""`` then.
+        """
+        thermo = self.get("thermo")
+        if self.family in ("condensed", "solid"):
+            if thermo:
+                return thermo
+            return "" if self.has("cp") else "NASA9"
+        if self.has("CEA-file"):
+            return "NASA9"
+        return thermo or "NASA9"
+
     # -- summary ---------------------------------------------------------
     def summary(self):
         """One line describing the phase, for the phase list."""

@@ -1,19 +1,24 @@
-"""Launch the ATLAS GUI:  python -m atlasgui [mesh] [--ini input.ini]"""
+"""Launch the ATLAS GUI:  python -m atlasgui [mesh] [--ini input.ini | --case folder]"""
 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="atlasgui",
-        description="Interactive case setup for ATLAS: GPB phases and BCB "
-                    "boundary conditions in one input.ini.")
+        description="The ATLAS case in one window: the GPB phases, the BCB "
+                    "boundary conditions and the ICB initial state of one "
+                    "input.ini, and the runs of the tools on it.")
     parser.add_argument("mesh", nargs="?", help="mesh file to load on startup")
     parser.add_argument("--ini", help="existing ATLAS input.ini to open on startup")
-    parser.add_argument("--stage", choices=["case", "gpb", "bcb", "review"],
+    parser.add_argument("--case", metavar="FOLDER",
+                        help="case folder to open on startup: its INI, its mesh and the "
+                             "files the tools wrote there (a folder of files alone too)")
+    parser.add_argument("--stage", choices=["case", "gpb", "bcb", "icb", "review", "run"],
                         help="stage to open on (default: case, or boundaries "
                              "when a mesh is given)")
     args = parser.parse_args(argv)
@@ -39,6 +44,15 @@ def main(argv=None):
 
     from .mainwindow import AtlasMainWindow
 
+    # A pip PyQt6 wheel bundles its own Qt, but inside a conda env the env's
+    # bin/qt.conf sends every Qt to the conda prefix for its plugins, where the
+    # wheel finds no platform plugin and aborts.  Search the wheel's own first.
+    import PyQt6
+    from PyQt6.QtCore import QCoreApplication
+    wheel_plugins = os.path.join(os.path.dirname(PyQt6.__file__), "Qt6", "plugins")
+    if os.path.isdir(wheel_plugins):
+        QCoreApplication.addLibraryPath(wheel_plugins)
+
     app = QApplication(sys.argv)
     # Fusion is the most predictable base for the stylesheet: the native
     # platform styles ignore several of the rules the theme relies on.
@@ -46,6 +60,8 @@ def main(argv=None):
     win = AtlasMainWindow()
     if args.ini:
         win.open_ini(args.ini)
+    elif args.case:
+        win.open_case(args.case)
     if args.mesh:
         win.load_mesh(args.mesh)
     win.set_stage(args.stage or ("bcb" if args.mesh else "case"))

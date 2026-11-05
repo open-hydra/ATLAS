@@ -104,7 +104,9 @@ transport    = CEA
 
 ### Prescribed mixture
 
-One species representing a mixture.
+One species representing a mixture. The values of `mixture` are the mass fractions of its components, in any
+scale (GPB normalises them: `{N2: 75.4} {O2: 23.3} {Ar: 1.3}` are mass percentages); `mixture-name` names the
+species.
 
 Thermodynamics and transport databases can be both selected.
 
@@ -118,18 +120,18 @@ transport    = CEA
 
 ### Complex definitions
 
-GPB is capable to deal with more complex scenarios. A complete set of test and tutorials is available in the `test` folder. 
-
-As an example, it is reported an input defintion that computes the combustion products of a CEA equilibrium (`CEA-equilibrium = SRM.inp`). The species from the equilibrium composition are compared with the ones of the Troyes mechanism (`reactions = troyes`), and the ones not included in the latter are added as a single species component (`inerts-mixing = true`).
+The approaches combine; the cases of `test/GPB/` cover them. The input below computes the combustion products of a
+CEA equilibrium (`CEA-file = SRM.inp`); the species of the equilibrium composition are compared with those of the
+Troyes mechanism (`reactions = troyes`), and the ones the mechanism lacks are lumped into a single species
+(`inerts-mixing = true`). With `CEA-file` the thermodynamics is NASA9 (`thermo` may be left out).
 
 ```ini
 [GPB-Phase1]
-type            = ideal-gas
-CEA-equilibrium = SRM.inp
-reactions       = troyes
-inerts-mixing   = true
-thermo          = NASA9
-transport       = CEA
+type          = ideal-gas
+CEA-file      = SRM.inp
+reactions     = troyes
+inerts-mixing = true
+transport     = CEA
 ```
 
 ### Which keys apply to which approach
@@ -162,7 +164,8 @@ Every diagnostic goes to standard output only; nothing is ever written into the 
 | a species of the file without transport data: with `transport = cantera` it is refused; with `transport = CEA` it takes its CEApolynomials record (simplified law without one); without `transport` no transport table is written | ERROR / INFO | `[ERROR] key reactions of section [<s>]: <file>.yaml has <n> of <ns> species without transport data` / `[INFO] GPB: transport = CEA: <n> species of <file>.yaml carry no transport data` | add the Lennard-Jones records to the file, or use `transport = CEA` |
 | a yaml phase without a transport model with `transport = cantera` or `phase =` (e.g. `TSR-Rich-39`) | ERROR | `[ERROR] key reactions|phase of section [<s>]: <file>.yaml declares no transport model for the phase` | add `transport: mixture-averaged` and the Lennard-Jones records to the file, or use `reactions =` with `transport = CEA` |
 | a file Cantera cannot load, or no file of that name (the error names the database files the key may have meant: `phase` and `reactions` take the file name, not the phase name) | ERROR | `[ERROR] key reactions|phase of section [<s>]: <file>.yaml cannot be loaded by Cantera: <Cantera's line>` | fix the file, or write the file name suggested by the message |
-| `transport = CEA` with a species absent from `CEApolynomials.yaml` | WARNING | `[WARNING] GPB: transport = CEA: no CEApolynomials record for species '<sp>'` | add the species to `database/transport/CEApolynomials.yaml`, or use `transport = cantera` |
+| `transport = CEA` with a species whose name is not the `element` or one of the `aliases` of a record of `CEApolynomials.yaml` (compared character by character) | WARNING | `[WARNING] GPB: transport = CEA: no CEApolynomials record for species '<sp>'` | add the species, or its name to the `aliases` of its record, in `database/transport/CEApolynomials.yaml` ([records](../../databases/transport/cea-polynomials.md#records)), or use `transport = cantera` |
+| `transport = CEA` or `CEA-file` with a name or alias that appears in two records of `database/transport/CEApolynomials.yaml`, or a record whose `element` is not a non-empty string or whose `aliases` is not a list of non-empty strings (also a record that is not a mapping, or a file that is not a list of records) | ERROR | `[ERROR] GPB: database/transport/CEApolynomials.yaml: name or alias '<n>' appears in records <i> and <j>` (`appears twice in record <i>` when a record repeats its own name or alias) / `[ERROR] GPB: database/transport/CEApolynomials.yaml: record <i>...` / `[ERROR] GPB: database/transport/CEApolynomials.yaml: the file must be a list of records` | remove the duplicate record or alias (records are numbered from 1 in the order of the file), or fix the record |
 | `transport =` with a value other than `cantera`, `CEA` or `constant` (the values are case-sensitive) | WARNING | `[WARNING] GPB: transport = <v> is not cantera, CEA or constant: simplified law applied for species '<sp>'` | write `cantera` or `CEA` |
 | phase named `gas` | WARNING | `[WARNING] GPB: phase name 'gas' identifies no mechanism` | give the phase the mechanism's name in the yaml (FLINT selects the routine by that name) |
 

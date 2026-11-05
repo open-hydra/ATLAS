@@ -12,7 +12,7 @@ This page covers the full BC roster with reference tables and INI syntax for eve
 | `axisymmetric` | no | Axisymmetric boundary. |
 | `extrapolation` | no | Extrapolation boundary. |
 | `connection` | no | Standard block-to-block connection marker; always resolved by face-center matching, also when `BC-chimera` is on. |
-| `chimera` | no | Overset/chimera marker; interpolation info written in chimera payload. Only these faces are searched when `BC-chimera` is on. |
+| `chimera` | no | Overset/chimera marker; interpolation info written in chimera payload. Only these faces are searched when `BC-chimera` is on; with `BC-chimera = false`, a `chimera` face whose cells match no cell of another block stops BCB. |
 | `symmetry` | no | Symmetry boundary. |
 | `periodic` | yes | Requires periodic setup keys (for example `faces`, optionally `blocks`). |
 | `wall` | yes | Wall model depends on phase and provided keys. |
@@ -702,7 +702,7 @@ face2 = outlet          ; bare keyword, no section needed
 ```ini
 [outlet_main]
 type = outlet
-p    = 1.0
+p    = 1.0e+5
 rf   = 1.0
 ```
 

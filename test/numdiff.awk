@@ -12,7 +12,11 @@
 #  of bc.txt, e.g. `9.608492380332379E+05,`): the comma is set aside for the
 #  numeric comparison and must be present in both files or in neither.
 #
-#  Usage:  awk -v tol=1e-6 -f numdiff.awk reference.txt produced.txt
+#  With -v rel=1 the tolerance is relative only: for quantities far below 1
+#  (ignition delays of a few microseconds), which any absolute tolerance would
+#  let through.
+#
+#  Usage:  awk -v tol=1e-6 [-v rel=1] -f numdiff.awk reference.txt produced.txt
 #          exit status 0 == match within tolerance, 1 == mismatch.
 # ---------------------------------------------------------------------------
 function isnum(s){ sub(/,$/,"",s); return s ~ /^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([EeDd][+-]?[0-9]+)?$/ }
@@ -35,7 +39,7 @@ FILENAME == ARGV[1] { line[FNR] = $0; nref = FNR; next }
     if (isnum(x) && isnum(y) && (x ~ /,$/) == (y ~ /,$/)) {
       dx = num(x); dy = num(y); d = abs(dx - dy)
       s = abs(dx); if (abs(dy) > s) s = abs(dy)
-      if (d <= tol || d <= tol * s) continue
+      if (d <= tol * s || (!rel && d <= tol)) continue
       printf("line %d field %d: %s vs %s (|diff|=%g)\n", FNR, i, x, y, d); bad++
     } else {
       printf("line %d field %d: '%s' vs '%s'\n", FNR, i, x, y); bad++

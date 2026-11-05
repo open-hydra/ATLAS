@@ -12,7 +12,7 @@ For high-pressure propulsion applications where ideal-gas assumptions break down
 | Peng-Robinson (PR) | CO₂, H₂O |
 | Redlich-Kwong (RK) | CO₂, H₂O |
 
-!!! tip Adding new fluids
+!!! tip "Adding new fluids"
     To add new fluids to the cubic EOS databases, create a new entry in `peng-robinson.yaml` or `redlich-kwong.yaml`, and add the appropriate critical constants and acentric factor. Critical constants for most species are available at the [NIST Chemistry WebBook](https://webbook.nist.gov/chemistry/).
 
 ---

@@ -1,6 +1,6 @@
-# Tutorial: Heavy-Gas Mixture
+# Heavy-Gas Mixture
 
-**Source case:** `test/GPB/IG-mixture-HG`
+**Tool:** GPB · **Case:** `test/GPB/IG-mixture-HG` · **Run time:** a few seconds
 
 This tutorial shows how to define a multi-component mixture that includes a condensed (liquid/solid) species using the heavy-gas model. This is typical of solid rocket motor (SRM) propellant-loaded flows.
 
@@ -10,7 +10,7 @@ This tutorial shows how to define a multi-component mixture that includes a cond
 - Mixing condensed species into a gas-phase mixture
 - The heavy-gas pressure scaling factor
 
-## The Input File
+## The Case
 
 ```ini
 [GPB-Phase1]
@@ -31,15 +31,21 @@ transport = CEA
 
 The heavy-gas model represents propellant-loaded flows where the mixture contains both gaseous and condensed species. GPB multiplies the pressure by `HG_FACTOR = 1e5` internally when computing thermodynamic properties. The output file is named `<name>-HG.bin`.
 
-## Running
+## Run It
+
+In a folder of your own (the run writes `fromATLAStoSolver/` where it runs, so not in the test folder):
 
 ```bash
-cd test/GPB/IG-mixture-HG
+mkdir -p ~/atlas-tutorials/gpb-heavy-gas && cd ~/atlas-tutorials/gpb-heavy-gas
+cp $ATLASDIR/test/GPB/IG-mixture-HG/input.ini .
 ATLAS GPB
 ```
 
-## Expected Output
+## What It Writes
 
 ```
-fromATLAStoSolver/<name>-HG.bin
+fromATLAStoSolver/phase.txt
+fromATLAStoSolver/thermo.dat
+fromATLAStoSolver/transport.dat
+fromATLAStoSolver/composition.txt
 ```

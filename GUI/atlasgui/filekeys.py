@@ -155,11 +155,17 @@ _ICB_KEYS = {
              "<phase>phase.txt of the old solution."),
     "eq-CEA-file": _BC_KEYS["eq-CEA-file"],
 }
-for _name in ("mach", "p0", "T0", "p", "T", "rho", "h", "vel", "u", "v", "w"):
+# the values ICB reads from a profile (ICB-IG, ICB-RF, ICB-SP of its input
+# reference): u, v, w take none
+for _name in ("mach", "p0", "T0", "p", "T", "rho", "h", "vel"):
     _ICB_KEYS[f"{_name}-file"] = FileRole(
-        label=f"{_name} field or profile", filters=FIELD,
-        hint=f"Tecplot field on the block grid, or a two-column table of "
-             f"{_name} along {_name}-direction.")
+        label=f"{_name} profile", filters=FIELD,
+        hint=f"A two-column table (coordinate, {_name}) along {_name}-direction, "
+             f"or a Tecplot field (.tec, .szplt) with {_name} cell-centred.")
+_ICB_SPECIES_PROFILE = FileRole(
+    label="mass-fraction profile", filters=FIELD,
+    hint="A two-column table (coordinate, y) along y<species>-direction, or a "
+         "Tecplot field (.tec, .szplt) with y cell-centred.")
 
 # ----------------------------------------------------------- the other tools
 _STB_KEYS = {
@@ -213,6 +219,9 @@ def role_of(key, context="bc-section"):
     table = CONTEXTS.get(context, {})
     if key in table:
         return table[key]
+    if context == "icb-section" and key.startswith("y") and key.endswith("-file") \
+            and len(key) > len("y-file"):
+        return _ICB_SPECIES_PROFILE
     for suffix, role in _SUFFIX_RULES:
         if key.endswith(suffix) and len(key) > len(suffix):
             # a phase-prefixed spelling keeps the wording of the bare key
