@@ -3,16 +3,15 @@
 The GUI runs each tool as a user would from the case directory --
 ``ATLAS <TOOL> --input <ini>``, through ``ATLAS.sh`` -- one after the other,
 and stops the chain at the first tool that fails, as ``ATLAS GPB BCB ICB``
-does.  Two things a chained run needs are not done by the tools themselves,
-and the run does them, saying so in its log:
+does.  The tools write into ``fromATLAStoSolver/``, and BCB and ICB read the
+phase files GPB wrote there, unless the case directory holds one of the same
+name (a phase file written by hand, or copied there before), so a chained run
+copies nothing.  One thing a run needs is not done by the tools themselves,
+and the run does it, saying so in its log:
 
 * **the mesh**: BCB and ICB read ``mesh.tec``, ``mesh.p3d`` or ``mesh.szplt``
   from the case directory (the first that exists, ``read_mesh.f90``); a mesh
-  loaded under another name is linked under the default one;
-* **the phase files**: BCB and ICB read the ``*phase.txt`` of the case
-  directory with their ``thermo.dat`` and ``properties.dat`` tables, while GPB
-  writes them into ``fromATLAStoSolver/``; after GPB, the tables it has just
-  written are copied into the case directory (the *hand-off*).
+  loaded under another name is linked under the default one.
 
 :func:`preflight` says beforehand what a run will do and what will stop it,
 from the case alone; :class:`RunSession` runs the tools.  Nothing here makes a
@@ -21,6 +20,7 @@ widget: the Run stage (:mod:`atlasgui.runpanel`) shows both.
 
 from __future__ import annotations
 
+import filecmp
 import glob
 import os
 import re
@@ -39,7 +39,6 @@ MESH_NAMES = ("mesh.tec", "mesh.p3d", "mesh.szplt")    # the order the tools rea
 MESH_LINK_NAMES = {".tec": "mesh.tec", ".dat": "mesh.tec", ".plt": "mesh.tec",
                    ".tp": "mesh.tec", ".p3d": "mesh.p3d", ".xyz": "mesh.p3d",
                    ".g": "mesh.p3d", ".grd": "mesh.p3d", ".szplt": "mesh.szplt"}
-PHASE_TABLES = ("phase.txt", "thermo.dat", "properties.dat")   # what BCB and ICB read
 FILELIST = "filelist.txt"
 GPB_STAGING = ".gpb-tmp-*"
 
@@ -260,13 +259,20 @@ def gpb_prefixes(gpb):
     return prefixes
 
 
-def phase_tables(names):
-    """The files of *names* that BCB and ICB read as phase tables."""
-    return [n for n in names if n.endswith(PHASE_TABLES)]
-
-
 def case_phase_files(case_dir):
     return sorted(os.path.basename(p) for p in glob.glob(os.path.join(case_dir, "*phase.txt")))
+
+
+def phase_files_read(case_dir):
+    """``{name: path}`` of the ``*phase.txt`` BCB, ICB, STB and MDB read in
+    *case_dir* (``ATLAS.sh``, ``phase_dir`` of ``global.f90``): those of the
+    case directory, and those GPB wrote into ``fromATLAStoSolver/`` that the
+    case directory does not hold."""
+    found = {}
+    for directory in (case_dir, os.path.join(case_dir, OUTPUT_DIR)):
+        for path in sorted(glob.glob(os.path.join(directory, "*phase.txt"))):
+            found.setdefault(os.path.basename(path), path)
+    return dict(sorted(found.items()))
 
 
 def read_filelist(case_dir):
@@ -318,7 +324,7 @@ def readiness(doc):
 
 
 def preflight(doc, case_dir, selected, *, ini_path=None, dirty=False, mesh_path=None,
-              root=ATLAS_ROOT, python=None, python_how="", handoff=True, issues=()):
+              root=ATLAS_ROOT, python=None, python_how="", issues=()):
     """What a run of the tools *selected* would do, and what would stop it.
 
     *issues* are the GUI's own checks, ``[(level, (stage, index), message)]``:
@@ -365,7 +371,7 @@ def preflight(doc, case_dir, selected, *, ini_path=None, dirty=False, mesh_path=
         plan = mesh_plan(case_dir, mesh_path)
         checks.append(Check(plan.level, downstream[0] if len(downstream) == 1 else None,
                             plan.text.replace("BCB and ICB", who)))
-        checks += _phase_checks(doc, case_dir, "GPB" in selected, handoff, who)
+        checks += _phase_checks(doc, case_dir, "GPB" in selected, who)
 
     stages = {t.stage: t.name for t in TOOLS if t.name in selected}
     counts = {}
@@ -388,46 +394,55 @@ def preflight(doc, case_dir, selected, *, ini_path=None, dirty=False, mesh_path=
     return checks
 
 
-def _phase_checks(doc, case_dir, gpb_runs, handoff, who):
-    """Which phase files BCB and ICB (*who*) will read."""
+def _phase_checks(doc, case_dir, gpb_runs, who):
+    """Which phase files BCB and ICB (*who*) will read: each ``*phase.txt`` of
+    the case directory, else the one GPB wrote into ``fromATLAStoSolver/``
+    (:func:`phase_files_read`)."""
     checks = []
     prefixes = gpb_prefixes(doc.gpb)
     expected = {f"{p}phase.txt" for p in prefixes}
-    present = case_phase_files(case_dir)
-    if gpb_runs and handoff:
-        names = ", ".join(sorted(expected))
-        tables = "its" if len(expected) == 1 else "their"
-        checks.append(Check("action", None, (
-            f"after GPB, the phase tables it writes ({names} with {tables} thermo.dat or "
-            f"properties.dat) are copied into the case directory, where {who} read them")))
-    elif gpb_runs:
+    in_case = set(case_phase_files(case_dir))
+    read = phase_files_read(case_dir)
+    out = os.path.join(case_dir, OUTPUT_DIR)
+
+    def where(name):
+        return "the case directory" if name in in_case else f"{OUTPUT_DIR}/"
+
+    def shadowed(names):
+        if names:
+            checks.append(Check("warning", None, (
+                f"{', '.join(names)} of the case directory {'is' if len(names) == 1 else 'are'} read, "
+                f"not the one{'s' * (len(names) != 1)} GPB {'writes' if gpb_runs else 'wrote'} into "
+                f"{OUTPUT_DIR}/: remove {'it' if len(names) == 1 else 'them'} from the case directory "
+                "to read GPB's")))
+
+    if gpb_runs and prefixes:
+        from_gpb = sorted(expected - in_case)
+        if from_gpb:
+            checks.append(Check("info", None, (
+                f"{who} read the phase files GPB writes into {OUTPUT_DIR}/: {', '.join(from_gpb)}")))
+        shadowed(sorted(expected & in_case))
+        names = sorted(expected | set(read))
+    elif not read:
         checks.append(Check("warning", None, (
-            f"{who} read the phase files of the case directory, not those GPB writes into "
-            f"{OUTPUT_DIR}/: " + (", ".join(present) if present
-                                  else "there are none, so they assume one ideal gas"))))
-    elif not present:
-        checks.append(Check("warning", None, (
-            f"no *phase.txt in the case directory: {who} assume one ideal gas" + (
-                "; run GPB with them to give them the phases of the deck" if prefixes else ""))))
+            f"no *phase.txt in the case directory or in {OUTPUT_DIR}/, and {who} need one" + (
+                ": run GPB with them to write the phases of the deck" if prefixes else ""))))
+        names = []
     else:
-        checks.append(Check("info", None, f"{who} read the phases {', '.join(present)}"))
-        out = os.path.join(case_dir, OUTPUT_DIR)
-        for name in present:
-            built = os.path.join(out, name)
-            try:
-                newer = os.path.getmtime(built) > os.path.getmtime(os.path.join(case_dir, name)) + 1
-            except OSError:
-                newer = False
-            if newer:
-                checks.append(Check("warning", None, (
-                    f"{name} of the case directory is older than the one GPB wrote last in "
-                    f"{OUTPUT_DIR}/: run GPB with them to use the new one")))
+        names = list(read)
+        parts = [f"{', '.join(group)} of {place}" for place, group in (
+            ("the case directory", [n for n in names if n in in_case]),
+            (f"{OUTPUT_DIR}/", [n for n in names if n not in in_case])) if group]
+        checks.append(Check("info", None, f"{who} read the phases {' and '.join(parts)}"))
+        shadowed([n for n in names if n in in_case and os.path.isfile(os.path.join(out, n))
+                  and not filecmp.cmp(os.path.join(case_dir, n), os.path.join(out, n), shallow=False)])
     if prefixes:
-        stale = [n for n in present if n not in expected]
+        stale = [n for n in names if n not in expected]
         if stale:
             checks.append(Check("warning", None, (
-                f"{who} also read {', '.join(stale)}, which no phase of the deck writes: "
-                "remove it from the case directory if it is not a phase of this case")))
+                f"{who} also read {', '.join(stale)}, which no phase of the deck writes: remove "
+                f"{'it' if len(stale) == 1 else 'them'} from {' and '.join(sorted({where(n) for n in stale}))} "
+                f"if {'it is not a phase' if len(stale) == 1 else 'they are not phases'} of this case")))
     listed = read_filelist(case_dir)
     if listed is not None:
         checks.append(Check("warning", None, (
@@ -493,7 +508,7 @@ if QObject is not object:
         finished = pyqtSignal(bool)
 
         def __init__(self, case_dir, ini_arg, names, env, *, script=None,
-                     mesh_link=None, handoff=True, parent=None):
+                     mesh_link=None, parent=None):
             super().__init__(parent)
             self.case_dir = case_dir
             self.ini_arg = ini_arg
@@ -501,7 +516,6 @@ if QObject is not object:
             self.env = env
             self.script = script or launcher(env.get("ATLASDIR", ATLAS_ROOT))
             self.mesh_link = mesh_link          # (link, target) or None
-            self.handoff = handoff
             self.results = {n: ToolResult(n) for n in self.names}
             self.out_dir = os.path.join(case_dir, OUTPUT_DIR)
             self.running = None
@@ -637,31 +651,12 @@ if QObject is not object:
             else:
                 why = f"exit status {code}" if result.exit_code is not None else "it crashed"
                 self._say(name, f"{name} failed after {result.seconds:.1f} s ({why})", "head")
-            if result.status == "done" and name == "GPB" and self.handoff:
-                self._hand_off(result.files)
             self.tool_finished.emit(name)
             if result.status != "done":
                 self._skip_rest()
                 self._finish(False)
             else:
                 self._next()
-
-        def _hand_off(self, files):
-            """Copy the phase tables GPB wrote into the case directory."""
-            tables = phase_tables(files)
-            for name in tables:
-                target = os.path.join(self.case_dir, name)
-                try:
-                    if os.path.islink(target):
-                        os.remove(target)
-                    shutil.copy2(os.path.join(self.out_dir, name), target)
-                except OSError as exc:
-                    self._say("GPB", f"[WARNING] {name} could not be copied into the case "
-                              f"directory: {exc}", "gui")
-                    continue
-            if tables:
-                self._say("GPB", f"copied into the case directory for BCB and ICB: "
-                          f"{', '.join(tables)}", "gui")
 
         def _tidy_after_stop(self, name):
             """Remove what a stopped tool leaves behind and a whole run does not."""

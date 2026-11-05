@@ -20,7 +20,8 @@ CHEMISTRY_DIR = os.path.join(DATAPATH, "chemistry")
 CEA_TRANS_FILE = os.path.join(TRANSPORT_DIR, "CEApolynomials.yaml")
 
 # ------------------------------------------------------------------
-# Output path
+# Output path; BCB, ICB, STB and MDB read the phase files there when the case directory has none of the same name
+# (src/common/global.f90)
 # ------------------------------------------------------------------
 OUTPATH = "fromATLAStoSolver/"
 

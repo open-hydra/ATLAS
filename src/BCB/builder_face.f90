@@ -12,7 +12,9 @@ module bc_cell_builder_mod
 
 contains
 
-  subroutine build_face(ib,if,face,ini_i,phase,source_ini)
+  !> *patch*: the index of the patch of a multipatch face being built (obj_face%patch_of): a cell that an
+  !> earlier patch holds is left to it, so the first patch whose range holds a cell is the one it takes.
+  subroutine build_face(ib,if,face,ini_i,phase,source_ini,patch)
     use finer,          only: file_ini
     use phase_mod,      only: phase_t
     use bcb_config_mod, only: bcb_face_runtime_config_t, load_bcb_face_runtime_config
@@ -26,6 +28,7 @@ contains
     type(file_ini), intent(inout)  :: ini_i
     type(phase_t),  intent(in)     :: phase
     type(file_ini), intent(inout)  :: source_ini
+    integer,        intent(in), optional :: patch
     ! Local
     type(file_ini)                :: ini_o
     type(file_ini)                :: ini_inner, ini_outer
@@ -162,9 +165,10 @@ contains
               enddo
             endif
             ! Build facet BC
-            if (here(1)>rng(1) .and. here(1)<=rng(2) .and. .not.file_multipatch) then
+            if (here(1)>rng(1) .and. here(1)<=rng(2) .and. .not.file_multipatch .and. free(m,n)) then
               face%center(m,n)%bc%definition = definition
               face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
+              call claim(m,n)
             endif
             if (file_multipatch) then
               select type (plate_file)
@@ -230,9 +234,10 @@ contains
             endif
             ! Build facet BC
             if (here(1)>=rng(1) .and. here(1)<=rng(2) .and. &
-                here(2)>=rng(3) .and. here(2)<=rng(4) .and. .not.file_multipatch) then
+                here(2)>=rng(3) .and. here(2)<=rng(4) .and. .not.file_multipatch .and. free(m,n)) then
               face%center(m,n)%bc%definition = definition
               face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
+              call claim(m,n)
             endif
             if (file_multipatch) then
               select type (plate_file)
@@ -368,8 +373,10 @@ contains
         ini_c = ini_o
         do n = ni, ne
           do m = mi, me
+            if (.not. free(m,n)) cycle
             face%center(m,n)%bc%definition = definition
             face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
+            call claim(m,n)
           enddo
         enddo
       
@@ -383,6 +390,7 @@ contains
         endif
         ini_c = ini_o
         do n = ni, ne; do m = mi, me
+          if (.not. free(m,n)) cycle
           here(1) = face%center(m,n)%c(fileDir(1))
           if (file_present) then
             do f = 1, n_files
@@ -394,6 +402,7 @@ contains
           endif
           face%center(m,n)%bc%definition = definition
           face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
+          call claim(m,n)
         enddo; enddo
 
       ! Two dimensional variation
@@ -406,6 +415,7 @@ contains
 
         ini_c = ini_o
         do n = ni, ne; do m = mi, me
+            if (.not. free(m,n)) cycle
             here(1) = face%center(m,n)%c(fileDir(1))
             here(2) = face%center(m,n)%c(fileDir(2))
             if (file_present) then
@@ -418,10 +428,29 @@ contains
             endif
             face%center(m,n)%bc%definition = definition
             face%center(m,n)%bc%name = cell_name; call face%center(m,n)%bc%build(ini_c,'cell',phase)
+            call claim(m,n)
         enddo; enddo
       end select
 
     end subroutine assign_cells_index
+
+
+    !> The cell (m, n) is not held by another patch of the face: an earlier patch keeps it (its records are
+    !> allocated, and building them again for another BC would fail).
+    logical function free(m, n)
+      integer, intent(in) :: m, n
+      free = .true.
+      if (.not. present(patch)) return
+      if (.not. allocated(face%patch_of)) return
+      free = face%patch_of(m,n) == 0 .or. face%patch_of(m,n) == patch
+    end function free
+
+
+    subroutine claim(m, n)
+      integer, intent(in) :: m, n
+      if (.not. present(patch)) return
+      if (allocated(face%patch_of)) face%patch_of(m,n) = patch
+    end subroutine claim
 
   end subroutine build_face
 

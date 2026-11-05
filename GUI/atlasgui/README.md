@@ -111,18 +111,19 @@ environment is the GUI's with `ATLASDIR`, the CEA tables of the build as
 `scripts/setvars.sh` sets them, the Python of GPB (`ATLAS_PYTHON`) and the
 threads of Settings → Tools (`preferences.tool_settings`).
 
-A chained run needs two things the tools do not do, and the run does them:
+A chained run needs one thing the tools do not do, and the run does it:
 BCB and ICB read the mesh under a default name (`read_mesh.f90`: `mesh.tec`,
 `mesh.p3d`, `mesh.szplt`, the first that exists), so a mesh loaded under
-another name is linked under the one of its format (`mesh_plan`); and they read
-the `*phase.txt`, `*thermo.dat` and `*properties.dat` of the case directory,
-where GPB does not write, so the tables GPB has just written are copied there
-after it (the hand-off). `preflight` says beforehand what a run does and what
-stops it, from the case alone: the INI to save, a tool not built, a Python
-without Cantera, the mesh and the phase files BCB and ICB will read (stale,
-older than GPB's, missing, or chosen by a `filelist.txt`), the GUI's own errors
-in the stage of a tool that runs. What each tool wrote is the difference of
-`fromATLAStoSolver/` before and after it.
+another name is linked under the one of its format (`mesh_plan`). BCB and ICB
+read the `*phase.txt` (with its `*thermo.dat` or `*properties.dat`) of the case
+directory, else the one GPB wrote into `fromATLAStoSolver/`
+(`runner.phase_files_read`, as `ATLAS.sh` lists them), so a chained run copies
+nothing. `preflight` says beforehand what a run does and what stops it, from the
+case alone: the INI to save, a tool not built, a Python without Cantera, the
+mesh and the phase files BCB and ICB will read (where from, a copy in the case
+directory that hides GPB's, stale, missing, or chosen by a `filelist.txt`), the
+GUI's own errors in the stage of a tool that runs. What each tool wrote is the
+difference of `fromATLAStoSolver/` before and after it.
 
 `runlog.py` reads what a tool printed into its errors and warnings
 (`messages`), each placed on a target of the GUI as its own checks are
@@ -139,7 +140,7 @@ their stage while the case is the one that ran, greyed once it has changed.
 `GUI/tests/test_runner.py` (CTest `GUI-runner`) checks the preflight and the
 messages with the standard library only (and the messages of two refused decks
 of the suite as BCB and ICB print them today), and with PyQt6 the runs: a chain on a stand-in
-launcher (order, failure, the hand-off of the tables alone, the mesh link),
+launcher (order, failure, BCB reading the phase files GPB wrote, the mesh link),
 Stop ending the launcher's child, ICB run by the GUI writing what `ATLAS ICB`
 typed in a shell writes, and GPB then ICB when the Python has Cantera.
 

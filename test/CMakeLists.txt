@@ -19,7 +19,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-ceafile-reactive-OG"
 )
 set_tests_properties(ceafile-reactive-OG PROPERTIES
-    LABELS      "GPB;regression"
+    LABELS      "GPB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -471,7 +471,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-species-profile-linear"
 )
 set_tests_properties(IG-species-profile-linear PROPERTIES
-    LABELS      "ICB;regression"
+    LABELS      "ICB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -641,7 +641,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-interp-mindist"
 )
 set_tests_properties(IG-interp-mindist PROPERTIES
-    LABELS      "ICB;regression"
+    LABELS      "ICB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -850,7 +850,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-chimera"
 )
 set_tests_properties(IG-chimera PROPERTIES
-    LABELS      "BCB;regression"
+    LABELS      "BCB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -982,7 +982,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-basic"
 )
 set_tests_properties(DP-basic PROPERTIES
-    LABELS      "BCB;regression"
+    LABELS      "BCB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -1471,7 +1471,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-ablation"
 )
 set_tests_properties(IG-ablation PROPERTIES
-    LABELS      "BCB;regression"
+    LABELS      "BCB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -1540,7 +1540,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/x-variable"
 )
 set_tests_properties(x-variable PROPERTIES
-    LABELS      "STB;regression"
+    LABELS      "STB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -1554,7 +1554,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/area-any-order"
 )
 set_tests_properties(area-any-order PROPERTIES
-    LABELS      "STB;regression"
+    LABELS      "STB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -1970,7 +1970,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-dispersed"
 )
 set_tests_properties(CP-Tvar-dispersed PROPERTIES
-    LABELS      "GPB;regression"
+    LABELS      "GPB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -2271,7 +2271,7 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-ct-equilibrium"
 )
 set_tests_properties(IG-ct-equilibrium PROPERTIES
-    LABELS      "GPB;regression"
+    LABELS      "GPB;regression;tutorial"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -2335,10 +2335,11 @@ set_tests_properties(GUI-icgeom PROPERTIES
 )
 
 # ---- GUI : GUI-runner (how the GUI runs the tools: the checks before a run -- the mesh BCB and ICB read and the link to
-# ----       the mesh on the screen, the phase files they read and the hand-off of GPB's tables, filelist.txt, a tool not
-# ----       built, the GUI's errors by stage -- with the standard library only; with PyQt6, a chain stops at the tool that
-# ----       fails, Stop ends the tool the launcher started and removes the filelist.txt it made, the hand-off copies only
-# ----       the phase tables, ICB run by the GUI writes what ATLAS ICB writes, and GPB then ICB run as a chain when
+# ----       the mesh on the screen, the phase files they read (those of the case directory, else those GPB writes into
+# ----       fromATLAStoSolver/), filelist.txt, a tool not built, the GUI's errors by stage -- with the standard library
+# ----       only; with PyQt6, a chain stops at the tool that fails, Stop ends the tool the launcher started and removes the
+# ----       filelist.txt it made, BCB finds in fromATLAStoSolver/ the tables GPB wrote, nothing copied, ICB run by the GUI
+# ----       writes what ATLAS ICB writes, and GPB then ICB run as a chain when
 # ----       this Python has Cantera; the errors and warnings of a run land on the section, file, GPB phase or ICB block
 # ----       they name, also as BCB and ICB print them on two refused decks of the suite) -------------
 # ---- GUI : GUI-icfield (the initial field the GUI reads back from ICB: the colour scales, one hue running one way for a
@@ -2401,4 +2402,291 @@ set_tests_properties(GUI-layout PROPERTIES
     TIMEOUT          600
     SKIP_RETURN_CODE 77
     ENVIRONMENT      "${_TEST_ENV}"
+)
+
+# ===========================================================================
+#  The cases the tutorials run (docs/tutorials): label "tutorial"
+#
+#  Every page of the tutorials copies the files of a case of the suite and runs one tool on them. The pages that run a
+#  case as it is are held by its test (labelled "tutorial" too); the pages that write an INI of their own find it in
+#  test/tutorials/<page>/, shown on the page from that file, and run it here on the files of the case they name. The
+#  large tables and fields are compared on a sample (test/sample_rows.awk: the header lines and one value in 250, or
+#  in 97 for a field, whose step must not follow the mesh), against the same sample of the reference run.
+#
+#    ctest -L tutorial
+# ===========================================================================
+
+# ---- GPB : IG-fixgas (tutorial Fixed-Gas Mixture: two species from gamma, mw, mil, kl) -------------
+add_test(
+    NAME    IG-fixgas
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/gasmix-phase.txt reference/gasmix-phase.txt && diff fromATLAStoSolver/gasmix-composition.txt reference/gasmix-composition.txt && for t in thermo transport; do awk -v tol=1e-9 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-gasmix-$t.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/gasmix-$t.dat) || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-fixgas"
+)
+set_tests_properties(IG-fixgas PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-reactive (tutorial Cantera Ideal-Gas: a mechanism read by Cantera, NASA9 thermo, Cantera transport) ---
+# The tables (12 MB) are compared on a sample: the rows of every 250 K of each species, reaction and species pair.
+add_test(
+    NAME    IG-reactive
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/phase.txt reference/phase.txt && diff fromATLAStoSolver/composition.txt reference/composition.txt && awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/chemistry-info.txt fromATLAStoSolver/chemistry-info.txt && for t in thermo transport diffusion chemistry-Arrhenius; do awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-$t.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/$t.dat) || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-reactive"
+)
+set_tests_properties(IG-reactive PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-mixture-HG (tutorial Heavy-Gas Mixture: air and liquid alumina as one gas of mean properties) ---------
+add_test(
+    NAME    IG-mixture-HG
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/phase.txt reference/phase.txt && diff fromATLAStoSolver/composition.txt reference/composition.txt && for t in thermo transport; do awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-$t.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/$t.dat) || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-mixture-HG"
+)
+set_tests_properties(IG-mixture-HG PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : SP-Tvar (tutorial Solid Phase: uranium carbide from the solid database) -------------
+add_test(
+    NAME    SP-Tvar
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/solido-phase.txt reference/solido-phase.txt && awk -v tol=1e-9 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-solido-properties.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/solido-properties.dat)"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/SP-Tvar"
+)
+set_tests_properties(SP-Tvar PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : RF-co2 (tutorial Real-Fluid Phase: CO2 tables on a 40 x 40 grid of pressure and enthalpy, from CoolProp) -------
+# The tables are written one value per line (DATAPACKING=BLOCK): one value in 100 is compared.
+add_test(
+    NAME    RF-co2
+    COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/co2-phase.txt reference/co2-phase.txt && for t in thermo transport; do awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-co2-$t.dat <(awk -v every=100 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/co2-$t.dat) || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/RF-co2"
+)
+set_tests_properties(RF-co2 PROPERTIES
+    LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-2D (tutorial Inlets, Outlets and Walls: four blocks, mass-flux inlets, a wall, an outlet) -------------
+add_test(
+    NAME    IG-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-2D"
+)
+set_tests_properties(IG-2D PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-multipatch-2D (tutorial Several Conditions on One Face: six patches of an injector plate along r and theta) ---------
+add_test(
+    NAME    IG-multipatch-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-2D"
+)
+set_tests_properties(IG-multipatch-2D PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-multipatch-gap (the deck of IG-multipatch-2D with the last range moved from 12.5 to 20 mm: the cells
+# ----       between lie in no range of the face; BCB stops naming the face, their count and the first of them, and
+# ----       writes nothing, where it wrote them 0, a face with no BC) -------------
+add_test(
+    NAME    IG-multipatch-gap
+    COMMAND bash -c "rm -rf _run-gap && mkdir _run-gap && cp mesh.tec phase.txt _run-gap/ && sed 's/^range6 = 12.5d-3 50.0d-3/range6 = 20.0d-3 50.0d-3/' input.ini > _run-gap/input.ini && cd _run-gap && if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] block 1 face 1 ([plate]): 300 of its 960 cells lie in none of the ranges of its patches and would be written 0 (no BC)' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-2D"
+)
+set_tests_properties(IG-multipatch-gap PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-multipatch-overlap (the deck of IG-multipatch-2D with range1 over the whole face: every cell of the plate
+# ----       is in the range of inj1 and of a later patch, and takes the first, inj1 (404), as bc-setup.md says; a later
+# ----       patch built such a cell again and BCB stopped on a record allocated twice) -------------
+add_test(
+    NAME    IG-multipatch-overlap
+    COMMAND bash -c "rm -rf _run-overlap && mkdir _run-overlap && cp mesh.tec phase.txt _run-overlap/ && sed 's/^range1 = 0.0 1.5d-3 -30.0 30.0/range1 = 0.0 50.0d-3 -30.0 30.0/' input.ini > _run-overlap/input.ini && cd _run-overlap && { ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 || { cat bcb.log; false; }; } && test \"$(awk '$1 == 1 && $5 == 1 && NF == 6 {print $6}' fromATLAStoSolver/bc.txt | sort | uniq -c | tr -s ' ')\" = ' 960 404'"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-multipatch-2D"
+)
+set_tests_properties(IG-multipatch-overlap PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-chimera-off (the deck of IG-chimera with BC-chimera = false: the chimera faces of both blocks would keep
+# ----       100, the placeholder of a face before its search; BCB stops naming each, and writes nothing) -------------
+add_test(
+    NAME    IG-chimera-off
+    COMMAND bash -c "rm -rf _run-off && mkdir _run-off && cp mesh.tec phase.txt _run-off/ && sed 's/^BC-chimera *=.*/BC-chimera = false/' input.ini > _run-off/input.ini && cd _run-off && if ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1; then cat bcb.log; false; else grep -q -F '[ERROR] block 1 face 4 ([chimera]) is declared chimera, but BC-chimera = false: 50 of its cells match no cell of another block' bcb.log && grep -q -F '[ERROR] block 2 face 3 ([chimera]) is declared chimera' bcb.log && test ! -e fromATLAStoSolver/bc.txt; fi"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-chimera"
+)
+set_tests_properties(IG-chimera-off PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-xtheta-variable-T (tutorial Boundary Data From Tables: a wall temperature read from a table over x and
+# ----       theta, 302 on the cells of the face) -------------
+add_test(
+    NAME    IG-xtheta-variable-T
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-xtheta-variable-T"
+)
+set_tests_properties(IG-xtheta-variable-T PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-inflow-p0time (tutorial Boundary Data From Tables: a total pressure read from a time table, 402) ------
+add_test(
+    NAME    IG-inflow-p0time
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-inflow-p0time"
+)
+set_tests_properties(IG-inflow-p0time PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-periodic (tutorial Connections and Periodic Faces: connections between blocks and a periodic pair) ----
+add_test(
+    NAME    IG-periodic
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-periodic"
+)
+set_tests_properties(IG-periodic PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : tutorial-reservoir-inlets (tutorial Inlets From Reservoir Conditions: the three inlets of one reservoir,
+# ----       401, 405 and 420, on the mesh and table of IG-nozzle-arearatio) -------------
+add_test(
+    NAME    tutorial-reservoir-inlets
+    COMMAND bash -c "rm -rf _run-tutorial && mkdir _run-tutorial && cp ../../BCB/IG-nozzle-arearatio/{mesh.tec,phase.txt,thermo.dat} *.ini _run-tutorial/ && cd _run-tutorial && for c in subsonic supersonic nozzle; do ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB -i $c.ini > bcb-$c.log 2>&1 || { cat bcb-$c.log; exit 1; }; awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/bc-$c.txt fromATLAStoSolver/bc.txt || exit 1; done"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tutorials/bcb-reservoir-inlets"
+)
+set_tests_properties(tutorial-reservoir-inlets PROPERTIES
+    LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-2D (a uniform state per block on the four blocks of BCB's IG-2D) -------------
+add_test(
+    NAME    ICB-IG-2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB > icb.log 2>&1 && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-ic.tec <(awk -v every=97 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/ic.tec)"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-2D"
+)
+set_tests_properties(ICB-IG-2D PROPERTIES
+    LABELS      "ICB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : IG-nozzle2D (the nozzle law of a 2-D nozzle from its reservoir, with k-omega turbulence) -------------
+add_test(
+    NAME    IG-nozzle2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB > icb.log 2>&1 && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-ic.tec <(awk -v every=97 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/ic.tec)"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/ICB/IG-nozzle2D"
+)
+set_tests_properties(IG-nozzle2D PROPERTIES
+    LABELS      "ICB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- ICB : tutorial-uniform, tutorial-nozzle, tutorial-zones, tutorial-particles (tutorials A Uniform State, Block by
+# ----       Block; Nozzle Flow; Zones in a Block; A Gas With Particles: the INI of each page on the mesh and phase files
+# ----       of IG-2D, IG-nozzle2D, IG-multizone and IG+DP) -------------
+foreach(_t uniform nozzle zones particles)
+    if(_t STREQUAL "uniform")
+        set(_files "../../ICB/IG-2D/{mesh.p3d,phase.txt,thermo.dat}")
+        set(_fields "ic")
+    elseif(_t STREQUAL "nozzle")
+        set(_files "../../ICB/IG-nozzle2D/{mesh.tec,phase.txt,thermo.dat}")
+        set(_fields "ic")
+    elseif(_t STREQUAL "zones")
+        set(_files "../../ICB/IG-multizone/{mesh.tec,gas-phase.txt,gas-thermo.dat}")
+        set(_fields "gas-ic")
+    else()
+        set(_files "../../ICB/IG+DP/{mesh.tec,gas-phase.txt,gas-thermo.dat,particles-phase.txt,particles-properties.dat}")
+        set(_fields "gas-ic particles-ic")
+    endif()
+    add_test(
+        NAME    tutorial-${_t}
+        COMMAND bash -c "rm -rf _run-tutorial && mkdir _run-tutorial && cp ${_files} input.ini _run-tutorial/ && cd _run-tutorial && { ${CMAKE_SOURCE_DIR}/ATLAS.sh ICB > icb.log 2>&1 || { cat icb.log; false; }; } && for f in ${_fields}; do awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/sampled-$f.tec <(awk -v every=97 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/$f.tec) || exit 1; done"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tutorials/icb-${_t}"
+    )
+    set_tests_properties(tutorial-${_t} PROPERTIES
+        LABELS      "ICB;regression;tutorial"
+        TIMEOUT     300
+        ENVIRONMENT "${_TEST_ENV}"
+    )
+endforeach()
+
+# ---- STB : uniform (tutorial A Volumetric Heat Source: one volumetric source over the whole block) -------------
+add_test(
+    NAME    STB-uniform
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh STB > stb.log 2>&1 && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-st.tec <(awk -v every=97 -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/st.tec)"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/STB/uniform"
+)
+set_tests_properties(STB-uniform PROPERTIES
+    LABELS      "STB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- MDB : tutorial-mdb-split (tutorial A Case for MPI: GPB, BCB, ICB and MDB from one INI on the mesh of split-solution;
+# ----       the split field carries the field ICB wrote, cell by cell, and the map and the split BC file are the
+# ----       reference ones) -------------
+add_test(
+    NAME    tutorial-mdb-split
+    COMMAND bash -c "rm -rf _run-tutorial && mkdir _run-tutorial && cp ../../MDB/split-solution/mesh.tec input.ini _run-tutorial/ && cd _run-tutorial && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB BCB ICB MDB > run.log 2>&1 || { cat run.log; false; }; } && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py fromATLAStoSolver/gas-ic.tec fromATLAStoSolver/gas-ic-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/gas-bc.txt && diff fromATLAStoSolver/decomposition.map ../reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/gas-bc.txt ../reference/gas-bc-split.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tutorials/mdb-split"
+)
+set_tests_properties(tutorial-mdb-split PROPERTIES
+    LABELS      "MDB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- KAnT : KAnT-equilibrium (tutorial Checking a Mechanism: the HP equilibrium of three mechanisms at 20 chamber
+# ----       pressures) and tutorial-kant-ignition (the ignition delay of two mechanisms at 41 initial temperatures).
+# ----       Cantera integrates them: the delays, far below 1 s, are compared with a relative tolerance only ----------
+add_test(
+    NAME    KAnT-equilibrium
+    COMMAND bash -c "rm -rf _run-test && mkdir _run-test && cp input.ini _run-test/ && cd _run-test && { ${CMAKE_SOURCE_DIR}/ATLAS.sh KAnT > kant.log 2>&1 || { cat kant.log; false; }; } && awk -v tol=1e-5 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/KAnT-out.dat KAnT-out.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/KAnT/equilibrium"
+)
+add_test(
+    NAME    tutorial-kant-ignition
+    COMMAND bash -c "rm -rf _run-tutorial && mkdir _run-tutorial && cp input.ini _run-tutorial/ && cd _run-tutorial && { ${CMAKE_SOURCE_DIR}/ATLAS.sh KAnT > kant.log 2>&1 || { cat kant.log; false; }; } && awk -v tol=1e-3 -v rel=1 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/KAnT-out.dat KAnT-out.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tutorials/kant-ignition"
+)
+set_tests_properties(KAnT-equilibrium tutorial-kant-ignition PROPERTIES
+    LABELS      "KAnT;regression;tutorial"
+    TIMEOUT     600
+    ENVIRONMENT "${_TEST_ENV}"
 )

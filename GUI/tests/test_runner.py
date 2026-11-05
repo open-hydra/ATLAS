@@ -4,13 +4,14 @@ usage: python3 -B GUI/tests/test_runner.py [-v]
 
 The checks before a run need the standard library only: the mesh BCB and
 ICB read and the link the run makes to the mesh on the screen, the phase
-files they read and the hand-off of GPB's tables, a filelist.txt kept as it
-is, a tool not built, the GUI's own errors in the stage of a tool, what each
+files they read (those of the case directory, else those GPB writes into
+fromATLAStoSolver/), a filelist.txt kept as it is, a tool not built, the GUI's own errors in the stage of a tool, what each
 tool has to build, and the environment of the tools.  The runs need PyQt6
 (QtCore): a chain stops at the tool that fails and skips the others; Stop
 ends the tool a launcher started, not only the launcher, and removes the
-filelist.txt the launcher made; the hand-off copies GPB's phase tables (and
-only them) before BCB, after the mesh is linked; ICB runs through ATLAS.sh on
+filelist.txt the launcher made; BCB finds in fromATLAStoSolver/ the phase
+tables GPB wrote there, nothing copied into the case directory, after the mesh
+is linked; ICB runs through ATLAS.sh on
 a deck of the suite and writes what ATLAS ICB typed in a shell writes
 (skipped when ICB is not built) and, when this Python has
 Cantera, GPB and ICB run as a chain, ICB reading the phase GPB has just built.
@@ -103,7 +104,7 @@ class TestFiles(CaseDir):
         self.assertEqual(runner.line_level(" [WARNING] mesh.p3d is read"), "warning")
         self.assertEqual(runner.line_level("ERROR: ATLASDIR is not set."), "error")
         self.assertEqual(runner.line_level("Traceback (most recent call last):"), "error")
-        self.assertIsNone(runner.line_level("  - Writing tec-fomat file"))
+        self.assertIsNone(runner.line_level("  - Writing tec-format file"))
         self.assertIsNone(runner.line_level("  errors: none"))
 
     def test_written(self):
@@ -179,17 +180,21 @@ class TestPreflight(CaseDir):
     def texts(self, checks, level):
         return [c.text for c in checks if c.level == level]
 
-    def test_handoff_names_the_tables(self):
+    def test_gpb_phases_are_read(self):
         self.touch("mesh.tec")
         checks = self.checks(doc_of(GAS_AND_DROP), ["GPB", "BCB", "ICB"])
-        action = " ".join(self.texts(checks, "action"))
-        self.assertIn("drop-phase.txt, gas-phase.txt", action)
-        self.assertIn("BCB and ICB read them", action)
+        self.assertIn(f"BCB and ICB read the phase files GPB writes into {runner.OUTPUT_DIR}/: "
+                      "drop-phase.txt, gas-phase.txt", self.texts(checks, "info"))
+        self.assertEqual(self.texts(checks, "action"), [])        # nothing is copied
+        self.assertFalse(any("phase" in t for t in self.texts(checks, "warning")))
 
-    def test_no_handoff_warns(self):
-        self.touch("mesh.tec")
-        checks = self.checks(doc_of(GAS_AND_DROP), ["GPB", "ICB"], handoff=False)
-        self.assertTrue(any("not those GPB writes" in t and "one ideal gas" in t
+    def test_case_copy_hides_gpb(self):
+        # a phase file of the case directory is read in place of GPB's
+        self.touch("mesh.tec", "gas-phase.txt")
+        checks = self.checks(doc_of(GAS_AND_DROP), ["GPB", "ICB"])
+        self.assertIn(f"ICB read the phase files GPB writes into {runner.OUTPUT_DIR}/: drop-phase.txt",
+                      self.texts(checks, "info"))
+        self.assertTrue(any("gas-phase.txt of the case directory is read, not the one GPB writes" in t
                             for t in self.texts(checks, "warning")))
 
     def test_stale_phase_file(self):
@@ -202,17 +207,22 @@ class TestPreflight(CaseDir):
     def test_no_phase_file_without_gpb(self):
         self.touch("mesh.tec")
         checks = self.checks(doc_of(GAS_AND_DROP), ["ICB"])
-        self.assertTrue(any("assume one ideal gas" in t and "run GPB" in t
-                            for t in self.texts(checks, "warning")))
+        self.assertTrue(any(f"no *phase.txt in the case directory or in {runner.OUTPUT_DIR}/" in t
+                            and "run GPB" in t for t in self.texts(checks, "warning")))
 
-    def test_phase_file_older_than_gpb(self):
+    def test_case_directory_first(self):
+        # each phase file of the case directory, else the one GPB wrote; a differing copy is flagged
         self.touch("mesh.tec", "gas-phase.txt")
-        old = time.time() - 3600
-        os.utime(os.path.join(self.case, "gas-phase.txt"), (old, old))
-        self.touch(f"{runner.OUTPUT_DIR}/gas-phase.txt")
+        self.touch(f"{runner.OUTPUT_DIR}/gas-phase.txt", text="GPB\n")
+        self.touch(f"{runner.OUTPUT_DIR}/drop-phase.txt")
         checks = self.checks(doc_of(GAS_AND_DROP), ["ICB"])
-        self.assertTrue(any("older than the one GPB wrote" in t
+        self.assertIn(f"ICB read the phases gas-phase.txt of the case directory and drop-phase.txt "
+                      f"of {runner.OUTPUT_DIR}/", self.texts(checks, "info"))
+        self.assertTrue(any("gas-phase.txt of the case directory is read, not the one GPB wrote" in t
                             for t in self.texts(checks, "warning")))
+        self.touch(f"{runner.OUTPUT_DIR}/gas-phase.txt")       # the same file: nothing to say
+        checks = self.checks(doc_of(GAS_AND_DROP), ["ICB"])
+        self.assertFalse(any("phase" in t for t in self.texts(checks, "warning")))
 
     def test_filelist_kept(self):
         self.touch("mesh.tec", "gas-phase.txt")
@@ -299,8 +309,8 @@ case "$tool" in
     echo "[WARNING] GPB: a warning" ;;
   BCB)
     test -L mesh.p3d && echo "linked $(readlink mesh.p3d)"
+    test -f fromATLAStoSolver/gas-phase.txt && echo "BCB sees fromATLAStoSolver/gas-phase.txt"
     test -f gas-phase.txt && echo "BCB sees gas-phase.txt"
-    test -f gas-transport.dat && echo "BCB sees gas-transport.dat"
     {bcb} ;;
   ICB)
     mkdir -p fromATLAStoSolver; echo ic > fromATLAStoSolver/ic.tec ;;
@@ -333,7 +343,7 @@ class TestRuns(CaseDir):
         self.assertIsNotNone(session.ok, "the run did not finish")
         return session, lines
 
-    def test_chain_handoff_and_link(self):
+    def test_chain_and_link(self):
         self.touch("input.ini", "chamber.p3d")
         session, lines = self.run_session(
             ["ICB", "BCB", "GPB"], self.fake(),
@@ -343,9 +353,9 @@ class TestRuns(CaseDir):
         self.assertEqual(list(session.results), ["GPB", "BCB", "ICB"])   # in the order they run
         out = [text for tool, kind, text in lines if tool == "BCB" and kind == "out"]
         self.assertIn("linked chamber.p3d", out)
-        self.assertIn("BCB sees gas-phase.txt", out)
-        self.assertNotIn("BCB sees gas-transport.dat", out)  # only the tables BCB and ICB read
-        self.assertTrue(os.path.isfile(os.path.join(self.case, "drop-properties.dat")))
+        self.assertIn("BCB sees fromATLAStoSolver/gas-phase.txt", out)     # where GPB wrote it
+        self.assertNotIn("BCB sees gas-phase.txt", out)         # nothing is copied out of it
+        self.assertFalse(any(name.endswith(("phase.txt", ".dat")) for name in os.listdir(self.case)))
         gpb = session.results["GPB"]
         self.assertEqual(gpb.files, ["drop-properties.dat", "gas-phase.txt", "gas-thermo.dat",
                                      "gas-transport.dat"])
@@ -432,7 +442,8 @@ class TestRuns(CaseDir):
             """))
         session, lines = self.run_session(["GPB", "ICB"], python=sys.executable)
         self.assertTrue(session.ok, "\n".join(t for _n, _k, t in lines))
-        self.assertIn("air-phase.txt", os.listdir(self.case))
+        self.assertIn("air-phase.txt", os.listdir(os.path.join(self.case, runner.OUTPUT_DIR)))
+        self.assertNotIn("air-phase.txt", os.listdir(self.case))  # ICB read it in fromATLAStoSolver/
         self.assertEqual(session.results["ICB"].files, ["air-ic.tec"])
 
 

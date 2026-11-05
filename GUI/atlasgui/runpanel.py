@@ -4,7 +4,7 @@
   builds from the deck (or why it has nothing to build), its state and, once
   it has run, its time, its files and the errors and warnings it printed;
 * **Before the run** -- what the run will do first and what would stop it
-  (:func:`atlasgui.runner.preflight`), and the hand-off of GPB's phase tables;
+  (:func:`atlasgui.runner.preflight`);
 * **Log** -- the output of every tool as it runs, its errors and warnings
   coloured, with what the run does besides (``›``);
 * **fromATLAStoSolver/** -- the files there, those of the last run first.
@@ -205,8 +205,6 @@ class RunPanel(QWidget):
         self._out_blocks = {}                   # tool -> the log line of each line it printed
         self.messages = {}                      # tool -> its runlog.Message of the last run
         self.run_ini = None                     # (INI path, its text, time) of the last run
-        store = shell.settings
-        self.handoff = str(store.value("run/hand-off", "true")).lower() != "false"
         self._build()
         self._clock = QTimer(self)
         self._clock.setInterval(1000)
@@ -278,12 +276,6 @@ class RunPanel(QWidget):
         self.check_rows.setContentsMargins(2, 2, 2, 2)
         self.check_rows.setSpacing(8)
         before.body.addWidget(kit.scrollable(holder), 1)
-        self.handoff_toggle = kit.toggle(
-            "Give BCB and ICB the phase tables GPB writes", self._set_handoff,
-            checked=self.handoff, compactable=False,
-            tip="After GPB, copy the *phase.txt, *thermo.dat and *properties.dat it has just "
-                "written into the case directory, where BCB and ICB read them")
-        before.body.addWidget(self.handoff_toggle)
         column.addWidget(before, 1)
         # a short window scrolls the column: no row is squeezed over another
         splitter.addWidget(kit.scrollable(left, horizontal=True))
@@ -366,15 +358,10 @@ class RunPanel(QWidget):
         return runner.preflight(
             shell.doc, shell.case_dir, self.chosen(), ini_path=shell.ini_path,
             dirty=shell._dirty, mesh_path=shell.bcb_panel.mesh_path, root=root,
-            python=python, python_how=how, handoff=self.handoff, issues=shell._issues())
+            python=python, python_how=how, issues=shell._issues())
 
     def select_tool(self, name, on):
         self.selected[name] = on
-        self.refresh()
-
-    def _set_handoff(self, on):
-        self.handoff = on
-        self.shell.settings.setValue("run/hand-off", "true" if on else "false")
         self.refresh()
 
     # ------------------------------------------------------------ refresh
@@ -389,8 +376,6 @@ class RunPanel(QWidget):
         self.run_button.setVisible(not running)
         self.stop_button.setVisible(running)
         self.busy.setVisible(running)
-        self.handoff_toggle.setVisible("GPB" in chosen and any(n in chosen for n in ("BCB", "ICB")))
-        self.handoff_toggle.setEnabled(not running)
         if not running:
             self._refresh_checks()
         self.refresh_outputs()
@@ -523,8 +508,7 @@ class RunPanel(QWidget):
             self.session.deleteLater()
         self.session = runner.RunSession(
             shell.case_dir, runner.ini_argument(shell.ini_path, shell.case_dir), names, env,
-            script=runner.launcher(root), mesh_link=link,
-            handoff=self.handoff and "GPB" in names, parent=self)
+            script=runner.launcher(root), mesh_link=link, parent=self)
         self.results = self.session.results
         self._anchors = {}
         self._out_blocks = {}

@@ -40,6 +40,12 @@ Other tools:
 Repo documentation:
    ATLAS DOCS
 
+Every tool runs in the case directory: it reads the mesh there, and its setup in
+input.ini (written by 'ATLAS GUI', or by hand), and writes into
+fromATLAStoSolver/. BCB, ICB, STB and MDB read each *phase.txt of the case
+directory, else the one GPB wrote into fromATLAStoSolver/, so that
+'ATLAS GPB BCB ICB' needs no copy.
+
 Options:
    --input     | -i <file>   Input file (default: input.ini)
    --verbose   | -v          Verbose output (BCB, ICB, MDB, STB)
@@ -166,21 +172,33 @@ function python_bin {
 
 # ------------------------------------------------------------------- driver --
 status=0
-NEED_FILELIST=0
-for program in "${TOOLS[@]}"; do
-  case $program in
-    BCB | ICB | MDB | STB ) NEED_FILELIST=1 ;;
-  esac
-done
 
-# The Fortran tools discover '*phase.txt' through this listing (see
-# src/common/read_phase.f90). Only create it when one of them will run, and
-# never clobber a file the user already has.
+# The Fortran tools discover the '*phase.txt' through filelist.txt (see
+# src/common/read_phase.f90): those of the case directory (written by hand, or
+# copied there) and those GPB wrote into fromATLAStoSolver/; the tools read each
+# from the case directory when it is there, else from fromATLAStoSolver/
+# (phase_dir in src/common/global.f90). It is written again before each of them
+# runs, so that in 'ATLAS GPB BCB' BCB finds what GPB has just written, and
+# removed at the end; a filelist.txt the user already has is used as it is.
+USER_FILELIST=0
+[ -e filelist.txt ] && USER_FILELIST=1
 FILELIST_CREATED=0
-if [ "$NEED_FILELIST" -eq 1 ] && [ ! -e filelist.txt ]; then
-  ls *phase.txt > filelist.txt 2>/dev/null
+function write_filelist {
+  [ "$USER_FILELIST" -eq 1 ] && return
+  local listed name
+  listed=$( { ls *phase.txt; cd fromATLAStoSolver && ls *phase.txt; } 2>/dev/null | sort -u)
+  for name in $listed; do
+    if [ -f "$name" ] && [ -f "fromATLAStoSolver/$name" ] && ! cmp -s "$name" "fromATLAStoSolver/$name"; then
+      echo "[WARNING] $name of the case directory is read, not the one GPB wrote into fromATLAStoSolver/: remove it to read GPB's" >&2
+    fi
+  done
+  if [ -n "$listed" ]; then
+    printf '%s\n' "$listed" > filelist.txt
+  else
+    : > filelist.txt
+  fi
   FILELIST_CREATED=1
-fi
+}
 
 for program in "${TOOLS[@]}"; do
   case $program in
@@ -257,6 +275,7 @@ for program in "${TOOLS[@]}"; do
         # overflows the default 8 MB and dies with SIGSEGV. Raise the soft limit, as figaro does for the
         # solvers and the CI before ctest; a hard limit below unlimited keeps whatever it allows.
         ulimit -s unlimited 2>/dev/null || true
+        write_filelist
         "$ATLASDIR/bin/$program" ${INPUT:+--input "$INPUT"} $V $W "${EXTRA[@]}"
         status=$?
       fi

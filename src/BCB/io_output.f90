@@ -2,6 +2,7 @@ module io_write_bc_mod
   use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
   use Lib_ORION_data
   use IR_Precision
+  use global_mod, only: outpath
   implicit none
   private
   public:: write_ig_bc
@@ -9,7 +10,6 @@ module io_write_bc_mod
   public:: write_dp_bc
 
   integer:: unitfile
-  character(len=18), parameter :: outpath = 'fromATLAStoSolver/'
 
   contains
   

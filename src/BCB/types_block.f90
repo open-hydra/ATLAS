@@ -16,6 +16,9 @@ module bc_block_mod
 
   type, public :: obj_face
     integer :: Nm, Nn
+    !> On a multipatch face, the patch that holds each cell (0: none yet): the first patch whose range holds a
+    !> cell builds it, a later one leaves it (build_face), and a cell left at 0 is in no range (check_face_coverage)
+    integer, allocatable  :: patch_of(:,:)
     type(bc_t)            :: bc
     type(obj_boundary_cellface),  dimension(:,:),   allocatable :: center
     type(obj_bc_cell_properties), dimension(:,:,:), allocatable :: cell
