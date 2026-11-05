@@ -72,8 +72,7 @@ T = 1200.0
 | `face1` … `face6` | Name of the BC section assigned to each face (up to 6 for 3-D blocks) |
 | `phase` | Space-separated list of phase names active in this block (omit to use all phases) |
 
-A face that is not listed stops BCB, except faces 5 and 6 of a 2-D planar or axisymmetric mesh, to which BCB
-assigns `null` or `axisymmetric` itself.
+Faces 1 and 2 must be listed on 2-D and 3-D meshes: BCB stops with `[ERROR] Missing face entry for face <f> in block <b>` when one of them is not. A face 3 to 6 that is not listed is not refused. On 2-D plane or axisymmetric meshes (a single cell in k) BCB assigns it `null` (plane) or `axisymmetric` (axisymmetric, on a wedge whose k direction turns from y towards z; on a wedge that turns from z towards y its records are written with type `0`, as for `null`); on a 3-D mesh its records are written with type `0`, as for `null`, and no warning, so list every face of a 3-D block. MOSE stops at set-up on an `axisymmetric` (`200`) face 1 to 4: on a 2-D axisymmetric mesh run in MOSE, list faces 3 and 4 and give the face on the axis `symmetry`.
 
 **Multi-phase example** — restricting a block to a single phase:
 

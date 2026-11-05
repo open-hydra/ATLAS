@@ -1,6 +1,6 @@
 # ATLAS ICB Input Parameters
 
-Units: every value is SI (Pa, K, J/kg, m/s); the solver dumps and the profile files are read in the same units. The key un (normal velocity) of the ICB-IG and ICB-RF tables is used by BCB only: ICB accepts it and ignores it.
+Units: every value is SI (Pa, K, J/kg, m/s, rad); the solver dumps and the profile files are read in the same units. Two angles are in degrees instead: the angle `t` of a direction, in the zone ranges and in the coordinate column of a 1-D profile (converted to rad), and `theta` of interpolation-law = extrude. The key un (normal velocity) of the ICB-IG and ICB-RF tables is used by BCB only: ICB accepts it and ignores it.
 
 
 ## ATLAS-Parameters

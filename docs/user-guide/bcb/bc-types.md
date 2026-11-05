@@ -37,8 +37,11 @@ This page covers the full BC roster with reference tables and INI syntax for eve
 
 ## INI Syntax
 
-Units: every value is SI (Pa, K, J/kg, kg m⁻² s⁻¹ for `g`, m/s), including the `p0-time-file` series
-of BC `402` (time in s, `p0` in Pa).
+Units: every value is SI (Pa, K, J/kg, kg m⁻² s⁻¹ for `g`, m/s, rad), including the `p0-time-file` series
+of BC `402` (time in s, `p0` in Pa), with two exceptions: the injection-point spacing `ds` of a dispersed
+population is in cm (BCB converts it to m), and the angle `t` of `direction` is in degrees in `range`/`range<n>`
+and in the `*-file` profiles (converted to rad). The injection angles `alphap` and `betap` are written into the
+record as given.
 
 Every BC below is selected by the `type` key of a named section, except the
 keyword BCs, which are written straight onto the face line. Where a type has
@@ -65,7 +68,7 @@ face4 = wall_hot        ; a named section, defined below
 | Keyword | Output ID | Notes |
 |---|---|---|
 | `null` | `0` | Placeholder; no payload. |
-| `axisymmetric` | `200` | No payload. A named section may let a dispersed phase out through the axis or mirror it there, see [Dispersed-phase override on the axis](#dispersed-phase-override-on-the-axis). |
+| `axisymmetric` | `200` | No payload. MOSE takes `200` only on the two k faces (5 and 6) of a block, which it joins (the sides of a wedge or of a sector), and stops at set-up on a `200` record on a face 1 to 4 or without a `200` record in the same column of the other k face: for MOSE the face on the axis is `symmetry`. A named section may let a dispersed phase out through the axis or mirror it there, see [Dispersed-phase override on the axis](#dispersed-phase-override-on-the-axis). |
 | `symmetry` | `300` | No payload. |
 | `extrapolation` | `400` | No payload. |
 | `connection` | `101` / `103` | Resolved by face-centre matching during the connection pass. |
@@ -331,14 +334,16 @@ h(T0) = h(T) + M²/2 γ(T) R T (variable cp, Newton) and `p` from ln(p0/p) = ∫
 `T` and `T0` (trapezoidal rule on the 1 K grid, the quadrature of the solvers' nozzle kernels); the
 constant-γ relation p0/(1 + (γ-1)/2 M²)^(γ/(γ-1)) of earlier versions is 1 % off at T0 = 2000 K, M = 2.
 The record is the one of the `p`, `T` form (`mach`, static `T`, static `p`); the solvers know no other.
-A `T0` outside the loaded table is refused (`[ERROR] <name> (supersonic inlet, BC 405): T0 = ...
-lies outside the temperature range of thermo.dat [Tmin, Tmax] K`) as the 420 kernel refuses its `T0`;
-a static `T` that the expansion at `mach` takes outside the table is written with a `[WARNING]`
+A `T0` outside [Tmin + 1, Tmax - 1] K is refused, Tmin and Tmax being the first and last temperature
+of the table (a table that starts at 1 K is loaded with an extra node at 0 K, so its range starts at
+1 K): `[ERROR] <name> (supersonic inlet, BC 405): T0 = ... K lies outside the temperature range of
+thermo.dat [<low>, <high>] K` gives the range, as the 420 kernel refuses its `T0`; a static `T` that
+the expansion at `mach` takes outside that range is written with a `[WARNING]`
 (the solvers clamp their cp/h lookups at the ends of the table, and ICB reports the same expansion;
 extend the table, or give `p` and `T`). This is the rule of the whole family: a stagnation `T0` is
-refused outside the table wherever it is expanded (`420`, this form of `405`, the ICB `nozzle`,
+refused outside that range wherever it is expanded (`420`, this form of `405`, the ICB `nozzle`,
 homogeneous and `variable` states given by `T0`), while a deck `T0` or `T` that a record carries as
-given (`401`-`404`, `405` by `p` and `T`, `407`, `408`) outside the loaded table is reported with a
+given (`401`-`404`, `405` by `p` and `T`, `407`, `408`) outside [max(Tmin, 1), Tmax - 1] K is reported with a
 `[WARNING] <name> (inlet, BC <id>): T0 = ... lies outside the temperature range of thermo.dat` and
 never clamped in silence.
 
@@ -414,9 +419,11 @@ axis are consistent with the mapping; BCB warns when a face cell deviates by mor
 curved injector planes).
 
 **Zone times.** Every zone of the line-file must carry a `SOLUTIONTIME` (a zone header may span several lines); a record
-where some zones lack it is refused, a record with none is written without times (warning: MOSE then reads every zone at t = 0 and keeps the last zone of
-each block, i.e. a steady inflow), and times that are not
-strictly increasing produce a warning.
+where some zones lack it is refused, and so is a record of several zones with none (MOSE would read every zone at t = 0
+and keep the last zone of each block); a record of one zone with none is written without times, with a warning (MOSE
+reads it at t = 0: a steady inflow). Times that are not strictly increasing produce a warning: BCB writes the zones in
+the order of the line-file, and MOSE stops at set-up on a zone whose time no zone above it has and that is below the
+latest such time; at a time already given it keeps the last zone of each block.
 
 One mapping serves every block that uses the same section; a `time-file` name can hold only one mapping, so sections
 that differ in line-file, face, `center`, `strip-j-face`, `axis` or `n-repeat` must use distinct `time-file` names
@@ -654,11 +661,13 @@ p2-dp = 0.001
 
 #### Dispersed-phase override on the axis
 
-On a 2D-axisymmetric mesh the axis face is `axisymmetric` (`200`) for every phase. A
+On a 2D-axisymmetric mesh an axis face declared `axisymmetric` is `200` for every phase. A
 Lagrangian dispersed phase may instead be let out through it: give the face a named
 section with the keyword type and add `<phase>-type = outlet` for that phase only. An
 Eulerian phase is mirrored at the axis with `<phase>-type = symmetry` (`300` in that
-phase's file).
+phase's file). MOSE stops at set-up on a `200` record on a face 1 to 4, where the axis
+lies: when the gas runs in MOSE the axis face is `symmetry`, every phase takes `300` there
+(a dispersed phase is mirrored at the axis), and `<phase>-type` is not honoured there (see below).
 
 ```ini
 [BCB-Block1]

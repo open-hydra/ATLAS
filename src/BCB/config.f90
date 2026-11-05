@@ -1153,8 +1153,9 @@ contains
     endif
 
     call bcb_registry%generate_markdown(trim(fileout), 'BCB Input Parameters', preamble= &
-      'Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s), with one exception: the `p0-time-file` '// &
-      'series (BC 402) is in bar, as the solvers read it.')
+      'Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s, rad), with two exceptions: `ds` is in cm '// &
+      '(converted to m), and the angle `t` of `direction` is in degrees in `range`/`range<n>` and in the `*-file` '// &
+      'profiles (converted to rad). `alphap` and `betap` are written into the record as given.')
 
   contains
 

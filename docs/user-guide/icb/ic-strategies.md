@@ -108,6 +108,7 @@ Details of the composition rule and of the profile files:
   smallest value) and counts in the deviation; below `-1e-3` ICB stops;
 - a table is read like the scalar profiles ([Variable initialization](ic-setup.md#variable-initialization-file-driven)):
   it must hold the centre of every cell of the zone's own range, a centre on its first point included;
+  a centre outside the table stops ICB naming the first such cell, the file and its range;
   its rows follow the rules of the profile files above (monotone coordinates, a row that is not two
   numbers skipped with a WARNING);
 - a Tecplot field gives every cell the value of the nearest cell of the file, taken from the first
@@ -218,8 +219,9 @@ real-fluid source). The written field is checked before the file is written: a
 non-positive or non-finite `T`, `p` or partial density stops ICB; temperatures
 outside the loaded thermo table are reported, on every IC type, and the cp/h
 lookups that build the field read the end row of the table there, as the solvers'
-lookups do (no out-of-bounds read, no refusal). A stagnation `T0` outside the table is refused
-instead, on every path that expands from it (`nozzle`, and the homogeneous or `variable` zones
+lookups do (no out-of-bounds read, no refusal). A stagnation `T0` outside [Tmin + 1, Tmax - 1] K is
+refused instead, Tmin and Tmax being the first and last temperature of the table (a table that starts
+at 1 K is loaded with an extra node at 0 K, so its range starts at 1 K), on every path that expands from it (`nozzle`, and the homogeneous or `variable` zones
 given by `T0`): the enthalpy balance reads the tables between `T0` and the static state, and the
 BCB `420` and `405` kernels refuse their `T0` in the same way.
 `interpolation-law = extrude` revolves a one-cell source (a pure-2D x-r solution or a one-cell

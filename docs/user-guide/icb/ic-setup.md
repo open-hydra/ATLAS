@@ -301,7 +301,9 @@ The boundary records written by BCB take the specific `nuTilde`, `k`, `omega` an
     The turbulence constants (`nuTilde`, `k`, `omega`, `Rij` or `rhoNuTilde`, `rhoK`, `rhoOmega`, `rhoRij`) of a zone are applied to the cells of
     its range only, exactly like `p`, `T` and the velocity: the cells outside it keep the field
     written by the other zones (ICB prints ` - build_IG_field: turbulence constants of this zone
-    applied to n of N cells`). A zone that is meant to cover the whole block must have no `range`.
+    applied to n of N cells`). A block without zones takes its state from its block section, on the
+    whole block (no `range`); in a block with zones every `zone<n>` has its `range<n>`, so a zone
+    meant to cover the whole block takes a `range<n>` that spans it.
 
 ## Next
 

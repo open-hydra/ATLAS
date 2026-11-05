@@ -52,7 +52,7 @@ module config_mdb_mod
     character(len=llen) :: grid_out   = ''                   !< '' -> <grid>-split.<ext>
     character(len=llen) :: bc_in      = 'INPUT'
     character(len=llen) :: bc_out     = 'INPUT-split'
-    character(len=llen) :: prefix     = ''                   !< MOSE phase prefix of the BC files
+    character(len=llen) :: prefix     = ''                   !< phase prefix of the BC files (<prefix>bc.txt)
     character(len=llen) :: map_file   = 'decomposition.map'
     character(len=8)    :: directions = 'ijk'
     integer                        :: nphase = 0        !< number of [MDB-Phase#] sections
@@ -347,7 +347,8 @@ contains
       'Phase kind of the BC files: gas or dispersed, which use different property-line &
       &conventions. Empty = read it from <prefix>phase.txt.', 'gas | dispersed', .false.)
     call reg%add(SEC, 'prefix', c%prefix, '', &
-      'MOSE phase prefix of the BC files (<prefix>bc.txt).', '', .false.)
+      'Phase prefix of the BC files (`<prefix>bc.txt`: `gas-` for the files BCB writes for a phase named gas); '// &
+      'MOSE reads its BC files without a prefix (`bc.txt`, `bc<n>.txt`).', '', .false.)
     call reg%add(SEC, 'map-file', c%map_file, 'decomposition.map', &
       'File recording the new-block to parent-block mapping.', '', .false.)
 

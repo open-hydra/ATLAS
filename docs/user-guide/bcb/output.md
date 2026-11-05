@@ -16,6 +16,8 @@ One file is produced per phase, and each Hydra solver reads the file of its phas
 - For named phases: `<phase_name>-bc.txt`, `<phase_name>-bc2.txt`, etc.
 
 The phase name prefix is added only when the phase has a non-empty name. For a single unnamed phase the file is simply `bc.txt`.
+MOSE reads `INPUT/bc.txt` (`INPUT/bc<n>.txt` on the coarse levels of a multigrid run) and puts no phase prefix before
+the name: the files of a named phase go into its `INPUT/` as `bc.txt`, `bc2.txt`, ...
 
 Example with two phases `gas` and `solid` and `MG-levels = 2`:
 

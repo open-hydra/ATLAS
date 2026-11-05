@@ -683,8 +683,9 @@ contains
   ! probe" and `#` comment lines never count); a header may span several lines,
   ! so the SOLUTIONTIME is taken from any header line of the current zone. The
   ! count must equal the number of zones read by ORION; SOLUTIONTIME missing on
-  ! some zones only = error (the time axis would be corrupted silently); missing
-  ! on every zone of a multi-zone file, or times not strictly increasing = warning.
+  ! some zones only = error (the time axis would be corrupted silently), and so is
+  ! missing on every zone of a multi-zone file (no time series); missing on the zone
+  ! of a one-zone file, or times not strictly increasing = warning.
   subroutine read_solution_times(filename, times, nzones)
     implicit none
     character(len=*),      intent(in)  :: filename
@@ -753,7 +754,8 @@ contains
       do z = 2, nzones
         if (times(z) <= times(z-1)) then
           write(*,'(A,I0,A,ES12.5,A,ES12.5,A)') "[WARNING] line-file SOLUTIONTIME is not strictly increasing at zone ", z, &
-            " (", times(z-1), " then ", times(z), "): the solver orders the frames by time"
+            " (", times(z-1), " then ", times(z), "): the zones are written in this order, and MOSE stops"// &
+            " at set-up on a new time below an earlier one"
           exit
         endif
       enddo

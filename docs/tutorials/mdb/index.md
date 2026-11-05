@@ -82,13 +82,13 @@ cuts add 576 connection records, and the ghost cells of the new faces cost the 3
 overhead.
 
 !!! note "Running MOSE on the split case"
-    MOSE reads `INPUT/gas-ic.<ext>` and `INPUT/gas-bc.txt` in its run directory. To run it on the four blocks, give
+    MOSE reads `INPUT/ic.<ext>` and `INPUT/bc.txt` in its run directory. To run it on the four blocks, give
     it the split files under these names, with the map (`<run>` is the run directory):
 
     ```bash
-    cp fromATLAStoSolver/gas-ic-split.tec       <run>/INPUT/gas-ic.tec
-    cp fromATLAStoSolver/INPUT-split/gas-bc.txt <run>/INPUT/gas-bc.txt
-    cp fromATLAStoSolver/decomposition.map      <run>/INPUT/gas-decomposition.map   # [MOSE-IO] decomposition-map = decomposition.map
+    cp fromATLAStoSolver/gas-ic-split.tec       <run>/INPUT/ic.tec
+    cp fromATLAStoSolver/INPUT-split/gas-bc.txt <run>/INPUT/bc.txt
+    cp fromATLAStoSolver/decomposition.map      <run>/INPUT/decomposition.map   # [MOSE-IO] decomposition-map = decomposition.map
     ```
 
     Without `decomposition-map`, MOSE spreads the blocks over the ranks itself.
