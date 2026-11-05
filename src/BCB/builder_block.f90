@@ -148,8 +148,11 @@ contains
         ! BC building depending on specific case
         if (multipatch) then
           
-          ! Multipatch BCs
+          ! Multipatch BCs. A cell is built by the first patch whose range holds it (patch_of); one left
+          ! with no patch lies in none of the ranges (check_face_coverage, after the connection search)
           patchdirection = face_cfg%direction
+          allocate(blk%face(ff)%patch_of(blk%face(ff)%Nm, blk%face(ff)%Nn))
+          blk%face(ff)%patch_of = 0
           if (face_cfg%has_direction) then
             write(*,*)' Face n. = ', ff, ' -> ', trim(blk%face(ff)%bc%name), ' = multipatch'
             do p = 1, face_cfg%patch_count
@@ -166,7 +169,7 @@ contains
               call patchini%add(section_name='face', option_name='direction', val=patchdirection)
               call patchini%add(section_name='face', option_name='range', val=patchrange)
               do m = 1, size(blk%associated_phase)
-                call build_face(b,ff,blk%face(ff),patchini,blk%associated_phase(m),sini)
+                call build_face(b,ff,blk%face(ff),patchini,blk%associated_phase(m),sini,patch=p)
               enddo
             enddo
           endif
@@ -188,11 +191,116 @@ contains
           endif
         endif
 
+        ! A solid-propellant grain that injects dispersed phases leaves the gas the rest of its flow, and the 401
+        ! records of a cell follow the mixture rule across the dispersed phases: applied once every phase of the block
+        ! has been built on the face (correct_grain_flux, builder_500; mix_dp_inlets, builder_400dp)
+        call correct_grain_flows(blk%face(ff))
+
       enddo
       write(*,*)
       endassociate
     enddo
   end subroutine build_BC
+
+
+  !> Stop on face cells that no declaration has given a BC, once the connections and the chimera
+  !> search have claimed theirs:
+  !> - a cell of a multipatch face that lies in none of the ranges of its patches would be written 0
+  !>   (null), a code for a face with no BC at all (cells that BC-force-connect has made 101/103 are
+  !>   claimed);
+  !> - a cell of a face declared 'chimera' with BC-chimera = false keeps 100, the placeholder of a
+  !>   connection or chimera face before its search, which no solver reads (the cells that coincide with
+  !>   a cell of another block are made connections, 101/103).
+  subroutine check_face_coverage(blocks, chimeraon)
+    use grid_mod,     only: mesh_cfg
+    use bc_block_mod
+    use bc_names_mod, only: MARKER_Chim
+    implicit none
+    type(BC_block), intent(in) :: blocks(:)
+    logical,        intent(in) :: chimeraon
+    integer :: b, f, m, n, nbad, mfirst, nfirst
+    logical :: failed
+
+    failed = .false.
+    do b = 1, size(blocks)
+      do f = 1, blocks(b)%nfaces
+        associate (face => blocks(b)%face(f))
+        if (allocated(face%patch_of)) then
+          nbad = 0
+          do n = 1, face%Nn
+            do m = 1, face%Nm
+              if (face%patch_of(m,n) == 0 .and. face%center(m,n)%bc%gp_id == 0) then
+                nbad = nbad + 1
+                if (nbad == 1) then; mfirst = m; nfirst = n; endif
+              endif
+            enddo
+          enddo
+          if (nbad > 0) then
+            write(*,'(*(g0))') '[ERROR] block ', blocks(b)%id, ' face ', f, &
+              ' ([', trim(face%bc%name), ']): ', nbad, ' of its ', face%Nm*face%Nn, &
+              ' cells lie in none of the ranges of its patches and would be written 0 (no BC)'
+            call say_first_cell(face, mfirst, nfirst)
+            write(*,'(A)') '        make the ranges of the patches cover the whole face'
+            failed = .true.
+          endif
+        endif
+        if (.not. chimeraon) then
+          nbad = 0
+          do n = 1, face%Nn
+            do m = 1, face%Nm
+              if (trim(face%center(m,n)%bc%definition) == trim(MARKER_Chim) .and. &
+                  face%center(m,n)%bc%gp_id == 100) then
+                nbad = nbad + 1
+                if (nbad == 1) then; mfirst = m; nfirst = n; endif
+              endif
+            enddo
+          enddo
+          if (nbad > 0) then
+            write(*,'(*(g0))') '[ERROR] block ', blocks(b)%id, ' face ', f, &
+              ' ([', trim(face%bc%name), ']) is declared chimera, but BC-chimera = false: ', nbad, &
+              ' of its cells match no cell of another block and would be written 100, a code no solver reads'
+            call say_first_cell(face, mfirst, nfirst)
+            write(*,'(A)') '        set BC-chimera = true in [ATLAS-Parameters], or give the face another type'
+            failed = .true.
+          endif
+        endif
+        endassociate
+      enddo
+    enddo
+    if (failed) stop 1
+
+  contains
+
+    subroutine say_first_cell(face, m, n)
+      type(obj_face), intent(in) :: face
+      integer,        intent(in) :: m, n
+      if (mesh_cfg%meshType > 0) then
+        write(*,'(A,I0,A,I0,A,3(ES12.5,A))') '        the first is cell (', m, ', ', n, ') of the face, at (', &
+          face%center(m,n)%c(1), ', ', face%center(m,n)%c(2), ', ', face%center(m,n)%c(3), ')'
+      else
+        write(*,'(A,I0,A,I0,A,2(ES12.5,A))') '        the first is cell (', m, ', ', n, ') of the face, at (', &
+          face%center(m,n)%c(1), ', ', face%center(m,n)%c(2), ')'
+      endif
+    end subroutine say_first_cell
+
+  end subroutine check_face_coverage
+
+
+  !> correct_grain_flux on every cell of a face.
+  subroutine correct_grain_flows(face)
+    use bc_block_mod, only: obj_face
+    implicit none
+    type(obj_face), intent(inout) :: face
+    integer :: m, n
+
+    do n = 1, face%Nn
+      do m = 1, face%Nm
+        call face%center(m,n)%bc%correct_grain_flux()
+        call face%center(m,n)%bc%mix_dp_inlets()
+      enddo
+    enddo
+
+  end subroutine correct_grain_flows
 
 
   !> Copy face-level uniform BC properties to every cell center.

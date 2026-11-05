@@ -1,0 +1,545 @@
+"""Tests of where the GUI puts the zones of an ICB block on the mesh (icgeom).
+
+usage: python3 -B GUI/tests/test_icgeom.py [-v]
+
+The unit tests need numpy only.  The comparison with ICB writes zone decks
+whose ranges leave gaps (and some that cover the block) on a pure 2-D, an
+extruded 2-D and a 3-D mesh, along every letter, runs ICB on each and checks
+that the GUI finds the cells ICB writes after each zone, the count of cells
+no zone writes and the first of them; and, on the nozzle decks of the suite,
+the plenum rows ICB reports writing over earlier zones; that an interpolated
+zone takes the turbulence model of its source, and the cells it leaves without
+turbulence are those ICB warns or stops on; that the state the
+3-D view shows in every cell is the one ICB writes there, the plenum of nozzle
+zones included; that the cells of a zone a profile table misses (icprofile)
+are those ICB stops on; that the GUI
+refuses the nozzle flow on the meshes ICB refuses it on, for the same reason,
+and finds the plenum rows ICB writes.  It is skipped when ICB is not built.
+Exit status 77 (skipped) without numpy.
+"""
+
+import os
+import random
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(_HERE))
+
+try:
+    import numpy as np
+except ImportError:                     # the GUI needs numpy; its tests say so
+    print("numpy is not installed: GUI-icgeom skipped")
+    sys.exit(77)
+
+from atlasgui import icgeom, icmodel, mesh_io  # noqa: E402
+from atlasgui.document import AtlasDocument  # noqa: E402
+
+ATLAS = icmodel.ATLAS_ROOT
+ICB_TESTS = os.path.join(ATLAS, "test", "ICB")
+GAS = [os.path.join(ICB_TESTS, "IG-nozzle3D", f) for f in ("gas-phase.txt", "gas-thermo.dat")]
+MESHES = {
+    "pure 2-D": (os.path.join(ICB_TESTS, "IG-zone-unwritten-refused", "mesh.tec"),
+                 ["x", "y", "r", "t", "i", "j", "xy", "rt", "yti"]),
+    "extruded": (os.path.join(ICB_TESTS, "IG+DP", "mesh.tec"),
+                 ["x", "z", "r", "t", "j", "xr", "ij"]),
+    "3-D": (os.path.join(ICB_TESTS, "IG-interp-spherical-3D", "mesh.tec"),
+            ["x", "y", "z", "r", "t", "k", "xyz", "ijk"]),
+}
+
+
+NOZZLE_LAW = os.path.join(ICB_TESTS, "IG-nozzle-area-law")
+REFUSED = os.path.join(ICB_TESTS, "IG-nozzle-geometry-refused")
+# meshes for the nozzle law, with the reason ICB refuses it ("" when it does not)
+NOZZLE_MESHES = {
+    "area-law": (os.path.join(NOZZLE_LAW, "mesh.tec"), ""),
+    "box": (os.path.join(REFUSED, "box.tec"), "constant"),
+    "flat": (os.path.join(REFUSED, "flat.tec"), "no cross-section"),
+    "reversed": (os.path.join(REFUSED, "reversed.tec"), "do not advance"),
+    "plenum-order": (os.path.join(ICB_TESTS, "IG-nozzle-plenum-order", "mesh.tec"), ""),
+    "extruded nozzle": (MESHES["extruded"][0], ""),
+    "pure 2-D box": (MESHES["pure 2-D"][0], "constant"),
+    "3-D annulus": (MESHES["3-D"][0], "constant"),
+}
+NOZZLE_DECK = ("[ATLAS-Parameters]\nIC-format = tec\n\n[ICB-Block1]\ntype = nozzle\n"
+               "p0 = 500000.0\nT0 = 450.0\nyO2 = 0.25\nyN2 = 0.75\n")
+
+
+class Mesh:
+    """A box of nx x ny x nz cells, unit spacing, from (x0, y0, z0)."""
+
+    def __init__(self, nx, ny, nz, origin=(0.0, 0.0, 0.0)):
+        x, y, z = np.meshgrid(np.arange(nx + 1) + origin[0], np.arange(ny + 1) + origin[1],
+                              np.arange(nz + 1) + origin[2], indexing="ij")
+        self.block = mesh_io.MeshBlock(x, y, z)
+
+
+class Cells(unittest.TestCase):
+
+    def test_centres_and_indices(self):
+        cells = icgeom.BlockCells(Mesh(3, 2, 2).block)
+        self.assertEqual(cells.shape, (3, 2, 2))
+        self.assertEqual(list(cells.coordinate("x")[:, 0, 0]), [0.5, 1.5, 2.5])
+        self.assertEqual(int(cells.coordinate("k")[0, 0, 1]), 2)
+        self.assertEqual(cells.extent("i"), (1, 3))
+        self.assertEqual(cells.extent("x"), (0.0, 3.0))
+
+    def test_axis_of_r_and_t(self):
+        # about x on a 3-D mesh: r from y and z
+        cells = icgeom.BlockCells(Mesh(1, 1, 1, origin=(5.0, 3.0, 4.0)).block)
+        self.assertAlmostEqual(float(cells.coordinate("r")[0, 0, 0]), np.hypot(3.5, 4.5))
+        # in the x-y plane on a pure 2-D mesh (one node plane), its cells at z = 0.5
+        x, y = np.meshgrid([3.0, 4.0], [4.0, 5.0], indexing="ij")
+        flat = icgeom.BlockCells(mesh_io.MeshBlock(x[..., None], y[..., None],
+                                                   np.zeros((2, 2, 1))))
+        self.assertTrue(flat.pure_2d)
+        self.assertAlmostEqual(float(flat.coordinate("r")[0, 0, 0]), np.hypot(3.5, 4.5))
+        self.assertEqual(float(flat.coordinate("z")[0, 0, 0]), 0.5)
+
+    def test_ranges(self):
+        cells = icgeom.BlockCells(Mesh(4, 1, 1).block)
+        self.assertEqual(int(icgeom.range_mask(cells, "x", [0.5, 1.5]).sum()), 2)  # limits included
+        self.assertEqual(int(icgeom.range_mask(cells, "i", [1.5, 2.4]).sum()), 1)  # nint(1.5) = 2
+        self.assertEqual(icgeom.fortran_nint(-2.5), -3.0)
+        self.assertIsNone(icgeom.parse_range("0 1 2", "x"))
+        self.assertEqual(icgeom.parse_range("0 1d0", "x"), [0.0, 1.0])
+
+    def test_coverage(self):
+        cells = icgeom.BlockCells(Mesh(4, 1, 1).block)
+        doc = AtlasDocument.from_ini(
+            "[ICB-Block1]\ndirection = x\nzone1 = a\nrange1 = 0 1.6\nzone2 = b\nrange2 = 1 2\n"
+            "[a]\np = 1\nT = 1\n[b]\np = 1\nT = 1\n").icb
+        cover = icgeom.BlockCoverage(cells, doc.block(1), doc.zones, {"IG"})
+        self.assertEqual(cover.unwritten["IG"], (2, (3, 1, 1)))
+        self.assertEqual([z.cells for z in cover.zones], [2, 1])
+        self.assertEqual([z.kept for z in cover.zones], [1, 1])    # b writes cell 2 again
+        self.assertEqual(cover.written_after, [2, 2])
+
+    def test_nozzle_geometry(self):
+        for name, (path, reason) in NOZZLE_MESHES.items():
+            with self.subTest(mesh=name):
+                geometry = icgeom.BlockCells(mesh_io.read_mesh(path)[0]).nozzle()
+                if reason:
+                    self.assertIn(reason, geometry.problem)
+                    self.assertTrue(geometry.short)
+                else:
+                    self.assertEqual(geometry.problem, "")
+        law = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])[0]).nozzle()
+        self.assertEqual(law.throat, 4)                       # row 5, x = 0.45
+        self.assertAlmostEqual(float(law.ratio.max()), 5.95934, places=4)
+        box = icgeom.BlockCells(Mesh(3, 2, 2).block).nozzle()  # a Cartesian box
+        self.assertIn("constant", box.problem)
+
+    def test_nozzle_rows(self):
+        cells = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])[0])
+
+        def rows(**keys):
+            state = icmodel.ICState(list(keys.items()))
+            return [int(n) + 1 for n in np.flatnonzero(icgeom.plenum_rows(cells, state))]
+
+        # the plenum of IG-nozzle-area-law's decks: the rows centred upstream of the threshold
+        # (centres at x = 0.05, 0.15, ... 1.15)
+        self.assertEqual(rows(), [])
+        self.assertEqual(rows(**{"nozzle-direction": "sx"}), [])
+        self.assertEqual(rows(**{"nozzle-threshold": "0.12"}), [1])
+        self.assertEqual(rows(**{"nozzle-threshold": "0.9", "nozzle-direction": "sx"}), [10, 11, 12])
+        self.assertEqual(rows(**{"nozzle-threshold": "5"}), list(range(1, 13)))
+        self.assertEqual(rows(**{"nozzle-threshold": "5", "nozzle-direction": "sx"}), [])
+        self.assertEqual(rows(**{"nozzle-threshold": "-1"}), [])
+        self.assertEqual(rows(**{"nozzle-threshold": "-1", "nozzle-direction": "sx"}), list(range(1, 13)))
+
+    def test_nozzle_issues(self):
+        box = mesh_io.read_mesh(NOZZLE_MESHES["box"][0])
+        law = mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])
+        gas = "[ICB-Block1]\ntype = nozzle\np0 = 5e5\nT0 = 450\nyN2 = 1\n"
+        issues = icgeom.nozzle_issues(AtlasDocument.from_ini(gas).icb, box, [])
+        self.assertEqual([(level, target) for level, target, _m in issues], [("error", 1)])
+        self.assertIn("constant", issues[0][2])
+        self.assertEqual(icgeom.nozzle_issues(AtlasDocument.from_ini(gas).icb, law, []), [])
+        zones = ("[ICB-Block1]\ndirection = x\nzone1 = up\nrange1 = 0 1\nzone2 = down\n"
+                 "range2 = 1 3\n[up]\np = 1e5\nT = 300\nyN2 = 1\n"
+                 "[down]\ntype = nozzle\np0 = 5e5\nT0 = 450\nyN2 = 1\n")
+        issues = icgeom.nozzle_issues(AtlasDocument.from_ini(zones).icb, box, [])
+        self.assertEqual([target for _l, target, _m in issues], [(1, "down")])
+        profile = gas + "T0-file = t.dat\nT0-direction = x\n"     # variable: no law
+        self.assertEqual(icgeom.nozzle_issues(AtlasDocument.from_ini(profile).icb, box, []), [])
+
+    def test_state_map(self):
+        cells = icgeom.BlockCells(Mesh(4, 1, 1).block)
+        zones = ("[ICB-Block1]\ndirection = x\nzone1 = a\nrange1 = 0 1.6\nzone2 = b\n"
+                 "range2 = 1 2\n[a]\np = 1\nT = 1\n[b]\np = 1\nT = 1\n")
+        found = icgeom.state_map(AtlasDocument.from_ini(zones).icb, 1, cells, [])
+        self.assertEqual(found.targets, [(1, "a"), (1, "b")])
+        self.assertEqual(list(found.writer[:, 0, 0]), [0, 1, -1, -1])   # b writes cell 2 last
+        found = icgeom.state_map(AtlasDocument.from_ini(
+            "[ICB-Block*]\np = 1\nT = 1\n").icb, 3, cells, [])
+        self.assertEqual((found.targets, int(found.writer.max())), (["*"], 0))
+        found = icgeom.state_map(AtlasDocument.from_ini("[ICB-Block2]\np = 1\n").icb, 1, cells, [])
+        self.assertEqual((found.targets, int(found.writer.max())), ([], -1))
+        found = icgeom.state_map(AtlasDocument.from_ini(
+            zones.replace("direction = x", "direction = q")).icb, 1, cells, [])
+        self.assertFalse(found.placed)
+        law = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])[0])
+        nozzle = AtlasDocument.from_ini(NOZZLE_DECK + "nozzle-threshold = 0.12\n").icb
+        found = icgeom.state_map(nozzle, 1, law, [])
+        self.assertEqual(sorted({int(i) + 1 for i in np.argwhere(found.rest)[:, 0]}), [1])
+        box = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["box"][0])[0])
+        self.assertFalse(icgeom.state_map(nozzle, 1, box, []).rest.any())  # ICB stops on it
+
+    def test_source_turbulence(self):
+        """The model ICB adopts from an old solution, by the names of the bands
+        after the pressure."""
+        from atlasgui import icprofile
+        cases = [
+            ('"x" "y" "rho(1)" "u" "v" "p" "mi_t"', 1),
+            ('"x" "y" "rho(1)" "u" "v" "p" "rhoK" "rhoOmega"', 2),
+            ('"x" "y" "z" "rho(1)" "u" "v" "w" "p" "ru\'u\'" "rv\'v\'" "rw\'w\'" "ru\'v\'" "omega"', 7),
+            ('"x" "y" "rho(1)" "u" "v" "p" "mu_t"', 0),           # an eddy viscosity: ignored
+            ('"x" "y" "rhoK" "u" "v" "p"', 0),                    # a species band named rhoK
+            ('"x" "y" "rho(1)" "u" "v" "p" "k"', 0),              # k without omega: no set
+            ('"x" "y" "rho(1)" "u" "v" "pres" "mi_t"', None),     # no pressure band by name
+        ]
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "source.tec")
+            for variables, model in cases:
+                with self.subTest(variables=variables):
+                    with open(path, "w") as handle:
+                        handle.write(f"VARIABLES = {variables}\nZONE I=2, J=2, K=1\n")
+                    self.assertEqual(icprofile.source_turbulence(icprofile.read_field(path)), model)
+            binary = icprofile.read_field(os.path.join(work, "source.szplt"))
+            self.assertIsNone(icprofile.source_turbulence(binary))
+
+    def test_outward_limits(self):
+        for value in (0.12000000000000001, -3.3333333333, 1234567.891, 1e-7 / 3):
+            self.assertGreaterEqual(float(icgeom.outward_limit(value, True)), value)
+            self.assertLessEqual(float(icgeom.outward_limit(value, False)), value)
+        self.assertEqual(icgeom.outward_limit(0.12000000000000001, True), "0.120001")
+
+
+def _icb_built():
+    return os.path.exists(os.path.join(ATLAS, "bin", "ICB"))
+
+
+@unittest.skipUnless(_icb_built(), "ICB is not built")
+class AgainstICB(unittest.TestCase):
+
+    def run_icb(self, directory, deck):
+        with open(os.path.join(directory, "input.ini"), "w") as handle:
+            handle.write(deck)
+        shutil.rmtree(os.path.join(directory, "fromATLAStoSolver"), ignore_errors=True)
+        proc = subprocess.run(["bash", "-c", f"cd '{directory}' && '{ATLAS}/ATLAS.sh' ICB < /dev/null"],
+                              capture_output=True, text=True,
+                              env=dict(os.environ, OMP_NUM_THREADS="1"))
+        return proc.returncode, proc.stdout + proc.stderr
+
+    def test_random_zones(self):
+        rng = random.Random(2026)
+        compared = 0
+        with tempfile.TemporaryDirectory() as work:
+            for name, (mesh_path, directions) in MESHES.items():
+                directory = os.path.join(work, name.replace(" ", ""))
+                os.makedirs(directory)
+                shutil.copy(mesh_path, os.path.join(directory, "mesh.tec"))
+                for f in GAS:
+                    shutil.copy(f, directory)
+                cells = icgeom.BlockCells(mesh_io.read_mesh(mesh_path)[0])
+                for direction in directions:
+                    for trial in range(3):
+                        lines = ["[ICB-Block1]", f"direction = {direction}"]
+                        states = []
+                        for n in range(1, rng.choice([1, 2, 3]) + 1):
+                            values = []
+                            for letter in direction:
+                                low, high = cells.extent(letter)
+                                if trial == 2 and n == 1:       # the first zone covers it all
+                                    a, b = low, high
+                                elif letter in "ijk":
+                                    a, b = sorted(rng.randint(int(low), int(high)) for _ in range(2))
+                                else:
+                                    a, b = sorted(round(rng.uniform(low, high), 6) for _ in range(2))
+                                values += ([str(int(a)), str(int(b))] if letter in "ijk"
+                                           else [repr(float(a)), repr(float(b))])
+                            lines += [f"zone{n} = z{n}", f"range{n} = " + " ".join(values)]
+                            states.append(f"[z{n}]\np = {1e5 * n}\nT = {300 + 10 * n}")
+                        deck = "\n".join(lines) + "\n\n" + "\n\n".join(states) + "\n"
+                        rc, out = self.run_icb(directory, deck)
+                        doc = AtlasDocument.from_ini(deck).icb
+                        cover = icgeom.BlockCoverage(cells, doc.block(1), doc.zones, {"IG"})
+                        compared += 1
+                        with self.subTest(mesh=name, deck=deck):
+                            if rc == 0:
+                                self.assertTrue(cover.complete)
+                                continue
+                            found = re.search(r"(\d+) of \d+ cells are initialised by no zone "
+                                              r"\(first cell \((\d+),(\d+),(\d+)\)\)", out)
+                            self.assertIsNotNone(found, out[-600:])
+                            count = int(found.group(1))
+                            first = tuple(int(found.group(i)) for i in (2, 3, 4))
+                            self.assertEqual(cover.unwritten.get("IG"), (count, first))
+                            after = [int(m) for m in re.findall(
+                                r"after \[z\d+\]: gas \(IG\) (\d+) of", out)]
+                            self.assertEqual(cover.written_after, after)
+        self.assertEqual(compared, 72)
+
+    def test_state_map(self):
+        """The state ICB writes into every cell, against icgeom.state_map: each
+        zone has a pressure of its own; a nozzle zone writes p0 at rest on the
+        cells of its plenum, less than p0 and a speed on those of its law."""
+        rng = random.Random(5)
+        compared = 0
+        kinds = {"rest": 0, "law": 0}           # the nozzle cells compared
+        cases = [(name, path, directions, GAS, False)
+                 for name, (path, directions) in MESHES.items()]
+        cases.append(("nozzle", os.path.join(NOZZLE_LAW, "mesh.tec"), ["x", "i", "xr", "rt"],
+                      [os.path.join(NOZZLE_LAW, f) for f in ("phase.txt", "thermo.dat")], True))
+        with tempfile.TemporaryDirectory() as work:
+            for name, mesh_path, directions, gas, nozzles in cases:
+                directory = os.path.join(work, name.replace(" ", ""))
+                os.makedirs(directory)
+                shutil.copy(mesh_path, os.path.join(directory, "mesh.tec"))
+                for f in gas:
+                    shutil.copy(f, directory)
+                cells = icgeom.BlockCells(mesh_io.read_mesh(mesh_path)[0])
+                composition = "\nyO2 = 0.25\nyN2 = 0.75" if nozzles else ""
+                for direction in directions:
+                    for _trial in range(2 if nozzles else 1):
+                        lines = ["[ATLAS-Parameters]", "IC-format = tec", "",
+                                 "[ICB-Block1]", f"direction = {direction}"]
+                        states, pressure = [], {}
+                        for n in range(1, rng.choice([2, 3, 4]) + 1):
+                            values = []
+                            for letter in direction:
+                                low, high = cells.extent(letter)
+                                if n == 1:                  # the first zone covers it all
+                                    a, b = low, high
+                                elif letter in "ijk":
+                                    a, b = sorted(rng.randint(int(low), int(high)) for _ in range(2))
+                                else:
+                                    a, b = sorted(round(rng.uniform(low, high), 6) for _ in range(2))
+                                values += ([str(int(a)), str(int(b))] if letter in "ijk"
+                                           else [repr(float(a)), repr(float(b))])
+                            lines += [f"zone{n} = z{n}", f"range{n} = " + " ".join(values)]
+                            if nozzles and n > 1 and rng.random() < 0.6:
+                                pressure[f"z{n}"] = 5e5 + 1e4 * n
+                                states.append(
+                                    f"[z{n}]\ntype = nozzle\np0 = {5e5 + 1e4 * n}\nT0 = 450"
+                                    f"{composition}\nnozzle-direction = {rng.choice(['dx', 'sx'])}"
+                                    f"\nnozzle-threshold = {round(rng.uniform(-0.1, 1.0), 3)}")
+                            else:
+                                pressure[f"z{n}"] = 1e5 * n
+                                states.append(f"[z{n}]\np = {1e5 * n}\nT = {300 + 10 * n}"
+                                              f"{composition}")
+                        deck = "\n".join(lines) + "\n\n" + "\n\n".join(states) + "\n"
+                        rc, out = self.run_icb(directory, deck)
+                        doc = AtlasDocument.from_ini(deck).icb
+                        found = icgeom.state_map(doc, 1, cells, [])
+                        compared += 1
+                        with self.subTest(mesh=name, deck=deck):
+                            self.assertEqual(rc, 0, out[-400:])
+                            field = "ic.tec" if nozzles else "gas-ic.tec"     # <phase>ic.tec
+                            band = _cell_bands(os.path.join(directory, "fromATLAStoSolver", field))
+                            writer = found.writer.ravel(order="F")
+                            rest = found.rest.ravel(order="F")
+                            speed = np.sqrt(sum(band[c] ** 2 for c in "uvw" if c in band))
+                            self.assertTrue((writer >= 0).all())
+                            for c in range(writer.size):
+                                zone = doc.zones[found.targets[writer[c]][1]]
+                                p = pressure[found.targets[writer[c]][1]]
+                                if zone.get("type") != "nozzle" or rest[c]:
+                                    self.assertEqual((band["p"][c], speed[c]), (p, 0.0), c)
+                                else:
+                                    self.assertTrue(band["p"][c] < p and speed[c] > 0, c)
+                                if zone.get("type") == "nozzle":
+                                    kinds["rest" if rest[c] else "law"] += 1
+        self.assertEqual(compared, len(MESHES["pure 2-D"][1]) + len(MESHES["extruded"][1])
+                         + len(MESHES["3-D"][1]) + 8)
+        self.assertGreater(min(kinds.values()), 10, kinds)
+
+    def test_interpolated_turbulence(self):
+        """An interpolated zone takes the turbulence model of its source, and
+        the cells of the other zones that give no turbulence keys stay 0: ICB
+        warns under Spalart-Allmaras and stops under k-omega, as the GUI says;
+        a laminar source brings no model."""
+        from atlasgui import icprofile
+        source = os.path.join(ICB_TESTS, "IG-zone-interp-range-turb")
+        mesh = mesh_io.read_mesh(os.path.join(source, "mesh.tec"))
+        with tempfile.TemporaryDirectory() as work:
+            for f in ("mesh.tec", "phase.txt", "thermo.dat"):
+                shutil.copy(os.path.join(source, f), work)
+            with open(os.path.join(source, "source.tec")) as handle:
+                field = handle.read()
+            variants = {   # the source as written: one Spalart-Allmaras band, mi_t
+                "sa": (field, "warning"),
+                "laminar": (field.replace('"mi_t"', '"mu_t"'), None),
+                "komega": (field.replace('"mi_t"', '"rhoK" "rhoOmega"')
+                           .replace("[3-9]=CELLCENTERED", "[3-10]=CELLCENTERED").rstrip("\n")
+                           + "\n" + " ".join(["150.0"] * 6) + "\n", "error"),
+            }
+            with open(os.path.join(source, "input.ini")) as handle:
+                deck = handle.read()
+            phases = icmodel.case_phases(None, work)
+            for name, (text, level) in variants.items():
+                with open(os.path.join(work, f"{name}.tec"), "w") as handle:
+                    handle.write(text)
+                variant = deck.replace("old-solution = source.tec", f"old-solution = {name}.tec")
+                rc, out = self.run_icb(work, variant)
+                doc = AtlasDocument.from_ini(variant).icb
+
+                def model(state):
+                    return icprofile.source_turbulence(
+                        icprofile.read_field(os.path.join(work, state.get("old-solution"))))
+
+                gui = [(lv, m) for lv, _t, m in icgeom.coverage_issues(doc, mesh, phases, {}, model)
+                       if "turbulence" in m]
+                found = re.search(r"(\[WARNING\]|\[ERROR\]) build_IC block 1 \(IG\): .*? of "
+                                  r"(\d+) of (\d+) cells (?:is|are) set by no zone", out)
+                with self.subTest(source=name):
+                    if level is None:
+                        self.assertEqual((rc, found, gui), (0, None, []))
+                        continue
+                    self.assertIsNotNone(found, out[-500:])
+                    self.assertEqual(found.group(1), "[WARNING]" if level == "warning" else "[ERROR]")
+                    self.assertEqual(len(gui), 1)
+                    self.assertEqual(gui[0][0], level)
+                    self.assertIn(f"{found.group(2)} of {found.group(3)} cells", gui[0][1])
+
+    def test_profile_tables(self):
+        """The cells of a zone a T table misses: those ICB stops on."""
+        from atlasgui import icprofile
+        rng = random.Random(77)
+        compared = stopped = 0
+        with tempfile.TemporaryDirectory() as work:
+            for name, (mesh_path, _directions) in MESHES.items():
+                directory = os.path.join(work, name.replace(" ", ""))
+                os.makedirs(directory)
+                shutil.copy(mesh_path, os.path.join(directory, "mesh.tec"))
+                for f in GAS:
+                    shutil.copy(f, directory)
+                cells = icgeom.BlockCells(mesh_io.read_mesh(mesh_path)[0])
+                for letter in ("x", "y", "r", "t"):
+                    for trial in range(3):
+                        cut_lo, cut_hi = cells.extent("x")
+                        cut = round(rng.uniform(cut_lo, cut_hi), 6)
+                        low, high = cells.extent(letter)
+                        a, b = sorted(round(rng.uniform(low, high), 6) for _ in range(2))
+                        if trial == 2:
+                            a, b = low - 1.0, high + 1.0          # the whole extent
+                        with open(os.path.join(directory, "T.dat"), "w") as handle:
+                            handle.write(f"{a!r} 400.0\n{b!r} 500.0\n")
+                        deck = (f"[ICB-Block1]\ndirection = x\nzone1 = z1\nrange1 = {cut_lo!r} {cut!r}\n"
+                                f"zone2 = z2\nrange2 = {cut!r} {cut_hi!r}\n\n"
+                                f"[z1]\np = 1e5\nT-file = T.dat\nT-direction = {letter}\n\n"
+                                "[z2]\np = 1e5\nT = 300\n")
+                        rc, out = self.run_icb(directory, deck)
+                        doc = AtlasDocument.from_ini(deck).icb
+                        mask = icgeom.range_mask(cells, "x", [cut_lo, cut])
+                        table = icprofile.parse_table(f"{a!r} 400\n{b!r} 500\n")
+                        count, first = icprofile.table_outside(cells, mask, letter, table)
+                        compared += 1
+                        with self.subTest(mesh=name, letter=letter, table=(a, b), cut=cut):
+                            found = re.search(r"the centre of cell \((\d+),(\d+),(\d+)\), "
+                                              r"\w+ = +\S+, and (\d+) more cells", out)
+                            if rc == 0:
+                                self.assertEqual(count, 0)
+                            else:
+                                stopped += 1
+                                self.assertIsNotNone(found, out[-500:])
+                                self.assertEqual((count, first), (
+                                    int(found.group(4)) + 1,
+                                    tuple(int(found.group(i)) for i in (1, 2, 3))))
+                        self.assertIsNotNone(doc.zones.get("z1"))
+        self.assertEqual(compared, 36)
+        self.assertGreater(stopped, 12)          # the tables that miss cells are compared too
+
+    def test_nozzle_geometry(self):
+        """ICB refuses the nozzle law on the meshes the GUI refuses it on."""
+        with tempfile.TemporaryDirectory() as work:
+            for f in ("phase.txt", "thermo.dat"):
+                shutil.copy(os.path.join(NOZZLE_LAW, f), work)
+            for name, (path, reason) in NOZZLE_MESHES.items():
+                shutil.copy(path, os.path.join(work, "mesh.tec"))
+                rc, out = self.run_icb(work, NOZZLE_DECK)
+                geometry = icgeom.BlockCells(mesh_io.read_mesh(path)[0]).nozzle()
+                with self.subTest(mesh=name):
+                    self.assertEqual(rc != 0, bool(geometry.problem), out[-400:])
+                    if reason:
+                        self.assertIn(reason, out)
+                        self.assertIn("the nozzle law needs a duct about the x axis", out)
+
+    def test_nozzle_rows(self):
+        """The plenum rows ICB writes at rest, against icgeom.plenum_rows; a
+        threshold on a centre (0.05, 0.15, 0.45) gives that row to the law."""
+        rng = random.Random(28)
+        cells = icgeom.BlockCells(mesh_io.read_mesh(NOZZLE_MESHES["area-law"][0])[0])
+        thresholds = [None, -1.0, 5.0, 0.05, 0.15, 0.45] + [round(rng.uniform(-0.1, 1.3), 4)
+                                                          for _ in range(5)]
+        with tempfile.TemporaryDirectory() as work:
+            for f in ("mesh.tec", "phase.txt", "thermo.dat"):
+                shutil.copy(os.path.join(NOZZLE_LAW, f), work)
+            for direction in ("dx", "sx"):
+                for threshold in thresholds:
+                    deck = NOZZLE_DECK + f"nozzle-direction = {direction}\n"
+                    if threshold is not None:
+                        deck += f"nozzle-threshold = {threshold}\n"
+                    rc, out = self.run_icb(work, deck)
+                    with self.subTest(direction=direction, threshold=threshold):
+                        self.assertEqual(rc, 0, out[-400:])
+                        rest = _rows_at_rest(os.path.join(work, "fromATLAStoSolver", "ic.tec"))
+                        state = AtlasDocument.from_ini(deck).icb.block(1)
+                        plenum = icgeom.plenum_rows(cells, state)
+                        self.assertEqual(rest, [int(n) + 1 for n in np.flatnonzero(plenum)])
+
+    def test_nozzle_plenum(self):
+        source = os.path.join(ICB_TESTS, "IG-nozzle-plenum-order")
+        with tempfile.TemporaryDirectory() as work:
+            for f in ("mesh.tec", "phase.txt", "thermo.dat"):
+                shutil.copy(os.path.join(source, f), work)
+            cells = icgeom.BlockCells(mesh_io.read_mesh(os.path.join(source, "mesh.tec"))[0])
+            for deck_name in ("input.ini", "reverse.ini"):
+                with open(os.path.join(source, deck_name)) as handle:
+                    deck = handle.read()
+                rc, out = self.run_icb(work, deck)
+                self.assertEqual(rc, 0, out[-400:])
+                doc = AtlasDocument.from_ini(deck).icb
+                cover = icgeom.BlockCoverage(cells, doc.block(1), doc.zones, {"IG"})
+                with self.subTest(deck=deck_name):
+                    self.assertTrue(cover.complete)
+                    icb = sorted(int(n) for n in re.findall(
+                        r"overwrite[s]? (\d+) cells", out))
+                    gui = sorted(n for _zone, n, _what in cover.plenum_overwrites)
+                    self.assertEqual(gui, icb)
+
+
+def _cell_bands(path):
+    """The cell-centred bands of an ASCII ic.tec, i fastest, by name; ``ni``
+    is the node count along i."""
+    with open(path) as handle:
+        lines = handle.read().split("\n")
+    names = lines[0].split("=", 1)[1].split()
+    ni, nj, nk = (int(lines[1].split(f"{c}=")[1].split(",")[0]) for c in "IJK")
+    values = np.array([float(v) for line in lines[2:] for v in line.split()])
+    nodal = sum(1 for n in names if n in ("x", "y", "z"))     # x y on a pure 2-D mesh, K = 1
+    nn, nc = ni * nj * nk, (ni - 1) * (nj - 1) * max(nk - 1, 1)
+    band = {n: values[nodal * nn + b * nc: nodal * nn + (b + 1) * nc]
+            for b, n in enumerate(names[nodal:])}
+    band["ni"] = ni
+    return band
+
+
+def _rows_at_rest(path):
+    """The rows i of an ASCII ic.tec whose every cell holds p0 = 5e5 at rest."""
+    band = _cell_bands(path)
+    ni = band["ni"]
+    rest = set(range(1, ni))
+    for c in range(len(band["p"])):
+        if (band["p"][c], band["u"][c], band["v"][c], band["w"][c]) != (5e5, 0.0, 0.0, 0.0):
+            rest.discard(c % (ni - 1) + 1)
+    return sorted(rest)
+
+
+if __name__ == "__main__":
+    unittest.main()

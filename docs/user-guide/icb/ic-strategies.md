@@ -12,6 +12,7 @@ Full reference for initialization strategies recognised by ICB.
 | `variable` | File-backed/profile-based assignment using `<key>-file`. | IG, RF, SP |
 | `interpolation` | Solution transfer from `old-solution` file. | IG, RF, SP, DP |
 | `nozzle` | Nozzle-based initialization model. | IG |
+| `multizone` | The block takes its state from its `zone<n>` sections (the key `direction` alone also makes a block multizone). | any |
 
 If `type` is omitted, ICB defaults to `homogeneous`.
 
@@ -105,9 +106,9 @@ Details of the composition rule and of the profile files:
   rounding of decimal constants such as `0.233 + 0.767`) is renormalised without a message;
 - a negative profile value down to `-1e-3` is set to 0 with its own WARNING (number of cells and
   smallest value) and counts in the deviation; below `-1e-3` ICB stops;
-- a table is interpolated at the cell centres of its zone (the cells of the zone range): it must
-  cover them along its direction (a centre on the first coordinate takes its value; a centre outside
-  the table stops ICB naming the first such cell, the file and its range);
+- a table is read like the scalar profiles ([Variable initialization](ic-setup.md#variable-initialization-file-driven)):
+  it must hold the centre of every cell of the zone's own range, a centre on its first point included;
+  a centre outside the table stops ICB naming the first such cell, the file and its range;
   its rows follow the rules of the profile files above (monotone coordinates, a row that is not two
   numbers skipped with a WARNING);
 - a Tecplot field gives every cell the value of the nearest cell of the file, taken from the first
@@ -126,8 +127,8 @@ Example:
 ```ini
 [ICB-Block1]
 type = nozzle
-p0 = 10.342
-T0 = 555.56
+p0 = 3.0e+5
+T0 = 500.0
 nozzle-direction = dx
 nozzle-threshold = 0.0
 ```
@@ -142,6 +143,7 @@ block: in a multizone block the plenum rows
 are written also outside the `range<n>` of the zone, and only the rows downstream take the nozzle law
 inside the range. The zone order therefore decides the state of the plenum cells that lie in the range
 of another zone:
+
 - a `nozzle` zone listed after another zone overwrites the cells of its plenum rows that the earlier
   zone wrote (`[WARNING] build_IG_field block <b> (section [<zone>]): the plenum rows of this nozzle zone
   ... overwrite <n> cells that an earlier zone wrote: the zone order decides their state`);

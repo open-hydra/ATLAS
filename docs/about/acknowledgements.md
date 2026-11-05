@@ -9,7 +9,7 @@ ATLAS is built upon several open-source libraries and tools.
 **Fortran INI ParseR and generator**
 
 - **Repository:** [github.com/szaghi/FiNeR](https://github.com/szaghi/FiNeR)
-- **License:** GPL v3.0
+- **License:** multi-licensed: GPL v3.0, BSD-2-Clause, BSD-3-Clause or MIT
 
 FiNeR is a pure Fortran 2003+ OOP library for reading and writing INI configuration files. ATLAS uses FiNeR in its Fortran solvers to parse structured input files.
 
@@ -20,7 +20,16 @@ FiNeR is a pure Fortran 2003+ OOP library for reading and writing INI configurat
 - **Repository:** [github.com/MarcoGrossi92/ORION](https://github.com/MarcoGrossi92/ORION)
 - **License:** GPL v3.0
 
-ORION provides built-in functions to read files in different formats. ATLAS uses ORION in its Fortran-based tools to import thermodynamic, transport, and chemistry tabulated data.
+ORION reads and writes structured multi-block files in different formats (Tecplot, VTK, PLOT3D). ATLAS uses ORION in its Fortran tools to read the meshes, the previous solutions and the GPB tables, and to write the initial fields and the source terms.
+
+### TecIO
+
+**Tecplot binary file library**
+
+- **Website:** [tecplot.com](https://tecplot.com/products/tecio-library/)
+- **License:** Tecplot TecIO license agreement (`lib/ORION/lib/TecIO/teciosrc/tecio_license_agreement.txt`)
+
+TecIO, vendored in ORION and built only with `--use-tecio`, reads and writes the binary Tecplot files (`.szplt`).
 
 ### NASA CEA
 
@@ -91,25 +100,36 @@ Pint handles physical unit parsing and conversion in the GPB input system, allow
 
 ---
 
+## GUI
+
+### PyQt
+
+- **Website:** [riverbankcomputing.com/software/pyqt](https://www.riverbankcomputing.com/software/pyqt/)
+- **License:** GPL v3.0 (or commercial)
+
+PyQt6 gives the ATLAS GUI its windows, forms and plots.
+
+### PyVista
+
+- **Website:** [pyvista.org](https://pyvista.org)
+- **License:** MIT
+
+PyVista and pyvistaqt (VTK) draw the 3-D views of the mesh, the boundary conditions and the initial field.
+
+---
+
 ## Documentation Tools
 
-### MkDocs
+### Zensical
 
 **Static Site Generator**
 
-- **Website:** [mkdocs.org](https://www.mkdocs.org)
-- **License:** BSD-2-Clause
-
-MkDocs transforms ATLAS's documentation into a searchable static website.
-
-### Material for MkDocs
-
-**Modern Documentation Theme**
-
-- **Website:** [squidfunk.github.io/mkdocs-material](https://squidfunk.github.io/mkdocs-material/)
+- **Website:** [zensical.org](https://zensical.org)
 - **License:** MIT
+- **Contribution:** Documentation site generation and theme
 
-Material for MkDocs provides the theme used by this documentation site.
+Zensical, by the team of Material for MkDocs, turns ATLAS's documentation into a searchable website. It reads the
+configuration of MkDocs (`mkdocs.yml`), with which the documentation was first written.
 
 ---
 
@@ -117,11 +137,12 @@ Material for MkDocs provides the theme used by this documentation site.
 
 ATLAS respects all licenses of its dependencies:
 
-- **GPL v3.0** — FiNeR, ORION
+- **GPL v3.0** — ORION, PyQt
+- **GPL v3.0, BSD or MIT** (at the user's choice) — FiNeR
 - **Apache License v2.0** — NASA CEA
-- **MIT** — PiNeR, CoolProp, Material for MkDocs
+- **MIT** — PiNeR, CoolProp, PyVista, Zensical
 - **BSD-3-Clause** — Cantera, NumPy, Pint
-- **BSD-2-Clause** — MkDocs
+- **Tecplot TecIO license** — TecIO (optional)
 
 See the [License](license.md) page for ATLAS's own license text.
 

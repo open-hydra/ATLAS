@@ -91,17 +91,17 @@ jobs:
           ATLASDIR: ${{ github.workspace }}
         run: |
           ulimit -s unlimited || true
-          # Every GPB-labelled test needs the GPB conda environment (cantera): the job above runs them.
+          # Every GPB- or KAnT-labelled test needs the conda environment (Cantera): the job above runs them.
           # Both rows run the same tests: cmake/SetFortranFlags.cmake builds with -fp-model precise
           # under ifx, which gives the gfortran references of x-variable and IG-chimera+connection
           # (issue #17).
-          ctest --test-dir build --output-on-failure --timeout 300 -LE GPB
+          ctest --test-dir build --output-on-failure --timeout 300 -LE 'GPB|KAnT'
 
   # OpenMP build under AddressSanitizer and UndefinedBehaviorSanitizer (gfortran -O1 -g), with
   # floating-point traps and signalling-NaN initialisation of reals: a test fails on a heap or
   # stack overrun, on undefined behaviour, and on a floating-point exception, including one
   # raised by a real used before it is set. It runs the tests that need no conda environment
-  # (the GPB-labelled tests run in the first job). The tests run single-threaded: their own
+  # (the GPB- and KAnT-labelled tests run in the first job). The tests run single-threaded: their own
   # environment (test/CMakeLists.txt) sets OMP_NUM_THREADS=1, and CTest applies it over the
   # environment of the job.
   # - cmake is called directly because install.sh cannot pass compiler flags. FF repeats the
@@ -136,7 +136,7 @@ jobs:
       - name: Configure (OpenMP, ASan/UBSan)
         run: |
           FF="-fno-underscoring -march=x86-64-v3 -cpp -ffree-line-length-none -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fcheck=all,no-bounds -ffpe-trap=invalid,zero,overflow -finit-real=snan"
-          cmake -S . -B build -DORION_PATH="$PWD/lib/ORION/" -DFINER_PATH="$PWD/lib/third_party/FiNeR/" -DCEA_PATH="$PWD/lib/cea/" \
+          cmake -S . -B build -DCEA_PATH="$PWD/lib/cea/" \
             -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_CXX_COMPILER=g++ -DUSE_TECIO=false -DUSE_OPENMP=true \
             -DCMAKE_Fortran_FLAGS="$FF" -DCMAKE_Fortran_FLAGS_RELEASE=-O1 -DCMAKE_Fortran_FLAGS_DEBUG=-O1 -DCMAKE_Fortran_FLAGS_TESTING=-O1 \
             -DCMAKE_CXX_FLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined"
@@ -155,4 +155,4 @@ jobs:
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: |
           ulimit -s unlimited || true
-          ctest --test-dir build --output-on-failure -LE GPB
+          ctest --test-dir build --output-on-failure -LE 'GPB|KAnT'

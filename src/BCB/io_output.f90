@@ -2,6 +2,7 @@ module io_write_bc_mod
   use, intrinsic :: iso_fortran_env, only : I4 => int32, R8 => real64
   use Lib_ORION_data
   use IR_Precision
+  use global_mod, only: outpath
   implicit none
   private
   public:: write_ig_bc
@@ -9,7 +10,6 @@ module io_write_bc_mod
   public:: write_dp_bc
 
   integer:: unitfile
-  character(len=18), parameter :: outpath = 'fromATLAStoSolver/'
 
   contains
   
@@ -368,6 +368,8 @@ module io_write_bc_mod
                   if (k > 0) then
                     if (this % gp_id == 200 .and. (this % dp(k) % id == 400 .or. this % dp(k) % id == 300)) &
                       print_id = this % dp(k) % id
+                    ! Manifold: the fluid's file keeps 501, a dispersed phase's carries its slot's 300 (builder_500)
+                    if (this % gp_id == 501) print_id = this % dp(k) % id
                   endif
                 elseif (k > 0) then
                   print_id = this % dp(k) % id
@@ -420,6 +422,8 @@ module io_write_bc_mod
                   enddo
                   write(unitfile,'(X,A)',advance='no') trim(this % dp(k) % distribution(mm,p))
                   write(unitfile,'(ES24.16)',advance='no') this % dp(k) % ds(mm,p)
+                  ! 401: G, the sum of gp over the 402/403 records of the cell (mix_dp_inlets), after ds
+                  if (this % dp(k) % id == 401) write(unitfile,'(ES24.16)',advance='no') this % dp(k) % g_fixed
                   write(unitfile,'(A)') ''
 
                 end select

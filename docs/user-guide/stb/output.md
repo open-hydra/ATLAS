@@ -8,7 +8,14 @@ STB writes source-term fields into `fromATLAStoSolver/` and may also write area-
 
 ### Source-term field output (`qvol`)
 
-Source output naming depends on the selected output format:
+The format is the `-o` (`--output`) option of STB, `tec-ascii` by default. `ATLAS.sh` does not read it: write it
+after `--`, which passes it on to STB.
+
+```bash
+ATLAS STB -- -o vtk-binary
+```
+
+The file names depend on the format:
 
 | Output selection | Main file(s) |
 |------------------|--------------|

@@ -1,7 +1,7 @@
 module config_mdb_mod
   use iso_fortran_env, only: R8 => real64
   use finer,           only: file_ini
-  use global_mod,      only: llen
+  use global_mod,      only: llen, phase_dir
   use registry_mod,    only: registry_t
   use config_shared_mod
   use cost_mod,        only: cost_coef_t, read_cost_file, NCLASS, CLASS_NAME
@@ -244,7 +244,7 @@ contains
     endif
 
     ph%dispersed = .false.
-    line = trim(ph%prefix)//'phase.txt'
+    line = phase_dir(trim(ph%prefix))//trim(ph%prefix)//'phase.txt'
     inquire(file=trim(line), exist=ex)
     if (.not. ex) then
       line = trim(ph%bc_in)//'/'//trim(ph%prefix)//'phase.txt'

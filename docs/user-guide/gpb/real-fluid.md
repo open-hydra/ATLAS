@@ -1,6 +1,8 @@
 # GPB — Real-Fluid Phase
 
-Contrary to the ideal-gas phase, the real-fluid is limited to a single species, and the user must select an equation of state (EOS) backend. This drastically limits the applicability of the real-fluid phase to specific applications.
+Contrary to the ideal-gas phase, a real fluid is a single species, whose properties come from an equation of state
+(EOS) chosen with the key `model`. GPB tabulates them on a grid of `NP` pressures between `pmin` and `pmax` [Pa] and
+`NH` enthalpies spanning `Tmin` to `Tmax` [K].
 
 ## Standard Definition
 
@@ -17,6 +19,12 @@ NH   = 40
 ```
 
 ## EOS Backends
+
+| `model` | Backend |
+|---|---|
+| `coolprop` (default) | CoolProp, the fluids of its library |
+| `redlich-kwong` | Redlich–Kwong, the fluids of `database/thermo/redlich-kwong.yaml` |
+| `peng-robinson` | Peng–Robinson, the fluids of `database/thermo/peng-robinson.yaml` |
 
 ### CoolProp (recommended)
 
