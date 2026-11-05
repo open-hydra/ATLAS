@@ -1,6 +1,6 @@
-# Tutorial: Condensed-Dispersed Phase
+# Condensed-Dispersed Phase
 
-**Source case:** `test/GPB/CP-Tvar-dispersed`
+**Tool:** GPB · **Case:** `test/GPB/CP-Tvar-dispersed` · **Run time:** a few seconds
 
 This tutorial shows how to define a condensed-dispersed (liquid droplets / particles) phase with temperature-variable properties from the Burcat database.
 
@@ -10,7 +10,7 @@ This tutorial shows how to define a condensed-dispersed (liquid droplets / parti
 - Using the Burcat thermodynamic database
 - Specifying particle density
 
-## The Input File
+## The Case
 
 ```ini
 [GPB-Phase1]
@@ -33,15 +33,22 @@ rho      = 2500
 
 GPB looks up the Burcat polynomial coefficients for the given `material` name. The database is shipped with ATLAS under `database/thermo/`.
 
-## Running
+## Run It
+
+In a folder of your own (the run writes `fromATLAStoSolver/` where it runs, so not in the test folder):
 
 ```bash
-cd test/GPB/CP-Tvar-dispersed
+mkdir -p ~/atlas-tutorials/gpb-condensed && cd ~/atlas-tutorials/gpb-condensed
+cp $ATLASDIR/test/GPB/CP-Tvar-dispersed/input.ini .
 ATLAS GPB
 ```
 
-## Expected Output
+## What It Writes
 
 ```
-fromATLAStoSolver/AL2O3(L).bin     # (or the name key value if set)
+fromATLAStoSolver/phase.txt
+fromATLAStoSolver/properties.dat
 ```
+
+`phase.txt` starts with `condensed-dispersed`; `properties.dat` holds cp, density and the absolute enthalpy
+(`Enthalpy_abs`) of `AL2O3(L)` from the Burcat database.

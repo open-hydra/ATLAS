@@ -198,6 +198,8 @@ module bcb_config_mod
   public :: load_bcb_ig_boundary_config
   public :: load_bcb_gsi_fluid_config
   public :: load_bcb_dp_boundary_config
+  public :: gsi_variant
+  public :: dp_inlet_key_given
   public :: load_bcb_unwrapped_config
   public :: write_bcb_registry_markdown
 
@@ -690,6 +692,58 @@ contains
     if (.not. cfg%has_dh) cfg%dh = 0.0_R8
 
   end subroutine load_bcb_gsi_fluid_config
+
+  !> The gsi variant the keys of a section select, tested in this order: 503 melting (cp, dh, T and qrad),
+  !> 504 pyrolysis (pyrolysis-model and qrad, no surface-reactions), 505 surface reactions (surface-reactions
+  !> and qrad, no pyrolysis-model), 506 pyrolysis + surface reactions (both models and qrad), else 502, the
+  !> solid-propellant grain. One rule for the record of a fluid phase and for a dispersed phase on the face.
+  pure integer function gsi_variant(cfg) result(id)
+    implicit none
+    type(bcb_gsi_fluid_config_t), intent(in) :: cfg
+
+    if (cfg%has_cp .and. cfg%has_dh .and. cfg%has_T .and. cfg%has_qrad) then
+      id = 503
+    elseif (cfg%pyrolysis_model /= 'none' .and. cfg%has_qrad .and. cfg%surface_reactions_model == 'none') then
+      id = 504
+    elseif (cfg%surface_reactions_model /= 'none' .and. cfg%has_qrad .and. cfg%pyrolysis_model == 'none') then
+      id = 505
+    elseif (cfg%pyrolysis_model /= 'none' .and. cfg%surface_reactions_model /= 'none' .and. cfg%has_qrad) then
+      id = 506
+    else
+      id = 502
+    endif
+
+  end function gsi_variant
+
+  !> True when the section gives an inlet key of the dispersed phase `phase`: one of the keys that
+  !> load_bcb_dp_boundary_config reads, with the phase's name prefix, or its krho profile file
+  !> (detect_bc_files). key: the first one found, in that loader's order.
+  logical function dp_inlet_key_given(sourceini, section, phase, key) result(given)
+    implicit none
+    type(file_ini), intent(in)  :: sourceini
+    character(*),   intent(in)  :: section
+    type(phase_t),  intent(in)  :: phase
+    character(*),   intent(out) :: key
+    character(len=12), parameter :: names(19) = [character(len=12) :: 'krho', 'kV', 'kT', 'gp', 'up', 'vp', 'wp', &
+      'Vp', 'Tp', 'rp', 'dp', 'sigmap', 'ds', 'alphap', 'betap', 'rRes', 'Tsat', 'distribution', 'krho-file']
+    character(len=129) :: pn
+    character(len=:), allocatable :: val
+    integer :: i, error
+
+    pn = trim(adjustl(phase%name))
+    if (phase%name /= '') pn = trim(pn)//'-'
+    given = .false.
+    key = ''
+    do i = 1, size(names)
+      call sourceini%get_string(section_name=section, option_name=trim(pn)//trim(names(i)), val=val, error=error)
+      if (error == 0) then
+        given = .true.
+        key = trim(pn)//trim(names(i))
+        return
+      endif
+    enddo
+
+  end function dp_inlet_key_given
 
   subroutine load_bcb_dp_boundary_config(sourceini, section, phase, cfg)
     implicit none

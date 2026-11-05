@@ -28,7 +28,7 @@ class TecplotWriter:
         """
         with open(path, "w") as fh:
             fh.write('TITLE = "KAnT Output"\n')
-            fh.write(f'VARIABLES = "{result.x_label}""{result.y_label}"\n')
+            fh.write(f'VARIABLES = "{result.x_label}", "{result.y_label}"\n')
 
             for model, y_vals in result.y.items():
                 # Per-model or shared x axis.
@@ -38,7 +38,7 @@ class TecplotWriter:
                     xx = result.x[model]
 
                 label = result.model_labels.get(model, model)
-                fh.write(f"ZONE T={label}\n")
+                fh.write(f'ZONE T="{label}"\n')   # quoted: a label may hold spaces
                 fh.write(f"I={len(xx)}, F=POINT\n")
                 for xi, yi in zip(xx, y_vals):
                     fh.write(f"{xi:<12}  {yi:.20E}\n")

@@ -8,6 +8,13 @@ original_authors:
   - name: Alex Falco
   - name: Alessio Sereno
 
+maintainers:
+  - name: Marco Grossi
+  - name: Vincenzo Barbato
+  - name: Alessandro Montanari
+  - name: Giacomo Passarani
+  - name: Andrea Giacomi
+
 exclude:
   - dependabot[bot]
   - github-actions[bot]

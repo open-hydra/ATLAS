@@ -8,42 +8,61 @@ document, in the order the tools run:
   is set up so far;
 * **Phases** -- GPB: the property tables the solver will read;
 * **Boundaries** -- BCB: the mesh and its boundary conditions;
+* **Initial** -- ICB: the initial state of every block;
 * **Review** -- the INI as it will be written, with everything the GUI can
-  check about it.
+  check about it, grouped by stage; an entry shows its section in the INI, a
+  double click opens it in its stage;
+* **Run** -- GPB, BCB and ICB run on the case, their log and the files they
+  write (:mod:`atlasgui.runpanel`).  Run and Stop are in the header too, for
+  every stage.
 """
 
 from __future__ import annotations
 
+import glob
 import os
+import re
+import sys
 
-from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QBrush, QColor, QFont, QSyntaxHighlighter, QTextCharFormat
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QFont, QFontMetrics, QKeySequence,
+                         QSyntaxHighlighter, QTextCharFormat, QTextCursor,
+                         QTextFormat)
 from PyQt6.QtWidgets import (
     QAbstractItemView, QApplication, QButtonGroup, QComboBox, QFileDialog,
-    QFrame, QHBoxLayout, QHeaderView, QLabel, QLineEdit, QListWidget,
-    QListWidgetItem, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton,
-    QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem, QVBoxLayout,
-    QWidget,
+    QFrame, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QLineEdit, QListWidget,
+    QListWidgetItem, QMenu, QMessageBox, QPlainTextEdit, QProgressBar,
+    QPushButton, QSizePolicy, QSplitter, QStackedWidget, QTableWidget,
+    QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
 )
 
-from . import filekeys, icons
+from . import bcfile, filekeys, icfield, icons, preferences, runner, tables
 from . import theme as thememod
 from .bcbpanel import BCBPanel
 from .bcmodel import ATLAS_PARAM_KEYS
 from .document import AtlasDocument
 from .filewidgets import FileColumn
 from .gpbpanel import GPBPanel
-from .widgets import Card, UIKit
+from .icbpanel import ICBPanel
+from .icmodel import block_label
+from .runpanel import RunPanel
+from .widgets import Card, ElidedLabel, UIKit
 
 STAGES = [
-    ("case", "Case", "sliders", "Where the case lives and what it contains"),
+    ("case", "Case", "case", "Where the case lives and what it contains"),
     ("gpb", "Phases", "layers", "GPB: the phases and their property tables"),
-    ("bcb", "Boundaries", "cube", "BCB: boundary conditions on the mesh"),
-    ("review", "Review", "code", "The INI file and what can be checked in it"),
+    ("bcb", "Boundaries", "boundary", "BCB: boundary conditions on the mesh"),
+    ("icb", "Initial", "initial", "ICB: the initial state of every block"),
+    ("review", "Review", "review", "The INI file and what can be checked in it"),
+    ("run", "Run", "play", "GPB, BCB and ICB on the case: their log and what they write"),
 ]
 
+STAGE_LABELS = {key: label for key, label, _icon, _tip in STAGES}
 LEVEL_COLORS = {"error": "danger", "warning": "warning", "info": "muted"}
 LEVEL_ICONS = {"error": "info", "warning": "info", "info": "info"}
+# what a Review entry holds besides its target (Qt.ItemDataRole.UserRole)
+ISSUE_LOG = Qt.ItemDataRole.UserRole + 1     # (tool, line) of a tool's message
+ISSUE_KEY = Qt.ItemDataRole.UserRole + 2     # the key it names
 
 
 class IniHighlighter(QSyntaxHighlighter):
@@ -86,29 +105,41 @@ class IniHighlighter(QSyntaxHighlighter):
 class AtlasMainWindow(QWidget):
     """The application window."""
 
-    COMPACT_WIDTH = 1420
-
     def __init__(self):
         super().__init__()
         self.doc = AtlasDocument()
         self.ini_path = None
         self.case_dir = os.getcwd()
+        self.current_stage = "case"
         self._dirty = False
         self._compact = False
+        self._header_widths = {}     # (stage, scale) -> width with labels
+        self._follows_screen = False
 
-        self.settings = QSettings("ATLAS", "ATLAS-GUI")
+        self.settings = preferences.settings()
+        themes, problems = preferences.load_themes()
+        for problem in problems:
+            print(f"[WARNING] ATLAS GUI: theme file skipped, {problem}",
+                  file=sys.stderr)
+        thememod.set_custom_themes(themes)
         self._theme_name = self.settings.value("theme", thememod.DEFAULT_THEME)
-        if self._theme_name not in thememod.THEMES:
+        if self._theme_name not in thememod.theme_names():
             self._theme_name = thememod.DEFAULT_THEME
         self._theme = thememod.get_theme(self._theme_name)
+        try:
+            self._text_size = float(self.settings.value("text-size", 1.0))
+        except (TypeError, ValueError):
+            self._text_size = 1.0
+        if self._text_size not in thememod.TEXT_SIZES:
+            self._text_size = 1.0
+        self._screen_scale = thememod.screen_scale(QApplication.primaryScreen())
         self.kit = UIKit(self)
 
         self.setObjectName("Root")
-        self.setWindowTitle("ATLAS — case setup")
-        self.setGeometry(40, 30, 1760, 1000)
-        self.setMinimumSize(1080, 680)
+        self.setWindowTitle("ATLAS")
         self._apply_stylesheet()
         self._build_ui()
+        self._fit_to_screen()
         self.kit.retint()
         self.bcb_panel.viewport.apply_theme(self._theme)
         self.set_stage("case")
@@ -118,22 +149,62 @@ class AtlasMainWindow(QWidget):
     def theme(self):
         return self._theme
 
+    @property
+    def ui_scale(self):
+        """Size factor of the whole interface: the screen's times the text size."""
+        return self._screen_scale * self._text_size
+
+    @property
+    def screen_scale(self):
+        """The part of :attr:`ui_scale` that comes from the screen."""
+        return self._screen_scale
+
     # ------------------------------------------------------------- chrome
     def _apply_stylesheet(self):
-        sheet = thememod.build_stylesheet(self._theme)
+        sheet = thememod.build_stylesheet(self._theme, self.ui_scale)
+        icon = icons.app_icon(self._theme["accent"], self._theme["bg"])
         app = QApplication.instance()
         if app is not None:
             app.setStyleSheet(sheet)
             app.setPalette(thememod.build_palette(self._theme))
+            app.setWindowIcon(icon)     # the Dock / taskbar icon
         else:                                            # pragma: no cover
             self.setStyleSheet(sheet)
-        self.setWindowIcon(icons.app_icon(self._theme["accent"], self._theme["bg"]))
+        self.setWindowIcon(icon)
+
+    def _fit_to_screen(self):
+        """Open at the design size, or as much of the screen as there is,
+        centred on it: a laptop has less room than the 1760 x 1000 design."""
+        screen = QApplication.primaryScreen()
+        width, height = self.kit.px(1760), self.kit.px(1000)
+        if screen is None:                               # pragma: no cover
+            self.resize(width, height)
+            return
+        avail = screen.availableGeometry()
+        width = min(width, avail.width() - 24)
+        height = min(height, avail.height() - 24)
+        self._apply_min_size()
+        self.resize(width, height)
+        self.move(avail.x() + (avail.width() - width) // 2,
+                  avail.y() + (avail.height() - height) // 2)
+
+    def _apply_min_size(self):
+        """The smallest window: 1080 x 640 at 100 % text, scaled with the text
+        and the screen (what the pages hold at 100 % needs more room at 125 %),
+        and never more than the screen has."""
+        width, height = self.kit.px(1080), self.kit.px(640)
+        screen = QApplication.primaryScreen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            width, height = min(width, avail.width() - 24), min(height, avail.height() - 24)
+        self.setMinimumSize(width, height)
 
     def _build_ui(self):
         root = QVBoxLayout(self)
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(9)
-        root.addWidget(self._build_header())
+        self.header = self._build_header()
+        root.addWidget(self.header)
 
         body = QHBoxLayout()
         body.setSpacing(9)
@@ -143,20 +214,26 @@ class AtlasMainWindow(QWidget):
         self.case_page = self._build_case_stage()
         self.gpb_panel = GPBPanel(self)
         self.bcb_panel = BCBPanel(self)
+        self.icb_panel = ICBPanel(self)
         self.review_page = self._build_review_stage()
-        self.gpb_panel.changed.connect(self.document_changed)
-        self.bcb_panel.changed.connect(self.document_changed)
-        for widget in (self.case_page, self.gpb_panel, self.bcb_panel,
-                       self.review_page):
-            self.stack.addWidget(widget)
+        self.run_panel = RunPanel(self)
+        self.run_panel.running_changed.connect(self._running_changed)
+        for panel in (self.gpb_panel, self.bcb_panel, self.icb_panel):
+            panel.changed.connect(self.document_changed)
+        pages = {"case": self.case_page, "gpb": self.gpb_panel,
+                 "bcb": self.bcb_panel, "icb": self.icb_panel,
+                 "review": self.review_page, "run": self.run_panel}
+        for key, _label, _icon, _tip in STAGES:
+            self.stack.addWidget(pages[key])
         body.addWidget(self.stack, 1)
         root.addLayout(body, 1)
 
-        # The view controls belong to the Boundaries stage only.
-        self.tool_stack.addWidget(QWidget())
-        self.tool_stack.addWidget(QWidget())
-        self.tool_stack.addWidget(self.bcb_panel.view_tools())
-        self.tool_stack.addWidget(QWidget())
+        # The Phases, Boundaries and Initial stages have view controls (the tables,
+        # the 3-D views); the tool stack has one page per stage, in the order of STAGES.
+        viewers = {"gpb": self.gpb_panel, "bcb": self.bcb_panel, "icb": self.icb_panel}
+        for key, _label, _icon, _tip in STAGES:
+            self.tool_stack.addWidget(
+                viewers[key].view_tools() if key in viewers else QWidget())
 
         root.addWidget(self._build_status_strip())
 
@@ -168,32 +245,59 @@ class AtlasMainWindow(QWidget):
         lay.setContentsMargins(12, 8, 12, 8)
         lay.setSpacing(8)
 
-        lay.addWidget(kit.icon_label("mesh", "accent", 26))
-        title_box = QVBoxLayout()
-        title_box.setSpacing(0)
+        brand_icon = QLabel()
+        kit.sized(lambda size, w=brand_icon: w.setPixmap(
+            icons.app_icon(self._theme["accent"]).pixmap(size, size)), 30)
+        lay.addWidget(brand_icon)
         brand = QLabel("ATLAS")
         brand.setObjectName("Brand")
-        sub = QLabel("CASE SETUP")
-        sub.setObjectName("BrandSub")
-        kit._compact_labels.append(sub)
-        title_box.addWidget(brand)
-        title_box.addWidget(sub)
-        lay.addLayout(title_box)
+        lay.addWidget(brand)
         lay.addSpacing(6)
         lay.addWidget(kit.vdivider())
 
+        native = QKeySequence.SequenceFormat.NativeText
+        open_keys = QKeySequence("Ctrl+O").toString(native)
+        self.open_button = kit.button(
+            "Open", None, "open", None, compactable=True,
+            tip=f"Open a case: its INI file ({open_keys}), a case folder -- the INI, the "
+                "mesh and the files the tools wrote --, or a recent case")
+        self.open_menu = QMenu(self.open_button)
+        self.open_menu.aboutToShow.connect(self._fill_open_menu)
+        self.open_button.setMenu(self.open_menu)
+        lay.addWidget(self.open_button)
+        for keys, slot in (("Ctrl+O", self.open_ini_dialog),
+                           ("Ctrl+Shift+O", self.open_case_dialog)):
+            action = QAction(self)
+            action.setShortcut(QKeySequence(keys))
+            action.triggered.connect(slot)
+            self.addAction(action)
         for text, slot, ico, role, tip in [
-            ("Open INI", self.open_ini_dialog, "open", None,
-             "Load an existing ATLAS input.ini"),
             ("Save INI", self.save_ini, "save", "primary",
              "Write the case file"),
             ("Save As", self.save_ini_as, "save-as", None,
              "Write the case file to a new path"),
-            ("Load Mesh", self.load_mesh_dialog, "mesh", None,
-             "Open a Tecplot or Plot3D multiblock mesh for the boundary stage"),
+            ("Load Mesh", self.load_mesh_dialog, "grid", None,
+             "Open a Tecplot or Plot3D multiblock mesh: the Boundaries and "
+             "Initial stages draw it"),
         ]:
             lay.addWidget(kit.button(text, slot, ico, role, tip=tip,
                                      compactable=True))
+
+        lay.addWidget(kit.vdivider())
+        run_keys = QKeySequence("Ctrl+R").toString(native)
+        self.run_header_button = kit.button(
+            "Run", self.run_tools, "play", None, compactable=True,
+            tip=f"Save the case and run GPB, BCB and ICB on it ({run_keys})")
+        self.stop_header_button = kit.button(
+            "Stop", self.stop_tools, "stop", "danger", compactable=True,
+            tip="End the tool that runs; the others do not start")
+        self.stop_header_button.setVisible(False)
+        lay.addWidget(self.run_header_button)
+        lay.addWidget(self.stop_header_button)
+        run_action = QAction("Run", self)
+        run_action.setShortcut(QKeySequence("Ctrl+R"))     # Cmd+R on macOS
+        run_action.triggered.connect(self.run_tools)
+        self.addAction(run_action)
 
         lay.addWidget(kit.vdivider())
         self.tool_stack = QStackedWidget()
@@ -202,23 +306,103 @@ class AtlasMainWindow(QWidget):
         lay.addWidget(self.tool_stack)
         lay.addStretch(1)
 
-        self.theme_combo = QComboBox()
-        for name in thememod.THEMES:
-            self.theme_combo.addItem(name, name)
-        index = self.theme_combo.findData(self._theme_name)
-        if index >= 0:
-            self.theme_combo.setCurrentIndex(index)
-        self.theme_combo.setToolTip("Application colour theme (remembered).")
-        self.theme_combo.setMinimumWidth(115)
-        self.theme_combo.currentIndexChanged.connect(
-            lambda _i: self.apply_theme(self.theme_combo.currentData()))
-        group = QHBoxLayout()
-        group.setSpacing(6)
-        group.addWidget(kit.icon_label("contrast", "muted", 16))
-        group.addWidget(kit.section_label("Theme", compactable=True))
-        group.addWidget(self.theme_combo)
-        lay.addLayout(group)
+        lay.addWidget(self._build_display_button())
         return bar
+
+    def _fill_open_menu(self):
+        """The Open menu: an INI, a case folder, the cases opened last."""
+        menu = self.open_menu
+        menu.clear()
+        action = menu.addAction(self.kit.icon("file", "text_dim", 16), "INI file…")
+        action.setShortcut(QKeySequence("Ctrl+O"))
+        action.setToolTip("An ATLAS input.ini; the mesh of its folder is loaded with it")
+        action.triggered.connect(self.open_ini_dialog)
+        action = menu.addAction(self.kit.icon("open", "text_dim", 16), "Case folder…")
+        action.setShortcut(QKeySequence("Ctrl+Shift+O"))
+        action.triggered.connect(self.open_case_dialog)
+        menu.setToolTipsVisible(True)
+        recent = preferences.recent_cases(self.settings)
+        if recent:
+            menu.addSection("Recent")
+            for path in recent:
+                action = menu.addAction(_case_title(path))
+                action.setToolTip(path)
+                action.triggered.connect(lambda _c=False, p=path: self.open_recent(p))
+            menu.addSeparator()
+            menu.addAction("Clear the list", self._clear_recent)
+
+    def _clear_recent(self):
+        preferences.clear_recent_cases(self.settings)
+        self.refresh_case()
+
+    def _build_display_button(self):
+        """One menu for the text size and the colour theme: two combos would
+        leave no room for the Boundaries view tools on a laptop screen."""
+        button = self.kit.button(
+            "Display", None, "contrast", compactable=True,
+            tip="Text size and colour theme (both remembered).")
+        menu = QMenu(button)
+
+        text_menu = menu.addMenu("Text size")
+        group = QActionGroup(self)
+        self._size_actions = {}
+        for size in thememod.TEXT_SIZES:
+            action = text_menu.addAction(f"{round(size * 100)} %")
+            action.setCheckable(True)
+            action.setChecked(size == self._text_size)
+            action.triggered.connect(
+                lambda _checked=False, s=size: self.set_text_size(s))
+            group.addAction(action)
+            self._size_actions[size] = action
+        text_menu.addSeparator()
+        bindings = QKeySequence.keyBindings
+        for label, keys, step in (
+                ("Larger", bindings(QKeySequence.StandardKey.ZoomIn)
+                 + [QKeySequence("Ctrl+=")], 1),
+                ("Smaller", bindings(QKeySequence.StandardKey.ZoomOut), -1),
+                ("Fitted to the screen (100 %)", [QKeySequence("Ctrl+0")], 0)):
+            action = text_menu.addAction(label)
+            # One action per step: a key bound twice is ambiguous to Qt and
+            # fires neither (some platforms' ZoomIn includes Ctrl+= already).
+            action.setShortcuts(list({k.toString(): k for k in keys}.values()))
+            action.triggered.connect(
+                lambda _checked=False, s=step: self.step_text_size(s))
+            self.addAction(action)      # the keys work anywhere in the window
+
+        self._theme_menu = menu.addMenu("Theme")
+        self._theme_group = None
+        self._fill_theme_menu()
+
+        menu.addSeparator()
+        settings = menu.addAction("Settings…")
+        keys = QKeySequence.keyBindings(QKeySequence.StandardKey.Preferences) \
+            or [QKeySequence("Ctrl+,")]     # Cmd+, on macOS; none elsewhere
+        settings.setShortcuts(keys)
+        settings.triggered.connect(lambda: self.open_settings())
+        self.addAction(settings)
+        button.setMenu(menu)
+        return button
+
+    def _fill_theme_menu(self):
+        """The Theme submenu: the built-in themes, then the user's."""
+        self._theme_menu.clear()
+        if self._theme_group is not None:
+            self._theme_group.deleteLater()
+        group = self._theme_group = QActionGroup(self._theme_menu)
+        self._theme_actions = {}
+        for index, name in enumerate(thememod.theme_names()):
+            if index == len(thememod.THEMES):
+                self._theme_menu.addSeparator()
+            action = self._theme_menu.addAction(name)
+            action.setCheckable(True)
+            action.setChecked(name == self._theme_name)
+            action.triggered.connect(
+                lambda _checked=False, n=name: self.apply_theme(n))
+            group.addAction(action)
+            self._theme_actions[name] = action
+        self._theme_menu.addSeparator()
+        self._theme_menu.addAction(
+            "Edit colours…", lambda: self.open_settings("colours"))
 
     def _build_stage_rail(self):
         rail = QFrame()
@@ -236,7 +420,7 @@ class AtlasMainWindow(QWidget):
             button.setProperty("role", "stage")
             button.setCheckable(True)
             button.setToolTip(tip)
-            button.setMinimumHeight(38)
+            self.kit.sized(button.setMinimumHeight, 38)
             self.kit.bind_icon(button, ico, "text_dim", 19)
             button.clicked.connect(lambda _c=False, k=key: self.set_stage(k))
             self._stage_group.addButton(button, index)
@@ -248,7 +432,7 @@ class AtlasMainWindow(QWidget):
         self.rail_notes.setSpacing(4)
         lay.addLayout(self.rail_notes)
         lay.addStretch(1)
-        rail.setFixedWidth(176)
+        self.kit.sized(rail.setFixedWidth, 176)
         return rail
 
     # ---------------------------------------------------------- case stage
@@ -263,6 +447,8 @@ class AtlasMainWindow(QWidget):
         row.setSpacing(10)
         left = QVBoxLayout()
         left.setSpacing(10)
+        right = QVBoxLayout()
+        right.setSpacing(10)
 
         where = Card()
         where.body.addLayout(kit.panel_header("open", "CASE FILES"))
@@ -277,20 +463,50 @@ class AtlasMainWindow(QWidget):
         dir_row.addWidget(kit.button("Browse…", self.browse_case_dir, "open"))
         where.body.addWidget(kit.section_label("CASE DIRECTORY"))
         where.body.addLayout(dir_row)
-        where.body.addWidget(kit.section_label("INI FILE"))
-        self.case_ini_label = QLabel("not saved yet")
+
+        def file_row(title, label, buttons):
+            """A name under its title, the buttons that change it beside it."""
+            line = QHBoxLayout()
+            line.setSpacing(7)
+            text = QVBoxLayout()
+            text.setSpacing(3)
+            text.addWidget(kit.section_label(title))
+            text.addWidget(label)
+            line.addLayout(text, 1)
+            for button in buttons:
+                line.addWidget(button, 0, Qt.AlignmentFlag.AlignBottom)
+            return line
+
+        self.case_ini_label = ElidedLabel("not saved yet", Qt.TextElideMode.ElideMiddle)
         self.case_ini_label.setProperty("role", "value")
-        where.body.addWidget(self.case_ini_label)
-        where.body.addWidget(kit.section_label("MESH"))
-        self.case_mesh_label = QLabel("no mesh loaded")
+        where.body.addLayout(file_row("INI FILE", self.case_ini_label, [
+            kit.button("Open INI…", self.open_ini_dialog, "file",
+                       tip="An ATLAS input.ini; the mesh of its folder with it"),
+            kit.button("Open folder…", self.open_case_dialog, "open",
+                       tip="A case folder: its INI if it has one, its mesh, and "
+                           "the files the tools wrote there")]))
+        self.case_mesh_label = ElidedLabel("no mesh loaded", Qt.TextElideMode.ElideMiddle)
         self.case_mesh_label.setProperty("role", "value")
-        where.body.addWidget(self.case_mesh_label)
-        mesh_row = QHBoxLayout()
-        mesh_row.setSpacing(7)
-        mesh_row.addWidget(kit.button("Load mesh…", self.load_mesh_dialog, "mesh"))
-        mesh_row.addStretch(1)
-        where.body.addLayout(mesh_row)
+        where.body.addLayout(file_row("MESH", self.case_mesh_label, [
+            kit.button("Load mesh…", self.load_mesh_dialog, "grid")]))
+        self.recent_list = QListWidget()
+        self.recent_list.setObjectName("RecentCases")
+        self.recent_list.setToolTip("The cases opened last: click one to open it")
+        self.recent_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.recent_list.setTextElideMode(Qt.TextElideMode.ElideMiddle)
+        self.recent_list.itemClicked.connect(
+            lambda item: self.open_recent(item.data(Qt.ItemDataRole.UserRole)))
+        self.recent_label = kit.section_label("RECENT CASES")
+        where.body.addWidget(self.recent_label)
+        where.body.addWidget(self.recent_list)
         left.addWidget(where)
+
+        written = Card()
+        written.body.addLayout(kit.panel_header("chart", "WHAT THE TOOLS WROTE"))
+        self.outputs_rows = QVBoxLayout()
+        self.outputs_rows.setSpacing(6)
+        written.body.addLayout(self.outputs_rows)
+        right.addWidget(written)
 
         params = Card()
         params.body.addLayout(
@@ -300,7 +516,7 @@ class AtlasMainWindow(QWidget):
         self.param_global.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch)
         self.param_global.verticalHeader().setVisible(False)
-        self.param_global.verticalHeader().setDefaultSectionSize(28)
+        kit.table_rows(self.param_global)
         self.param_global.setShowGrid(False)
         self.param_global.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
@@ -323,8 +539,10 @@ class AtlasMainWindow(QWidget):
             "Global settings shared by the ATLAS tools, written as the "
             "[ATLAS-Parameters] section."))
 
+        right.addWidget(params, 1)
+
         overview = Card()
-        overview.body.addLayout(kit.panel_header("layers", "CASE OVERVIEW"))
+        overview.body.addLayout(kit.panel_header("case", "CASE OVERVIEW"))
         self.overview_row = QHBoxLayout()
         self.overview_row.setSpacing(10)
         overview.body.addLayout(self.overview_row)
@@ -332,9 +550,10 @@ class AtlasMainWindow(QWidget):
         left.addStretch(1)
 
         row.addLayout(left, 1)
-        row.addWidget(params, 1)
+        row.addLayout(right, 1)
         outer.addLayout(row, 1)
-        return page
+        # a short or narrow window scrolls the page: no card is squeezed over another
+        return kit.scrollable(page, horizontal=True)
 
     def _overview_tile(self, icon_name, title, value, note, stage):
         tile = QFrame()
@@ -376,13 +595,18 @@ class AtlasMainWindow(QWidget):
         self.issue_list.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.issue_list.itemDoubleClicked.connect(self._goto_issue)
+        self.issue_list.currentItemChanged.connect(self._show_issue_section)
+        self.issue_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.issue_list.customContextMenuRequested.connect(self._issue_menu)
         self.issue_list.setToolTip(
-            "What the GUI can check without running the tools. "
-            "Double-click an entry to go to it.")
+            "What the GUI checks in the case, and what the tools said in the last "
+            "run. Click an entry to see its section in the INI, double-click it to "
+            "open it; right-click a tool's message to see it in the log.")
         checks.body.addWidget(self.issue_list, 1)
         checks.body.addWidget(kit.hint(
-            "GPB and BCB run their own checks too; these are the ones that can "
-            "be made from the file alone."))
+            "Entries marked GPB, BCB or ICB are the errors and warnings the tools "
+            "printed in the last run (Run stage); the others are the checks the GUI "
+            "makes from the case file and, once it is loaded, the mesh."))
         splitter.addWidget(checks)
 
         preview = Card()
@@ -396,9 +620,78 @@ class AtlasMainWindow(QWidget):
         self.highlighter = IniHighlighter(self.preview.document(), self._theme)
         preview.body.addWidget(self.preview, 1)
         splitter.addWidget(preview)
-        splitter.setSizes([420, 900])
+        splitter.setSizes([kit.px(420), kit.px(900)])
         lay.addWidget(splitter)
         return page
+
+    def _section_of(self, target):
+        """The header of the INI section an issue of *target* is about, as the
+        preview writes it (a prefix for the BCB blocks), or None."""
+        stage, index = target
+        icb = self.doc.icb
+        if stage == "case":
+            return "[ATLAS-Parameters]"
+        if stage == "gpb":
+            return f"[GPB-Phase{index + 1}]" if isinstance(index, int) else None
+        if stage == "bcb":
+            return f"[{index}]" if isinstance(index, str) else "[BCB-Block"
+        if stage != "icb" or index is None:
+            return None
+        if isinstance(index, tuple):
+            return f"[{index[1]}]"
+        if index != "*" and index in icb.blocks:
+            return f"[ICB-Block{index}]"
+        return "[ICB-Block*]" if icb.wildcard is not None else None
+
+    def _show_issue_section(self, item, _previous=None):
+        """Bring the section of the issue *item* into the preview, marked, and
+        the line of the key a tool's message names more strongly."""
+        target = item.data(Qt.ItemDataRole.UserRole) if item is not None else None
+        key = item.data(ISSUE_KEY) if item is not None else None
+        header = self._section_of(target) if target else None
+        selections = []
+        lines = self.preview.toPlainText().split("\n")
+        start = next((n for n, line in enumerate(lines)
+                      if header and line.strip().startswith(header)), None)
+        if start is not None:
+            end = start + 1
+            while end < len(lines) and lines[end].strip() and \
+                    not lines[end].lstrip().startswith("["):
+                end += 1
+            document = self.preview.document()
+            for n in range(start, end):
+                selection = QTextEdit.ExtraSelection()
+                selection.cursor = QTextCursor(document.findBlockByNumber(n))
+                named = key and lines[n].split("=", 1)[0].strip() == key
+                colour = "accent_soft" if named or not key else "accent_wash"
+                selection.format.setBackground(QColor(self._theme[colour]))
+                selection.format.setProperty(QTextFormat.Property.FullWidthSelection, True)
+                selections.append(selection)
+            # the header near the top: from the end, the view scrolls up to it
+            self.preview.moveCursor(QTextCursor.MoveOperation.End)
+            self.preview.setTextCursor(
+                QTextCursor(document.findBlockByNumber(max(start - 1, 0))))
+        self.preview.setExtraSelections(selections)
+
+    def _issue_menu(self, pos):
+        item = self.issue_list.itemAt(pos)
+        if item is None or not item.data(Qt.ItemDataRole.UserRole):
+            return
+        menu = QMenu(self.issue_list)
+        target = item.data(Qt.ItemDataRole.UserRole)
+        menu.addAction(f"Open in {STAGE_LABELS[target[0]]}", lambda: self._goto_issue(item))
+        where = item.data(ISSUE_LOG)
+        if where:
+            menu.addAction("Show in the log", lambda: self._show_in_log(*where))
+        menu.addAction("Copy", lambda: QApplication.clipboard().setText(
+            item.toolTip() or item.text()))
+        menu.exec(self.issue_list.viewport().mapToGlobal(pos))
+
+    def _show_in_log(self, tool, line):
+        self.set_stage("run")
+        if not self.run_panel.show_log_line(tool, line):
+            self.warn("Show in the log", "The log no longer holds this line: it was "
+                      "cleared since the run.")
 
     def _goto_issue(self, item):
         target = item.data(Qt.ItemDataRole.UserRole)
@@ -408,6 +701,10 @@ class AtlasMainWindow(QWidget):
         self.set_stage(stage)
         if stage == "gpb" and index is not None:
             self.gpb_panel.phase_list.setCurrentRow(index)
+        elif stage == "icb" and index is not None:
+            self.icb_panel.select_target(index)
+        elif stage == "bcb" and isinstance(index, str):
+            self.bcb_panel.open_section(index)
 
     # -------------------------------------------------------- status strip
     def _build_status_strip(self):
@@ -419,33 +716,57 @@ class AtlasMainWindow(QWidget):
         lay.setSpacing(10)
 
         lay.addWidget(kit.icon_label("save", "muted", 16))
-        self.status = QLabel("new case")
+        self.status = ElidedLabel("new case", Qt.TextElideMode.ElideMiddle, keep=14)
         self.status.setProperty("role", "value")
         lay.addWidget(self.status)
         self.dirty_badge = kit.badge("unsaved")
         self.dirty_badge.setVisible(False)
         lay.addWidget(self.dirty_badge)
 
-        lay.addWidget(kit.vdivider())
-        lay.addWidget(kit.section_label("PHASES"))
-        self.phases_badge = kit.badge("0")
-        lay.addWidget(self.phases_badge)
-        lay.addWidget(kit.section_label("BLOCKS"))
-        self.blocks_badge = kit.badge("0")
-        lay.addWidget(self.blocks_badge)
+        def group(*widgets):
+            """A name beside its value, closer than the gap between groups."""
+            box = QHBoxLayout()
+            box.setContentsMargins(0, 0, 0, 0)
+            box.setSpacing(6)
+            for widget in widgets:
+                box.addWidget(widget)
+            return box
 
         lay.addWidget(kit.vdivider())
-        lay.addWidget(kit.section_label("COVERAGE"))
+        self.phases_badge = kit.badge("0")
+        self.blocks_badge = kit.badge("0")
+        lay.addLayout(group(kit.section_label("PHASES"), self.phases_badge))
+        lay.addLayout(group(kit.section_label("BLOCKS"), self.blocks_badge))
+
+        lay.addWidget(kit.vdivider())
         self.progress = QProgressBar()
         self.progress.setTextVisible(False)
-        self.progress.setFixedWidth(150)
-        lay.addWidget(self.progress)
+        kit.sized(self.progress.setFixedWidth, 56)
         self.faces_label = QLabel("0 / 0 faces")
         self.faces_label.setProperty("role", "muted")
-        lay.addWidget(self.faces_label)
+        lay.addLayout(group(kit.section_label("COVERAGE"), self.progress, self.faces_label))
+
+        lay.addWidget(kit.vdivider())
+        self.initial_progress = QProgressBar()
+        self.initial_progress.setTextVisible(False)
+        kit.sized(self.initial_progress.setFixedWidth, 56)
+        self.initial_label = QLabel("0 / 0 blocks")
+        self.initial_label.setProperty("role", "muted")
+        lay.addLayout(group(kit.section_label("INITIAL"), self.initial_progress,
+                            self.initial_label))
 
         lay.addStretch(1)
-        self.issues_label = QLabel("no issues")
+        self.run_dot = QLabel()
+        self.run_state = ElidedLabel(keep=8)
+        self.run_state.setProperty("role", "value")
+        self.run_state.setToolTip("The last run of the tools (Run stage)")
+        for widget in (self.run_dot, self.run_state):
+            widget.setVisible(False)
+            lay.addWidget(widget)
+        self.run_divider = kit.vdivider()
+        self.run_divider.setVisible(False)
+        lay.addWidget(self.run_divider)
+        self.issues_label = ElidedLabel("no issues", keep=8)
         self.issues_label.setProperty("role", "muted")
         lay.addWidget(self.issues_label)
         return bar
@@ -455,16 +776,131 @@ class AtlasMainWindow(QWidget):
         index = [k for k, _l, _i, _t in STAGES].index(key)
         self.stack.setCurrentIndex(index)
         self.tool_stack.setCurrentIndex(index)
+        # A stacked widget is as wide as its widest page: only the stage's own
+        # view tools count, so the header is not held wide by another stage's.
+        for i in range(self.tool_stack.count()):
+            policy = (QSizePolicy.Policy.Preferred if i == index
+                      else QSizePolicy.Policy.Ignored)
+            self.tool_stack.widget(i).setSizePolicy(policy, policy)
+        # Now, not from the queued layout request: the header is measured below.
+        self.tool_stack.updateGeometry()
         button = self.stage_buttons[key]
         if not button.isChecked():
             button.setChecked(True)
         self.current_stage = key
+        self._update_compact()
         if key == "gpb":
             self.gpb_panel.refresh()
         elif key == "bcb":
             self.bcb_panel.refresh_block_phases()
+        elif key == "icb":
+            self.icb_panel.refresh()      # the phases and the mesh may have changed
         elif key == "review":
+            self.icb_panel.reload_phases()
             self.refresh_review()
+        elif key == "case":
+            self.icb_panel.reload_phases()
+            self.refresh_case()
+        elif key == "run":
+            self.run_panel.refresh()
+
+    # ----------------------------------------------------------------- runs
+    def run_tools(self):
+        """Run the selected tools on the case, from any stage: the Run stage
+        shows their log."""
+        if self.run_panel.running():
+            return
+        self.set_stage("run")
+        self.run_panel.run()
+
+    def stop_tools(self):
+        self.run_panel.stop()
+
+    def show_initial_field(self, path=None):
+        """The Initial stage, its view showing the field ICB wrote (*path*,
+        when given)."""
+        self.set_stage("icb")
+        if path is not None:
+            controls = self.icb_panel.field_controls
+            index = controls.phase.findData(path)
+            if index < 0:
+                controls.set_files(icfield.field_files(self.case_dir), path)
+            else:
+                controls.phase.setCurrentIndex(index)
+        self.icb_panel.set_view_mode("field")
+
+    def show_tables(self, name=None, sheet=None):
+        """The Phases stage, the tables of phase *name* drawn (the one
+        selected, when None)."""
+        self.set_stage("gpb")
+        self.gpb_panel.reveal_tables()
+        if name is not None:
+            self.gpb_panel.show_tables(name, sheet)
+
+    def show_written_bcs(self, path=None):
+        """The Boundaries stage, every boundary cell in the colour of the BC
+        BCB wrote (in file *path*, when given)."""
+        self.set_stage("bcb")
+        view = self.bcb_panel.written_view
+        if path is not None:
+            index = view.file.findData(path)
+            if index >= 0:
+                view.file.blockSignals(True)
+                view.file.setCurrentIndex(index)
+                view.file.blockSignals(False)
+        self.bcb_panel.set_view_mode("written")
+
+    def show_output(self, path):
+        """Draw the file *path* of fromATLAStoSolver/ in its stage: a table
+        of GPB, a boundary file of BCB, an initial field of ICB.  False when
+        it is none of them."""
+        name = os.path.basename(path)
+        if bcfile._NAME.match(name):
+            self.show_written_bcs(path)
+            return True
+        if any(f.path == path for f in icfield.field_files(self.case_dir)):
+            self.show_initial_field(path)
+            return True
+        for suffix, role in tables.ROLES.items():
+            stem = name[:-len(suffix)] if name.endswith(suffix) else None
+            if stem is None or (stem and not stem.endswith("-")):
+                continue
+            sheet = {"transport": "thermo", "phase": None, "reactions": "arrhenius",
+                     "composition": None}.get(role, role)
+            self.show_tables(stem[:-1], sheet)
+            return True
+        return False
+
+    def _running_changed(self, running):
+        self.run_header_button.setVisible(not running)
+        self.stop_header_button.setVisible(running)
+        self.refresh_run_state()
+
+    def refresh_run_state(self):
+        """The run in the status bar: the tool that runs, or how the last
+        run ended."""
+        state = self.run_panel.state_text()
+        for widget in (self.run_dot, self.run_state, self.run_divider):
+            widget.setVisible(state is not None)
+        if state is None:
+            return
+        text, token = state
+        self.run_state.setText(text)
+        self.run_dot.setPixmap(icons.dot_pixmap(self.kit.color(token), self.kit.px(10)))
+
+    def run_finished(self, ok):
+        """A run ended: the phase files, the outputs and the field may be new."""
+        self.icb_panel.reload_phases()
+        self.icb_panel.field_changed()
+        self.gpb_panel.refresh_tables()
+        self.bcb_panel.written_changed()
+        self.refresh_status()
+        self.refresh_run_state()
+        if self.current_stage == "case":
+            self.refresh_case()
+        if self.current_stage == "review":
+            self.refresh_review()
+        QApplication.alert(self)        # the Dock icon bounces if the window is behind
 
     # ------------------------------------------------------------ file ops
     def set_case_dir(self, path):
@@ -494,20 +930,61 @@ class AtlasMainWindow(QWidget):
             self.refresh_all()
 
     def open_ini_dialog(self):
+        if not self._confirm_discard():
+            return
         path, _ = QFileDialog.getOpenFileName(
             self, "Open ATLAS INI", self.case_dir,
             "INI files (*.ini);;All files (*)")
         if path:
+            self.open_ini(path, confirm=False)
+
+    def open_case_dialog(self):
+        if not self._confirm_discard():
+            return
+        path = QFileDialog.getExistingDirectory(
+            self, "Open a case folder: its INI, its mesh, the files the tools wrote",
+            self.case_dir)
+        if path:
+            self.open_case(path, confirm=False)
+
+    def open_recent(self, path):
+        if not path or not os.path.exists(path):
+            self.warn("Open", f"{path} is not there any more.")
+            self.refresh_case()
+            return
+        if os.path.isdir(path):
+            self.open_case(path)
+        else:
             self.open_ini(path)
 
-    def open_ini(self, path):
+    def _confirm_discard(self):
+        """True when the case may be replaced: it has no unsaved change, or
+        the user lets them go."""
+        if not self._dirty:
+            return True
+        reply = QMessageBox.question(
+            self, "Unsaved changes",
+            "The case has changes that are not saved. Open another case and lose them?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        return reply == QMessageBox.StandardButton.Yes
+
+    def open_ini(self, path, confirm=True):
+        """Open the case of *path*: the INI, the mesh the tools read in its
+        folder, and what they wrote there."""
+        if confirm and not self._confirm_discard():
+            return False
         try:
             with open(path) as handle:
                 text = handle.read()
         except OSError as exc:
             QMessageBox.critical(self, "Open failed", str(exc))
-            return
+            return False
         new_doc = AtlasDocument.from_ini(text)
+        self.doc = new_doc
+        self.ini_path = path
+        self.set_case_dir(os.path.dirname(os.path.abspath(path)))
+        self._load_case_mesh()
         if self.bcb_panel.blocks:
             if new_doc.bcb.nblocks and \
                     new_doc.bcb.nblocks != len(self.bcb_panel.blocks):
@@ -516,12 +993,69 @@ class AtlasMainWindow(QWidget):
                     f"The file defines {new_doc.bcb.nblocks} block(s) but the "
                     f"loaded mesh has {len(self.bcb_panel.blocks)}. "
                     f"Assignments applied where they fit.")
-        self.doc = new_doc
-        self.ini_path = path
-        self.set_case_dir(os.path.dirname(os.path.abspath(path)))
         self.bcb_panel.sync_blocks_to_mesh()
         self._dirty = False
+        preferences.add_recent_case(path, self.settings)
         self.refresh_all()
+        return True
+
+    def open_case(self, folder, confirm=True):
+        """Open the case in *folder*: its INI (``input.ini``, or the one
+        INI there, or the one chosen), else the files alone -- the mesh and
+        what the tools wrote, to look at."""
+        if confirm and not self._confirm_discard():
+            return False
+        folder = os.path.abspath(os.path.expanduser(folder))
+        if os.path.basename(folder.rstrip(os.sep)) == runner.OUTPUT_DIR:
+            folder = os.path.dirname(folder.rstrip(os.sep))      # the case around it
+        inis = sorted(glob.glob(os.path.join(folder, "*.ini")))
+        chosen = None
+        if os.path.join(folder, "input.ini") in inis:
+            chosen = os.path.join(folder, "input.ini")
+        elif len(inis) == 1:
+            chosen = inis[0]
+        elif inis:
+            names = [os.path.basename(p) for p in inis]
+            name, ok = QInputDialog.getItem(self, "Open a case",
+                                            "The folder has several INI files: which one?",
+                                            names, 0, False)
+            if not ok:
+                return False
+            chosen = os.path.join(folder, name)
+        if chosen is not None:
+            return self.open_ini(chosen, confirm=False)
+        self.doc = AtlasDocument()
+        self.ini_path = None
+        self.set_case_dir(folder)
+        self._load_case_mesh()
+        self.bcb_panel.sync_blocks_to_mesh()
+        self._dirty = False
+        preferences.add_recent_case(folder, self.settings)
+        self.refresh_all()
+        self.status.setText(f"No INI in {os.path.basename(folder)}: the files the tools wrote")
+        return True
+
+    def _load_case_mesh(self):
+        """Load the mesh BCB and ICB read in the case folder, unless it is
+        the one shown."""
+        path = runner.tools_mesh(self.case_dir)
+        if path is None:
+            # a folder copied from a run may keep the mesh under its own name:
+            # the one mesh file there (the run links it as the tools read it)
+            found = [p for ext in runner.MESH_LINK_NAMES if ext != ".dat"
+                     for p in glob.glob(os.path.join(self.case_dir, f"*{ext}"))
+                     if not re.match(r"(.+-)?ic\.", os.path.basename(p))]   # not ICB's field
+            path = found[0] if len(found) == 1 else None
+        if path is None or path.endswith(".szplt"):
+            return False
+        current = self.bcb_panel.mesh_path
+        if current and runner._same_file(current, path):
+            return False
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            return self.bcb_panel.load_mesh(path)
+        finally:
+            QApplication.restoreOverrideCursor()
 
     def save_ini(self):
         if not self.ini_path:
@@ -530,9 +1064,19 @@ class AtlasMainWindow(QWidget):
         undefined = self.doc.bcb.undefined_faces()
         if (missing or undefined) and not self._confirm_missing(missing, undefined):
             return
+        text = self.doc.to_ini()
         try:
-            with open(self.ini_path, "w") as handle:
-                handle.write(self.doc.to_ini())
+            # the same text is not written again: the date of the file says
+            # when the case last changed (the Initial stage compares it with
+            # the field ICB wrote)
+            with open(self.ini_path) as handle:
+                same = handle.read() == text
+        except OSError:
+            same = False
+        try:
+            if not same:
+                with open(self.ini_path, "w") as handle:
+                    handle.write(text)
         except OSError as exc:
             QMessageBox.critical(self, "Save failed", str(exc))
             return
@@ -548,6 +1092,7 @@ class AtlasMainWindow(QWidget):
             self.ini_path = path
             self.set_case_dir(os.path.dirname(os.path.abspath(path)))
             self.save_ini()
+            preferences.add_recent_case(path, self.settings)
 
     def _confirm_missing(self, missing, undefined=()):
         parts = []
@@ -582,10 +1127,13 @@ class AtlasMainWindow(QWidget):
     def refresh_all(self):
         self.bcb_panel.refresh()
         self.gpb_panel.refresh()
+        self.icb_panel.refresh()
         self._refresh_globals_table()
         self.refresh_case()
         self.refresh_review()
         self.refresh_status()
+        if self.current_stage == "run":
+            self.run_panel.refresh()
 
     def refresh_case(self):
         from .widgets import clear_layout
@@ -607,14 +1155,110 @@ class AtlasMainWindow(QWidget):
             "layers", "PHASES", str(nphases),
             ", ".join(self.doc.gpb.names()) or "none defined yet", "gpb"))
         self.overview_row.addWidget(self._overview_tile(
-            "cube", "BLOCKS", str(nblocks),
+            "boundary", "BLOCKS", str(nblocks),
             f"{done} of {total} faces assigned" if total else "no mesh loaded",
             "bcb"))
+        ready, count = self._initial_coverage(issues)
+        if self.doc.icb.is_empty():
+            note = "not set up yet"
+        elif count:
+            note = "blocks ICB can write"
+        else:
+            note = "no block known yet"
         self.overview_row.addWidget(self._overview_tile(
-            "check", "CHECKS", str(errors),
+            "initial", "INITIAL", f"{ready} / {count}" if count else "—",
+            note, "icb"))
+        self.overview_row.addWidget(self._overview_tile(
+            "review", "CHECKS", str(errors),
             "error(s) to fix before running" if errors else "nothing blocking",
             "review"))
         self.overview_row.addStretch(1)
+        self._refresh_case_files()
+
+    def _refresh_case_files(self):
+        """The cases opened last, and what the tools wrote in this one."""
+        from .widgets import clear_layout
+        recent = preferences.recent_cases(self.settings)
+        self.recent_list.clear()
+        for path in recent:
+            folder = path if os.path.isdir(path) else os.path.dirname(path)
+            item = QListWidgetItem(self.kit.icon("open" if os.path.isdir(path) else "file",
+                                                 "muted", 15),
+                                   f"{_case_title(path)}    {_home(folder)}")
+            item.setData(Qt.ItemDataRole.UserRole, path)
+            item.setToolTip(path)
+            self.recent_list.addItem(item)
+        for widget in (self.recent_list, self.recent_label):
+            widget.setVisible(bool(recent))
+        if recent:
+            rows = min(len(recent), 3)
+            frame = 2 * self.recent_list.frameWidth() + 4
+            self.recent_list.setFixedHeight(
+                rows * max(self.recent_list.sizeHintForRow(0), 1) + frame)
+
+        clear_layout(self.outputs_rows)
+        case = self.case_dir
+        phases = tables.phase_outputs(case)
+        bcs = [f for f in bcfile.bc_files(case) if f.level == 1]
+        fields = icfield.field_files(case)
+        where = os.path.relpath(tables.output_dir(case), case)
+        where = "the case folder" if where == "." else f"{where}/"
+        rows = [
+            ("GPB", "chart", "Tables",
+             f"{len(phases)} phase{'s' * (len(phases) != 1)}: "
+             + ", ".join(p.name or "(unnamed)" for p in phases) if phases
+             else "no property table yet", bool(phases), lambda: self.show_tables(
+                 phases[0].name if phases and not self.doc.gpb.phases else None)),
+            ("BCB", "boundary", "Boundaries",
+             ", ".join(os.path.basename(f.path) for f in bcs) if bcs
+             else "no boundary file yet", bool(bcs), self.show_written_bcs),
+            ("ICB", "initial", "Field",
+             ", ".join(os.path.basename(f.path) for f in fields) if fields
+             else "no initial field yet", bool(fields), self.show_initial_field),
+        ]
+        for tool, icon_name, action, text, found, slot in rows:
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            row.addWidget(self.kit.icon_label(icon_name, "accent" if found else "muted", 16))
+            label = QLabel(f"<b>{tool}</b>  ·  {text}")
+            label.setWordWrap(True)
+            if not found:
+                label.setProperty("role", "muted")
+            row.addWidget(label, 1)
+            button = self.kit.button(action, lambda _c=False, f=slot: f(), None, "ghost",
+                                     tip=f"Draw what {tool} wrote in its stage")
+            button.setEnabled(found)
+            row.addWidget(button)
+            self.outputs_rows.addLayout(row)
+        self.outputs_rows.addWidget(self.kit.hint(
+            f"In {where}. Run the tools to write them, or open a case folder that holds "
+            "them."))
+
+    def _initial_coverage(self, issues):
+        """``(ready, blocks)``: how many blocks have an initial state ICB can
+        write -- their own section or ``[ICB-Block*]``'s, and no error in it
+        (*issues* as :meth:`_issues` gives them)."""
+        count = self.icb_panel.block_count()
+        if not count:
+            return 0, 0
+        icb = self.doc.icb
+        broken, wildcard_broken = set(), False
+        for level, (stage, index), _message in issues:
+            if level != "error" or stage != "icb":
+                continue
+            owner = index[0] if isinstance(index, tuple) else index
+            if owner == "*":
+                wildcard_broken = True
+            elif isinstance(owner, int):
+                broken.add(owner)
+        ready = 0
+        for b in range(1, count + 1):
+            if icb.block(b) is None or b in broken:
+                continue
+            if b not in icb.blocks and wildcard_broken:
+                continue                    # it takes the state of a section with errors
+            ready += 1
+        return ready, count
 
     def _coverage(self):
         total = sum(len(f) for f in self.doc.bcb.block_faces)
@@ -641,6 +1285,10 @@ class AtlasMainWindow(QWidget):
             issues.append(("error", ("bcb", None), (
                 f"{len(undefined)} face(s) name a BC that is not defined: "
                 f"{preview}")))
+        level = "error" if self.doc.strict_keys() else "warning"
+        for name, key, why in self.doc.bcb.refused_keys():
+            issues.append((level, ("bcb", name), (
+                f"BC '{name}': BCB reads no key {key} ({why})")))
         # A deck without GPB sections takes its phases from *phase.txt files
         # the GUI does not read, so the names can only be checked against GPB.
         if self.doc.gpb.phases:
@@ -659,6 +1307,13 @@ class AtlasMainWindow(QWidget):
         if not self.doc.gpb.phases:
             issues.append(("info", ("gpb", None), (
                 "no phase defined: GPB has nothing to build")))
+        # A case that does not use ICB yet gets one note, not an error per block.
+        if self.doc.icb.is_empty():
+            issues.append(("info", ("icb", None), (
+                "no initial state yet: ICB has nothing to build")))
+        else:
+            issues += [(level, ("icb", target), message)
+                       for level, target, message in self.icb_panel.validate()]
         issues += self._file_issues()
         return issues
 
@@ -677,8 +1332,9 @@ class AtlasMainWindow(QWidget):
                 return
             state, _path, why = filekeys.status(value, self.case_dir, role)
             if state == "missing":
-                issues.append(("warning", (stage, index),
-                               f"{where}: {key} — {why}"))
+                # ICB stops on every file it cannot open; the other tools vary
+                issues.append(("error" if context == "icb-section" else "warning",
+                               (stage, index), f"{where}: {key} — {why}"))
             elif state == "too-long":
                 issues.append(("error", (stage, index),
                                f"{where}: {key} — {why}"))
@@ -692,36 +1348,100 @@ class AtlasMainWindow(QWidget):
             label = f"phase {phase.get('name') or index + 1}"
             for key, value in phase.params.items():
                 check(value, key, "gpb-phase", label, "gpb", index)
+        for block in self.doc.icb.all_blocks():
+            states = [(block_label(block.index), block, block.index)]
+            states += [(f"{block_label(block.index)}, zone [{ref.section}]",
+                        self.doc.icb.zones[ref.section], (block.index, ref.section))
+                       for ref in block.zone_refs() if ref.section in self.doc.icb.zones]
+            for where, state, target in states:
+                for key, value in state.params.items():
+                    check(value, key, "icb-section", where, "icb", target)
         return issues
 
     def refresh_review(self):
         self.preview.setPlainText(self.doc.to_ini())
         self.issue_list.clear()
         issues = self._issues()
+        told = self.run_panel.tool_messages()
+        stale = bool(told) and self.run_panel.messages_stale()
         order = {"error": 0, "warning": 1, "info": 2}
-        for level, target, message in sorted(issues, key=lambda i: order[i[0]]):
-            item = QListWidgetItem(f"  {message}")
-            item.setIcon(icons.dot(self._theme[LEVEL_COLORS[level]], 10))
-            item.setData(Qt.ItemDataRole.UserRole, target)
-            item.setToolTip(f"{level}: {message}")
-            self.issue_list.addItem(item)
-        if not issues:
-            item = QListWidgetItem("  Nothing to report")
+        if told:
+            tools = sorted({m.tool for m in told}, key=lambda t: "GPB BCB ICB".find(t))
+            note = (f"{', '.join(tools)}: what the tools printed in the run at "
+                    f"{self.run_panel.run_time():%H:%M:%S}")
+            if stale:
+                note += " — the case has changed since: run again to update it"
+            banner = QListWidgetItem(note)
+            banner.setFlags(Qt.ItemFlag.NoItemFlags)
+            banner.setIcon(self.kit.icon("terminal", "warning" if stale else "muted", 14))
+            banner.setForeground(QBrush(QColor(self._theme["muted"])))
+            self.issue_list.addItem(banner)
+        # grouped by the stage that fixes them, in the order the tools run
+        group_font = QFont(self.issue_list.font())
+        group_font.setWeight(QFont.Weight.DemiBold)
+        group_font.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 1.2)
+        for stage, label, _icon, _tip in STAGES:
+            mine = sorted((i for i in issues if i[1][0] == stage),
+                          key=lambda i: order[i[0]])
+            theirs = sorted((m for m in told if m.target[0] == stage),
+                            key=lambda m: order[m.level])
+            if not mine and not theirs:
+                continue
+            counts = []
+            for level, name in (("error", "error"), ("warning", "warning"),
+                                ("info", "note")):
+                n = sum(1 for lv, _t, _m in mine if lv == level)
+                n += sum(1 for m in theirs if m.level == level)
+                if n:
+                    counts.append(f"{n} {name}" + ("s" if n > 1 else ""))
+            header = QListWidgetItem(f"{label.upper()}   ·   {', '.join(counts)}")
+            header.setFlags(Qt.ItemFlag.NoItemFlags)
+            header.setFont(group_font)
+            header.setForeground(QBrush(QColor(self._theme["muted"])))
+            # room above the group, its title at the bottom of it
+            header.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
+            header.setSizeHint(QSize(0, int(QFontMetrics(group_font).height() * 2.1)))
+            self.issue_list.addItem(header)
+            for level, target, message in mine:
+                item = QListWidgetItem(message)
+                item.setIcon(icons.dot(self._theme[LEVEL_COLORS[level]], 10))
+                item.setData(Qt.ItemDataRole.UserRole, target)
+                item.setToolTip(f"{level} ({STAGE_LABELS[stage]}): {message}")
+                self.issue_list.addItem(item)
+            for m in theirs:
+                self.issue_list.addItem(self._message_item(m, stale))
+        if not issues and not told:
+            item = QListWidgetItem("Nothing to report")
             item.setForeground(QBrush(QColor(self._theme["muted"])))
             self.issue_list.addItem(item)
         errors = sum(1 for level, _t, _m in issues if level == "error")
-        self.issue_badge.setText(str(len(issues)))
+        errors += sum(1 for m in told if m.level == "error")
+        self.issue_badge.setText(str(len(issues) + len(told)))
         self.issue_badge.setToolTip(f"{errors} error(s)")
+
+    def _message_item(self, message, stale):
+        """The Review entry of a tool's message: the tool, what it said, how
+        many times; its lines and the run in the tooltip."""
+        text = f"{message.tool} · {message.text}"
+        if message.count > 1:
+            text += f"   (×{message.count})"
+        item = QListWidgetItem(text)
+        item.setIcon(self.kit.icon("terminal", LEVEL_COLORS[message.level], 14))
+        item.setData(Qt.ItemDataRole.UserRole, message.target)
+        item.setData(ISSUE_LOG, (message.tool, message.line))
+        item.setData(ISSUE_KEY, message.key)
+        tip = [f"{message.level} printed by {message.tool}"
+               + (f", {message.count} times" if message.count > 1 else "") + ":",
+               message.text] + message.details
+        if stale:
+            tip.append("(the case has changed since this run)")
+            item.setForeground(QBrush(QColor(self._theme["muted"])))
+        item.setToolTip("\n".join(tip))
+        return item
 
     def refresh_status(self):
         total, done = self._coverage()
-        self.progress.setMaximum(max(total, 1))
-        self.progress.setValue(done)
-        state = "done" if total and done == total else "open"
-        if self.progress.property("state") != state:
-            self.progress.setProperty("state", state)
-            self.progress.style().unpolish(self.progress)
-            self.progress.style().polish(self.progress)
+        self._set_progress(self.progress, done, total)
         self.faces_label.setText(f"{done} / {total} faces")
         nphases, nblocks = self.doc.summary()
         self.phases_badge.setText(str(nphases))
@@ -730,7 +1450,18 @@ class AtlasMainWindow(QWidget):
         self.status.setText(
             os.path.basename(self.ini_path) if self.ini_path else "new case")
         self.status.setToolTip(self.ini_path or "not written to a file yet")
+        name = os.path.basename(self.ini_path) if self.ini_path else \
+            f"{os.path.basename(self.case_dir)} (no INI)"
+        self.setWindowTitle(f"{name}{' (unsaved)' if self._dirty else ''} — ATLAS")
         issues = self._issues()
+        ready, count = self._initial_coverage(issues)
+        self._set_progress(self.initial_progress, ready, count)
+        self.initial_label.setText(f"{ready} / {count} blocks")
+        tip = (f"{ready} of {count} blocks have an initial state ICB can write: their own "
+               "section or [ICB-Block*]'s, and no error in it (Review lists them)"
+               if count else "The blocks come from the mesh, or the BCB deck: load the mesh")
+        for widget in (self.initial_progress, self.initial_label):
+            widget.setToolTip(tip)
         errors = sum(1 for level, _t, _m in issues if level == "error")
         warnings = sum(1 for level, _t, _m in issues if level == "warning")
         if errors:
@@ -740,6 +1471,17 @@ class AtlasMainWindow(QWidget):
         else:
             self.issues_label.setText("no issues")
         self.refresh_case_badges()
+
+    @staticmethod
+    def _set_progress(bar, done, total):
+        """*bar* at *done* of *total*, green when it is all there."""
+        bar.setMaximum(max(total, 1))
+        bar.setValue(done)
+        state = "done" if total and done == total else "open"
+        if bar.property("state") != state:
+            bar.setProperty("state", state)
+            bar.style().unpolish(bar)
+            bar.style().polish(bar)
 
     def refresh_case_badges(self):
         if getattr(self, "current_stage", None) == "case":
@@ -789,34 +1531,123 @@ class AtlasMainWindow(QWidget):
             self._commit_globals()
 
     # ---------------------------------------------------------------- theme
-    def apply_theme(self, name):
-        self._theme_name = name
-        self._theme = thememod.get_theme(name)
+    def _restyle(self):
+        """Re-apply the theme and the size to everything already built."""
         self._apply_stylesheet()
+        self._apply_min_size()
         self.kit.retint()
         self.highlighter.set_theme(self._theme)
         self.bcb_panel.restyle()
+        self.run_panel.restyle()
+        self.refresh_run_state()
         self.gpb_panel.refresh()
+        self.icb_panel.refresh()
         self.refresh_review()
-        index = self.theme_combo.findData(name)
-        if index >= 0 and index != self.theme_combo.currentIndex():
-            self.theme_combo.blockSignals(True)
-            self.theme_combo.setCurrentIndex(index)
-            self.theme_combo.blockSignals(False)
+        self._update_compact()
+
+    def apply_theme(self, name):
+        self.set_appearance(name, self._text_size)
+
+    def set_text_size(self, size):
+        """Scale the text and the controls by *size* (1.0 = fitted to the screen)."""
+        if size in thememod.TEXT_SIZES and size != self._text_size:
+            self.set_appearance(self._theme_name, size)
+
+    def set_appearance(self, name, size):
+        """Make theme *name* at text *size* the application's, and remember
+        them.  The Theme menu is rebuilt: the user's themes may have changed."""
+        if name not in thememod.theme_names():
+            name = thememod.DEFAULT_THEME
+        self._theme_name = name
+        self._theme = thememod.get_theme(name)
+        self._text_size = size
+        self._restyle()
+        self._fill_theme_menu()
+        self._size_actions[size].setChecked(True)
         self.settings.setValue("theme", name)
+        self.settings.setValue("text-size", size)
+
+    def preview_appearance(self, tokens, size):
+        """Show a theme (its tokens) at text *size* without remembering it:
+        the Settings window previews its changes through this."""
+        self._theme = tokens
+        self._text_size = size
+        self._restyle()
+
+    def open_settings(self, page="appearance"):
+        from .settingsdialog import SettingsDialog
+        dialog = SettingsDialog(self, page)
+        dialog.exec()
+        dialog.deleteLater()
+
+    def step_text_size(self, step):
+        """One text size up (+1) or down (-1), or back to 100 % (0)."""
+        sizes = thememod.TEXT_SIZES
+        if step == 0:
+            self.set_text_size(1.0)
+            return
+        index = sizes.index(self._text_size) + step
+        self.set_text_size(sizes[min(max(index, 0), len(sizes) - 1)])
 
     # ----------------------------------------------------------- responsive
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        width = event.size().width()
-        if width < self.COMPACT_WIDTH - 40 and not self._compact:
+    def _header_needs(self):
+        """Width the header takes with its button labels, measured for the
+        current stage (Boundaries and Initial add their view tools) and size."""
+        key = (self.current_stage, self.ui_scale)
+        if key not in self._header_widths:
+            # Nothing is painted before the state is put back.
+            self.kit.set_compact(False)
+            margins = self.layout().contentsMargins()
+            self._header_widths[key] = (self.header.minimumSizeHint().width()
+                                        + margins.left() + margins.right())
+            self.kit.set_compact(self._compact)
+        return self._header_widths[key]
+
+    def _update_compact(self, width=None):
+        """Drop the header's button labels (keeping icons and tooltips) when
+        the window is narrower than the header needs with them."""
+        width = self.width() if width is None else width
+        limit = self._header_needs()
+        if width < limit and not self._compact:
             self._compact = True
             self.kit.set_compact(True)
-        elif width > self.COMPACT_WIDTH and self._compact:
+        elif width >= limit + 8 and self._compact:
             self._compact = False
             self.kit.set_compact(False)
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_compact(event.size().width())
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        handle = self.windowHandle()
+        if handle is not None and not self._follows_screen:
+            handle.screenChanged.connect(self._on_screen_changed)
+            self._follows_screen = True
+            # Widgets take the stylesheet's fonts when first shown: a width
+            # measured before that is too small.
+            self._header_widths.clear()
+            self._update_compact()
+
+    def _on_screen_changed(self, screen):
+        """A window dragged to a larger or smaller screen takes its size."""
+        scale = thememod.screen_scale(screen)
+        if abs(scale - self._screen_scale) > 1e-3:
+            self._screen_scale = scale
+            self._restyle()
+
     def closeEvent(self, event):
+        if self.run_panel.running():
+            reply = QMessageBox.question(
+                self, "Run in progress",
+                f"{self.run_panel.session.running} is running on the case.\n"
+                "Stop it and close?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel)
+            if reply != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+            self.run_panel.stop_and_wait()
         if self._dirty:
             reply = QMessageBox.question(
                 self, "Unsaved changes",
@@ -835,8 +1666,21 @@ class AtlasMainWindow(QWidget):
                     event.ignore()
                     return
         self.bcb_panel.close_viewport()
+        self.icb_panel.close_viewport()
         super().closeEvent(event)
 
 
 # The window used to be the BCB GUI; keep the old name importable.
 BCBMainWindow = AtlasMainWindow
+
+
+def _case_title(path):
+    """``chamber · input.ini`` for an INI, ``chamber · files`` for a folder."""
+    if os.path.isdir(path):
+        return f"{os.path.basename(path.rstrip(os.sep))} · files"
+    return f"{os.path.basename(os.path.dirname(path))} · {os.path.basename(path)}"
+
+
+def _home(path):
+    home = os.path.expanduser("~")
+    return "~" + path[len(home):] if path.startswith(home) else path

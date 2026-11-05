@@ -34,7 +34,7 @@ from .widgets import Dialog
 
 #: colour token per state of a stored value
 STATE_TOKEN = {
-    "found": "success",
+    "found": "success_text",
     "missing": "danger_text",
     "too-long": "danger_text",
     "keyword": "text_dim",
@@ -159,7 +159,7 @@ class FileField(QWidget):
         self.edit.setToolTip(role.hint or role.label)
         self.edit.textEdited.connect(self._on_typed)
         self.mark = QLabel()
-        self.mark.setFixedWidth(18)
+        self.mark.setFixedWidth(kit.px(18))
         button = kit.button(browse_text, self._browse, "open",
                             tip=role.hint or f"Choose the {role.label}")
         row.addWidget(self.edit, 1)
@@ -222,7 +222,7 @@ class FileColumn:
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        table.setColumnWidth(2, self.WIDTH)
+        kit.sized(lambda width: table.setColumnWidth(2, width), self.WIDTH)
         kit.register_repaint(self.refresh)
 
     def case_dir(self):
@@ -247,7 +247,7 @@ class FileColumn:
             if table.cellWidget(row, 2) is None:
                 button = self.kit.button("", None, "open",
                                          tip=f"Choose the {role.label}")
-                button.setFixedWidth(self.WIDTH - 6)
+                button.setFixedWidth(self.kit.px(self.WIDTH - 6))
                 button.clicked.connect(
                     lambda _checked=False, r=row: self.browse(r))
                 table.setCellWidget(row, 2, button)
@@ -324,7 +324,7 @@ class FilesDialog(Dialog):
             self.layout_.addLayout(add)
         self.layout_.addStretch(1)
         self.add_buttons(close_only=True)
-        self.resize(760, 0)
+        self.resize(self.kit.px(760), 0)
 
     def _add_row(self, key, role):
         field = FileField(self.kit, role, self.params.get(key, ""),

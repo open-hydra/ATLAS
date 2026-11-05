@@ -20,4 +20,3 @@ dependencies:
 - pip:
     - -e lib/PiNeR
     - -e lib/cea
-    - -e lib/ORION

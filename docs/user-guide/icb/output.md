@@ -52,11 +52,9 @@ the keys were given in ([Turbulence](./ic-setup.md#turbulence)).
 Under the Reynolds-stress model a pure-2D target (two coordinates, or a single node plane) carries five turbulence
 bands, `ruu rvv rww ruv rhoOmega`: the Reynolds-stress state of Q2D, which reads the initial condition by position.
 Every other target (a single layer of cells included) carries seven, `ru'u' rv'v' rw'w' ru'v' ru'w' rv'w' rhoOmega`.
-Main wrote the seven bands on a pure-2D target too, so Q2D read `ru'w'` as omega.
 
 ## Notes
 
-- ICB does not write `IC_block_<n>.bin` files.
 - VTK/Tecplot selection is entirely controlled through `IC-format`.
 - Output file names are phase-aware and include `<phase>-` only for named phases.
 

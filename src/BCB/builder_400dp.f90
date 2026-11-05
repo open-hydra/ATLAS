@@ -25,6 +25,7 @@ contains
     self % dp(k) % properties   = 1.0_R8
     self % dp(k) % distribution = 'none'
     self % dp(k) % ds           = 0.0_R8
+    self % dp(k) % krho_sum     = 0.0_R8
 
     call load_bcb_dp_boundary_config(sourceini, section, phase, cfg)
 
@@ -46,6 +47,7 @@ contains
         self % dp(k) % properties(m,1:npCP,1) = cfg%materials(m)%krho
         self % dp(k) % properties(m,1:npCP,2) = cfg%materials(m)%kV
         self % dp(k) % properties(m,1:npCP,5) = cfg%materials(m)%kT
+        self % dp(k) % krho_sum = self % dp(k) % krho_sum + sum(cfg%materials(m)%krho(1:npCP))
 
       elseif (self % dp(k) % id == 402) then
         self % dp(k) % properties(m,1:npCP,1) = cfg%materials(m)%gp

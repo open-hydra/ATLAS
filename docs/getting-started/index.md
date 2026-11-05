@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to the ATLAS getting-started guide! This section will help you install ATLAS and run your first examples.
+This section installs ATLAS and builds a first case with it.
 
 <div class="grid cards" markdown>
 
@@ -8,7 +8,7 @@ Welcome to the ATLAS getting-started guide! This section will help you install A
 
     ---
 
-    Build the API and the executable from source
+    Build the Fortran tools from source, create the Python environment and set up the `ATLAS` command.
 
     [:octicons-arrow-right-24: Install ATLAS](installation.md)
 
@@ -16,19 +16,11 @@ Welcome to the ATLAS getting-started guide! This section will help you install A
 
     ---
 
-    Get up and running in minutes
+    Build the phase tables, the boundary conditions and the initial field of a 3-D nozzle, from the shell.
 
-    [:octicons-arrow-right-24: Quick start tutorial](quick-start.md)
+    [:octicons-arrow-right-24: Run the Quick Start](quick-start.md)
 
 </div>
 
-## Scope of This Section
-
-This getting started guide covers:
-
-1. **Installation**
-   - Step-by-step build instructions
-   - Build options and customization
-
-2. **Quick Start**
-   - Run your first case
+Once the case runs, the [User Guide](../user-guide/index.md) describes every tool, and the
+[ATLAS GUI](../user-guide/gui.md) sets up and runs the same case in a window.

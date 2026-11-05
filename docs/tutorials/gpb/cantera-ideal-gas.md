@@ -1,6 +1,6 @@
-# Tutorial: Cantera Ideal-Gas
+# Cantera Ideal-Gas
 
-**Source case:** `test/GPB/IG-reactive`
+**Tool:** GPB · **Case:** `test/GPB/IG-reactive` · **Run time:** a few seconds
 
 This tutorial shows how to build a reactive gas phase using a Cantera mechanism file for species thermodynamics and transport properties.
 
@@ -10,7 +10,7 @@ This tutorial shows how to build a reactive gas phase using a Cantera mechanism 
 - How to add inert species to a reactive mixture
 - How `thermo = NASA9` and `transport = cantera` interact
 
-## The Input File
+## The Case
 
 ```ini
 [GPB-Phase1]
@@ -34,15 +34,27 @@ Tmax      = 5000
 !!! info
     When `type` is not specified, GPB defaults to `type = ideal-gas`.
 
-## Running
+## Run It
+
+In a folder of your own (the run writes `fromATLAStoSolver/` where it runs, so not in the test folder):
 
 ```bash
-cd test/GPB/IG-reactive
+mkdir -p ~/atlas-tutorials/gpb-cantera && cd ~/atlas-tutorials/gpb-cantera
+cp $ATLASDIR/test/GPB/IG-reactive/input.ini .
 ATLAS GPB
 ```
 
-## Expected Output
+## What It Writes
 
 ```
-fromATLAStoSolver/<mechanism-name>.bin
+fromATLAStoSolver/phase.txt
+fromATLAStoSolver/thermo.dat
+fromATLAStoSolver/transport.dat
+fromATLAStoSolver/diffusion.dat
+fromATLAStoSolver/composition.txt
+fromATLAStoSolver/chemistry-info.txt
+fromATLAStoSolver/chemistry-Arrhenius.dat
 ```
+
+The section has no `name`, so the files have no prefix. The mechanism's reactions give `chemistry-info.txt` and
+`chemistry-Arrhenius.dat`, Cantera's transport `diffusion.dat` (binary diffusion of every pair).

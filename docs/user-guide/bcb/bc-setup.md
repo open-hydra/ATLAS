@@ -15,7 +15,7 @@ This page covers the full BCB input setup:
 BCB assigns BCs to block faces based on the face mapping defined in the `[BCB-BlockN]` sections. Each face of a block is numbered according to the following convention:
 
 <figure style="margin-top: -90px; margin-bottom: -90px; overflow: hidden;">
-  {% include "user-guide/bcb/images/block-faces.svg" %}
+  --8<-- "docs/user-guide/bcb/images/block-faces.svg"
 </figure>
 
 !!! warning
@@ -48,7 +48,7 @@ T = 300.0
 
 [out]
 type = outlet
-p = 1.0
+p = 1.0e+5
 
 [wall_hot]
 type = wall
@@ -72,7 +72,8 @@ T = 1200.0
 | `face1` … `face6` | Name of the BC section assigned to each face (up to 6 for 3-D blocks) |
 | `phase` | Space-separated list of phase names active in this block (omit to use all phases) |
 
-If a face is not listed an error is generated. Except for 2-D plane or axisymmetric meshes, in these cases BCB automatically assigns `null` or `axisymmetric` to face 5 and face 6.
+A face that is not listed stops BCB, except faces 5 and 6 of a 2-D planar or axisymmetric mesh, to which BCB
+assigns `null` or `axisymmetric` itself.
 
 **Multi-phase example** — restricting a block to a single phase:
 
@@ -182,7 +183,7 @@ range2 = 0.1 1.0
 
 [inflow]
 type = inlet
-p0 = 3.0
+p0 = 3.0e+5
 T0 = 500.0
 ```
 
@@ -213,16 +214,25 @@ patch1 = inj1
 range1 = 0.0 1.5e-3 -30.0 30.0
 patch2 = adiabatic
 range2 = 1.5e-3 9.5e-3 -30.0 30.0
-patch3 = inj2
-range3 = 9.5e-3 12.5e-3 -6.0 6.0
-patch4 = adiabatic
-range4 = 9.5e-3 12.5e-3 6.0 30.0
+patch3 = adiabatic
+range3 = 9.5e-3 12.5e-3 -30.0 -6.0
+patch4 = inj2
+range4 = 9.5e-3 12.5e-3 -6.0 6.0
+patch5 = adiabatic
+range5 = 9.5e-3 12.5e-3 6.0 30.0
+patch6 = adiabatic
+range6 = 12.5e-3 50.0e-3 -30.0 30.0
 ```
 
 Each `rangeN` is four numbers: `r_lo r_hi theta_lo theta_hi`.
 
 Cells are assigned to the **first** patch whose range they fall within. Ranges may overlap —
 order matters.
+
+The ranges must cover the whole face. A cell in none of them would be written `0`, the code of a face with no BC:
+BCB stops instead, naming the face, the number of cells left out and the first of them —
+`[ERROR] block 1 face 1 ([plate]): 300 of its 960 cells lie in none of the ranges of its patches and would be written
+0 (no BC)`. Cells that [`BC-force-connect`](connectivity.md) turns into connections count as covered.
 
 ### Multipatch via file (`range-file`)
 
@@ -253,7 +263,7 @@ outer-patch = isoth
 
 [inflow]
 type = inlet
-p0 = 10d+5
+p0 = 1.0e+6
 T0 = 300
 yN2 = 0.7435
 yO2 = 0.228

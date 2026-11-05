@@ -1,6 +1,6 @@
 ! Area variation along a direction (x, y, r, theta).
 ! Reads 1D (coordinate, area) profile from an ASCII file specified in the INI,
-! interpolates it onto the 2D block-face nodes, and writes outpath/blockN_area.dat
+! interpolates it onto the 2D block-face nodes, and writes fromATLAStoSolver/blockN_area.dat
 module area_variation_mod
   use, intrinsic :: iso_fortran_env, only: R8 => real64
   use finer,      only: file_ini
@@ -17,7 +17,6 @@ module area_variation_mod
   real(R8), parameter :: PI    = 4.0_R8 * atan(1.0_R8)
   real(R8), parameter :: TWOPI = 2.0_R8 * PI
 
-  character(len=18), parameter :: outpath = 'fromATLAStoSolver/'
 
 contains
 
@@ -88,7 +87,7 @@ contains
     endif
 
     ! Write output
-    write(outfile, '(A,"/block",I0,"_area.dat")') trim(outpath), block_id
+    write(outfile, '(A,"block",I0,"_area.dat")') outpath, block_id
     call write_area(outfile, aout)
 
     if (verbose) write(*,'(A,I0,2A)') '   [area] Block ', block_id, ' -> ', trim(outfile)
