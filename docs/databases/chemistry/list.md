@@ -148,6 +148,12 @@ A detailed chemical kinetic model for methane oxidation under high-pressure cond
 
 A family of skeletal mechanisms for methane–oxygen combustion at high pressure, generated via Tangential Stretching Rate (TSR) analysis combined with CSP-based reduction. Starting from the detailed ZhukovC1C4 mechanism (207 species), the reduction targets specific canonical configurations.
 
+!!! warning "Available on request"
+    The TSR mechanisms are not distributed with ATLAS. Request them from the authors of the paper cited below
+    (J. Liberatori, R. Malpica Galassi, D. Bianchi, F. Nasuti, M. Valorani, P.P. Ciottoli). Once obtained, put their
+    YAML files in `database/chemistry/external/`, whose content git ignores: GPB, KAnT and the GUI then find them like
+    the other mechanisms (`reactions = TSR-GP-24`). Without the files, GPB cannot find the mechanism.
+
 | Mechanism | File | Species | Reactions | Canonical Target |
 |---|---|---:|---:|---|
 | TSR-Rich-39 | `TSR-Rich-39.yaml` | 39 | 398 | Rich conditions (extended C₃–C₄) |

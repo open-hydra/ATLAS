@@ -24,7 +24,7 @@ ATLAS bundles a large number of reaction mechanisms for combustion and reacting 
 
     ---
 
-    TSR Family · Zhukov-Kong · CORIA-CNRS · Smooke
+    TSR Family (on request) · Zhukov-Kong · CORIA-CNRS · Smooke
 
 -   **CH₄/O₂ — Global**
 

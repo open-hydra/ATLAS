@@ -140,8 +140,8 @@ what that type uses.
     finite-rate mechanism, a full Cantera phase file, a CEA or Cantera
     equilibrium, a prescribed mixture, an explicit species list. Switch on the
     ones the phase uses and fill in their fields; the mechanism and phase-file
-    pickers list the yaml files of `database/chemistry/` and of the case
-    directory, report how many species the chosen file holds, and take a file
+    pickers list the yaml files of `database/chemistry/`,
+    `database/chemistry/external/` and the case directory, report how many species the chosen file holds, and take a file
     from anywhere else through **Browse…**.
 
     **Pick species…** lists the gaseous species of the mechanism or of a
@@ -497,7 +497,7 @@ the browser returned:
 |---|---|
 | a file inside the case directory | its name, relative to that directory — the tools run there |
 | a file outside it | a relative path if that is shorter, otherwise the absolute one |
-| `reactions`, `phase` (GPB) | the file stem alone, which is what GPB resolves against the case directory and `database/chemistry/` |
+| `reactions`, `phase` (GPB) | the file stem alone, which is what GPB resolves against the case directory, `database/chemistry/` and `database/chemistry/external/` |
 
 Two cases are caught as they happen rather than at run time. A **mechanism
 outside GPB's search path** cannot be found by its stem, and a **time-series

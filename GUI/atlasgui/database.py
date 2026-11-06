@@ -1,7 +1,7 @@
 """What the ATLAS database holds, for the pickers in the GPB panel.
 
-The lists come from the repository itself (``database/chemistry/*.yaml``,
-``database/thermo/*.yaml``) and from the case directory, so a picker always
+The lists come from the repository itself (``database/chemistry/*.yaml`` and
+``database/chemistry/external``, ``database/thermo/*.yaml``) and from the case directory, so a picker always
 offers what GPB will actually be able to load.  Everything is read lazily and
 cached: the thermo files are ~1 MB each and are only scanned when the user
 opens a species picker.
@@ -18,6 +18,8 @@ from .gpbmodel import ATLAS_ROOT, family_of
 
 DATABASE_DIR = os.path.join(ATLAS_ROOT, "database")
 CHEMISTRY_DIR = os.path.join(DATABASE_DIR, "chemistry")
+# Mechanisms that are not published: git ignores the content of this folder
+EXTERNAL_DIR = os.path.join(CHEMISTRY_DIR, "external")
 THERMO_DIR = os.path.join(DATABASE_DIR, "thermo")
 
 # The file GPB loads for each database, by phase family (gas, or the condensed
@@ -67,9 +69,22 @@ def _stems(pattern):
                    for p in glob.glob(pattern)})
 
 
+def chemistry_dirs():
+    """The folders where GPB searches a mechanism (src/GPB/config.py):
+    database/chemistry, database/chemistry/external and the folders of it (at
+    any depth) that hold yaml files, in name order."""
+    dirs = [CHEMISTRY_DIR, EXTERNAL_DIR]
+    for root, subdirs, files in os.walk(EXTERNAL_DIR):
+        subdirs[:] = sorted(d for d in subdirs if not d.startswith("."))
+        if root != EXTERNAL_DIR and any(f.endswith(".yaml") for f in files):
+            dirs.append(root)
+    return dirs
+
+
 def mechanism_files(case_dir=None):
     """Mechanism / phase file stems GPB can load, database first."""
-    names = _stems(os.path.join(CHEMISTRY_DIR, "*.yaml"))
+    names = sorted({stem for d in chemistry_dirs()
+                    for stem in _stems(os.path.join(d, "*.yaml"))})
     local = _stems(os.path.join(case_dir or ".", "*.yaml"))
     return names, [n for n in local if n not in names]
 
@@ -215,8 +230,8 @@ def species_of_mechanism(stem, case_dir=None):
     if key in _mech_species_cache:
         return _mech_species_cache[key]
     path = None
-    for candidate in (os.path.join(case_dir or ".", stem + ".yaml"),
-                      os.path.join(CHEMISTRY_DIR, stem + ".yaml")):
+    for candidate in [os.path.join(case_dir or ".", stem + ".yaml")] + [
+            os.path.join(d, stem + ".yaml") for d in chemistry_dirs()]:
         if os.path.isfile(candidate):
             path = candidate
             break

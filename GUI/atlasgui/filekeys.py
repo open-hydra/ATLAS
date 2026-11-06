@@ -26,9 +26,12 @@ import glob
 import os
 from dataclasses import dataclass
 
+from .database import EXTERNAL_DIR, chemistry_dirs
 from .gpbmodel import ATLAS_ROOT
 
 CHEMISTRY_DIR = os.path.join(ATLAS_ROOT, "database", "chemistry")
+# database/chemistry, database/chemistry/external and its folders with yaml files
+CHEMISTRY_DIRS = tuple(chemistry_dirs())
 
 # ------------------------------------------------------------------- filters
 TABLE = ("Data tables (*.dat *.txt *.csv)", "All files (*)")
@@ -131,12 +134,13 @@ _PARAM_KEYS = {
 _GPB_KEYS = {
     "reactions": FileRole(
         label="reaction mechanism", kind=STEM, filters=YAML,
-        extensions=(".yaml",), search=(CHEMISTRY_DIR,),
+        extensions=(".yaml",), search=CHEMISTRY_DIRS,
         hint="Cantera mechanism, named without .yaml. GPB looks for it in the "
-             "case directory and in database/chemistry."),
+             "case directory and in database/chemistry and "
+             "database/chemistry/external."),
     "phase": FileRole(
         label="Cantera phase file", kind=STEM, filters=YAML,
-        extensions=(".yaml",), search=(CHEMISTRY_DIR,),
+        extensions=(".yaml",), search=CHEMISTRY_DIRS,
         hint="Existing phase file, named without .yaml -- the file name, which "
              "may differ from the phase name inside it."),
     "CEA-file": FileRole(
@@ -301,10 +305,16 @@ def status(value, case_dir, role):
     for path in candidates(value, case_dir, role):
         if os.path.isfile(path):
             return "found", path, path
-    where = "the case directory"
+    places = ["the case directory"]
     if role.search:
-        where += " or " + ", ".join(
-            os.path.relpath(d, ATLAS_ROOT) for d in role.search)
+        # the folders of database/chemistry/external are not named one by one
+        shown = [d for d in role.search
+                 if not d.startswith(EXTERNAL_DIR + os.sep)]
+        places += [os.path.relpath(d, ATLAS_ROOT) for d in shown]
+        if len(shown) < len(role.search):
+            places[-1] += " (and its folders)"
+    where = (", ".join(places[:-1]) + " or " + places[-1]
+             if len(places) > 1 else places[0])
     return "missing", "", f"{value} not found in {where}"
 
 

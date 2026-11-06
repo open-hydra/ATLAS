@@ -149,7 +149,7 @@ typed in a shell writes, and GPB then ICB when the Python has Cantera.
 The schema — defaults, allowed values, one-line descriptions used as tooltips —
 is read at runtime from GPB's own `src/GPB/input_registry.py`, so the forms
 cannot drift from the tool. The pickers read the repository: mechanisms and
-phase files from `database/chemistry/`, species and materials from
+phase files from `database/chemistry/` and `database/chemistry/external/`, species and materials from
 `database/thermo/nasa9.yaml` and `burcat.yaml`, Cantera's NASA7 files and the
 SP-database (`sp_custom.py`), all scanned lazily; fluids from CoolProp when it
 is importable.

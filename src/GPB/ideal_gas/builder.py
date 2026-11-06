@@ -8,7 +8,7 @@ from .cea_compat import CEA
 from ini import *
 from PiNeR import get
 import os, sys, re
-from config import setup_cantera_dirs, CEA_TRANS_FILE, CHEMISTRY_DIR, ATLASDIR
+from config import setup_cantera_dirs, chemistry_dirs, CEA_TRANS_FILE, ATLASDIR
 from cea_transport_records import index_records, RecordError
 
 setup_cantera_dirs()
@@ -50,7 +50,7 @@ def _file_hint(key, stem, err):
     if 'not found' not in str(err):
         return ''
     hits = []
-    for d in (os.getcwd(), CHEMISTRY_DIR):
+    for d in [os.getcwd()] + chemistry_dirs():
         try:
             files = sorted(f for f in os.listdir(d) if f.endswith('.yaml'))
         except OSError:

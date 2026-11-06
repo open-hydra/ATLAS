@@ -9,6 +9,10 @@ project that uses ATLAS to change with it.
 
 ### Added
 
+- `database/chemistry/external/`: a folder whose content git ignores (its README is the only tracked file), for
+  mechanisms that are not published. GPB, KAnT and the GUI search it, and its folders that hold YAML files, after
+  `database/chemistry/`.
+
 - External clones of ORION and FiNeR from a parent project such as hydra: `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>`
   and `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>` (`install.sh build --include-orion`, `--include-finer`). The
   configure stops when a clone does not satisfy ATLAS's requirement, unless `-DATLAS_PIN_CHECK=WARNING`.

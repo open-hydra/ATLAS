@@ -17,7 +17,20 @@ DATAPATH = os.path.join(ATLASDIR, "database")
 THERMO_DIR = os.path.join(DATAPATH, "thermo")
 TRANSPORT_DIR = os.path.join(DATAPATH, "transport")
 CHEMISTRY_DIR = os.path.join(DATAPATH, "chemistry")
+# Mechanisms that are not published: git ignores the content of this folder (database/chemistry/external/README.md)
+EXTERNAL_DIR = os.path.join(CHEMISTRY_DIR, "external")
 CEA_TRANS_FILE = os.path.join(TRANSPORT_DIR, "CEApolynomials.yaml")
+
+
+def chemistry_dirs():
+    """The folders where a mechanism is searched: database/chemistry, database/chemistry/external and the folders
+    of it (at any depth) that hold yaml files, in name order."""
+    dirs = [CHEMISTRY_DIR, EXTERNAL_DIR]
+    for root, subdirs, files in os.walk(EXTERNAL_DIR):
+        subdirs[:] = sorted(d for d in subdirs if not d.startswith("."))
+        if root != EXTERNAL_DIR and any(f.endswith(".yaml") for f in files):
+            dirs.append(root)
+    return dirs
 
 # ------------------------------------------------------------------
 # Output path; BCB, ICB and MDB read the phase files there when the case directory has none of the same name
@@ -37,7 +50,8 @@ def setup_cantera_dirs():
     import cantera as ct
     ct.add_directory(THERMO_DIR)
     ct.add_directory(TRANSPORT_DIR)
-    ct.add_directory(CHEMISTRY_DIR)
+    for d in chemistry_dirs():
+        ct.add_directory(d)
 
 
 def ensure_output_dir():
