@@ -18,9 +18,6 @@ def main(argv=None):
     parser.add_argument("--case", metavar="FOLDER",
                         help="case folder to open on startup: its INI, its mesh and the "
                              "files the tools wrote there (a folder of files alone too)")
-    parser.add_argument("--stage", choices=["case", "gpb", "bcb", "icb", "review", "run"],
-                        help="stage to open on (default: case, or boundaries "
-                             "when a mesh is given)")
     args = parser.parse_args(argv)
 
     try:
@@ -64,7 +61,7 @@ def main(argv=None):
         win.open_case(args.case)
     if args.mesh:
         win.load_mesh(args.mesh)
-    win.set_stage(args.stage or ("bcb" if args.mesh else "case"))
+    win.set_stage("bcb" if args.mesh else "case")
     win.show()
     sys.exit(app.exec())
 
