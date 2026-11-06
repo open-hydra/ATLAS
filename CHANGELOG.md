@@ -1,9 +1,7 @@
 # Changelog
 
 All notable changes to ATLAS are listed here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and ATLAS numbers its releases by
-[Semantic Versioning](docs/development/versioning.md). An entry that begins with **Breaking.** asks a user or a
-project that uses ATLAS to change with it.
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and ATLAS numbers its releases by [Semantic Versioning](docs/development/versioning.md). An entry that begins with **Breaking.** asks a user or a project that uses ATLAS to change with it.
 
 ## [Unreleased]
 
@@ -73,6 +71,7 @@ project that uses ATLAS to change with it.
 
 ### Removed
 
+- **Breaking.** `ATLAS BCB-GUI`, `GUI/BCB_GUI.py` and the GUI's `--stage` option: the GUI is one program, and its stages (Boundaries included) are reached from inside the window.
 - ORION's Python package from `ct-env`: nothing in ATLAS imports it. In an existing environment:
   `conda activate ct-env && pip uninstall ORION`.
 

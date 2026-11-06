@@ -21,14 +21,13 @@ The GUI runs in the `ct-env` conda environment (it needs `pyqt`, `pyvista` and
 `pyvistaqt`, which are listed in `ct-env.yaml`):
 
 ```bash
-ATLAS BCB-GUI      # opens the GUI on the Boundaries stage
-ATLAS GUI          # the whole case: phases, boundaries, initial state, review, run
+ATLAS GUI    # the whole case: phases, boundaries, initial state, review, run
 ```
 
 or directly, from the ATLAS directory:
 
 ```bash
-python GUI/ATLAS_GUI.py [mesh] [--ini input.ini] [--stage bcb]
+python GUI/ATLAS_GUI.py [mesh] [--ini input.ini]
 ```
 
 If the GUI dependencies are missing, refresh the environment from the ATLAS directory with

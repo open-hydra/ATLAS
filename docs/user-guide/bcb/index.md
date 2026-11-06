@@ -10,7 +10,7 @@ It supports simple single-patch boundaries, multipatch definitions, periodic lin
 !!! example "Prefer a visual workflow?"
     The interactive [BCB GUI](./gui.md) lets you load a mesh, click block faces,
     assign boundary conditions, and export the `input.ini` directly. Launch it
-    with `ATLAS BCB-GUI`.
+    with `ATLAS GUI`.
 
     [![The Boundaries stage of the ATLAS GUI](../images/gui-boundaries-written.png)](./gui.md)
 
