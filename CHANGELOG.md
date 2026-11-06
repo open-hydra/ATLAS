@@ -7,6 +7,11 @@ All notable changes to ATLAS are listed here. The format follows
 
 ### Added
 
+- `database/chemistry/external/`: a folder whose content git ignores (its README is the only tracked file), for
+  mechanisms that are not published. GPB, KAnT and the GUI search it, and its folders that hold YAML files, after
+  `database/chemistry/`. A mechanism file name held by two folders of that search path is refused by GPB, with an error
+  that names both files (the file of the case directory still comes first), and the GUI marks it as not usable.
+
 - External clones of ORION and FiNeR from a parent project such as hydra: `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>`
   and `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>` (`install.sh build --include-orion`, `--include-finer`). The
   configure stops when a clone does not satisfy ATLAS's requirement, unless `-DATLAS_PIN_CHECK=WARNING`.

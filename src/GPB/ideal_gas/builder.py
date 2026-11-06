@@ -8,7 +8,7 @@ from .cea_compat import CEA
 from ini import *
 from PiNeR import get
 import os, sys, re
-from config import setup_cantera_dirs, CEA_TRANS_FILE, CHEMISTRY_DIR, ATLASDIR
+from config import setup_cantera_dirs, chemistry_dirs, mechanism_copies, CEA_TRANS_FILE, ATLASDIR
 from cea_transport_records import index_records, RecordError
 
 setup_cantera_dirs()
@@ -50,7 +50,7 @@ def _file_hint(key, stem, err):
     if 'not found' not in str(err):
         return ''
     hits = []
-    for d in (os.getcwd(), CHEMISTRY_DIR):
+    for d in [os.getcwd()] + chemistry_dirs():
         try:
             files = sorted(f for f in os.listdir(d) if f.endswith('.yaml'))
         except OSError:
@@ -62,6 +62,17 @@ def _file_hint(key, stem, err):
     if not hits:
         return ''
     return f" ({key} = takes the name of the yaml file without .yaml, not the phase name inside it: did you mean {key} = {' or '.join(hits)}?)"
+
+def _refuse_ambiguous(key, stem, section):
+    """A mechanism file name that two folders of the search path (database/chemistry, database/chemistry/external and
+    its folders) hold is refused: which copy Cantera loads depends on the order of the folders. A file of the case
+    directory is taken first, as always."""
+    if os.path.isfile(stem + '.yaml'):
+        return
+    copies = mechanism_copies(stem)
+    if len(copies) > 1:
+        print(f"[ERROR] key {key} of section [{section}]: {stem}.yaml is in more than one folder of the search path ({', '.join(copies)}): rename or remove all but one")
+        sys.exit(1)
 
 def _flint_guards(phase):
     """Refuse the falloff forms other than Troe and Lindemann and the chemically-activated reactions; warn on the name 'gas' and on pressure-dependent rates, which the tables hold at 1 atm only."""
@@ -215,6 +226,7 @@ def build(inifile,section):
     # Direct address of a phase solution.
     if phase_model is not None:
         print(' -- Found phase model:',phase_model)
+        _refuse_ambiguous('phase', phase_model, section)
         try:
             phase = ct.Solution(phase_model + '.yaml')
         except ct.CanteraError as e:   # a file Cantera refuses (e.g. a declared transport model with a species without transport data)
@@ -238,6 +250,7 @@ def build(inifile,section):
     # Transport properties are read from the reaction model.
     if reaction_model is not None and phase_model is None:
         print(' -- Found reaction model:',reaction_model)
+        _refuse_ambiguous('reactions', reaction_model, section)
         # Load the full mechanism
         try:
             raw_mechanism = ct.Solution(reaction_model + '.yaml')

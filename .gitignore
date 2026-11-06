@@ -1,7 +1,6 @@
 # test
 test/BCB/IG-time-file-long-name/mapped_with_a_very_long_name_ove
 test/BCB/IG-linefile-sector-axis/mapped.tec
-# products of a first run that the test keeps to compare with the second
 test/BCB/IG-multipatch-410-linefile/mapped.tec
 test/BCB/IG-multipatch-410-linefile/single
 test/ICB/IG-interp-multiple-x3-3D/md
@@ -16,6 +15,10 @@ test/**/injector_data_*.dat
 # database
 database/Tec-eqn/*.eqn
 data
+
+# External mechanisms (database/chemistry/external/README.md): kept out of the repository, except the README
+database/chemistry/external/*
+!database/chemistry/external/README.md
 
 # Build
 build

@@ -9,6 +9,12 @@ if masterpath is None:
 datapath = masterpath + "/database/"
 ct.add_directory(datapath + "thermo")
 ct.add_directory(datapath + "chemistry")
+# database/chemistry/external (git ignores its content: mechanisms that are not published) and its folders with yaml files
+ct.add_directory(datapath + "chemistry/external")
+for _root, _subdirs, _files in os.walk(datapath + "chemistry/external"):
+    _subdirs[:] = sorted(d for d in _subdirs if not d.startswith("."))
+    if _root != datapath + "chemistry/external" and any(f.endswith(".yaml") for f in _files):
+        ct.add_directory(_root)
 
 
 def update_thermo_model(old_phase_name, model):

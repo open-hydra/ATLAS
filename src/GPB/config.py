@@ -17,7 +17,20 @@ DATAPATH = os.path.join(ATLASDIR, "database")
 THERMO_DIR = os.path.join(DATAPATH, "thermo")
 TRANSPORT_DIR = os.path.join(DATAPATH, "transport")
 CHEMISTRY_DIR = os.path.join(DATAPATH, "chemistry")
+# Mechanisms that are not published: git ignores the content of this folder (database/chemistry/external/README.md)
+EXTERNAL_DIR = os.path.join(CHEMISTRY_DIR, "external")
 CEA_TRANS_FILE = os.path.join(TRANSPORT_DIR, "CEApolynomials.yaml")
+
+
+def chemistry_dirs():
+    """The folders where a mechanism is searched: database/chemistry, database/chemistry/external and the folders
+    of it (at any depth) that hold yaml files, in name order."""
+    dirs = [CHEMISTRY_DIR, EXTERNAL_DIR]
+    for root, subdirs, files in os.walk(EXTERNAL_DIR):
+        subdirs[:] = sorted(d for d in subdirs if not d.startswith("."))
+        if root != EXTERNAL_DIR and any(f.endswith(".yaml") for f in files):
+            dirs.append(root)
+    return dirs
 
 # ------------------------------------------------------------------
 # Output path; BCB, ICB and MDB read the phase files there when the case directory has none of the same name
@@ -32,12 +45,19 @@ HG_FACTOR = 1.0e+5
 HG_SUBSTRING = "-HG"
 
 
+def mechanism_copies(stem):
+    """The files <stem>.yaml in the folders of chemistry_dirs(). Cantera takes one of them, which depends on the
+    order of the folders: GPB refuses a name that has more than one (the file of the case directory comes first)."""
+    return [p for p in (os.path.join(d, stem + ".yaml") for d in chemistry_dirs()) if os.path.isfile(p)]
+
+
 def setup_cantera_dirs():
     """Register the ATLAS database directories with Cantera (idempotent)."""
     import cantera as ct
     ct.add_directory(THERMO_DIR)
     ct.add_directory(TRANSPORT_DIR)
-    ct.add_directory(CHEMISTRY_DIR)
+    for d in chemistry_dirs():
+        ct.add_directory(d)
 
 
 def ensure_output_dir():
