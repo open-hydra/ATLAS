@@ -15,16 +15,14 @@ look at them.
 ATLAS GUI                         # the whole case
 ATLAS GUI -i input.ini            # open an existing case
 ATLAS GUI -- --case run_folder    # open a case folder: its INI, mesh and files
-ATLAS GUI -- --stage icb          # open on a stage: case, gpb, bcb, icb, review, run
-ATLAS BCB-GUI                     # the same window, opened on Boundaries
 ```
 
-The options of the GUI itself (`--case`, `--stage`, a mesh file) follow `--`, which passes them on unread;
+The options of the GUI itself (`--case`, a mesh file) follow `--`, which passes them on unread;
 `ATLAS GUI --case run_folder` is refused by the launcher. Or, with the Python of `ct-env`, from the ATLAS
 directory:
 
 ```bash
-python GUI/ATLAS_GUI.py [mesh] [--ini input.ini | --case folder] [--stage gpb]
+python GUI/ATLAS_GUI.py [mesh] [--ini input.ini | --case folder]
 ```
 
 The window opens fitted to the screen. **Display** (top right) sets the

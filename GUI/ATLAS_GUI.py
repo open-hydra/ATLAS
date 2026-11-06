@@ -2,7 +2,7 @@
 """Launcher for the ATLAS GUI: the case setup and the runs of the tools.
 
 Usage:
-    python ATLAS_GUI.py [mesh] [--ini input.ini | --case folder] [--stage case|gpb|bcb|icb|review|run]
+    python ATLAS_GUI.py [mesh] [--ini input.ini | --case folder]
 
 This simply forwards to the ``atlasgui`` package next to this file.
 """

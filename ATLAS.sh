@@ -24,11 +24,9 @@ Bash script to run ATLAS programs
 Usage:
    ATLAS <TOOL> [options]
 
-Hydra pre-processing tools:
+Hydra pre-processing tools from the shell:
    ATLAS GPB
    ATLAS BCB
-   ATLAS GUI        (the case: GPB, BCB and ICB sections, and their runs)
-   ATLAS BCB-GUI    (the same GUI, opened on the boundaries stage)
    ATLAS ICB
    ATLAS STB
    ATLAS MDB
@@ -40,7 +38,10 @@ Other tools:
 Repo documentation:
    ATLAS DOCS
 
-Every tool runs in the case directory: it reads the mesh there, and its setup in
+Launch the GUI:
+   ATLAS GUI
+
+Every pre-processing tool runs in the case directory: it reads the mesh there, and its setup in
 input.ini (written by 'ATLAS GUI', or by hand), and writes into
 fromATLAStoSolver/. BCB, ICB and MDB read each *phase.txt of the case
 directory, else the one GPB wrote into fromATLAStoSolver/, so that
@@ -253,17 +254,6 @@ for program in "${TOOLS[@]}"; do
       fi
       ;;
 
-    BCB-GUI )
-      if activate_python_env; then
-        "$(python_bin)" -B "$ATLASDIR/GUI/BCB_GUI.py" \
-          ${INPUT:+--ini "$INPUT"} "${EXTRA[@]}"
-        status=$?
-        deactivate_python_env
-      else
-        status=1
-      fi
-      ;;
-
     GPB )
       if activate_python_env; then
         # GPB spells the option '--input-file' and has no '--plot'.
@@ -293,9 +283,6 @@ for program in "${TOOLS[@]}"; do
         echo "        Build it with:  ./install.sh build" >&2
         status=1
       else
-        # The automatic arrays of the Fortran tools live on the stack: ICB on a 3-D mesh (IG-nozzle3D)
-        # overflows the default 8 MB and dies with SIGSEGV. Raise the soft limit, as figaro does for the
-        # solvers and the CI before ctest; a hard limit below unlimited keeps whatever it allows.
         ulimit -s unlimited 2>/dev/null || true
         case $program in BCB | ICB ) write_filelist ;; esac
         "$ATLASDIR/bin/$program" ${INPUT:+--input "$INPUT"} $V $W "${EXTRA[@]}"

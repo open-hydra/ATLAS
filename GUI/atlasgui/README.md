@@ -218,8 +218,8 @@ QSettings store.
 ## Running
 
 ```bash
-ATLAS GUI                       # or: ATLAS BCB-GUI, which opens on Boundaries
-python GUI/ATLAS_GUI.py [mesh] [--ini input.ini] [--stage case|gpb|bcb|review]
+ATLAS GUI
+python GUI/ATLAS_GUI.py [mesh] [--ini input.ini]
 python -m atlasgui ...
 ```
 
