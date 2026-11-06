@@ -30,8 +30,6 @@ from .database import EXTERNAL_DIR, chemistry_dirs
 from .gpbmodel import ATLAS_ROOT
 
 CHEMISTRY_DIR = os.path.join(ATLAS_ROOT, "database", "chemistry")
-# database/chemistry, database/chemistry/external and its folders with yaml files
-CHEMISTRY_DIRS = tuple(chemistry_dirs())
 
 # ------------------------------------------------------------------- filters
 TABLE = ("Data tables (*.dat *.txt *.csv)", "All files (*)")
@@ -63,7 +61,8 @@ class FileRole:
     filters: tuple = ANY
     hint: str = ""
     extensions: tuple = ()           # appended to a stem when looking for it
-    search: tuple = ()               # extra directories the tool searches
+    search: object = ()              # extra directories the tool searches (a tuple, or a function that gives them
+                                     # when they change while the GUI is open: database.chemistry_dirs)
     keywords: tuple = ()             # values that are names, not paths
     max_len: int = 0                 # refused above this many characters
     local: bool = True               # the tool reads it from the case directory
@@ -134,13 +133,13 @@ _PARAM_KEYS = {
 _GPB_KEYS = {
     "reactions": FileRole(
         label="reaction mechanism", kind=STEM, filters=YAML,
-        extensions=(".yaml",), search=CHEMISTRY_DIRS,
+        extensions=(".yaml",), search=chemistry_dirs,
         hint="Cantera mechanism, named without .yaml. GPB looks for it in the "
              "case directory and in database/chemistry and "
              "database/chemistry/external."),
     "phase": FileRole(
         label="Cantera phase file", kind=STEM, filters=YAML,
-        extensions=(".yaml",), search=CHEMISTRY_DIRS,
+        extensions=(".yaml",), search=chemistry_dirs,
         hint="Existing phase file, named without .yaml -- the file name, which "
              "may differ from the phase name inside it."),
     "CEA-file": FileRole(
@@ -252,6 +251,42 @@ def file_keys(context="bc-section", keys=None):
 
 
 # ------------------------------------------------------------------ resolving
+def search_dirs(role):
+    """The extra directories the tool of *role* searches, as they are now."""
+    return tuple(role.search() if callable(role.search) else role.search)
+
+
+def search_places(role):
+    """The places a stem is looked for, worded for a message: "the case
+    directory, database/chemistry or database/chemistry/external (and its
+    folders)"."""
+    dirs = search_dirs(role)
+    places = ["the case directory"]
+    # the folders of database/chemistry/external are not named one by one
+    shown = [d for d in dirs if not d.startswith(EXTERNAL_DIR + os.sep)]
+    places += [os.path.relpath(d, ATLAS_ROOT) for d in shown]
+    if len(shown) < len(dirs):
+        places[-1] += " (and its folders)"
+    return (", ".join(places[:-1]) + " or " + places[-1]
+            if len(places) > 1 else places[0])
+
+
+def _copies_in_search_path(value, case_dir, role):
+    """The files a stem names in the folders of the search path, when there is
+    more than one and the case directory has none (the tool takes the case
+    directory's file first): which copy it would load depends on the order of
+    the folders, so GPB refuses the name."""
+    if role.kind != STEM or os.path.isabs(value):
+        return []
+    stems = [value + ext for ext in (role.extensions or ("",))]
+    case_dir = case_dir or os.getcwd()
+    if any(os.path.isfile(os.path.join(case_dir, s)) for s in stems):
+        return []
+    found = [os.path.join(d, s) for d in search_dirs(role) for s in stems
+             if os.path.isfile(os.path.join(d, s))]
+    return found if len(found) > 1 else []
+
+
 def candidates(value, case_dir, role):
     """Every path *value* could mean, in the order the tool would try them."""
     value = (value or "").strip()
@@ -269,7 +304,7 @@ def candidates(value, case_dir, role):
             out.append(stem)
             continue
         out.append(os.path.join(case_dir, stem))
-        for directory in role.search:
+        for directory in search_dirs(role):
             out.append(os.path.join(directory, stem))
     return out
 
@@ -277,8 +312,10 @@ def candidates(value, case_dir, role):
 def status(value, case_dir, role):
     """``(state, path, message)`` for a stored value.
 
-    *state* is ``empty``, ``keyword``, ``found``, ``missing`` or ``too-long``;
-    *path* the file that was found, when one was.
+    *state* is ``empty``, ``keyword``, ``found``, ``missing`` or ``too-long``
+    (``missing`` also for a stem that two folders of the search path hold:
+    the message names both files); *path* the file that was found, when one
+    was.
     """
     value = (value or "").strip()
     if not value:
@@ -302,20 +339,16 @@ def status(value, case_dir, role):
         if os.path.isdir(base) or glob.glob(base + "*phase.txt"):
             return "found", base, base
         return "missing", "", f"nothing found for {value}"
+    copies = _copies_in_search_path(value, case_dir, role)
+    if copies:
+        return "missing", "", (
+            f"{value} is in more than one folder of the search path "
+            f"({', '.join(os.path.relpath(c, ATLAS_ROOT) for c in copies)}): "
+            "GPB refuses the name. Rename or remove all but one.")
     for path in candidates(value, case_dir, role):
         if os.path.isfile(path):
             return "found", path, path
-    places = ["the case directory"]
-    if role.search:
-        # the folders of database/chemistry/external are not named one by one
-        shown = [d for d in role.search
-                 if not d.startswith(EXTERNAL_DIR + os.sep)]
-        places += [os.path.relpath(d, ATLAS_ROOT) for d in shown]
-        if len(shown) < len(role.search):
-            places[-1] += " (and its folders)"
-    where = (", ".join(places[:-1]) + " or " + places[-1]
-             if len(places) > 1 else places[0])
-    return "missing", "", f"{value} not found in {where}"
+    return "missing", "", f"{value} not found in {search_places(role)}"
 
 
 def value_for(path, case_dir, role):
@@ -357,4 +390,5 @@ def in_search_path(path, case_dir, role):
             return True
     except ValueError:
         pass
-    return os.path.dirname(path) in [os.path.abspath(d) for d in role.search]
+    return os.path.dirname(path) in [os.path.abspath(d)
+                                     for d in search_dirs(role)]

@@ -118,8 +118,7 @@ def pick_value(parent, role, current, case_dir):
 
     if role.kind == filekeys.STEM and \
             not filekeys.in_search_path(path, case_dir, role):
-        where = " or ".join(["the case directory"] + [
-            os.path.relpath(d, filekeys.ATLAS_ROOT) for d in role.search])
+        where = filekeys.search_places(role)
         path = _offer_copy(
             parent, path, case_dir, "Outside the search path",
             f"{os.path.basename(path)} is not in {where}, and the key names "

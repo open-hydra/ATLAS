@@ -45,6 +45,12 @@ HG_FACTOR = 1.0e+5
 HG_SUBSTRING = "-HG"
 
 
+def mechanism_copies(stem):
+    """The files <stem>.yaml in the folders of chemistry_dirs(). Cantera takes one of them, which depends on the
+    order of the folders: GPB refuses a name that has more than one (the file of the case directory comes first)."""
+    return [p for p in (os.path.join(d, stem + ".yaml") for d in chemistry_dirs()) if os.path.isfile(p)]
+
+
 def setup_cantera_dirs():
     """Register the ATLAS database directories with Cantera (idempotent)."""
     import cantera as ct
