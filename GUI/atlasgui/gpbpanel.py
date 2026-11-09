@@ -448,11 +448,12 @@ class GPBPanel(QWidget):
 
     def _line(self, key, placeholder=None, width=None, relist=True):
         phase = self.current_phase()
+        family = phase.family if phase else None
         edit = QLineEdit(phase.get(key) if phase else "")
         edit.setPlaceholderText(
             placeholder if placeholder is not None
-            else (gpbmodel.default_of(key) or ""))
-        edit.setToolTip(gpbmodel.describe(key) or key)
+            else (gpbmodel.default_of(key, family) or ""))
+        edit.setToolTip(gpbmodel.describe(key, family) or key)
         if width:
             edit.setMaximumWidth(self.kit.px(width))
         edit.textEdited.connect(lambda text, k=key: self._set(k, text, relist))
@@ -473,7 +474,7 @@ class GPBPanel(QWidget):
             combo.setCurrentIndex(index)
         elif editable:
             combo.setCurrentText(current)
-        combo.setToolTip(gpbmodel.describe(key) or key)
+        combo.setToolTip(gpbmodel.describe(key, phase.family if phase else None) or key)
         if width:
             combo.setMaximumWidth(self.kit.px(width))
 
@@ -543,7 +544,7 @@ class GPBPanel(QWidget):
         phase = self.current_phase()
         button = self.kit.toggle(
             label, None, "check", bool(phase and phase.bool_of(key)),
-            tip=gpbmodel.describe(key) or key, compactable=False)
+            tip=gpbmodel.describe(key, phase.family if phase else None) or key, compactable=False)
         button.toggled.connect(
             lambda on, k=key: self._set(k, "true" if on else "", False))
         return button
@@ -557,7 +558,8 @@ class GPBPanel(QWidget):
 
     def _labelled(self, key, text=None):
         label = QLabel((text or key) + ":")
-        label.setToolTip(gpbmodel.describe(key) or key)
+        phase = self.current_phase()
+        label.setToolTip(gpbmodel.describe(key, phase.family if phase else None) or key)
         return label
 
     # ---------------------------------------------------------- editor build
@@ -640,6 +642,8 @@ class GPBPanel(QWidget):
         new_type = self.type_combo.currentData()
         old_family, new_family = phase.family, gpbmodel.family_of(new_type)
         phase.set("type", new_type)
+        if old_family != new_family:
+            phase.drop_foreign_thermo()
         if old_family != new_family and new_family in ("condensed", "solid") \
                 and not phase.get("material"):
             phase.set("material", "material1")
@@ -895,7 +899,7 @@ class GPBPanel(QWidget):
         tools.addWidget(kit.button("Add material", self._add_material, "plus"))
         tools.addWidget(kit.button(
             "From database…", self._pick_material, "open",
-            tip="Pick materials from NASA7, NASA9, Burcat or the SP-database; "
+            tip="Pick materials from NASA7, NASA9, Burcat or custom.py; "
                 "only the states this phase type takes are listed."))
         tools.addWidget(kit.button("Remove", self._remove_material, "trash",
                                    "danger"))
@@ -1006,8 +1010,8 @@ class GPBPanel(QWidget):
         kit = self.kit
         card.body.addLayout(kit.panel_header("palette", "FLUID AND TABLE GRID"))
         form = self._form()
-        form.addRow(self._labelled("model", "EOS model"),
-                    self._combo("model", gpbmodel.REAL_FLUID_MODELS,
+        form.addRow(self._labelled("thermo", "Thermo"),
+                    self._combo("thermo", gpbmodel.REAL_FLUID_THERMO,
                                 empty="(coolprop)"))
         form.addRow(self._labelled("fluid"),
                     self._combo("fluid", database.coolprop_fluids(),

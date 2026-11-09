@@ -150,9 +150,10 @@ The schema — defaults, allowed values, one-line descriptions used as tooltips 
 is read at runtime from GPB's own `src/GPB/input_registry.py`, so the forms
 cannot drift from the tool. The pickers read the repository: mechanisms and
 phase files from `database/chemistry/` and `database/chemistry/external/`, species and materials from
-`database/thermo/nasa9.yaml` and `burcat.yaml`, Cantera's NASA7 files and the
-SP-database (`sp_custom.py`), all scanned lazily; fluids from CoolProp when it
-is importable.
+`database/thermo/nasa9.yaml` and `database/thermo/external/burcat.yaml` (when
+the user supplies it), Cantera's NASA7 files and the substances of `custom.py`
+(`database/thermo` and the case directory), all scanned lazily; fluids from
+CoolProp when it is importable.
 
 A species or material picker lists one database at a time and only the states
 the phase type is made of: gases for a gas, liquids and/or solids for a
