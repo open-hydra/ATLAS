@@ -1,10 +1,23 @@
 description: |-
-  BROKEN: backward step Ea x1000 (97466368.414 cal/mol) -> k_b = 0 at every T in Cantera and FLINT; even with Ea/1000 the pre-exponential stays inconsistent with k_f/K_c of step 4 of JLR-frassoldati.yaml (x0.092-0.0996, flat in T); do not use
-  Generated from file CM2.dat
+  The Cantera form of JLR-frassoldati.yaml, for KAnT: `reactions = JLR-frassoldati` in a KAnT section runs this file. Same species,
+  thermodynamics and rate constants as JLR-frassoldati.yaml; only the H2 oxidation step is written differently. Cantera allows
+  explicit reaction orders only on an irreversible reaction, so the step H2 + 0.5 O2 <=> H2O becomes two:
+    4a  H2 + 0.5 O2 => H2O    the forward rate k_f [H2]^0.3 [O2]^1.55, with the orders of the scheme
+    4b  H2O => H2 + 0.5 O2    the backward rate (k_f/K_c^0.3) [H2O]^0.3 [O2]^1.4
+  At equilibrium [H2O] = K_c [H2] [O2]^0.5, and the two rates are equal. Other orders give the same balance; this choice
+  has no negative order, whereas the form with [H2]^(0.3-1) is singular when H2 is zero, as it is at the start
+  of an ignition, and stops the integrator there. The rate constant of 4b is a modified-Arrhenius fit of k_f/K_c^0.3
+  computed with the thermodynamics of this file on 800-3500 K: deviation at most 0.9 % there, at most 25 % on
+  300-800 K. At the chemical equilibrium of the file 4a and 4b run at the same rate within 0.4 % (phi 0.5-2,
+  900-3500 K, 1-100 bar); a reactor started at 900-1300 K (15.86 bar, the KAnT test
+  deck) is 21-26 K above the equilibrium temperature when the integrator stops, 0.1-0.6 ms after the ignition.
+  The fractional order CH4^0.5 of step 1 can stop Cantera's integrator once the fuel is spent, after the ignition:
+  KAnT then keeps the ignition delay it has found and says so.
+  The phase is named JLR-Frassoldati-ct, not JLR-Frassoldati, so that it is not taken for JLR-frassoldati.yaml.
+  Origin of JLR-frassoldati.yaml: Generated from file CM2.dat
   by ck2cti on Mon Apr  4 13:46:26 2011
 
   Transport data from file transport.dat.
-
 generator: cti2yaml
 cantera-version: 3.0.1
 date: Thu, 27 Jun 2024 18:30:10 +0200
@@ -13,9 +26,9 @@ input-files: [frassoldati.cti]
 units: {length: dm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: JLR-Frassoldati
+- name: JLR-Frassoldati-ct
   thermo: ideal-gas
-  elements: [O, H, C, N]
+  elements: [O, H, C]
   species: [CH4, O2, CO2, H2O, CO, H2, H, OH, O]
   kinetics: gas
   reactions: all
@@ -193,8 +206,10 @@ reactions:
 - equation: H2 + 0.5 O2 => H2O  # Reaction 4 f
   rate-constant: {A: 8.03e+16, b: -1.0, Ea: 40000}
   orders: {H2: 0.3, O2: 1.55}
-- equation: H2O => H2 + 0.5 O2 # Reaction 4 b
-  rate-constant: {A: 8.226e+16, b: -0.823, Ea: 97466368.414}
+- equation: H2O => H2 + 0.5 O2  # Reaction 4 b: k_f/K_c^0.3 of reaction 4 a, fitted on 800-3500 K
+  rate-constant: {A: 4.3585e+17, b: -1.0612, Ea: 57639.7}
+  orders: {H2O: 0.3, O2: 1.4}
+  nonreactant-orders: true
 - equation: O2 <=> 2 O  # Reaction 5
   rate-constant: {A: 1.5e+09, b: 0, Ea: 113000}
 - equation: H2O <=> H + OH  # Reaction 6
