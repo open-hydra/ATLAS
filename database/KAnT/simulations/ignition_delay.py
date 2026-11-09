@@ -61,6 +61,8 @@ class IgnitionDelay(ZeroDReactorBase):
     def _run_model(self, model: str) -> list[float]:
         gas = self._build_gas(model)
         results: list[float] = []
+        stopped_after: list[float] = []      # initial temperatures where the integrator stopped after the ignition
+        stopped_before: list[float] = []     # ... and before it: no delay
 
         for T, p_Pa, mr in self._iter_conditions():
             setup_mixture(gas, self._fuel_dict, self._oxi_dict, mr)
@@ -74,7 +76,15 @@ class IgnitionDelay(ZeroDReactorBase):
             t = 0.0
             counter = 1
             while t < _ESTIMATED_IGNITION_TIME:
-                t = net.step()
+                try:
+                    t = net.step()
+                except ct.CanteraError:
+                    # Global schemes with fractional orders (CH4^0.5 of Jones-Lindstedt) can stop the integrator once
+                    # the fuel is spent. The delay is decided by then: keep it if the history holds the ignition.
+                    time_history.append(r.thermo.state, t=net.time)
+                    ignited = not np.isnan(_ignition_delay(time_history, initial_temp))
+                    (stopped_after if ignited else stopped_before).append(initial_temp)
+                    break
                 if not counter % 10:
                     time_history.append(r.thermo.state, t=t)
                 counter += 1
@@ -85,4 +95,11 @@ class IgnitionDelay(ZeroDReactorBase):
             except Exception:
                 results.append(np.nan)
 
+        n = len(results)
+        if stopped_after:
+            print(f"  [WARNING] {model}: the integrator stopped after the ignition in {len(stopped_after)} of {n} cases "
+                  f"(T0 = {min(stopped_after):g}-{max(stopped_after):g} K): their delays are kept")
+        if stopped_before:
+            print(f"  [WARNING] {model}: the integrator stopped before the ignition in {len(stopped_before)} of {n} "
+                  f"cases (T0 = {', '.join(f'{T:g}' for T in stopped_before)} K): no delay")
         return results

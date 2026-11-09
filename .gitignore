@@ -20,6 +20,10 @@ data
 database/chemistry/external/*
 !database/chemistry/external/README.md
 
+# Thermo database files that ATLAS does not distribute, e.g. burcat.yaml (database/thermo/external/README.md)
+database/thermo/external/*
+!database/thermo/external/README.md
+
 # Build
 build
 scripts/setvars.sh

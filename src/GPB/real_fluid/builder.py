@@ -1,6 +1,7 @@
 import numpy as np
 from config import setup_cantera_dirs
 from ini import RF_read_params
+import custom_support
 from . import properties as RF_properties
 from . import io as RF_IO
 
@@ -16,12 +17,13 @@ def _build(inifile, section):
     (name, fluid, pmin, pmax, Tmin, Tmax, NP, NH,
      model) = RF_read_params(inifile, section)
 
-    print(f" - Real-gas phase: {fluid}  (model: {model})")
+    print(f" - Real-gas phase: {fluid}  (thermo: {model})")
+    source = custom_support.real_fluid(section, fluid) if model == 'custom' else fluid   # a name, or the RealFluid of custom.py
 
     # ----------------------------------------------------------
     # Convert T,p bounds to enthalpy bounds
     # ----------------------------------------------------------
-    hmin, hmax, s_ref = RF_properties.enthalpy_bounds(model, fluid, Tmin, Tmax, pmin, pmax)
+    hmin, hmax, s_ref = RF_properties.enthalpy_bounds(model, source, Tmin, Tmax, pmin, pmax)
     h_ref = hmin
 
     # ----------------------------------------------------------
@@ -33,7 +35,7 @@ def _build(inifile, section):
     # ----------------------------------------------------------
     # Compute properties
     # ----------------------------------------------------------
-    thermo_rows, transport_rows, fallback = RF_properties.compute_properties(model, fluid, p, h)
+    thermo_rows, transport_rows, fallback = RF_properties.compute_properties(model, source, p, h)
 
     if fallback: print("  [WARNING] speed of sound fallback (500 m/s) used for some points")
 

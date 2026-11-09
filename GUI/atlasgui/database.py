@@ -21,6 +21,8 @@ CHEMISTRY_DIR = os.path.join(DATABASE_DIR, "chemistry")
 # Mechanisms that are not published: git ignores the content of this folder
 EXTERNAL_DIR = os.path.join(CHEMISTRY_DIR, "external")
 THERMO_DIR = os.path.join(DATABASE_DIR, "thermo")
+# Database files that ATLAS does not distribute (burcat.yaml): git ignores the content of this folder
+THERMO_EXTERNAL_DIR = os.path.join(THERMO_DIR, "external")
 
 # The file GPB loads for each database, by phase family (gas, or the condensed
 # and solid phases, which GPB builds alike).  NASA9 and Burcat are in
@@ -32,9 +34,8 @@ THERMO_FILES = {
     "Burcat": "burcat.yaml",
 }
 NASA7_FILES = {"gas": "nasa_gas.yaml", "condensed": "nasa_condensed.yaml"}
-# The SP-database is code, not a species file: its materials are the names
-# compute_properties_from_database() branches on.
-SP_FILE = os.path.join(THERMO_DIR, "sp_custom.py")
+# `custom` is code, not a species file: its substances are made in custom.py (database/thermo and the case
+# directory), found by custom_loader.py.
 
 # The databases tag a condensed entry with a parenthesised state -- H2O(L),
 # AL(cr), Fe(a), ZrO2(II), CaO(S), Hg(liq)REF -- and leave a gas untagged, or
@@ -81,10 +82,14 @@ def chemistry_dirs():
     return dirs
 
 
+# Mechanisms of the database that are not files of database/chemistry: the Cantera that ATLAS employs ships them
+CANTERA_MECHANISMS = ("gri30",)
+
+
 def mechanism_files(case_dir=None):
     """Mechanism / phase file stems GPB can load, database first."""
     names = sorted({stem for d in chemistry_dirs()
-                    for stem in _stems(os.path.join(d, "*.yaml"))})
+                    for stem in _stems(os.path.join(d, "*.yaml"))} | set(CANTERA_MECHANISMS))
     local = _stems(os.path.join(case_dir or ".", "*.yaml"))
     return names, [n for n in local if n not in names]
 
@@ -115,9 +120,12 @@ def _cantera_data_dirs():
     return [d for d in dirs if os.path.isdir(d)]
 
 
-def thermo_file(name, family="gas"):
+def thermo_file(name, family="gas", case_dir=None):
     """Path of the file GPB loads for database *name* in a phase of *family*,
-    or None when it cannot be found."""
+    or None when it cannot be found. The order is GPB's: burcat.yaml in the
+    case directory, database/thermo/external, database/thermo (config.py,
+    require_burcat); the other files through Cantera's search, which puts
+    external/ before database/thermo."""
     if name == "NASA7":
         filename = NASA7_FILES["gas" if family == "gas" else "condensed"]
         for directory in _cantera_data_dirs():
@@ -125,8 +133,14 @@ def thermo_file(name, family="gas"):
             if os.path.isfile(path):
                 return path
         return None
-    path = os.path.join(THERMO_DIR, THERMO_FILES.get(name, ""))
-    return path if os.path.isfile(path) else None
+    directories = [THERMO_EXTERNAL_DIR, THERMO_DIR]
+    if name == "Burcat":
+        directories.insert(0, case_dir or ".")
+    for directory in directories:
+        path = os.path.join(directory, THERMO_FILES.get(name, ""))
+        if os.path.isfile(path):
+            return path
+    return None
 
 
 def phase_states(phase_type):
@@ -184,43 +198,46 @@ def _scan_states(path, untagged):
     return entries
 
 
-def _sp_materials():
-    """The materials of the SP-database, in the order sp_custom.py lists them."""
+def custom_substances(family="gas", case_dir=None):
+    """Names of the substances `thermo = custom` offers a phase of *family*: the IdealGasSpecies for a gas, the
+    CondensedMaterial otherwise, from custom.py of database/thermo and of the case directory (read again at each
+    call: the file may have changed). A custom.py that cannot be executed gives none."""
+    import sys
+    if THERMO_DIR not in sys.path[:1]:
+        sys.path.insert(0, THERMO_DIR)
+    import custom_loader
     try:
-        with open(SP_FILE, errors="ignore") as handle:
-            text = handle.read()
-    except OSError:
+        library = custom_loader.load(case_dir, refresh=True)
+    except Exception:    # a custom.py that fails, or numpy missing (custom_classes needs it): no substances
         return []
-    names = re.findall(r"""\bname\s*==\s*['"]([^'"]+)['"]""", text)
-    return list(dict.fromkeys(names))
+    return library.names("ideal-gas" if family == "gas" else "condensed")
 
 
-def database_states(name, family="gas"):
+def database_states(name, family="gas", case_dir=None):
     """``[(species, state), ...]`` held by database *name* for a phase of
     *family* (cached: the files are ~1 MB scans)."""
     family = "gas" if family == "gas" else "condensed"
-    key = (name, family)
+    if name == "custom":
+        # The substances of custom.py. A material has no state of its own: "condensed" goes with any condensed phase.
+        state = "gas" if family == "gas" else "condensed"
+        return [(n, state) for n in custom_substances(family, case_dir)]
+    path = thermo_file(name, family, case_dir)
+    if not path:
+        return []      # not cached: the file (burcat.yaml) may be put in place while the GUI is open
+    key = (name, family, os.path.abspath(path))
     if key in _state_cache:
         return _state_cache[key]
-    entries = []
-    if name == "SP-database":
-        # Custom property laws of solids (fuels, cladding, graphite).
-        entries = [(n, "solid") for n in _sp_materials()]
-    else:
-        path = thermo_file(name, family)
-        if path:
-            untagged = {"NASA9": "ordered", "NASA7": family}.get(name, "gas")
-            entries = _scan_states(path, untagged)
-    _state_cache[key] = entries
-    return entries
+    untagged = {"NASA9": "ordered", "NASA7": family}.get(name, "gas")
+    _state_cache[key] = _scan_states(path, untagged)
+    return _state_cache[key]
 
 
-def species_of_database(name, phase_type="ideal-gas"):
+def species_of_database(name, phase_type="ideal-gas", case_dir=None):
     """Names of database *name* a phase of *phase_type* can be made of: the
     gases for a gas phase, the liquids and/or solids for a condensed one."""
     states = phase_states(phase_type)
     return [species for species, state
-            in database_states(name, family_of(phase_type))
+            in database_states(name, family_of(phase_type), case_dir)
             if state in states]
 
 
@@ -230,8 +247,9 @@ def species_of_mechanism(stem, case_dir=None):
     if key in _mech_species_cache:
         return _mech_species_cache[key]
     path = None
+    shipped = _cantera_data_dirs() if stem in CANTERA_MECHANISMS else []
     for candidate in [os.path.join(case_dir or ".", stem + ".yaml")] + [
-            os.path.join(d, stem + ".yaml") for d in chemistry_dirs()]:
+            os.path.join(d, stem + ".yaml") for d in chemistry_dirs() + shipped]:
         if os.path.isfile(candidate):
             path = candidate
             break

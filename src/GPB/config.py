@@ -15,6 +15,9 @@ if ATLASDIR is None:
 # ------------------------------------------------------------------
 DATAPATH = os.path.join(ATLASDIR, "database")
 THERMO_DIR = os.path.join(DATAPATH, "thermo")
+# Thermo database files that ATLAS does not distribute (burcat.yaml): git ignores the content of this folder
+# (database/thermo/external/README.md)
+THERMO_EXTERNAL_DIR = os.path.join(THERMO_DIR, "external")
 TRANSPORT_DIR = os.path.join(DATAPATH, "transport")
 CHEMISTRY_DIR = os.path.join(DATAPATH, "chemistry")
 # Mechanisms that are not published: git ignores the content of this folder (database/chemistry/external/README.md)
@@ -45,6 +48,20 @@ HG_FACTOR = 1.0e+5
 HG_SUBSTRING = "-HG"
 
 
+def require_burcat():
+    """The path of burcat.yaml, which ATLAS does not distribute: the first of the case directory,
+    database/thermo/external and database/thermo (Cantera's search would put the case directory last). Stop, with
+    where to put it, when it is in none."""
+    for d in (os.getcwd(), THERMO_EXTERNAL_DIR, THERMO_DIR):
+        path = os.path.join(d, "burcat.yaml")
+        if os.path.isfile(path):
+            return path
+    print("[ERROR] GPB: thermo = Burcat needs burcat.yaml, which ATLAS does not distribute: the authors allow the "
+          "database for non-commercial use, with citation, and ask for their written permission otherwise. Download it "
+          "and put it in database/thermo/external/ (or in the case directory): see database/thermo/external/README.md")
+    sys.exit(1)
+
+
 def mechanism_copies(stem):
     """The files <stem>.yaml in the folders of chemistry_dirs(). Cantera takes one of them, which depends on the
     order of the folders: GPB refuses a name that has more than one (the file of the case directory comes first)."""
@@ -55,6 +72,7 @@ def setup_cantera_dirs():
     """Register the ATLAS database directories with Cantera (idempotent)."""
     import cantera as ct
     ct.add_directory(THERMO_DIR)
+    ct.add_directory(THERMO_EXTERNAL_DIR)
     ct.add_directory(TRANSPORT_DIR)
     for d in chemistry_dirs():
         ct.add_directory(d)

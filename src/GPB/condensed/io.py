@@ -43,7 +43,7 @@ def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, 
         if 'dispersed' in type:
             # Columns 2-4 keep this order: ATLAS's BCB/ICB read 3 variables after Temperature by POSITION.
             # The NAME of column 4 tags the datum so a consumer can assert instead of assume:
-            #   Enthalpy      relative: cp*T (fixed cp without h0) or the SP-database integral from Tmin
+            #   Enthalpy      relative: cp*T (fixed cp without h0) or the integral of cp of a custom material from Tmin
             #   Enthalpy_abs  absolute: formation enthalpy included (thermo tables, or fixed cp with h0)
             # psat (material -> array, from psat-vapour) adds a 5th column "Psat" [Pa], zeros for an
             # unpaired material, that the solvers find by name; a reader of 3 variables never reaches it.

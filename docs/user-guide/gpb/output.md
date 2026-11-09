@@ -139,7 +139,7 @@ If type contains `dispersed`, variables are:
 4. `Enthalpy` or `Enthalpy_abs`
 5. `Psat`, only when `psat-vapour` pairs at least one material
 
-The fourth name tags the enthalpy datum; columns 2–4 keep this order, which ATLAS's own readers rely on. `Enthalpy` is relative (`cp·T` for constant-`cp` materials, the `SP-database` integral from `Tmin`); `Enthalpy_abs` is absolute, i.e. it includes the enthalpy of formation (every `thermo` table, and constant-`cp` materials given `h0`, see [Condensed & Solid Phases](./condensed-solid.md)). `Psat` is the saturation pressure [Pa, written `%.6e`] from the database's liquid/vapour pair, zeros for a material that is not paired; the solvers find it by name.
+The fourth name tags the enthalpy datum; columns 2–4 keep this order, which ATLAS's own readers rely on. `Enthalpy` is relative (`cp·T` for constant-`cp` materials, the integral of `cp` from `Tmin` for a `custom` material); `Enthalpy_abs` is absolute, i.e. it includes the enthalpy of formation (every database table, a `custom` material with `absolute_enthalpy`, and constant-`cp` materials given `h0`, see [Condensed & Solid Phases](./condensed-solid.md)). `Psat` is the saturation pressure [Pa, written `%.6e`] from the database's liquid/vapour pair, zeros for a material that is not paired; the solvers find it by name.
 
 Otherwise variables are:
 
@@ -245,7 +245,7 @@ condensed-dispersed
 AL2O3(L) 1
 ```
 
-Example first lines of `alumina-properties.dat`, for `thermo = Burcat` (the default range, 1 K to 5000 K):
+Example first lines of `alumina-properties.dat`, for `thermo = NASA9` (the default range, 1 K to 5000 K):
 
 ```text
 TITLE = "Mass Thermodynamic Properties"

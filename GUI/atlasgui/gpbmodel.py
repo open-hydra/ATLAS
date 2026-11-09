@@ -94,12 +94,25 @@ def constraint_of(key):
     return info["constraint"] if info else ""
 
 
-def describe(key):
+# The registry section of each phase family: `thermo` is a key of the three, with a different meaning in each
+_SECTION_OF_FAMILY = {"gas": "GPB-IdealGas", "condensed": "GPB-Condensed", "solid": "GPB-Condensed",
+                      "real-fluid": "GPB-RealFluid"}
+_ENTRY = {(_e.section, _e.name): _e for _e in REGISTRY}
+
+
+def describe(key, family=None):
+    """What the registry says about *key*; for the section of a phase *family* when it has the key."""
+    entry = _ENTRY.get((_SECTION_OF_FAMILY.get(family), key))
+    if entry is not None:
+        return entry.description
     info = KEY_INFO.get(key)
     return info["description"] if info else ""
 
 
-def default_of(key):
+def default_of(key, family=None):
+    entry = _ENTRY.get((_SECTION_OF_FAMILY.get(family), key))
+    if entry is not None:
+        return entry.default
     info = KEY_INFO.get(key)
     return info["default"] if info else ""
 
@@ -200,10 +213,10 @@ MODEL_COLUMNS = [
 ]
 MATERIAL_KEYS = [k for k, _ in MATERIAL_COLUMNS] + [k for k, _ in MODEL_COLUMNS]
 
-THERMO_DATABASES = ["NASA7", "NASA9", "Burcat"]
-CONDENSED_THERMO = ["NASA7", "NASA9", "Burcat", "SP-database"]
+THERMO_DATABASES = ["NASA7", "NASA9", "Burcat", "custom"]
+CONDENSED_THERMO = ["NASA7", "NASA9", "Burcat", "custom"]
 TRANSPORT_SOURCES = ["CEA", "cantera"]
-REAL_FLUID_MODELS = ["coolprop", "redlich-kwong", "peng-robinson"]
+REAL_FLUID_THERMO = ["coolprop", "redlich-kwong", "peng-robinson", "custom"]
 MODELING = ["lagrangian", "eulerian"]
 
 BOOL_TRUE = ("true", "yes", "on", "1", "t")
@@ -248,6 +261,25 @@ class GPBPhase:
 
     def __init__(self, params=None):
         self.params = OrderedDict(params or [])
+        self.migrated = self._migrate()
+
+    def _migrate(self):
+        """Rewrite the former spellings GPB still accepts, so that the form shows and saves the current ones: `model`
+        of a real fluid is `thermo`, and the `SP-database` of a condensed phase is `custom`. Returns the notes."""
+        notes = []
+        if self.family == "real-fluid" and "model" in self.params:
+            if "thermo" not in self.params:
+                self.params = OrderedDict(
+                    ("thermo" if key == "model" else key, value) for key, value in self.params.items())
+                notes.append("model is the former name of thermo: renamed")
+            elif self.params["model"].strip() == self.params["thermo"].strip():
+                # the same value twice: a later change of thermo would leave a model that differs, which GPB refuses
+                del self.params["model"]
+                notes.append("model is the former name of thermo, with the same value: removed")
+        elif self.family in ("condensed", "solid") and self.params.get("thermo", "").strip() == "SP-database":
+            self.params["thermo"] = "custom"
+            notes.append("thermo = SP-database is the former name of thermo = custom: renamed")
+        return notes
 
     # -- raw access ------------------------------------------------------
     def get(self, key, default=""):
@@ -275,6 +307,14 @@ class GPBPhase:
         if raw in BOOL_FALSE:
             return False
         return default
+
+    def drop_foreign_thermo(self):
+        """`thermo` means a database for a gas or a condensed phase and an equation of state for a real fluid: after
+        a change of type, a value the new family does not take is removed."""
+        taken = {"gas": THERMO_DATABASES, "condensed": CONDENSED_THERMO, "solid": CONDENSED_THERMO,
+                 "real-fluid": REAL_FLUID_THERMO}.get(self.family, [])
+        if self.get("thermo") and self.get("thermo") not in taken:
+            self.clear("thermo")
 
     # -- identity --------------------------------------------------------
     @property
@@ -369,7 +409,7 @@ class GPBPhase:
         family = self.family
         if family == "real-fluid":
             fluid = self.get("fluid") or "no fluid"
-            return f"{fluid} · {self.get('model') or 'coolprop'}"
+            return f"{fluid} · {self.get('thermo') or 'coolprop'}"
         if family in ("condensed", "solid"):
             materials = self.entries()
             if not materials:
@@ -483,6 +523,8 @@ class GPBDocument:
 
             if phase.type not in TYPE_LABEL:
                 issues.append(("error", i, f"{tag}: unknown type '{phase.type}'"))
+            for note in phase.migrated:
+                issues.append(("info", i, f"{tag}: {note}"))
             if phase.name:
                 if phase.name in seen_names:
                     issues.append(("error", i, (
@@ -535,6 +577,10 @@ class GPBDocument:
                 for key in ("fluid", "pmin", "pmax", "Tmin", "Tmax"):
                     if not phase.get(key):
                         issues.append(("error", i, f"{tag}: {key} is required for a real fluid"))
+                if phase.get("thermo") and phase.get("thermo") not in REAL_FLUID_THERMO:
+                    issues.append(("error", i, (
+                        f"{tag}: thermo = {phase.get('thermo')} is not one of "
+                        f"{', '.join(REAL_FLUID_THERMO)}")))
                 try:
                     if phase.get("pmin") and phase.get("pmax") and \
                             float(phase.get("pmin")) > float(phase.get("pmax")):
