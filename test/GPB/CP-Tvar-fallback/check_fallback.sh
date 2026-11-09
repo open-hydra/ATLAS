@@ -1,6 +1,6 @@
 #!/bin/bash
-# CP-Tvar-fallback gate: FOO(L) is not in burcat.yaml and takes the INI constants (cp 1800, rho 1000,
-# h0 -1e7 J/kg at 298.15 K, so h(298 K) = -10000270); AL2O3(L) comes from burcat.yaml with ITS density
+# CP-Tvar-fallback gate: FOO(L) is not in nasa9.yaml and takes the INI constants (cp 1800, rho 1000,
+# h0 -1e7 J/kg at 298.15 K, so h(298 K) = -10000270); AL2O3(L) comes from nasa9.yaml with ITS density
 # 2500, row for row equal to CP-Tvar-dispersed's table on 280..320 K.
 set -u
 f=${1:-fromATLAStoSolver/part-properties.dat}
