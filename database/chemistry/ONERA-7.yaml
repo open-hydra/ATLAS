@@ -1,5 +1,5 @@
 description: |-
-  Thermodynamic data identical to database/thermo/burcat.yaml for all 7 species. With GPB thermo = NASA7
+  Thermodynamic data identical to the burcat.yaml records (2016 edition; ATLAS does not distribute that file) for all 7 species. With GPB thermo = NASA7
   (Cantera nasa_gas.yaml) GPB replaces OH by a record with dHf(298.15 K) = 39.35 kJ/mol instead of 37.30
   (+2.047 kJ/mol = NASA7 minus Burcat, the sign GPB prints as 'database - file' in its thermo replacement line);
   use thermo = Burcat (identical records) or NASA9 (max |dh| 0.06 kJ/mol, 300-5000 K).
