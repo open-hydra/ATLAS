@@ -2,9 +2,10 @@
 
 <figure>
   --8<-- "docs/databases/chemistry/mechs.svg"
+  <figcaption>Species and reactions of every mechanism of the database.</figcaption>
 </figure>
 
-The **FLINT** lines below state what ATLAS provides to FLINT: GPB writes the phase name of the file on line 1 of `chemistry-info.txt` and its species, in the order of the file, in the tables; FLINT selects a compiled routine by that phase name, or runs the file with its `general` procedure when the name selects none. What a compiled routine computes (its reaction orders and rate laws, the GPB tables it reads) is described in [FLINT's documentation](https://github.com/MarcoGrossi92/FLINT/blob/main/docs/user/chemistry_routines.md), `docs/user/chemistry_routines.md` of the FLINT version released with this ATLAS version.
+Every mechanism is a Cantera YAML file of `database/chemistry/`: Cantera and KAnT read it directly, and GPB builds from it the chemistry tables of a gas phase, which are also the input files of the [FLINT](https://MarcoGrossi92.github.io/FLINT/) library.
 
 ---
 
@@ -38,8 +39,7 @@ A reduced H₂/O₂ mechanism with 7 species developed for supersonic combustion
 
 - **Developer**: ONERA (Office National d'Études et de Recherches Aérospatiales), France
 - **Files**: `ONERA-7.yaml` (14 irreversible, phase `ONERA-7`), `ONERA-7_rev.yaml` (7 reversible, phase `ONERA-7-rev`)
-- **FLINT**: the phase name `ONERA-7` selects a compiled FLINT routine, which serves the 14 irreversible reactions of `ONERA-7.yaml`; `ONERA-7-rev` deliberately selects none, and FLINT runs `ONERA-7_rev.yaml` with its `general` procedure
-- **Thermodynamics**: `ONERA-7.yaml` = the `burcat.yaml` records; with `thermo = NASA7` GPB replaces OH (dHf 39.35 instead of 37.30 kJ/mol): use `Burcat` or `NASA9`
+- **Thermodynamics**: `ONERA-7.yaml` = the records of the Burcat database (2016 edition); with `thermo = NASA7` GPB replaces OH (dHf 39.35 instead of 37.30 kJ/mol): use `Burcat` or `NASA9`
 - **Species / Reactions**: 7 / 14 (`ONERA-7.yaml`), 7 / 7 (`ONERA-7_rev.yaml`)
 - **Primary fuels**: H₂/air (scramjet)
 
@@ -63,7 +63,7 @@ A global single-step mechanism for H₂/air detonation with 4 species (O₂, H�
 
 - **Developer**: P.C. Nassini — University of Florence; A. Montanari, M. Grossi (modified variant)
 - **Files**: `Nassini_Original.yaml`, `Nassini_Montanari_Grossi.yaml`
-- **FLINT**: phase `Nassini` (both files) selects a compiled FLINT routine; species order O₂, H₂ONassini, H₂, N₂ (N₂ inert; reaction 2 = the backward step). Thermodynamics of both files = the NASA9 records of `database/thermo/nasa9.yaml` (Glenn base + Δa7 = 1343 K for the water), the same records GPB uses with `thermo = NASA9`
+- **Thermodynamics**: of both files = the NASA9 records of `database/thermo/nasa9.yaml` (Glenn base + Δa7 = 1343 K for the water), the same records GPB uses with `thermo = NASA9`
 - **Montanari-Grossi backward step**: the exact thesis closure k_b = k_f·sqrt(p0/RT)/K_c (p0 = 1 bar) with K_c in Cantera's convention (species reference pressure 1 atm, no `reference-pressure` key in the yaml; a K_c referred to 1 bar would lower k_b by 0.66 %), written as a single-pressure-column Chebyshev rate (the first Chebyshev reaction of the database; tabulated by GPB as an Arrhenius zone, error ≤ 1.1e-4 on 200–6000 K): valid with `thermo = NASA9` only
 - **Species / Reactions**: 4 / 2
 - **Primary fuels**: H₂/air (detonation)
@@ -78,10 +78,8 @@ A global single-step mechanism for H₂/air combustion with 4 species (H₂, O�
 
 - **Developer**: S.M. Frolov — Semenov Federal Research Center for Chemical Physics, Moscow
 - **File**: `Frolov_nopressure.yaml` (phase `Frolov_nopressure`)
-- **FLINT**: the phase name `Frolov_nopressure` selects a compiled FLINT routine; species order O₂, H₂O, H₂, N₂
 - **Note**: as a consequence of its source, `Frolov_nopressure` runs twice the rate of the published Frolov formula at 1 atm, with the standard H₂O (no calibrated heat effect)
 - **File**: `Frolov.yaml` (phase `Frolov`): the formula published by Frolov et al. (irreversible, p^−1.15 pressure factor), written as a two-point PLOG for Cantera/KAnT; the species `H2OFrolov` carries the heat release calibrated on the CJ speed (1970 m/s, frozen products)
-- **FLINT**: the phase name `Frolov` selects a compiled FLINT routine; what it computes, and which GPB tables it reads, is described in FLINT's documentation; Cantera and KAnT use the kinetics of the yaml as written
 - **Species / Reactions**: 4 / 1
 - **Primary fuels**: H₂/air (detonation)
 
@@ -117,13 +115,12 @@ Detailed chemical kinetic reaction models developed through a collaboration betw
   - **Species / Reactions**: 96 / 1054
   - **Pressure range**: Atmospheric to 50 atm
   - **Primary fuels**: C₀–C₄ fuels
-- **FLINT/GPB**: both files contain falloff-SRI reactions, which the GPB tables cannot carry: GPB refuses them for FLINT; usable in Cantera/KAnT only
+- **GPB**: both files contain falloff-SRI reactions, which the GPB tables cannot carry: GPB refuses them; usable in Cantera and KAnT
 
 - **FFCMy-12**
   - **File**: `FFCMy_12.yaml` (phase `FFCMy-12`, from the previous ATLAS repository)
   - **Species / Reactions**: 13 / 38 (no falloff-SRI)
   - **Reference**: Xu et al., *Combust. Flame*, 263:113380, 2024 (derived from an early version, FFCMy, of FFCM-2). DOI: [10.1016/j.combustflame.2024.113380](https://doi.org/10.1016/j.combustflame.2024.113380)
-  - **FLINT**: the phase name `FFCMy-12` selects a compiled FLINT routine; its structure (species order, reactions, third-body efficiencies, falloff types) is checked against this file by the ctest `database-flint-contract`
 
 > https://web.stanford.edu/group/haiwanglab/FFCM1/
 >
@@ -213,14 +210,12 @@ A classic global reaction mechanism for methane-air combustion. The four global 
 
 > W.P. Jones, R.P. Lindstedt, "Global reaction schemes for hydrocarbon combustion," *Combust. Flame*, 73(3):233–249, 1988. DOI: [10.1016/0010-2180(88)90021-1](https://doi.org/10.1016/0010-2180(88)90021-1).
 
-### JLR (Jones-Lindstedt-Rodi) Mechanisms
+### JLR (Jones-Lindstedt with Recombinations) Mechanisms
 
-Extended variants of the Jones-Lindstedt mechanism, augmented with radical species (H, O, OH), yielding 9 species and 6–8 reactions. Two sub-variants are available: **Frassoldati** (rates from CRECK Modeling Group, Politecnico di Milano) and **Nasuti** (rates adapted for rocket propulsion at Sapienza). The `-ct` files add N₂ to the element list for native Cantera compatibility and split the H₂ step into a forward and a backward reaction.
+The Jones-Lindstedt scheme extended with the radicals H, O, OH and their recombination and dissociation steps, for the high temperatures of rocket chambers: 9 species and 6–7 reactions. Two variants: **Frassoldati** (rates from the CRECK Modeling Group, Politecnico di Milano) and **Nasuti** (rates adapted for rocket propulsion at Sapienza).
 
-- **Files**: `JLR-frassoldati.yaml`, `JLR-frassoldati-ct.yaml`, `JLR-nasuti.yaml`, `JLR-nasuti-ct.yaml`
-- **FLINT**: the phase `JLR-Nasuti` of `JLR-nasuti.yaml` selects a compiled FLINT routine; the phase `JLR-Frassoldati` of `JLR-frassoldati.yaml` selects none, and FLINT runs that file with its `general` procedure, from the GPB tables and the explicit orders that GPB writes at the end of `chemistry-info.txt`. The phase is not renamed `Frassoldati`, the phase name of a compiled FLINT routine: the source paper of that routine is needed first
-- **BROKEN**: `JLR-nasuti-ct.yaml` and `JLR-frassoldati-ct.yaml` carry the backward H₂ step with Ea ×1000 (97466368.414 cal/mol → k_b = 0 at every temperature in Cantera and FLINT; even with Ea/1000 the pre-exponential stays inconsistent with k_f/K_c of the non-ct step 4: ×918–996 in `JLR-nasuti-ct`, ×0.092–0.0996 in `JLR-frassoldati-ct`): do not use (kept untouched, marked in their description; skipped by the ctest `database-flint-contract`). Correct reference for a future repair: Andersen, Rasmussen, Giselsson, Glarborg, *Energy & Fuels* 23 (2009) 1379, Tab. 3 / eq. (5), give the explicit inverse of the H₂ step (JL3b in their numbering) as 7.06·10¹⁷ T^−0.877 exp(−97.9·10³/RT) with orders [H₂]^−0.75 [O₂] [H₂O] (cm-mol units)
-- **Species / Reactions**: 9 / 6–8
+- **Files**: `JLR-frassoldati.yaml`, `JLR-nasuti.yaml`, and their Cantera forms for KAnT, `JLR-frassoldati-ct.yaml` and `JLR-nasuti-ct.yaml` (KAnT reads them for `reactions = JLR-…`; their description says how they are built)
+- **Species / Reactions**: 9 / 6–7 (7–8 in the Cantera forms)
 - **Primary fuels**: CH₄/O₂ (rocket propulsion)
 
 > W.P. Jones, R.P. Lindstedt, "Global reaction schemes for hydrocarbon combustion," *Combust. Flame*, 73(3):233–249, 1988.
@@ -280,11 +275,21 @@ A detailed reaction model for the combustion of hydrocarbon fuels, developed at 
 
 - **Developer**: University of California San Diego
 - **File**: `UCSD.yaml`
-- **FLINT**: the phase name `SanDiego` selects a compiled FLINT routine; the structural match (species order, reaction order and stoichiometry, third-body efficiencies, falloff type) is verified by the ctest `database-flint-contract`
 - **Species / Reactions**: 57 / 268
 - **Primary fuels**: H₂, CO, CH₄, C₂H₆, C₃H₈, C₄H₁₀
 
 > "Chemical-Kinetic Mechanisms for Combustion Applications," San Diego Mechanism web page, University of California at San Diego. http://combustion.ucsd.edu
+
+### GRI-Mech 3.0
+
+A widely used optimized mechanism for natural gas combustion, including NO formation and reburn chemistry. Valid for 1000–2500 K, 10 Torr to 10 atm and equivalence ratios 0.1–5 in premixed systems.
+
+- **Developer**: Gas Research Institute (GRI-Mech project: Smith, Golden, Frenklach and others)
+- **File**: `gri30.yaml`, **not in `database/chemistry/`**: Cantera ships it, and ATLAS uses that Cantera, so it is read by name like any other mechanism of the database (`reactions = gri30`, `phase = gri30` in GPB; `reactions = gri30` in KAnT)
+- **Species / Reactions**: 53 / 325
+- **Primary fuels**: CH₄, with C₂H₆ and C₃H₈ as minor components
+
+> G.P. Smith, D.M. Golden, M. Frenklach, N.W. Moriarty, B. Eiteneer, M. Goldenberg, C.T. Bowman, R.K. Hanson, S. Song, W.C. Gardiner Jr., V.V. Lissianski, Z. Qin, GRI-Mech 3.0, http://combustion.berkeley.edu/gri-mech/version30/text30.html, 1999.
 
 ---
 
@@ -333,7 +338,6 @@ A global mechanism for 1,3-butadiene (C₄H₆) combustion with 9 species and 6 
 
 - **Developer**: A. Coronetti, W.A. Sirignano — University of California, Irvine
 - **File**: `CoronettiC4H6.yaml`
-- **FLINT**: the phase name `CoronettiC4H6` selects a compiled FLINT routine; the reaction orders it uses, and how they compare with those of the yaml, are described in FLINT's documentation
 - **Species / Reactions**: 9 / 6
 - **Primary fuels**: C₄H₆ (HTPB pyrolysis product)
 
@@ -395,16 +399,3 @@ A reduced mechanism for SRM exhaust plume afterburning with 12 species and 17 re
 - **Primary fuels**: SRM exhaust plume
 
 > J. Troyes, I. Dubois, V. Borie, A. Boischot, "Multi-Phase Reactive Numerical Simulations of a Model Solid Rocket Exhaust Jet," *42nd AIAA/ASME/SAE/ASEE Joint Propulsion Conference & Exhibit*, AIAA 2006-4414, 2006. DOI: [10.2514/6.2006-4414](https://doi.org/10.2514/6.2006-4414).
-
----
-
-## Reference Mechanisms (Not Included)
-
-### GRI-Mech 3.0
-
-A widely-used detailed mechanism for natural gas combustion (53 species, 325 reactions, valid 1000–2500 K, 10 Torr–10 atm). Not included in this database but commonly used as a reference and as a source of thermodynamic/transport data for other mechanisms.
-
-- **Developer**: Gas Research Institute
-- **Primary fuels**: CH₄, C₂H₆, C₃H₈
-
-> GRI-Mech 3.0, http://combustion.berkeley.edu/gri-mech/version30/text30.html, 1999.

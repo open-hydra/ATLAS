@@ -143,7 +143,8 @@ what that type uses.
     from anywhere else through **Browse…**.
 
     **Pick species…** lists the gaseous species of the mechanism or of a
-    database (NASA7, NASA9, Burcat) — never a liquid or a solid.
+    database (NASA7, NASA9, Burcat, or the species of `custom.py`) — never a
+    liquid or a solid.
 
     **Constant properties…** turns the species list into a
     calorically-perfect gas (the `cp`, `cv`, `gamma`, `R`, `mw`, `mil`, `kl`,
@@ -155,8 +156,9 @@ what that type uses.
     from: one row per material, one column per per-material key (`groups`,
     `rho`, `cp`, `k`, `h0`, `psat-vapour`, `psat-liquid`). A column whose
     values are all equal is written once, which is what GPB broadcasts.
-    **From database…** picks materials out of NASA7, NASA9, Burcat or the
-    SP-database, listing only what the phase type can be made of: liquids for
+    **From database…** picks materials out of NASA7, NASA9, Burcat or
+    `custom.py` (that of `database/thermo` and the one of the case directory),
+    listing only what the phase type can be made of: liquids for
     a liquid-dispersed phase, solids for a solid-dispersed phase or a wall,
     both for a condensed-dispersed one.
 
@@ -167,8 +169,9 @@ what that type uses.
 
 === "Real fluid"
 
-    The EOS backend, the fluid name (from CoolProp when it is importable) and
-    the (p, T) bounds of the table with its grid sizes.
+    The `thermo` source (CoolProp, a cubic EOS, or `custom`), the fluid name
+    (from CoolProp when it is importable) and the (p, T) bounds of the table
+    with its grid sizes.
 
 !!! note "The picker and `thermo`"
     GPB looks every species or material name of a phase up in the single
@@ -176,7 +179,8 @@ what that type uses.
     that database; picking from another one sets `thermo` to it, and the
     picker says so — including when that replaces the thermo records of a
     mechanism. With `CEA-file` a gas reads NASA9 only, so only NASA9 is
-    offered.
+    offered. Burcat is listed empty when `database/thermo/external/burcat.yaml`
+    is missing: ATLAS does not distribute it.
 
 ### The tables GPB wrote
 

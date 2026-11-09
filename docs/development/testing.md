@@ -18,6 +18,7 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 |---|---|---|---|
 | `ceafile-reactive-OG` | GPB | `GPB/IG-ceafile-reactive-OG` | Reactive gas setup from CEA data produces the expected composition/chemistry output. |
 | `database-flint-contract` | GPB | `tools` | Every `database/chemistry` yaml whose phase name selects a compiled FLINT routine matches that routine in the copy of FLINT's contract file (`test/tools/flint_mechanism_contract.json`); the hooked names are pinned. |
+| `database-figure-current` | GPB | `tools` | The figure of the mechanism catalog (`docs/databases/chemistry/mechs.svg`) is what `database/chemistry/resume.py` gives for the mechanisms of the database now. After adding or changing a mechanism, run `python3 database/chemistry/resume.py` and commit the figure; a new file also needs a family in the script. |
 | `IG-reactions-without-thermo` | GPB | `GPB/IG-reactions-without-thermo` | `reactions =` without `thermo`: the thermo records of the file are used, said with an INFO line; `thermo.dat`, `chemistry-info.txt` and `chemistry-Arrhenius.dat` equal those of `phase =` on the same file. |
 | `IG-strict-thermo` | GPB | `GPB/IG-strict-thermo` | `strict-thermo = true` refuses a database thermo record that differs from the file record by more than 1 kJ/mol. |
 | `IG-fixgas-gas-constant` | GPB | `GPB/IG-fixgas-gas-constant` | A species given by `gamma` and `mw`: `cp = gamma/(gamma-1) R_u/mw` with the exact `R_u`. |
@@ -53,6 +54,7 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `CP-psat-refuse` | GPB | `GPB/CP-psat-refuse` | `psat-vapour` naming a species of another composition (`O2` for water) stops GPB. |
 | `IG-fixgas` | GPB | `GPB/IG-fixgas` | Two species given by `gamma`, `mw`, `mil` and `kl` ([Fixed-Gas Mixture](../tutorials/gpb/fixed-gas.md)): the phase and composition files as in the reference, the thermo and transport tables on a sample. |
 | `IG-reactive` | GPB | `GPB/IG-reactive` | A mechanism read by Cantera, NASA9 thermo and Cantera transport ([Cantera Ideal-Gas](../tutorials/gpb/cantera-ideal-gas.md)): phase, composition and `chemistry-info.txt` as in the reference; the thermo, transport, diffusion and rate tables (12 MB) on a sample. |
+| `IG-gri30` | GPB | `GPB/IG-gri30` | GRI-Mech 3.0, which the Cantera of ATLAS ships (`reactions = gri30`, no file in `database/chemistry/`): `chemistry-info.txt` names the phase `gri30` and counts 53 species and 325 reactions. |
 | `IG-mixture-HG` | GPB | `GPB/IG-mixture-HG` | Air with liquid alumina as one heavy gas ([Heavy-Gas Mixture](../tutorials/gpb/heavy-gas.md)): the species of mean properties and its tables, on a sample. |
 | `SP-Tvar` | GPB | `GPB/SP-Tvar` | A solid from the solid database ([Solid Phase](../tutorials/gpb/solid.md)): the phase file, and the property table on a sample. |
 | `RF-co2` | GPB | `GPB/RF-co2` | The CO₂ tables of a real fluid on a 40 × 40 grid of pressure and enthalpy, from CoolProp ([Real-Fluid Phase](../tutorials/gpb/real-fluid.md)), on a sample. |
@@ -208,6 +210,8 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `tutorial-mdb-split` | MDB | `tutorials/mdb-split` | GPB, BCB, ICB and MDB from the one INI of [A Case for MPI](../tutorials/mdb/index.md): the split field carries ICB's cell by cell, the map and the split BC file as in the reference. |
 | `KAnT-equilibrium` | KAnT | `KAnT/equilibrium` | The HP equilibrium of three mechanisms at 20 chamber pressures ([Checking a Mechanism](../tutorials/kant/index.md)). |
 | `tutorial-kant-ignition` | KAnT | `tutorials/kant-ignition` | The ignition delays of FFCM-2 and WD at 10 initial temperatures ([Checking a Mechanism](../tutorials/kant/index.md)), to a relative 5e-2. |
+| `KAnT-ignition-JLR` | KAnT | `KAnT/ignition_delay_jlr` | The ignition delays of the two JLR mechanisms (run in their Cantera form `JLR-*-ct.yaml`) at 10 initial temperatures, to a relative 5e-2: every case ignites, and an integrator that stops after the ignition is one WARNING per mechanism. |
+| `KAnT-ignition-gri30` | KAnT | `KAnT/ignition_delay_gri30` | The ignition delay of GRI-Mech 3.0, read by name from the Cantera that ATLAS employs, at 3 initial temperatures, to a relative 5e-2. |
 | `GUI-icmodel` | GUI | `GUI/tests` | The ICB model of the GUI: every deck of the suite goes through the case document and back with its ICB sections unchanged, an ICB zone section is never read as a BC, the keys the GUI names are ICB's, and the checks of the Initial stage flag no ICB deck the tool accepts while catching the refusals they can see from the deck (standard library, no Qt). |
 | `GUI-icgeom` | GUI | `GUI/tests` | Where the GUI puts the zones of an ICB block on the mesh: on random zone decks over a pure 2-D, an extruded 2-D and a 3-D mesh, along every direction letter, the cells written after each zone, the count of cells no zone writes and the first of them are those ICB reports, and so are the plenum rows of the nozzle decks of the suite and the cells of a zone that a random profile table misses; the state the 3-D view gives every cell is the one ICB writes there, on random decks whose zones each have a pressure of their own, nozzle zones and their plenums at rest included; an interpolated zone takes the turbulence model of its source, and the cells of the other zones without turbulence are those ICB warns about (Spalart-Allmaras) or stops on (k-omega) (numpy, no Qt; skipped without numpy). |
 | `GUI-runner` | GUI | `GUI/tests` | How the GUI runs the tools: the checks before a run (the mesh and the phase files BCB and ICB read, `filelist.txt`, a tool not built, the GUI's errors by stage); `ATLAS ICB` from a shell leaving out the phase file an earlier deck left in `fromATLAStoSolver/`; with PyQt6 the chain, Stop, ICB run as from a shell, GPB then ICB; where each message of a run lands. |
@@ -268,6 +272,23 @@ GPB tests check that phase-property builders generate physically consistent tabl
 - `RF-*`: validate real-fluid table generation (e.g., water, CO2).
 - `CP-*`, `SP-*`: validate condensed and solid phase-property workflows.
 
+#### The FLINT contract (`database-flint-contract`)
+
+The test keeps `database/chemistry` consistent with the mechanism contract that FLINT publishes, without needing FLINT:
+it reads a byte-for-byte copy of FLINT's `src/lib/Lib_ChemMech/mechanism_contract.json`,
+`test/tools/flint_mechanism_contract.json`; the FLINT commit it comes from is in
+`test/tools/flint_mechanism_contract.source`. Every yaml whose phase name FLINT hooks to a compiled routine must match
+that routine (species by composition and name, reaction counts per table type, and for a generated routine the
+reactions one by one); one phase name has one content; names with blanks are flagged; a file whose description starts
+with `BROKEN:` is skipped. For `Frolov`, whose routine ignores the tables, the yaml rate at seven (T, p) points must equal
+the routine's law (`test/tools/flint_rate_points.json`); the Chebyshev backward step of `Nassini_Montanari_Grossi.yaml`
+must equal the thesis closure within 1.1e-4 on 200–6000 K. The hooks are pinned with `--expect FILE=ROUTINE` in
+`test/CMakeLists.txt`, so a renamed file fails.
+
+At every update of the FLINT version, copy `mechanism_contract.json` of the new FLINT commit over
+`test/tools/flint_mechanism_contract.json`, write that commit in `flint_mechanism_contract.source` and re-run the test;
+when a hook changes, update the `--expect` list.
+
 ### ICB Cases (`test/ICB/`)
 
 ICB tests check that initial-condition fields are built correctly on different grids and initialization strategies.
@@ -287,7 +308,7 @@ ICB tests check that initial-condition fields are built correctly on different g
 
 KAnT tests check chemistry-analysis workflows produce expected trends and outputs for canonical kinetics studies.
 `equilibrium` is registered (`KAnT-equilibrium`), and so is the ignition deck of the tutorial
-(`tutorial-kant-ignition`); the others are run by hand with `ATLAS KAnT` in a copy of their folder. Cantera
+(`tutorial-kant-ignition`) and the JLR ignition deck (`KAnT-ignition-JLR`); the others are run by hand with `ATLAS KAnT` in a copy of their folder. Cantera
 integrates them, so `KAnT-out.dat` is compared to a tolerance: `1e-5` for the flame temperatures, a relative `5e-2`
 for the ignition delays (`numdiff.awk -v rel=1`: an absolute tolerance would let any delay of a few microseconds
 through). A delay is the first state past T0 + 300 K of those KAnT stores, one every ten steps of the integrator, and

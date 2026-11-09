@@ -31,7 +31,7 @@ With `cp` given, the `Enthalpy` column of `<name>properties.dat` is the relative
 h(T) = cp·T + (h0 − cp·298.15)      so that   h(298.15 K) = h0
 ```
 
-The header then reads `Enthalpy_abs` instead of `Enthalpy`; without `h0` nothing changes. Use the same reference state as the gas-phase thermodynamics (NASA/Burcat: enthalpy of formation of the liquid at 298.15 K), e.g. `h0 = -15865000` for liquid water. Temperature-dependent materials (`thermo = Burcat` and the NASA tables) always write `Enthalpy_abs`, because the polynomials carry the formation enthalpy.
+The header then reads `Enthalpy_abs` instead of `Enthalpy`; without `h0` nothing changes. Use the same reference state as the gas-phase thermodynamics (NASA/Burcat: enthalpy of formation of the liquid at 298.15 K), e.g. `h0 = -15865000` for liquid water. Temperature-dependent materials from a database (`thermo = NASA7`, `NASA9` or `Burcat`) always write `Enthalpy_abs`, because the polynomials carry the formation enthalpy; a `custom` material writes it when its class sets `absolute_enthalpy`.
 
 ```ini
 [GPB-Phase1]
@@ -44,7 +44,7 @@ h0       = -15865000
 
 #### Saturation pressure from the thermo database (`psat-vapour`, `psat-liquid`)
 
-A dispersed material can carry its saturation pressure `p_sat(T)` in `<name>properties.dat`. `psat-vapour` names the vapour species of the thermo database GPB loads (`nasa9.yaml` for `thermo = NASA9` or no `thermo`, `burcat.yaml` for `thermo = Burcat`) and `psat-liquid` the liquid species, by default the material name. Both keys take one value per entry of `material` (a single value is broadcast); `psat-vapour = none` skips a material. GPB computes, on every row of the table,
+A dispersed material can carry its saturation pressure `p_sat(T)` in `<name>properties.dat`. `psat-vapour` names the vapour species of the thermo database GPB loads (`nasa9.yaml` for `thermo = NASA9` or no `thermo`, `burcat.yaml` for `thermo = Burcat`, a file that the user supplies: [Thermodynamics Databases](../../databases/thermodynamics/index.md#burcat-is-not-distributed)) and `psat-liquid` the liquid species, by default the material name. Both keys take one value per entry of `material` (a single value is broadcast); `psat-vapour = none` skips a material. GPB computes, on every row of the table,
 
 ```text
 p_sat(T) = p_ref · exp(−(g_vap(T) − g_liq(T)) / (R·T)),     g = h − T·s (molar),   p_ref = 1 bar
@@ -70,7 +70,7 @@ For each paired material GPB prints the common range of the two fits, the implie
 
 Read that boiling point: it is the only symptom of a wrong isomer, which passes every check below. In Burcat, `C7H16` is iso-heptane and `C6H14` is 2-methylpentane: paired with the n-heptane liquid `C7H16(L)`, `C7H16` gives a boiling point of 324.7 K instead of 371.6 K (`C7H16,n-heptane` gives 373.0 K), and `C6H14` with `C6H14(L)` gives 271 K (use `C6H14,n-hexane`).
 
-GPB stops with `[ERROR] ...` when a species is not in the loaded file, when either species is not a NASA7/NASA9 polynomial fit (the NASA9 entries `CH4(L)`, `O2(L)` and `H2(L)` are constant-cp), when the two elemental compositions differ, when `h_vap − h_liq ≤ 0` on a row, when a value count is neither 1 nor the number of materials, when `psat-liquid` is given without `psat-vapour`, for `thermo = NASA7` (`nasa_condensed.yaml` holds no vapour species), for `thermo = SP-database` (no species file) and for a solid phase.
+GPB stops with `[ERROR] ...` when a species is not in the loaded file, when either species is not a NASA7/NASA9 polynomial fit (the NASA9 entries `CH4(L)`, `O2(L)` and `H2(L)` are constant-cp), when the two elemental compositions differ, when `h_vap − h_liq ≤ 0` on a row, when a value count is neither 1 nor the number of materials, when `psat-liquid` is given without `psat-vapour`, for `thermo = NASA7` (`nasa_condensed.yaml` holds no vapour species), for `thermo = custom` (no species file: a custom material gives its own `psat`) and for a solid phase.
 
 Accuracy of the database pairs:
 
@@ -87,6 +87,8 @@ Accuracy of the database pairs:
 | `CH3OH(L)` / `CH3OH` (Burcat) | 1.32 |
 | `C6H6(L)` / `C6H6` (Burcat) | 72: inconsistent entries, do not use |
 
+The rows marked Burcat were obtained with the 2016 edition of `burcat.yaml`, which the user supplies.
+
 Against the IAPWS saturation line the water pair is within 0.1 % at 280–300 K, −0.85 % at 350 K, −2.8 % at 400 K, −6.6 % at 450 K and −31 % at 600 K: the route treats the vapour as an ideal gas and ignores the pressure dependence of the liquid, so the error grows toward the critical point. It also needs a liquid entry with full polynomials (there is none for n-hexadecane) and a material that evaporates as the named molecule (alumina does not: its vapour is Al, AlO and O, and `AL2O3(L)` / `AL2O3` gives 1e-6 atm at 3250 K).
 
 ### Temperature-dependent properties
@@ -96,7 +98,7 @@ Against the IAPWS saturation line the water pair is within 0.1 % at 280–300 K,
 type     = condensed-dispersed
 modeling = lagrangian
 material = AL2O3(L)
-thermo   = Burcat
+thermo   = NASA9
 rho      = 2500
 ```
 
@@ -113,7 +115,7 @@ holds is not used, and GPB says so.
 [GPB-Phase1]
 type     = condensed-dispersed
 material = FOO(L) AL2O3(L)
-thermo   = Burcat
+thermo   = NASA9
 rho      = 1000 2500
 cp       = 1800
 h0       = -10000000
@@ -121,8 +123,8 @@ groups   = 2 1
 ```
 
 ```text
- -- FOO(L) is not in burcat.yaml: constant properties from the INI (cp = 1800, rho = 1000, h0 = -1e+07)
- -- AL2O3(L) from burcat.yaml: its cp in the INI is not used
+ -- FOO(L) is not in nasa9.yaml: constant properties from the INI (cp = 1800, rho = 1000, h0 = -1e+07)
+ -- AL2O3(L) from nasa9.yaml: its cp in the INI is not used
 ```
 
 The database tables carry the formation enthalpy (`Enthalpy_abs`), so a material that falls back next to database
@@ -131,6 +133,27 @@ database, `h0` is optional as for any constant-property phase. A material the da
 the material and the database named: correct the name or give `cp`. `cp` without `thermo` keeps its meaning: every
 material takes the constants, whatever the database holds.
 
+### Custom materials (`thermo = custom`)
+
+With `thermo = custom`, every material of `material` is a `CondensedMaterial` made in `custom.py` (that of
+`database/thermo`, or of the case directory), which is given `cp(T)`, `rho(T)` and, optionally, `k(T)`, the enthalpy
+`h(T)` and `psat(T)`. This is the way to give a solid or a liquid temperature-dependent properties that no database holds.
+
+```ini
+[GPB-Phase1]
+type     = liquid-dispersed
+name     = drop
+material = Foam Graphite
+thermo   = custom
+Tmin     = 300
+Tmax     = 600
+```
+
+`Graphite` ships with ATLAS; `Foam` is a class that you write, as in [Custom Substances](../../databases/thermodynamics/custom.md#condensed-materials).
+`cp`, `rho`, `k` and `h0` of the section are ignored (a `[WARNING]` names them): the material gives its own. A material
+that `custom.py` does not define stops GPB, with the names that it does. The classes, their methods and the checks are
+in [Custom Substances](../../databases/thermodynamics/custom.md#condensed-materials).
+
 ### Multi-material mixtures
 
 ```ini
@@ -138,7 +161,7 @@ material takes the constants, whatever the database holds.
 type     = condensed-dispersed
 modeling = lagrangian
 material = AL2O3(L) H2O(L)
-thermo   = Burcat
+thermo   = NASA9
 rho      = 2500 1000
 ```
 
@@ -151,7 +174,7 @@ For dispersed phases, the user can specify the number of groups to be used for t
 type     = condensed-dispersed
 modeling = lagrangian
 material = AL2O3(L)
-thermo   = Burcat
+thermo   = NASA9
 rho      = 2500
 groups   = 3
 ```
@@ -168,7 +191,7 @@ readers (BCB/ICB) ignore them. An absent key emits no token and the solver's def
 [GPB-Phase1]
 type        = condensed-dispersed
 material    = AL2O3(L) H2O(L)
-thermo      = Burcat
+thermo      = NASA9
 rho         = 2500 1000
 evaporation = CEM ASM
 interface   = LK
@@ -213,6 +236,16 @@ materials stops GPB with `[ERROR] [GPB-Phase1] <key> ...`.
 `solid-bulk` is accepted as a synonym of `solid`, and `solid-bulk` is the word the generated `<prefix>phase.txt` carries on its first line.
 
 Used to model walls and structural materials. Same syntax as the condensed-dispersed phase, but with `type = solid`.
+A wall whose properties vary with temperature is a `thermo = custom` material; its `k(T)` is written in the `Conductivity`
+column (the materials that ship with ATLAS are listed in [Custom Substances](../../databases/thermodynamics/custom.md#shipped-materials)):
+
+```ini
+[GPB-Phase1]
+type     = solid
+name     = solido
+material = UC
+thermo   = custom
+```
 
 Groups specification is not relevant for solid phases, as they are not dispersed.
 

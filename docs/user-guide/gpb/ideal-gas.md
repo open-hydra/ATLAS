@@ -16,6 +16,17 @@ The user can build the phase exploiting several approaches and databases.
 
 These approaches are not mutually exclusive. For example, the species list can be imported from a chemical mechanism, but other species can be added as well.
 
+### Source of the thermodynamics (`thermo`)
+
+`thermo` selects where the species records come from:
+
+| `thermo` | Source |
+|---|---|
+| `NASA9` | `nasa9.yaml`, the NASA Glenn coefficients (the default for species that come from no mechanism file) |
+| `NASA7` | `nasa_gas.yaml` of Cantera |
+| `Burcat` | `burcat.yaml`, which ATLAS does not distribute: put it in `database/thermo/external/` ([Thermodynamics Databases](../../databases/thermodynamics/index.md#burcat-is-not-distributed)) |
+| `custom` | the `IdealGasSpecies` substances of `custom.py`: [Custom Substances](../../databases/thermodynamics/custom.md#ideal-gas-species) |
+
 ### Calorically-perfect gas
 
 Specify species list with thermodynamic and transport properties assigned.
@@ -138,7 +149,7 @@ transport     = CEA
 
 - `phase = <file>` imports the yaml as it is: `thermo`, `transport` and `reactions` are **ignored** (the thermo records, the transport data and the reactions of the file are used; the transport model is Cantera's) and GPB says so with a `[WARNING]` naming the ignored keys.
 - `reactions = <file>` takes the species list and the reactions from the file, the thermo records from the `thermo` database, or from the file when `thermo` is not given (said with an `[INFO]` line; with `CEA-file` the NASA9 database, as for the CEA equilibrium species), and the transport data from the file (`transport = cantera`) or from `database/transport/CEApolynomials.yaml` (`transport = CEA`).
-- The thermo databases (`NASA7`, `NASA9`, `Burcat`) carry **no transport data**: with `transport = cantera` every species of the file needs its Lennard-Jones record in the file (a species without it is refused); with `transport = CEA` the records of the file are not used (a species without a CEA record gets the simplified law with a `[WARNING]`).
+- The thermo databases (`NASA7`, `NASA9`, `Burcat`) carry **no transport data** (the species of `custom` carry it only when they are given `transport`): with `transport = cantera` every species of the file needs its Lennard-Jones record in the file (a species without it is refused); with `transport = CEA` the records of the file are not used (a species without a CEA record gets the simplified law with a `[WARNING]`).
 - With `thermo` (or `CEA-file`), a species of the mechanism that exists in the database is **replaced** by the database record: GPB prints one line per species with the enthalpy difference at 298.15 K, a `[WARNING]` above 1 kJ/mol, and refuses only with `strict-thermo = true`. A species absent from the database keeps the file record (`This species is not present in the employed database`). Without `thermo` and `CEA-file` no record is replaced. Species that do not come from the file (`species`, `mixture`) take the `thermo` database, NASA9 when `thermo` is not given.
 - `Tmin` and `Tmax` are integers (the tables have a 1 K step); the defaults are 1 K and 5000 K.
 
@@ -152,10 +163,12 @@ Every diagnostic goes to standard output only; nothing is ever written into the 
 | `Tmin` or `Tmax` that is not an integer number of kelvin (e.g. `300.5`, silently replaced by the default before); also in condensed and solid sections | ERROR | `[ERROR] key Tmin of section [<s>]: Tmin = <v> is not an integer number of kelvin` | write an integer (`300` or `300.0`) |
 | an explicit `Tmin` below the polynomial range of a species | WARNING | `[WARNING] GPB: Tmin = <T> K is below the polynomial range of <n> species` | nothing: cp, h, s are extrapolated linearly below the range; the default `Tmin = 1` prints no line |
 | `Tmax` above the polynomial maximum of a species (cp frozen at the bound, h and s extended linearly) | INFO | `[INFO] GPB: cp frozen at the polynomial maximum for <n> species above their range` | nothing: the line names the species; the tables keep the requested range (the NASA7 records of many mechanism files end at 3500 K, below the default `Tmax = 5000`) |
-| `reactions =` without `thermo` (the thermo records of the file are used) | INFO | `[INFO] GPB: reactions = <file> without thermo: the thermo records of the file are used` | nothing; add `thermo = NASA7|NASA9|Burcat` to replace them with a database |
+| `reactions =` without `thermo` (the thermo records of the file are used) | INFO | `[INFO] GPB: reactions = <file> without thermo: the thermo records of the file are used` | nothing; add `thermo = NASA7|NASA9|Burcat|custom` to replace them with a database |
 | `reactions =` without `thermo`, with `CEA-file` (the NASA9 records replace those of the file) | INFO | `[INFO] GPB: reactions = <file> without thermo, with CEA-file: NASA9 database assumed` | nothing: the CEA equilibrium species use NASA9 too |
-| `thermo` with a value that is not a database | ERROR | `[ERROR] GPB: thermo = <v> is not a database` | `NASA7`, `NASA9` or `Burcat` |
-| `thermo = NASA7` or `Burcat` together with `CEA-file` (the CEA equilibrium species use the NASA9 database) | WARNING | `[WARNING] key thermo of section [<s>]: thermo = <db> is ignored with CEA-file` | remove `thermo`, or drop `CEA-file` |
+| `thermo` with a value that is not a database | ERROR | `[ERROR] GPB: thermo = <v> is not a database` | `NASA7`, `NASA9`, `Burcat` or `custom` |
+| `thermo = Burcat` without `burcat.yaml` | ERROR | `[ERROR] GPB: thermo = Burcat needs burcat.yaml, which ATLAS does not distribute` | put the file in `database/thermo/external/`, see its `README.md` |
+| `thermo = NASA7`, `Burcat` or `custom` together with `CEA-file` (the CEA equilibrium species use the NASA9 database) | WARNING | `[WARNING] key thermo of section [<s>]: thermo = <db> is ignored with CEA-file` | remove `thermo`, or drop `CEA-file` |
+| `thermo = custom` with no `IdealGasSpecies` in `custom.py`, or one that fails | ERROR | `[ERROR] [<s>] thermo = custom: ...` | see [Custom Substances](../../databases/thermodynamics/custom.md#errors) |
 | `phase =` together with `thermo =`, `transport =` and/or `reactions =` | WARNING | `[WARNING] GPB: phase = <file>: keys ignored` | remove the keys, or use `reactions =` to select the databases |
 | a database thermo record replaces a mechanism species record | INFO, WARNING above 1 kJ/mol at 298.15 K, ERROR with `strict-thermo = true` | `[INFO]/[WARNING] GPB: species <sp>: thermo from the database replaces the file record (dh298 ...)` (`dh<T>` when a record starts above 298.15 K) | check the record; leave out `thermo` (without `CEA-file`) or use `phase =` to keep the file records; `strict-thermo = true` to refuse |
 | a falloff reaction of a form other than `falloff-Troe` and `falloff-Lindemann` (`falloff-SRI` in FFCM-1 and FFCM-2, `falloff-Tsang`, ...) or a `chemically-activated` reaction, in any phase (the refusal lives in the GPB writer only: KAnT and Cantera load the same yaml as it is) | ERROR | `[ERROR] GPB: phase <name>: <n> reactions have a form the chemistry tables cannot hold (they carry the Arrhenius, falloff-Troe and falloff-Lindemann forms only): <i> (<equation>; <type>), ...` | convert the reactions to Troe or Lindemann, or use the file in Cantera and KAnT only |

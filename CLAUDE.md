@@ -68,3 +68,10 @@ Every tool writes into `fromATLAStoSolver/` of the case (`outpath` in `src/commo
 - `ATLAS.sh` finds no `*phase.txt` outside a case directory; the `filelist.txt` it writes is consumed by the Fortran tools (`read_phase.f90`) and removed at end. A `filelist.txt` the user already has is kept and used as it is.
 - Regression tests do *byte-diff* against `reference/` outputs — formatter/ordering changes in any output writer will break them. Diff target: `fromATLAStoSolver/*` (gitignored). Large tables and fields are compared on a sample (`test/sample_rows.awk`), the tutorial cases carry the label `tutorial` (`ctest -L tutorial`), and the INI files the tutorial pages write live in `test/tutorials/<page>/`, included by the pages as snippets.
 - For host-specific quirks shared with the parent hydra build (MOSE pin, OSlo, MF_IO_Wall ifdef gaps, figaro shell issues) see auto-memory entry `project_hydra_workarounds.md` — those are hydra-level, not ATLAS-level, but propagate when building ATLAS via `figaro build ATLAS`.
+
+## Changelog entries
+
+`CHANGELOG.md` is read by people, so keep it short: one change per entry, at most two short lines, saying what changed
+and, for a **Breaking** entry, what to do. Group related changes in one entry. Mechanisms, numbers, error messages,
+test names and file lists belong in the docs or the commit message: link the page instead of explaining. Before adding
+an entry, look at the ones around it and match their length.
