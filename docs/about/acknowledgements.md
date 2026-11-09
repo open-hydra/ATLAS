@@ -133,6 +133,25 @@ configuration of MkDocs (`mkdocs.yml`), with which the documentation was first w
 
 ---
 
+## Thermodynamic Data
+
+### Burcat database (not distributed)
+
+**Extended Third Millennium Ideal Gas and Condensed Phase Thermochemical Database for Combustion**
+
+- **Website:** [burcat.technion.ac.il](http://burcat.technion.ac.il/dir/)
+- **Authors:** Elke Goos, Alexander Burcat, Branko Ruscic
+- **Terms:** free for non-commercial use, with proper quotation; including it in commercial databases, software, firmware or hardware, and any other commercial use, needs the written permission of the authors
+
+`thermo = Burcat` reads `burcat.yaml`, which the user obtains from the authors and puts in `database/thermo/external/`.
+ATLAS does not include the file: see [Thermodynamics Databases](../databases/thermodynamics/index.md#burcat-is-not-distributed).
+
+### NASA Glenn coefficients
+
+`database/thermo/nasa9.yaml` holds the NASA Glenn 9-coefficient polynomials (McBride, Zehe, Gordon, NASA/TP-2002-211556).
+
+---
+
 ## License Compliance
 
 ATLAS respects all licenses of its dependencies:
@@ -143,6 +162,7 @@ ATLAS respects all licenses of its dependencies:
 - **MIT** — PiNeR, CoolProp, PyVista, Zensical
 - **BSD-3-Clause** — Cantera, NumPy, Pint
 - **Tecplot TecIO license** — TecIO (optional)
+- **Non-commercial use with citation, written permission otherwise** — the Burcat database, which ATLAS does not distribute
 
 See the [License](license.md) page for ATLAS's own license text.
 
