@@ -7,104 +7,67 @@ All notable changes to ATLAS are listed here. The format follows
 
 ### Added
 
-- `database/chemistry/external/`: a folder whose content git ignores (its README is the only tracked file), for
-  mechanisms that are not published. GPB, KAnT and the GUI search it, and its folders that hold YAML files, after
-  `database/chemistry/`. A mechanism file name held by two folders of that search path is refused by GPB, with an error
-  that names both files (the file of the case directory still comes first), and the GUI marks it as not usable.
-
-- External clones of ORION and FiNeR from a parent project such as hydra: `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>`
-  and `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>` (`install.sh build --include-orion`, `--include-finer`). The
-  configure stops when a clone does not satisfy ATLAS's requirement, unless `-DATLAS_PIN_CHECK=WARNING`.
-- `ATLAS_FINER_DEPS`: FiNeR's dependencies at their default branches, as `fobis fetch` does (`FREE`, the
-  default), or at known-good releases (`BACKUP`).
-- The configure checks the release of CEA (`ATLAS_CEA_VERSION`) and of FiNeR (`ATLAS_FINER_TAG`), and names a
-  submodule out of its pin by its tags.
-- `install.sh build --update-deps`: the newest ORION 2.x again.
+- `thermo = custom`: gas species, solids and liquids, and real fluids can be coded in Python, in `custom.py` of the
+  case directory or of `database/thermo/`. See [Custom Substances](docs/databases/thermodynamics/custom.md).
+- GRI-Mech 3.0 (`reactions = gri30`) is listed in the mechanism catalog. Cantera ships it; it is not a file of
+  `database/chemistry/`.
+- The figure of the mechanism catalog is drawn by `database/chemistry/resume.py`; the test `database-figure-current`
+  fails when it is out of date.
+- Git-ignored `external/` folders for data that ATLAS does not distribute: `database/thermo/external/`
+  (`burcat.yaml`) and `database/chemistry/external/` (mechanisms). GPB, KAnT and the GUI search them.
+- External ORION and FiNeR clones: `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>`, `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>`
+  (the configure stops if a clone does not fit; `-DATLAS_PIN_CHECK=WARNING` relaxes it). `ATLAS_FINER_DEPS` picks
+  FiNeR's dependency versions, and `install.sh build --update-deps` the newest ORION 2.x.
 - `CHANGELOG.md`, and the release steps in the versioning guide.
-- The ATLAS GUI covers the whole case. The Initial stage sets up ICB: a state for every block, zones with their
-  coverage on the mesh, profiles (`<key>-file`), the nozzle law and the interpolation of a previous solution, and a
-  3-D view of the state every cell takes. The Run stage runs GPB, BCB and ICB on the case, checks beforehand what
-  would stop them, and logs their output. Every stage draws what its tool wrote (the property tables, the BC of
-  every boundary cell, the initial field), and Review lists the errors and warnings of the last run on the sections
-  they name. A case opens from its INI or from a folder of the tools' files, and Settings holds the themes, a theme
-  editor and the text size.
-- Tutorials: 26 pages, from one feature of one tool to a whole case cut for MPI, each on a case of the test suite.
-  `ctest -L tutorial` runs every case they use; the INI files the pages write are in `test/tutorials/`.
-- Tests: the cases of the tutorials, the GUI (`GUI-icmodel`, `GUI-icgeom`, `GUI-runner`, `GUI-icfield`,
-  `GUI-outputs`, `GUI-layout`), and the new BCB refusals. Large tables and fields are compared on a sample
-  (`test/sample_rows.awk`); `test/numdiff.awk -v rel=1` compares with a relative tolerance only.
-- The documentation is built with Zensical (`requirements-docs.txt`), in strict mode in CI. It has a new home page,
-  an INI Files page, and Testing lists every registered test. The home page's Hydra scheme
-  (`docs/stylesheets/hydra.css`) is meant for the home pages of the other Hydra codes too.
+- The GUI covers the whole case: the Initial stage (ICB), the Run stage, a drawing of what every tool wrote,
+  Review, and Settings.
+- 26 tutorial pages, each on a case of the test suite (`ctest -L tutorial`), and tests for them, the GUI and the
+  BCB refusals.
+- The documentation is built with Zensical (strict in CI), with a new home page and an INI Files page.
 
 ### Changed
 
-- **Breaking.** ORION 2 is required (2.0.0 or a later 2.x), in place of the submodule `lib/ORION` at `a978930`.
-  The configure checks out the newest 2.x in `lib/ORION` with FLINT's `cmake/SemVerDeps.cmake`, and keeps it in
-  `deps.lock` (not committed). Results are unchanged.
+- **Breaking.** `burcat.yaml` is no longer distributed: its licence does not allow it in GPL software. Put it in
+  `database/thermo/external/` (see the README there); `thermo = Burcat` stops without it.
+- **Breaking.** `sp_custom.py` is replaced by the substances of `custom.py`, with the same seven materials and
+  values. `thermo = SP-database` is read as `thermo = custom`, with a warning.
+- The real-fluid `model` key is now `thermo`, as in the other phase types. `model` still works, with a warning.
+- **Breaking.** ORION 2 is required, in place of the submodule `lib/ORION`. The configure checks it out in
+  `lib/ORION`. Results are unchanged.
 - **Breaking.** `ORION_PATH` and `FINER_PATH` are removed: use `FETCHCONTENT_SOURCE_DIR_ORION` and
   `FETCHCONTENT_SOURCE_DIR_FINER`.
-- The submodule FiNeR (v2.3.0) moves from `lib/third_party/FiNeR` to `lib/FiNeR`; an old `lib/third_party` can
-  be deleted.
-- FiNeR's dependencies follow their default branches; `ATLAS_FINER_DEPS=BACKUP` checks out the releases they
-  were pinned at.
-- CEA: the submodule `lib/cea` follows `nasa/cea` v3.3.4 in place of a fork of v3.3.0. An existing clone needs
-  `git submodule sync && git submodule update --init lib/cea`.
-- **Breaking.** BCB stops on a multipatch face whose ranges leave cells out, naming the face, the count and the
-  first cell: those cells were written `0`, a face with no BC. It also stops on a face declared `chimera` with
-  `BC-chimera = false`, whose cells that match no cell of another block were written `100`, which no solver reads.
-  Make the ranges cover the face, or set `BC-chimera = true`.
-- BCB, ICB and MDB read each `*phase.txt` of the case directory, else the one GPB wrote into
-  `fromATLAStoSolver/`, so `ATLAS GPB BCB ICB` needs no copy of the phase files. `ATLAS.sh` warns when a copy in
-  the case directory differs from GPB's file. The GUI no longer copies the phase tables before BCB and ICB.
-  GPB never removes a file of `fromATLAStoSolver/`, so the phase of an earlier deck stays there: when the INI has
-  `[GPB-Phase*]` sections, BCB and ICB read there only their phase files, and `ATLAS.sh` and the GUI name the
-  others.
-- **Breaking.** BCB: the `502` record of a solid-propellant grain is `a rhoGrain SF, n, pRef, Taf, mode` and the
-  mass fractions, with the turbulence values of the section in mode 2 only. `grain-wall` sets the mode: `F`, the
-  default, an inlet (mode 2); `T`, a wall that blows the products in (mode 1), as every grain was: a deck that
-  keeps that wall gives `grain-wall = T`. BCB stops on a grain without `a` (the key or an `a-file`) and on an inlet
-  grain with `a = 0`. `Taf-file` and `SFgeo-file` are no longer keys.
-- **Breaking.** BCB: `krho` of a dispersed phase is the fraction of the flow of the mixture that it takes: the
-  `401` record carries `krho/(1 - krho_tot)`, with `krho_tot` the sum of `krho` over the dispersed phases of the
-  cell, and ends with `G`, the mass flux of the phases given by `gp` on the cell. BCB stops on a cell whose
-  `krho_tot` is 1 or more, on a negative `krho` and on a negative `gp`. A grain applied as an inlet
-  (`grain-wall = F`) is a `401` record with `krho` 0, in place of a `300`, for a phase it does not inject.
+- FiNeR (v2.3.0) moves to `lib/FiNeR`; delete an old `lib/third_party`. Its dependencies follow their default
+  branches (`ATLAS_FINER_DEPS=BACKUP` for the old pins).
+- CEA follows `nasa/cea` v3.3.4. An existing clone needs `git submodule sync && git submodule update --init lib/cea`.
+- **Breaking.** BCB stops on a multipatch face whose ranges leave cells out, and on a `chimera` face with
+  `BC-chimera = false` whose cells match no other block. Make the ranges cover the face, or set `BC-chimera = true`.
+- BCB, ICB and MDB read `*phase.txt` from the case directory, else from `fromATLAStoSolver/`: no copy is needed.
+  `ATLAS.sh` warns when a copy differs from GPB's file.
+- **Breaking.** BCB, grain (`502`): the record is now `a rhoGrain SF, n, pRef, Taf, mode`. `grain-wall` sets the
+  mode: `F` (default) an inlet, `T` a wall, as every grain was: add `grain-wall = T` to keep it. `a` is required;
+  `Taf-file` and `SFgeo-file` are gone.
+- **Breaking.** BCB, `krho` of a dispersed phase is its share of the flow of the mixture; the `401` record carries
+  `krho/(1 - krho_tot)` and ends with `G`. BCB stops on `krho_tot` of 1 or more, a negative `krho` or a negative `gp`.
+- The chemistry pages mention FLINT once, and the upkeep of its contract test is in Testing.
 
 ### Fixed
 
-- BCB: overlapping multipatch ranges stopped BCB (a later patch built a cell again); a cell now takes the first
-  patch whose range holds it, as the BC setup guide says.
-- BCB: on a face with a theta direction and no `range`, the bounds that stand for no range (±`huge()`) were
-  converted to radians too, which overflows: an infinity, still read as no bound, in a normal build, and a stop in
-  a build that traps floating-point exceptions. Only the bounds given are converted now.
-- BCB: the input reference (`docs/user-guide/bcb/input-reference.md`) gave the `p0-time-file` series of BC 402 in
-  bar; it is in Pa, as in `bc-types.md` and in the text of the key. MOSE reads the series as written, so a series
-  in bar gives it a `p0` 1e5 times too small.
-- BCB, ICB and MDB guides: the units lines that the tools write into their input references name the values that
-  are not SI (BCB: `ds` in cm, the angle `t` of `direction` in degrees; ICB: the angles `t` and `theta` in
-  degrees). The guides describe as the code does a face left out of a block, the axis of a 2-D axisymmetric mesh
-  in MOSE, the zones and the 1-D tables of ICB, the `T0` range of the stagnation states, the zone times of a
-  line-file (also in a BCB warning), the BC file names that MOSE reads and the `rank` column of the MDB map.
-- BCB, ICB and MDB guides: the inflow angles `alpha` and `beta` and how MOSE applies them, `rf`, an outlet without
-  `p`, the names of the series files, a MOSE solution split by MDB, a block closed by type `200` that MDB cuts
-  along k and the old solution that ICB reads are described as the code does them.
-- KAnT: `KAnT-out.dat` separates the names of its `VARIABLES` line and quotes the zone titles, so that a
-  Tecplot reader parses it.
-- GPB: with `transport = CEA`, below the lowest bound of the NASA fits of a record (200 K for N2, O2 and Ar, up to
-  1000 K for other species) the viscosity and the conductivity were held at their value at the bound. Below it the
-  viscosity now follows its value and slope at the bound (or keeps its value, with an `[INFO]` line, where it does
-  not increase with temperature), the conductivity keeps the Prandtl number of its lowest bound, and N2, O2, Ar,
-  He, Ne and Kr have fits to reference data below 200 K. Rows at or above the bounds do not change. For the air of
-  the GPB guide, at 100 K the viscosity goes from 87.5 % to 0.01 % above the dilute-gas air of Lemmon and Jacobsen
-  (2004) and the conductivity from 96.9 % above to 1.85 % below; at 37 K the viscosity goes from 428 % above to
-  0.31 % below. A record that cannot give a value stops GPB with a message that names it.
+- `JLR-nasuti-ct.yaml`, `JLR-frassoldati-ct.yaml` (the forms KAnT runs): the backward H2 step never acted. It is
+  refitted, so burnt gas reaches the equilibrium temperature (it was up to 220 K too hot). Their phases are named
+  `JLR-Nasuti-ct` and `JLR-Frassoldati-ct`.
+- KAnT: an ignition-delay run no longer aborts when the integrator stops after the ignition; `JLR-…-ct` is no longer
+  read as `JLR-…-ct-ct`; `KAnT-out.dat` parses in Tecplot readers.
+- BCB: overlapping multipatch ranges stopped BCB (the first patch now wins); a face with a theta direction and no
+  `range` overflowed; the input reference gave the `p0-time-file` of BC 402 in bar, it is Pa (MOSE read it as Pa).
+- BCB, ICB and MDB guides: units, inflow angles, zones, tables and file names now match the code.
+- GPB, `transport = CEA` below the lowest bound of a record (200–1000 K): viscosity and conductivity were held at
+  the bound, and now follow the record's slope there. Rows at or above the bounds are unchanged.
 
 ### Removed
 
-- **Breaking.** `ATLAS BCB-GUI`, `GUI/BCB_GUI.py` and the GUI's `--stage` option: the GUI is one program, and its stages (Boundaries included) are reached from inside the window.
-- ORION's Python package from `ct-env`: nothing in ATLAS imports it. In an existing environment:
-  `conda activate ct-env && pip uninstall ORION`.
+- `sp_custom.py` and `burcat.yaml` (see above), and a duplicated list in the GPB input registry.
+- **Breaking.** `ATLAS BCB-GUI`, `GUI/BCB_GUI.py` and the GUI's `--stage` option: the GUI is one program.
+- ORION's Python package from `ct-env`: run `conda activate ct-env && pip uninstall ORION`.
 
 ## [0.1.0] - 2026-11-04
 
