@@ -392,10 +392,13 @@ def pick_from_database(parent, kit, phase, title, case_dir=None,
             lambda: database.species_of_mechanism(mechanism, case_dir)
     for name in databases:
         sources[name] = \
-            lambda name=name: database.species_of_database(name, phase.type)
+            lambda name=name: database.species_of_database(name, phase.type, case_dir)
     current = next(iter(sources)) if mechanism else (reading or "NASA9")
 
     def note(label):
+        if label == "Burcat" and database.thermo_file("Burcat", case_dir=case_dir) is None:
+            return ("burcat.yaml is not distributed with ATLAS: put it in database/thermo/external/ "
+                    "(see its README.md).")
         if label not in databases:
             return "The species of the mechanism, with the thermo the file gives them."
         if label == reading:

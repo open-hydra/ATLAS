@@ -41,7 +41,7 @@ GPB_PHASE = [
 
 GPB_IDEALGAS = [
     RegistryEntry('GPB-IdealGas', 'phase', '', '', False, 'Existing Cantera phase file stem (without .yaml): the name of the database file, which may differ from the phase name inside it.'),
-    RegistryEntry('GPB-IdealGas', 'thermo', '', 'NASA7,NASA9,Burcat', False, 'Thermodynamic species database selector.'),
+    RegistryEntry('GPB-IdealGas', 'thermo', '', 'NASA7,NASA9,Burcat,custom', False, 'Source of the species thermodynamics: a database (NASA7, NASA9, Burcat) or custom (the IdealGasSpecies of custom.py). Burcat is not distributed with ATLAS: database/thermo/external/README.md. Without it, the species of a reactions file keep the thermo records of the file.'),
     RegistryEntry('GPB-IdealGas', 'transport', '', 'CEA,cantera', False, 'Transport model source.'),
     RegistryEntry('GPB-IdealGas', 'reactions', '', '', False, 'Reaction mechanism file stem (without .yaml).'),
     RegistryEntry('GPB-IdealGas', 'strict-thermo', 'False', 'True,False', False, 'Refuse (instead of warning) when a database thermo record replaces a mechanism species record by more than 1 kJ/mol at 298.15 K.'),
@@ -72,7 +72,7 @@ GPB_EQUILIBRIUM = [
 ]
 
 GPB_CONDENSED = [
-    RegistryEntry('GPB-Condensed', 'thermo', 'NASA9', 'NASA7,NASA9,Burcat,SP-database', False, 'Condensed-phase thermodynamic model selector. A database (NASA7, NASA9, Burcat; NASA9 when both thermo and cp are absent) supplies every material it holds; a material it lacks takes the constant cp and rho of the section, and h0 when other materials come from the database. With cp and no thermo every material is constant.'),
+    RegistryEntry('GPB-Condensed', 'thermo', 'NASA9', 'NASA7,NASA9,Burcat,custom', False, 'Source of the material thermodynamics: a database (NASA7, NASA9, Burcat; NASA9 when both thermo and cp are absent) supplies every material it holds; a material it lacks takes the constant cp and rho of the section, and h0 when other materials come from the database. custom takes every material from the CondensedMaterial substances of custom.py (cp, rho, k and optionally the enthalpy and p_sat as functions of T). With cp and no thermo every material is constant. SP-database is the former name of custom.'),
     RegistryEntry('GPB-Condensed', 'material', 'ATLAS', '', False, 'Condensed-phase material names.'),
     RegistryEntry('GPB-Condensed', 'groups', '1', '', False, 'Group index per condensed material.'),
     RegistryEntry('GPB-Condensed', 'h0', '', '', False, 'Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs).'),
@@ -111,12 +111,12 @@ GPB_REALFLUID = [
     RegistryEntry('GPB-RealFluid', 'Tmax', '', '>0', True, 'Maximum temperature bound [K].'),
     RegistryEntry('GPB-RealFluid', 'NP', '200', '>=2', False, 'Number of pressure grid points.'),
     RegistryEntry('GPB-RealFluid', 'NH', '200', '>=2', False, 'Number of enthalpy grid points.'),
-    RegistryEntry('GPB-RealFluid', 'model', 'coolprop', 'coolprop,redlich-kwong,peng-robinson', False, 'Equation-of-state model used for table generation.'),
+    RegistryEntry('GPB-RealFluid', 'thermo', 'coolprop', 'coolprop,redlich-kwong,peng-robinson,custom', False, 'Source of the fluid thermodynamics: CoolProp, a Cantera cubic equation of state (redlich-kwong, peng-robinson) or custom (the RealFluid of custom.py named by fluid). model is the former name of thermo.'),
 ]
 
 
 # Combined, stable registry used by existing consumers
-REGISTRY_ENTRIES = (
+REGISTRY_ENTRIES: List[RegistryEntry] = (
     GPB_GENERAL
     + GPB_PHASE
     + GPB_IDEALGAS

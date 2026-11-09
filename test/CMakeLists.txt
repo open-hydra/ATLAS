@@ -2105,7 +2105,7 @@ set_tests_properties(split-solution PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-Tvar-dispersed (Burcat/cantera table -> absolute enthalpy, header Enthalpy_abs) ----
+# ---- GPB : CP-Tvar-dispersed (NASA9 table -> absolute enthalpy, header Enthalpy_abs) ----
 # Numeric tolerance instead of a byte diff: rows are closed-form NASA-7 evaluations printed with
 # 6 decimals; libm/FMA/cantera-minor drift is <= 1e-12 relative, a datum error is >= 1e-3 relative,
 # a wrong column is O(1). tol = 1e-6 as in IG-chimera.
@@ -2121,12 +2121,12 @@ set_tests_properties(CP-Tvar-dispersed PROPERTIES
 )
 
 # ---- GPB : CP-Tvar-fallback (a material the database lacks takes its INI constants) --------------
-# thermo = Burcat with FOO(L) AL2O3(L): FOO(L) is not in burcat.yaml and falls back to cp/rho/h0 of
-# the INI (one value broadcast for cp and h0), AL2O3(L) keeps its Burcat table and its own rho.
+# thermo = NASA9 with FOO(L) AL2O3(L): FOO(L) is not in nasa9.yaml and falls back to cp/rho/h0 of
+# the INI (one value broadcast for cp and h0), AL2O3(L) keeps its NASA9 table and its own rho.
 # groups = 2 1 must reach the phase file in the same order.
 add_test(
     NAME    CP-Tvar-fallback
-    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'FOO(L) is not in burcat.yaml' gpb.log && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && bash check_fallback.sh fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'FOO(L) is not in nasa9.yaml' gpb.log && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && bash check_fallback.sh fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-Tvar-fallback"
 )
 set_tests_properties(CP-Tvar-fallback PROPERTIES
@@ -2150,7 +2150,7 @@ set_tests_properties(CP-Tvar-missing PROPERTIES
 )
 
 # ---- GPB : CP-Tvar-fallback-h0 (a fallback next to a database material needs h0) -----------------
-# CP-Tvar-fallback without h0: the phase would mix the absolute (Burcat) and the relative (cp*T)
+# CP-Tvar-fallback without h0: the phase would mix the absolute (NASA9) and the relative (cp*T)
 # enthalpy datum, so GPB stops and asks for h0.
 add_test(
     NAME    CP-Tvar-fallback-h0
@@ -2272,6 +2272,19 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-psat-refuse"
 )
 set_tests_properties(CP-psat-refuse PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : database-figure-current (the figure of the mechanism catalog, docs/databases/chemistry/mechs.svg, is what database/chemistry/resume.py gives for the
+# ----       mechanisms of the database now: a mechanism added or changed without regenerating the figure fails; Cantera only) -------------
+add_test(
+    NAME    database-figure-current
+    COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/database/chemistry/resume.py --check"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/tools"
+)
+set_tests_properties(database-figure-current PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -2578,6 +2591,21 @@ set_tests_properties(GUI-icgeom PROPERTIES
     ENVIRONMENT      "${_TEST_ENV}"
 )
 
+# ---- GUI : GUI-gpbthermo (the thermo key in the GPB model: the former spellings (model of a real fluid, SP-database) are renamed, each
+# ----       section says what it means by thermo, a change of type drops a value the new family cannot take, and the pickers list the
+# ----       substances of custom.py, of the case directory too; numpy, no Qt; skipped (77) without numpy) -------------
+add_test(
+    NAME    GUI-gpbthermo
+    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/GUI/tests/test_gpbthermo.py"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+set_tests_properties(GUI-gpbthermo PROPERTIES
+    LABELS           "GUI;regression"
+    TIMEOUT          300
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT      "${_TEST_ENV}"
+)
+
 # ---- GUI : GUI-runner (how the GUI runs the tools: the checks before a run -- the mesh BCB and ICB read and the link to
 # ----       the mesh on the screen, the phase files they read (those of the case directory, else those GPB writes into
 # ----       fromATLAStoSolver/, there only those of the GPB phases of the deck), filelist.txt, a tool not built, the
@@ -2686,6 +2714,19 @@ set_tests_properties(IG-reactive PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : IG-gri30 (GRI-Mech 3.0 is a mechanism of the database that the Cantera of ATLAS ships, not a file of database/chemistry: `reactions = gri30`
+# ----       resolves by name; the chemistry-info file names the phase and counts 53 species and 325 reactions) -------------
+add_test(
+    NAME    IG-gri30
+    COMMAND bash -c "rm -rf _run-test && mkdir _run-test && cp input.ini _run-test/ && cd _run-test && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && [ \"$(sed -n 1p fromATLAStoSolver/gas-chemistry-info.txt)\" = gri30 ] && grep -q -x 'N.ro species = 53' fromATLAStoSolver/gas-chemistry-info.txt && grep -q -x 'N.ro reactions = 325' fromATLAStoSolver/gas-chemistry-info.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-gri30"
+)
+set_tests_properties(IG-gri30 PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- GPB : IG-mixture-HG (tutorial Heavy-Gas Mixture: air and liquid alumina as one gas of mean properties) ---------
 add_test(
     NAME    IG-mixture-HG
@@ -2698,7 +2739,7 @@ set_tests_properties(IG-mixture-HG PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : SP-Tvar (tutorial Solid Phase: uranium carbide from the solid database) -------------
+# ---- GPB : SP-Tvar (tutorial Solid Phase: uranium carbide from custom.py) -------------
 add_test(
     NAME    SP-Tvar
     COMMAND bash -c "rm -rf fromATLAStoSolver && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && diff fromATLAStoSolver/solido-phase.txt reference/solido-phase.txt && awk -v tol=1e-9 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/sampled-solido-properties.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/solido-properties.dat)"
@@ -2706,6 +2747,86 @@ add_test(
 )
 set_tests_properties(SP-Tvar PROPERTIES
     LABELS      "GPB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : SP-database-alias (thermo = SP-database, the former name of thermo = custom: same tables as SP-Tvar, and a WARNING) -------------
+add_test(
+    NAME    SP-database-alias
+    COMMAND bash -c "rm -rf _run-alias && mkdir _run-alias && sed 's/^thermo = custom/thermo = SP-database/' input.ini > _run-alias/input.ini && cd _run-alias && { ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 || { cat gpb.log; false; }; } && grep -q -F 'thermo = SP-database is deprecated: write thermo = custom' gpb.log && diff fromATLAStoSolver/solido-phase.txt ../reference/solido-phase.txt && awk -v tol=1e-9 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/sampled-solido-properties.dat <(awk -f ${CMAKE_SOURCE_DIR}/test/sample_rows.awk fromATLAStoSolver/solido-properties.dat)"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/SP-Tvar"
+)
+set_tests_properties(SP-database-alias PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-custom (thermo = custom with a custom.py in the case directory: a liquid with p_sat and a Graphite that replaces the shipped one,
+# ----       checked against their formulas; an absolute enthalpy; the refusals of mixed enthalpy data, an unknown material, a negative cp
+# ----       and a custom.py that fails) -------------
+add_test(
+    NAME    CP-custom
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-custom"
+)
+set_tests_properties(CP-custom PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : custom-contract (the contract that custom_classes.py declares (inputs, outputs, units, valid values) is stated in the docs, is
+# ----       implemented by every shipped material, and is enforced: a negative cp and a missing rho are refused, naming function and temperature;
+# ----       numpy (of the conda environment, as ATLAS.sh), and Cantera for the transport units; skipped (77) without numpy) -------------
+add_test(
+    NAME    custom-contract
+    COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/GPB/custom-contract/check.py ${CMAKE_SOURCE_DIR}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/custom-contract"
+)
+set_tests_properties(custom-contract PROPERTIES
+    LABELS           "GPB;regression"
+    TIMEOUT          300
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT      "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-custom (the species N2 and O2 of a custom.py, with the NASA 7-coefficient polynomials of Cantera's nasa_gas.yaml, write the
+# ----       same thermo.dat, transport.dat, phase.txt and composition.txt as thermo = NASA7; with CEA-file, thermo = custom is ignored
+# ----       without being loaded: a WARNING and the reference files of ceafile-reactive-OG) -------------
+add_test(
+    NAME    IG-custom
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-custom"
+)
+set_tests_properties(IG-custom PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : RF-custom (a RealFluid of a custom.py, a calorically perfect gas, against its closed form; without a speed of sound: 500 m/s and a WARNING) -------------
+add_test(
+    NAME    RF-custom
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/RF-custom"
+)
+set_tests_properties(RF-custom PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : RF-thermo-key (a real-fluid section selects its source with thermo; model, its former name, gives the same tables and a WARNING;
+# ----       thermo and model that differ are refused; Redlich-Kwong of Cantera on a 4 x 4 grid) -------------
+add_test(
+    NAME    RF-thermo-key
+    COMMAND bash check_key.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/RF-co2-cantera"
+)
+set_tests_properties(RF-thermo-key PROPERTIES
+    LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -2939,3 +3060,34 @@ set_tests_properties(KAnT-equilibrium tutorial-kant-ignition PROPERTIES
     TIMEOUT     600
     ENVIRONMENT "${_TEST_ENV}"
 )
+
+# ---- KAnT : KAnT-ignition-JLR (the ignition delay of the JLR mechanisms, which KAnT runs in their Cantera form JLR-*-ct.yaml, at
+# ----       10 initial temperatures: every case ignites, the run ends, and the integrator stopping after the ignition (CH4^0.5) is one
+# ----       WARNING per mechanism; delays compared with a relative tolerance of 5 %, as tutorial-kant-ignition) ----------
+add_test(
+    NAME    KAnT-ignition-JLR
+    COMMAND bash -c "rm -rf _run-test && mkdir _run-test && cp input.ini _run-test/ && cd _run-test && { ${CMAKE_SOURCE_DIR}/ATLAS.sh KAnT > kant.log 2>&1 || { cat kant.log; false; }; } && ! grep -q 'before the ignition' kant.log && [ $(grep -c 'stopped after the ignition' kant.log) -le 2 ] && awk -v tol=5e-2 -v rel=1 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/KAnT-out.dat KAnT-out.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/KAnT/ignition_delay_jlr"
+)
+set_tests_properties(KAnT-ignition-JLR PROPERTIES
+    LABELS      "KAnT;regression"
+    TIMEOUT     600
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- KAnT : KAnT-ignition-gri30 (the ignition delay of GRI-Mech 3.0, read by name from the Cantera of ATLAS, at 3 initial temperatures; relative tolerance of 5 %) ----------
+add_test(
+    NAME    KAnT-ignition-gri30
+    COMMAND bash -c "rm -rf _run-test && mkdir _run-test && cp input.ini _run-test/ && cd _run-test && { ${CMAKE_SOURCE_DIR}/ATLAS.sh KAnT > kant.log 2>&1 || { cat kant.log; false; }; } && awk -v tol=5e-2 -v rel=1 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../reference/KAnT-out.dat KAnT-out.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/KAnT/ignition_delay_gri30"
+)
+set_tests_properties(KAnT-ignition-gri30 PROPERTIES
+    LABELS      "KAnT;regression"
+    TIMEOUT     600
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- burcat.yaml is not distributed with ATLAS (database/thermo/external/README.md): the test that reads it runs when the file is there -------------
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/database/thermo/external/burcat.yaml")
+    set_tests_properties(IG-transport-CEA-aliases PROPERTIES DISABLED TRUE)
+endif()

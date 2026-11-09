@@ -8,7 +8,8 @@ from .cea_compat import CEA
 from ini import *
 from PiNeR import get
 import os, sys, re
-from config import setup_cantera_dirs, chemistry_dirs, mechanism_copies, CEA_TRANS_FILE, ATLASDIR
+from config import setup_cantera_dirs, chemistry_dirs, mechanism_copies, require_burcat, CEA_TRANS_FILE, ATLASDIR
+import custom_support
 from cea_transport_records import index_records, RecordError
 
 setup_cantera_dirs()
@@ -167,24 +168,23 @@ def build(inifile,section):
     # Load the Thermo Model (only if phase is not specified)
     # ---------------------------------------------------
     if phase_model is None:
-        if thermo_model == 'NASA7':
-            all_species = ct.Species.list_from_file('nasa_gas.yaml')
-        elif thermo_model == 'NASA9':
-            all_species = ct.Species.list_from_file('nasa9.yaml')
-        elif thermo_model == 'Burcat':
-            all_species = ct.Species.list_from_file('burcat.yaml')
-        elif thermo_model is None:
-            # No thermo selector: NASA9 database for the species that come from no reactions file (species list,
-            # mixture); the species of a reactions file keep the records of the file (file_thermo below)
-            all_species = ct.Species.list_from_file('nasa9.yaml')
-        else:
-            print(f'[ERROR] GPB: thermo = {thermo_model} is not a database (allowed: NASA7, NASA9, Burcat)')
+        if thermo_model not in (None, 'NASA7', 'NASA9', 'Burcat', 'custom'):
+            print(f'[ERROR] GPB: thermo = {thermo_model} is not a database (allowed: NASA7, NASA9, Burcat, custom)')
             sys.exit(1)
-
-        # Force NASA9 if CEA is used (a thermo key that is ignored is said)
         if CEA_equilibrium:
+            # NASA9 is forced with CEA: the source that is ignored is said, and not loaded (burcat.yaml may be absent)
             if thermo_model not in (None, 'NASA9'):
                 print(f"[WARNING] key thermo of section [{section}]: thermo = {thermo_model} is ignored with CEA-file: the CEA equilibrium species use the NASA9 database")
+            all_species = ct.Species.list_from_file('nasa9.yaml')
+        elif thermo_model == 'NASA7':
+            all_species = ct.Species.list_from_file('nasa_gas.yaml')
+        elif thermo_model == 'Burcat':
+            all_species = ct.Species.list_from_file(require_burcat())
+        elif thermo_model == 'custom':
+            all_species = custom_support.ideal_gas_species(section)   # the species coded in custom.py
+        else:
+            # NASA9, or no thermo selector: NASA9 database for the species that come from no reactions file (species
+            # list, mixture); without thermo the species of a reactions file keep the records of the file (file_thermo below)
             all_species = ct.Species.list_from_file('nasa9.yaml')
 
         # reactions = without thermo: the species of the file keep the thermo records of the file; with CEA-file the
@@ -192,7 +192,7 @@ def build(inifile,section):
         file_thermo = reaction_model is not None and thermo_model is None and not CEA_equilibrium
         if file_thermo:
             print(f'[INFO] GPB: reactions = {reaction_model} without thermo: the thermo records of the file are used '
-                  f'(set thermo = NASA7, NASA9 or Burcat to replace them with a database)')
+                  f'(set thermo = NASA7, NASA9, Burcat or custom to replace them with a database)')
         elif reaction_model is not None and thermo_model is None:
             print(f'[INFO] GPB: reactions = {reaction_model} without thermo, with CEA-file: NASA9 database assumed '
                   f'(thermo = NASA9), as for the CEA equilibrium species')
@@ -380,6 +380,8 @@ def build(inifile,section):
         transport_species_list = ct.Species.list_from_file('Lennard-Jones.yaml')
         transport_species_dict = {sp.name: sp for sp in transport_species_list}
         for s in manual_inert_species:
+            if s.transport is not None:
+                continue            # a custom species with its own transport data
             if s.name in transport_species_dict:
                 s.transport = transport_species_dict[s.name].transport
             else:
@@ -430,6 +432,8 @@ def build(inifile,section):
         transport_species_list = ct.Species.list_from_file('Lennard-Jones.yaml')
         transport_species_dict = {sp.name: sp for sp in transport_species_list}
         for s in selected_species:
+            if s.transport is not None:
+                continue            # a custom species with its own transport data
             if s.name in transport_species_dict:
                 s.transport = transport_species_dict[s.name].transport
             else:

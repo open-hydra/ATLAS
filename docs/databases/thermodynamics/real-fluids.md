@@ -1,16 +1,17 @@
 # Real-Fluid Databases
 
-For high-pressure propulsion applications where ideal-gas assumptions break down (transcritical injection, supercritical combustion), ATLAS provides two cubic equation-of-state databases implemented as Cantera-compatible YAML files.
+For real-fluid, ATLAS provides two cubic equation-of-state databases implemented as Cantera-compatible YAML files, and the CoolProp library. A real-fluid phase selects one with `thermo`.
 
 ---
 
 ## Available Databases
 
-| EOS model | Fluids |
-|---|---|
-| CoolProp | 100+ fluids |  
-| Peng-Robinson (PR) | CO₂, H₂O |
-| Redlich-Kwong (RK) | CO₂, H₂O |
+| `thermo` | EOS | Fluids |
+|---|---|---|
+| `coolprop` | CoolProp | 100+ fluids |
+| `peng-robinson` | Peng-Robinson (PR) | CO₂, H₂O |
+| `redlich-kwong` | Redlich-Kwong (RK) | CO₂, H₂O |
+| `custom` | your own | the `RealFluid` substances of [`custom.py`](custom.md#real-fluids) |
 
 !!! tip "Adding new fluids"
     To add new fluids to the cubic EOS databases, create a new entry in `peng-robinson.yaml` or `redlich-kwong.yaml`, and add the appropriate critical constants and acentric factor. Critical constants for most species are available at the [NIST Chemistry WebBook](https://webbook.nist.gov/chemistry/).

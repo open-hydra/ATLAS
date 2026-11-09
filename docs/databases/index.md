@@ -10,10 +10,10 @@ ATLAS bundles a curated set of thermodynamic, transport, and chemistry databases
 **Models & Data Sources**
 
 - NASA 9-coefficient polynomials (NASA Glenn)
-- Burcat extended thermodynamic database  
+- Burcat extended thermodynamic database (not distributed with ATLAS)  
 - Real-fluid equations of state (Peng–Robinson, Redlich–Kwong)
 - CoolProp database for real fluids
-- Custom thermodynamic database
+- Custom substances: your own species, materials and fluids, as Python classes
 
 [→ Open Thermodynamics](thermodynamics/index.md)
 

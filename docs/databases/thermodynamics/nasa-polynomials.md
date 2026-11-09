@@ -1,8 +1,9 @@
 # NASA Polynomial Databases
 
-ATLAS ships two NASA-format thermodynamic databases for ideal-gas species, both stored in Cantera YAML:
-`nasa9.yaml` (`thermo = NASA9`) and `burcat.yaml` (`thermo = Burcat`). `thermo = NASA7` selects a third one that
-Cantera ships, `nasa_gas.yaml` (748 gas species, 200–6000 K, the NASA7 form below).
+ATLAS ships one NASA-format thermodynamic database for ideal-gas species, stored in Cantera YAML: `nasa9.yaml`
+(`thermo = NASA9`). `thermo = NASA7` selects one that Cantera ships, `nasa_gas.yaml` (748 gas species, 200–6000 K, the
+NASA7 form below). `thermo = Burcat` reads `burcat.yaml`, in the same form, which the user supplies: see
+[Burcat](#burcat-extended-third-millennium-database).
 
 ---
 
@@ -57,9 +58,19 @@ The database covers all major combustion species, including:
 | Attribute | Value |
 |---|---|
 | **Format** | NASA 7-coefficient (NASA7) |
-| **Species** | 2324 |
+| **Species** | thousands, gas and condensed (3746 in the January 2018 edition) |
 | **Temperature ranges** | Two intervals: 200 – 1000 – 6000 K |
 | **Source** | Burcat, Goos, Ruscic — Active Thermochemical Tables (ATcT) |
+| **In ATLAS** | not distributed: `database/thermo/external/burcat.yaml`, put there by the user |
+
+!!! warning "Not distributed with ATLAS"
+    The authors provide the database free of charge for non-commercial use, on condition of proper quotation, and
+    forbid including it, or parts of it, in any commercial database, software, firmware or hardware, and any other
+    commercial use, without their written permission. ATLAS is GPL software that anyone may use commercially, so it does
+    not include the file. `thermo = Burcat` needs `burcat.yaml` in `database/thermo/external/` (or in the case
+    directory); [`database/thermo/external/README.md`](https://github.com/open-hydra/ATLAS/blob/main/database/thermo/external/README.md)
+    gives the authors' notice, where to download the database, the quotation to use, and what is known about
+    converting it to Cantera format. Whoever supplies the file is responsible for its use.
 
 ### Polynomial Form
 
@@ -77,8 +88,9 @@ $$
 \frac{S^\circ}{R} = a_1 \ln T + a_2 T + \frac{a_3}{2}T^2 + \frac{a_4}{3}T^3 + \frac{a_5}{4}T^4 + a_7
 $$
 
-!!! info "Duplicate removal"
-    The bundled copy was processed by J. Santner to remove duplicate species names and tritium species for Cantera compatibility.
+!!! info "Cantera-format files"
+    The Burcat files for Cantera in circulation were converted from the Chemkin format. The 2016 edition converted by
+    J. Santner, with which ATLAS's tests were written, removes duplicate species names and the tritium species.
 
 ### Reference
 

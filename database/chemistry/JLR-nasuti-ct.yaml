@@ -1,14 +1,27 @@
 description: |-
-  BROKEN: backward step Ea x1000 (97466368.414 cal/mol) -> k_b = 0 at every T in Cantera and FLINT; even with Ea/1000 the pre-exponential stays inconsistent with k_f/K_c of step 4 of JLR-nasuti.yaml (x918-996, flat in T); do not use
-  Generated from chempp react.data
-
+  The Cantera form of JLR-nasuti.yaml, for KAnT: `reactions = JLR-nasuti` in a KAnT section runs this file. Same species,
+  thermodynamics and rate constants as JLR-nasuti.yaml; only the H2 oxidation step is written differently. Cantera allows
+  explicit reaction orders only on an irreversible reaction, so the step H2 + 0.5 O2 <=> H2O becomes two:
+    4a  H2 + 0.5 O2 => H2O    the forward rate k_f [H2]^0.25 [O2]^1.5, with the orders of the scheme
+    4b  H2O => H2 + 0.5 O2    the backward rate (k_f/K_c^0.25) [H2O]^0.25 [O2]^1.375
+  At equilibrium [H2O] = K_c [H2] [O2]^0.5, and the two rates are equal. Other orders give the same balance; this choice
+  has no negative order, whereas the form with [H2]^(0.25-1) is singular when H2 is zero, as it is at the start
+  of an ignition, and stops the integrator there. The rate constant of 4b is a modified-Arrhenius fit of k_f/K_c^0.25
+  computed with the thermodynamics of this file on 800-3500 K: deviation at most 0.7 % there, at most 21 % on
+  300-800 K. At the chemical equilibrium of the file 4a and 4b run at the same rate within 0.4 % (phi 0.5-2,
+  900-3500 K, 1-100 bar); and a reactor started at 900-1300 K (15.86 bar, the KAnT
+  test deck) ends within 6 K of the equilibrium temperature.
+  The fractional order CH4^0.5 of step 1 can stop Cantera's integrator once the fuel is spent, after the ignition:
+  KAnT then keeps the ignition delay it has found and says so.
+  The phase is named JLR-Nasuti-ct, not JLR-Nasuti, so that it is not taken for JLR-nasuti.yaml.
+  Origin of JLR-nasuti.yaml: Generated from chempp react.data
 generator: Marco Grossi
 date: Sun, 28 Jul 2024
 
 units: {length: dm, quantity: mol, activation-energy: cal/mol}
 
 phases:
-- name: JLR-Nasuti
+- name: JLR-Nasuti-ct
   thermo: ideal-gas
   elements: [O, H, C]
   species: [O2, CH4, H2O, CO, CO2, H2, H, O, OH]
@@ -188,8 +201,10 @@ reactions:
 - equation: H2 + 0.5 O2 => H2O  # Reaction 4 f
   rate-constant: {A: 6.80e+15, b: -1.0, Ea: 40000}
   orders: {H2: 0.25, O2: 1.5}
-- equation: H2O => H2 + 0.5 O2 # Reaction 4 b
-  rate-constant: {A: 6.966e+19, b: -0.823, Ea: 97466368.414}
+- equation: H2O => H2 + 0.5 O2  # Reaction 4 b: k_f/K_c^0.25 of reaction 4 a, fitted on 800-3500 K
+  rate-constant: {A: 2.7842e+16, b: -1.0510, Ea: 54699.7}
+  orders: {H2O: 0.25, O2: 1.375}
+  nonreactant-orders: true
 - equation: O2 <=> 2 O  # Reaction 5
   rate-constant: {A: 1.5e+09, b: 0, Ea: 113000}
 - equation: H2O <=> H + OH  # Reaction 6

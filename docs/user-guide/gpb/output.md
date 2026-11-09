@@ -250,7 +250,7 @@ condensed-dispersed
 AL2O3(L) 1
 ```
 
-Example first lines of `alumina-properties.dat`, for `thermo = Burcat` (the default range, 1 K to 5000 K):
+Example first lines of `alumina-properties.dat`, for `thermo = NASA9` (the default range, 1 K to 5000 K):
 
 ```text
 TITLE = "Mass Thermodynamic Properties"

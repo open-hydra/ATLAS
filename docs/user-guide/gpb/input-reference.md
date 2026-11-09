@@ -22,7 +22,7 @@
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
 | phase |  |  | no | Existing Cantera phase file stem (without .yaml): the name of the database file, which may differ from the phase name inside it. |
-| thermo |  | NASA7,NASA9,Burcat | no | Thermodynamic species database selector. |
+| thermo |  | NASA7,NASA9,Burcat,custom | no | Source of the species thermodynamics: a database (NASA7, NASA9, Burcat) or custom (the IdealGasSpecies of custom.py). Burcat is not distributed with ATLAS: database/thermo/external/README.md. Without it, the species of a reactions file keep the thermo records of the file. |
 | transport |  | CEA,cantera | no | Transport model source. |
 | reactions |  |  | no | Reaction mechanism file stem (without .yaml). |
 | strict-thermo | False | True,False | no | Refuse (instead of warning) when a database thermo record replaces a mechanism species record by more than 1 kJ/mol at 298.15 K. |
@@ -57,7 +57,7 @@
 
 | Parameter | Default | Allowed | Required | Description |
 |-----------|---------|---------|----------|-------------|
-| thermo | NASA9 | NASA7,NASA9,Burcat,SP-database | no | Condensed-phase thermodynamic model selector. A database (NASA7, NASA9, Burcat; NASA9 when both thermo and cp are absent) supplies every material it holds; a material it lacks takes the constant cp and rho of the section, and h0 when other materials come from the database. With cp and no thermo every material is constant. |
+| thermo | NASA9 | NASA7,NASA9,Burcat,custom | no | Source of the material thermodynamics: a database (NASA7, NASA9, Burcat; NASA9 when both thermo and cp are absent) supplies every material it holds; a material it lacks takes the constant cp and rho of the section, and h0 when other materials come from the database. custom takes every material from the CondensedMaterial substances of custom.py (cp, rho, k and optionally the enthalpy and p_sat as functions of T). With cp and no thermo every material is constant. SP-database is the former name of custom. |
 | material | ATLAS |  | no | Condensed-phase material names. |
 | groups | 1 |  | no | Group index per condensed material. |
 | h0 |  |  | no | Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs). |
@@ -98,4 +98,4 @@
 | Tmax |  | >0 | yes | Maximum temperature bound [K]. |
 | NP | 200 | >=2 | no | Number of pressure grid points. |
 | NH | 200 | >=2 | no | Number of enthalpy grid points. |
-| model | coolprop | coolprop,redlich-kwong,peng-robinson | no | Equation-of-state model used for table generation. |
+| thermo | coolprop | coolprop,redlich-kwong,peng-robinson,custom | no | Source of the fluid thermodynamics: CoolProp, a Cantera cubic equation of state (redlich-kwong, peng-robinson) or custom (the RealFluid of custom.py named by fluid). model is the former name of thermo. |

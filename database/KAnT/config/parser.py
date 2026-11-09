@@ -42,8 +42,10 @@ def parse_reactions(ini_file: Path, section: str) -> tuple[list[str], str | None
     raw = get(ini_file, section, "reactions", str)
     if raw is not None:
         mechanisms = raw.split()
+        # The JLR mechanisms have a Cantera form for KAnT, JLR-*-ct.yaml (the H2 step as a forward step with the orders
+        # of the scheme and its backward step): `reactions = JLR-nasuti` runs JLR-nasuti-ct.yaml
         mechanisms = [
-            m + "-ct" if "JLR" in m else m for m in mechanisms
+            m + "-ct" if m.startswith("JLR") and not m.endswith("-ct") else m for m in mechanisms
         ]
     else:
         mechanisms = ["FFCM2"]

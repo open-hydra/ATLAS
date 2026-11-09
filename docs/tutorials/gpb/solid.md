@@ -2,12 +2,12 @@
 
 **Tool:** GPB · **Case:** `test/GPB/SP-Tvar` · **Run time:** a few seconds
 
-This tutorial shows how to define a solid material phase using the ATLAS internal solid-phase database.
+This tutorial shows how to define a solid material phase with the properties of a material coded in `custom.py`.
 
 ## What You'll Learn
 
 - `type = solid` configuration
-- Reading properties from the `SP-database`
+- Reading properties from `custom.py` with `thermo = custom`
 
 ## The Case
 
@@ -16,7 +16,7 @@ This tutorial shows how to define a solid material phase using the ATLAS interna
 type     = solid
 name     = solido
 material = UC
-thermo   = SP-database
+thermo   = custom
 ```
 
 ### Key Points
@@ -25,12 +25,14 @@ thermo   = SP-database
 |-----|---------|
 | `type = solid` | Solid material phase |
 | `name = solido` | Output file base name |
-| `material = UC` | Uranium carbide from the ATLAS solid-phase database |
-| `thermo = SP-database` | Read $c_p(T)$, $\rho(T)$, $k(T)$ from the SP database |
+| `material = UC` | Uranium carbide, a material of `database/thermo/custom.py` |
+| `thermo = custom` | Read $c_p(T)$, $\rho(T)$, $k(T)$ from the `CondensedMaterial` named `UC` |
 
-### SP Database
+### Custom Materials
 
-The ATLAS solid-phase database is located in `database/thermo/` and includes a curated set of solid propellant and structural materials (ceramics, metals, carbides).
+`database/thermo/custom.py` holds a set of solid materials (ceramics, metals, carbides). Each one is a `CondensedMaterial`
+given its properties as numbers or functions of the temperature; you add your own the same way, in that file or in a `custom.py`
+next to your `input.ini`. See [Custom Substances](../../databases/thermodynamics/custom.md).
 
 ## Run It
 

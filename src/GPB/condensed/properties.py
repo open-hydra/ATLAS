@@ -2,11 +2,7 @@ import numpy as np
 import cantera as ct
 from . import io as CP_IO
 import sys
-from config import THERMO_DIR
-
-# Import required module
-sys.path.append(THERMO_DIR)
-from sp_custom import compute_properties_from_database
+import custom_support
 
 T_REF = 298.15   # [K] datum temperature of the optional [GPB-Phase*] h0 (enthalpy-of-formation convention)
 P_REF_DB = 1.0e5 # [Pa] standard state of the NASA Glenn and Burcat polynomials (1 bar). Not
@@ -156,19 +152,27 @@ def compute_properties(type, name, T_low, T_max, all_materials):
             conductivity[mat.name] = np.ones(len(temperatures)) * mat.thermal_conductivity
             energy[mat.name] = density[mat.name] * mass_cp[mat.name] * temperatures
 
-        elif mat.type == 'SP-database':
+        elif mat.type == 'custom':
 
             materials.append(mat.name)
-            mass_cp[mat.name], density[mat.name], conductivity[mat.name], energy[mat.name] = compute_properties_from_database(mat.name,temperatures)
-            enthalpy[mat.name] = energy[mat.name] / density[mat.name]   # dispersed layout needs it; e(Tmin) = 0 -> relative
-            datum.add('relative')
+            p = custom_support.properties(mat.custom, temperatures)
+            mass_cp[mat.name], density[mat.name], conductivity[mat.name] = p['cp'], p['rho'], p['k']
+            enthalpy[mat.name] = p['h']
+            energy[mat.name] = p['rho'] * p['h']     # volumetric, like rho*cp*T of the fixed branch
+            datum.add('absolute' if mat.custom.absolute_enthalpy else 'relative')
+            if p['psat'] is not None:
+                if 'dispersed' in type:
+                    psat[mat.name] = p['psat']
+                else:
+                    print(f' -- {mat.name}: psat is not written (a solid phase has no Psat column)')
 
         if mat.psat_pair is not None:
             vapour[materials[-1]] = vapour_from_pair(*mat.psat_pair, temperatures, materials[-1])
 
     if len(datum) > 1:
         raise SystemExit("[ERROR] condensed materials mix absolute and relative enthalpy data in one phase: "
-                         "give h0 for every fixed-cp material or for none")
+                         "give h0 for every fixed-cp material or for none, and set absolute_enthalpy of the "
+                         "custom materials alike")
     enthalpy_absolute = (datum == {'absolute'})
     print(' -- Enthalpy column datum:', 'absolute (Enthalpy_abs)' if enthalpy_absolute else 'relative cp*T (Enthalpy)')
     if vapour:

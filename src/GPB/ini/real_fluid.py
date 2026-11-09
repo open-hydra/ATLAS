@@ -4,7 +4,7 @@ from PiNeR import get
 # Real-fluid phase routines
 # -----------------------------------------------------------------------
 
-_VALID_MODELS = ('coolprop', 'redlich-kwong', 'peng-robinson')
+_VALID_THERMO = ('coolprop', 'redlich-kwong', 'peng-robinson', 'custom')
 
 def RF_read_params(ini_file, section):
     """Read real-fluid lookup-table parameters from the INI file."""
@@ -43,13 +43,27 @@ def RF_read_params(ini_file, section):
         print("  NH not specified, defaulting to 200")
         NH = 200
 
-    model = get(ini_file, section, 'model', str)
-    if model is None:
-        model = 'coolprop'
-    model = model.lower()
-    if model not in _VALID_MODELS:
+    # thermo selects the source of the fluid, as in the other phase types; model is its former name
+    thermo = get(ini_file, section, 'thermo', str)
+    legacy = get(ini_file, section, 'model', str)
+    thermo = None if thermo is None else thermo.split(';')[0].strip()
+    legacy = None if legacy is None else legacy.split(';')[0].strip()
+    if legacy is not None:
+        if thermo is None:
+            print(f"[WARNING] [{section}] model is deprecated: write thermo = {legacy}")
+            thermo = legacy
+        elif thermo.lower() != legacy.lower():
+            raise RuntimeError(
+                f"thermo = {thermo} and model = {legacy} in section {section}: "
+                "model is the former name of thermo, give thermo only")
+        else:
+            print(f"[WARNING] [{section}] model is deprecated and ignored: thermo = {thermo} is used")
+    if thermo is None:
+        thermo = 'coolprop'
+    thermo = thermo.lower()
+    if thermo not in _VALID_THERMO:
         raise RuntimeError(
-            f"Unknown model '{model}' in section {section}. "
-            f"Valid options: {', '.join(_VALID_MODELS)}")
+            f"Unknown thermo '{thermo}' in section {section}. "
+            f"Valid options: {', '.join(_VALID_THERMO)}")
 
-    return name, fluid, pmin, pmax, Tmin, Tmax, NP, NH, model
+    return name, fluid, pmin, pmax, Tmin, Tmax, NP, NH, thermo

@@ -147,7 +147,7 @@ nav:
       - Overview: databases/thermodynamics/index.md
       - NASA Polynomials: databases/thermodynamics/nasa-polynomials.md
       - Real Fluids: databases/thermodynamics/real-fluids.md
-      - Solid-Phase Custom: databases/thermodynamics/custom.md
+      - Custom: databases/thermodynamics/custom.md
     - Transport:
       - Overview: databases/transport/index.md
       - CEA Polynomials: databases/transport/cea-polynomials.md
