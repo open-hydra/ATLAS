@@ -2745,10 +2745,10 @@ set_tests_properties(CP-custom PROPERTIES
 
 # ---- GPB : custom-contract (the contract that custom_classes.py declares (inputs, outputs, units, valid values) is stated in the docs, is
 # ----       implemented by every shipped material, and is enforced: a negative cp and a missing rho are refused, naming function and temperature;
-# ----       numpy only; skipped (77) without it) -------------
+# ----       numpy (of the conda environment, as ATLAS.sh), and Cantera for the transport units; skipped (77) without numpy) -------------
 add_test(
     NAME    custom-contract
-    COMMAND bash -c "\"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/GPB/custom-contract/check.py ${CMAKE_SOURCE_DIR}"
+    COMMAND bash -c "if [ -z \"\${ATLAS_PYTHON:-}\" ] && command -v conda >/dev/null 2>&1; then eval \"\$(conda shell.bash hook)\" && conda activate \"\${ATLAS_CONDA_ENV:-ct-env}\" || exit 1; fi; \"\${ATLAS_PYTHON:-python3}\" -B ${CMAKE_SOURCE_DIR}/test/GPB/custom-contract/check.py ${CMAKE_SOURCE_DIR}"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/custom-contract"
 )
 set_tests_properties(custom-contract PROPERTIES
@@ -2759,7 +2759,8 @@ set_tests_properties(custom-contract PROPERTIES
 )
 
 # ---- GPB : IG-custom (the species N2 and O2 of a custom.py, with the NASA 7-coefficient polynomials of Cantera's nasa_gas.yaml, write the
-# ----       same thermo.dat, transport.dat, phase.txt and composition.txt as thermo = NASA7) -------------
+# ----       same thermo.dat, transport.dat, phase.txt and composition.txt as thermo = NASA7; with CEA-file, thermo = custom is ignored
+# ----       without being loaded: a WARNING and the reference files of ceafile-reactive-OG) -------------
 add_test(
     NAME    IG-custom
     COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh

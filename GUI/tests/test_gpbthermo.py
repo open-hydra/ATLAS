@@ -50,6 +50,14 @@ class FormerSpellings(unittest.TestCase):
         self.assertEqual(phase.get("thermo"), "coolprop")
         self.assertEqual(phase.migrated, [])
 
+    def test_model_equal_to_thermo_is_removed(self):
+        # kept, a later change of thermo would leave a model that differs, which GPB refuses
+        phase = GPBPhase([("type", "real-fluid"), ("thermo", "coolprop"), ("model", "coolprop")])
+        self.assertFalse(phase.has("model"))
+        self.assertEqual(len(phase.migrated), 1)
+        phase.set("thermo", "peng-robinson")
+        self.assertEqual([k for k in phase.params if k in ("thermo", "model")], ["thermo"])
+
     def test_sp_database_is_custom(self):
         phase = GPBPhase([("type", "solid"), ("material", "UC"), ("thermo", "SP-database")])
         self.assertEqual(phase.get("thermo"), "custom")
@@ -132,6 +140,20 @@ class CustomPickers(unittest.TestCase):
             with open(os.path.join(case, "custom.py"), "w") as handle:
                 handle.write("raise RuntimeError('no data yet')\n")
             self.assertEqual(database.species_of_database("custom", "solid", case), [])
+
+
+class BurcatFile(unittest.TestCase):
+    """burcat.yaml is searched as GPB searches it: the case directory first, then database/thermo/external and
+    database/thermo; the picker lists the species of the file that GPB loads."""
+
+    def test_the_case_directory_comes_first(self):
+        with tempfile.TemporaryDirectory() as case:
+            path = os.path.join(case, "burcat.yaml")
+            with open(path, "w") as handle:
+                handle.write("species:\n- name: CASE-ONLY\n")
+            self.assertEqual(database.thermo_file("Burcat", case_dir=case), path)
+            self.assertEqual(database.species_of_database("Burcat", "ideal-gas", case), ["CASE-ONLY"])
+        self.assertNotIn("CASE-ONLY", database.species_of_database("Burcat", "ideal-gas"))
 
 
 class CanteraMechanisms(unittest.TestCase):

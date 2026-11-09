@@ -24,7 +24,7 @@ These approaches are not mutually exclusive. For example, the species list can b
 |---|---|
 | `NASA9` | `nasa9.yaml`, the NASA Glenn coefficients (the default for species that come from no mechanism file) |
 | `NASA7` | `nasa_gas.yaml` of Cantera |
-| `Burcat` | `burcat.yaml`, which ATLAS does not distribute: put it in `database/thermo/external/` ([Thermodynamics Databases](../../databases/thermodynamics/index.md#burcat-is-not-distributed)) |
+| `Burcat` | `burcat.yaml`, which ATLAS does not distribute: put it in `database/thermo/external/` ([Thermodynamics Databases](../../databases/thermodynamics/index.md#burcat-distribution)) |
 | `custom` | the `IdealGasSpecies` substances of `custom.py`: [Custom Substances](../../databases/thermodynamics/custom.md#ideal-gas-species) |
 
 ### Calorically-perfect gas

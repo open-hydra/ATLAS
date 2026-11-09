@@ -184,6 +184,12 @@ class CondensedMaterial(Substance):
                  required=False, default="none: no Psat column for this material"),
     )
 
+    def __init__(self, name, **values):
+        super().__init__(name, **values)
+        # the default h is zero at the first temperature of the table: it is not on the formation scale
+        if self.absolute_enthalpy and "h" not in values and not self._overrides("h"):
+            raise TypeError(f"{self.label}: absolute_enthalpy=True needs h(T), on the formation scale of the databases")
+
     def cp(self, T):
         return self._value("cp", T)
 
@@ -271,7 +277,10 @@ class IdealGasSpecies(Substance):
         sp.thermo = ct.NasaPoly2(n["Tmin"], n["Tmax"], n.get("reference_pressure", ct.one_atm),
                                  [n["Tmid"]] + list(n["high"]) + list(n["low"]))
         if self.transport:
-            sp.transport = ct.GasTransportData(**self.transport)
+            # the constructor of GasTransportData takes SI units (m, J, m3): the customary ones go through this setter
+            transport = ct.GasTransportData()
+            transport.set_customary_units(**self.transport)
+            sp.transport = transport
         return sp
 
 
@@ -329,6 +338,19 @@ class RealFluid(Substance):
 
     def state(self, h, p):
         return self._value("state", h, p)
+
+    def checked_reference(self, T, p):
+        """reference(T, p) as two finite numbers (h, s)."""
+        value = self.reference(T, p)
+        try:
+            h, s = (float(v) for v in value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{self.name}: reference(T = {T:g}, p = {p:g}) must return (h, s), not {value!r}")
+        for name, v in (("h", h), ("s", s)):
+            if not np.isfinite(v):
+                raise ValueError(f"{self.name}: reference(T = {T:g}, p = {p:g}) gives {name} = {v:g} "
+                                 "which is not a valid value")
+        return h, s
 
     def checked_state(self, h, p):
         """state(h, p) with the keys checked; the speed of sound is None when the fluid gives none."""

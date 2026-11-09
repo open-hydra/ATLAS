@@ -396,7 +396,7 @@ def pick_from_database(parent, kit, phase, title, case_dir=None,
     current = next(iter(sources)) if mechanism else (reading or "NASA9")
 
     def note(label):
-        if label == "Burcat" and database.thermo_file("Burcat") is None:
+        if label == "Burcat" and database.thermo_file("Burcat", case_dir=case_dir) is None:
             return ("burcat.yaml is not distributed with ATLAS: put it in database/thermo/external/ "
                     "(see its README.md).")
         if label not in databases:

@@ -152,7 +152,7 @@ N2 = IdealGasSpecies(                              # N2 of GRI-Mech 3.0, which f
 |---|---|---|
 | `composition` | yes | elements and their counts |
 | `nasa7` | yes | `Tmin`, `Tmid`, `Tmax` [K] and the 7 coefficients of the low (`Tmin`–`Tmid`) and high (`Tmid`–`Tmax`) range, in the order of the files; optionally `reference_pressure` [Pa], 1 atm by default as in the database files |
-| `transport` | no | the Lennard-Jones data of Cantera's `GasTransportData`: `geometry` (`atom`, `linear` or `nonlinear`), `diameter` [Å], `well_depth` [K], and optionally `dipole`, `polarizability`, `rotational_relaxation` |
+| `transport` | no | the Lennard-Jones data of Cantera's `GasTransportData`: `geometry` (`atom`, `linear` or `nonlinear`), `diameter` [Å], `well_depth` [K], and optionally `dipole` [Debye], `polarizability` [Å³], `rotational_relaxation`. Without it, GPB takes the record of the species in `Lennard-Jones.yaml` |
 
 For any other form (NASA 9-coefficient polynomials, a constant cp, a formula) give the optional output `species`, a
 function of nothing that returns a `cantera.Species` with the name of the substance; `composition` and `nasa7` are then
@@ -286,9 +286,11 @@ value it returns); the message names the substance, and the temperature of a bad
 | `cp` or `rho` not given | `... CondensedMaterial 'Foam': give rho(T) (required by CondensedMaterial)` |
 | an output the contract does not have (a misspelt `kk=`) | `... CondensedMaterial 'Foam': kk is not in the contract of CondensedMaterial (it takes cp, rho, k, h, psat, absolute_enthalpy)` |
 | a name made twice in one file | `... CondensedMaterial 'Foam': made twice in the same file` |
+| `absolute_enthalpy=True` without `h` | `... CondensedMaterial 'Wax': absolute_enthalpy=True needs h(T), on the formation scale of the databases` |
 | a gas species with neither `nasa7` nor `species` | `... IdealGasSpecies 'N2': give composition and nasa7, or species` |
 | no `IdealGasSpecies` in the files, for a gas phase | `[ERROR] [GPB-Phase1] thermo = custom: custom.py defines no ideal-gas species ...` |
 | `species()` returns something else than a species with the name of the substance | `... species() of N2 must return a cantera.Species named N2` |
+| `reference(T, p)` gives an `h` or `s` that is not a number | `... custom real fluid PerfectAir: reference(T = 300, p = 100000) gives s = nan which is not a valid value` |
 | `state(h, p)` lacks a key | `... custom real fluid PerfectAir: state(h, p) lacks mu` |
 | `state(h, p)` gives a value its key cannot have (`rho` ≤ 0, `mu` < 0, not a number) | `... PerfectAir: state(h = ..., p = ...) gives rho = -1 which is not a valid value` |
 

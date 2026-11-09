@@ -168,27 +168,23 @@ def build(inifile,section):
     # Load the Thermo Model (only if phase is not specified)
     # ---------------------------------------------------
     if phase_model is None:
-        if thermo_model == 'NASA7':
-            all_species = ct.Species.list_from_file('nasa_gas.yaml')
-        elif thermo_model == 'NASA9':
-            all_species = ct.Species.list_from_file('nasa9.yaml')
-        elif thermo_model == 'Burcat':
-            require_burcat()
-            all_species = ct.Species.list_from_file('burcat.yaml')
-        elif thermo_model == 'custom':
-            all_species = custom_support.ideal_gas_species(section)   # the species coded in custom.py
-        elif thermo_model is None:
-            # No thermo selector: NASA9 database for the species that come from no reactions file (species list,
-            # mixture); the species of a reactions file keep the records of the file (file_thermo below)
-            all_species = ct.Species.list_from_file('nasa9.yaml')
-        else:
+        if thermo_model not in (None, 'NASA7', 'NASA9', 'Burcat', 'custom'):
             print(f'[ERROR] GPB: thermo = {thermo_model} is not a database (allowed: NASA7, NASA9, Burcat, custom)')
             sys.exit(1)
-
-        # Force NASA9 if CEA is used (a thermo key that is ignored is said)
         if CEA_equilibrium:
+            # NASA9 is forced with CEA: the source that is ignored is said, and not loaded (burcat.yaml may be absent)
             if thermo_model not in (None, 'NASA9'):
                 print(f"[WARNING] key thermo of section [{section}]: thermo = {thermo_model} is ignored with CEA-file: the CEA equilibrium species use the NASA9 database")
+            all_species = ct.Species.list_from_file('nasa9.yaml')
+        elif thermo_model == 'NASA7':
+            all_species = ct.Species.list_from_file('nasa_gas.yaml')
+        elif thermo_model == 'Burcat':
+            all_species = ct.Species.list_from_file(require_burcat())
+        elif thermo_model == 'custom':
+            all_species = custom_support.ideal_gas_species(section)   # the species coded in custom.py
+        else:
+            # NASA9, or no thermo selector: NASA9 database for the species that come from no reactions file (species
+            # list, mixture); without thermo the species of a reactions file keep the records of the file (file_thermo below)
             all_species = ct.Species.list_from_file('nasa9.yaml')
 
         # reactions = without thermo: the species of the file keep the thermo records of the file; with CEA-file the
@@ -384,6 +380,8 @@ def build(inifile,section):
         transport_species_list = ct.Species.list_from_file('Lennard-Jones.yaml')
         transport_species_dict = {sp.name: sp for sp in transport_species_list}
         for s in manual_inert_species:
+            if s.transport is not None:
+                continue            # a custom species with its own transport data
             if s.name in transport_species_dict:
                 s.transport = transport_species_dict[s.name].transport
             else:
@@ -434,6 +432,8 @@ def build(inifile,section):
         transport_species_list = ct.Species.list_from_file('Lennard-Jones.yaml')
         transport_species_dict = {sp.name: sp for sp in transport_species_list}
         for s in selected_species:
+            if s.transport is not None:
+                continue            # a custom species with its own transport data
             if s.name in transport_species_dict:
                 s.transport = transport_species_dict[s.name].transport
             else:

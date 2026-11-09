@@ -49,11 +49,13 @@ HG_SUBSTRING = "-HG"
 
 
 def require_burcat():
-    """thermo = Burcat needs burcat.yaml, which ATLAS does not distribute: stop, with where to put it, when it is
-    in neither the case directory, database/thermo/external nor database/thermo."""
+    """The path of burcat.yaml, which ATLAS does not distribute: the first of the case directory,
+    database/thermo/external and database/thermo (Cantera's search would put the case directory last). Stop, with
+    where to put it, when it is in none."""
     for d in (os.getcwd(), THERMO_EXTERNAL_DIR, THERMO_DIR):
-        if os.path.isfile(os.path.join(d, "burcat.yaml")):
-            return
+        path = os.path.join(d, "burcat.yaml")
+        if os.path.isfile(path):
+            return path
     print("[ERROR] GPB: thermo = Burcat needs burcat.yaml, which ATLAS does not distribute: the authors allow the "
           "database for non-commercial use, with citation, and ask for their written permission otherwise. Download it "
           "and put it in database/thermo/external/ (or in the case directory): see database/thermo/external/README.md")

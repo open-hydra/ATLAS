@@ -144,7 +144,7 @@ configuration of MkDocs (`mkdocs.yml`), with which the documentation was first w
 - **Terms:** free for non-commercial use, with proper quotation; including it in commercial databases, software, firmware or hardware, and any other commercial use, needs the written permission of the authors
 
 `thermo = Burcat` reads `burcat.yaml`, which the user obtains from the authors and puts in `database/thermo/external/`.
-ATLAS does not include the file: see [Thermodynamics Databases](../databases/thermodynamics/index.md#burcat-is-not-distributed).
+ATLAS does not include the file: see [Thermodynamics Databases](../databases/thermodynamics/index.md#burcat-distribution).
 
 ### NASA Glenn coefficients
 

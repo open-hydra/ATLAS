@@ -44,7 +44,7 @@ h0       = -15865000
 
 #### Saturation pressure from the thermo database (`psat-vapour`, `psat-liquid`)
 
-A dispersed material can carry its saturation pressure `p_sat(T)` in `<name>properties.dat`. `psat-vapour` names the vapour species of the thermo database GPB loads (`nasa9.yaml` for `thermo = NASA9` or no `thermo`, `burcat.yaml` for `thermo = Burcat`, a file that the user supplies: [Thermodynamics Databases](../../databases/thermodynamics/index.md#burcat-is-not-distributed)) and `psat-liquid` the liquid species, by default the material name. Both keys take one value per entry of `material` (a single value is broadcast); `psat-vapour = none` skips a material. GPB computes, on every row of the table,
+A dispersed material can carry its saturation pressure `p_sat(T)` in `<name>properties.dat`. `psat-vapour` names the vapour species of the thermo database GPB loads (`nasa9.yaml` for `thermo = NASA9` or no `thermo`, `burcat.yaml` for `thermo = Burcat`, a file that the user supplies: [Thermodynamics Databases](../../databases/thermodynamics/index.md#burcat-distribution)) and `psat-liquid` the liquid species, by default the material name. Both keys take one value per entry of `material` (a single value is broadcast); `psat-vapour = none` skips a material. GPB computes, on every row of the table,
 
 ```text
 p_sat(T) = p_ref · exp(−(g_vap(T) − g_liq(T)) / (R·T)),     g = h − T·s (molar),   p_ref = 1 bar

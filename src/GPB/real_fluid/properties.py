@@ -39,8 +39,8 @@ def enthalpy_bounds(model, fluid, Tmin, Tmax, pmin, pmax):
     internal reference convention.
     """
     if model == 'custom':
-        hmin, s_ref = custom_support.guarded(fluid, 'reference', Tmin, pmin)
-        hmax, _ = custom_support.guarded(fluid, 'reference', Tmax, pmax)
+        hmin, s_ref = custom_support.guarded(fluid, 'checked_reference', Tmin, pmin)
+        hmax, _ = custom_support.guarded(fluid, 'checked_reference', Tmax, pmax)
         return hmin, hmax, s_ref
     if model == 'coolprop':
         return _enthalpy_bounds_coolprop(fluid, Tmin, Tmax, pmin, pmax)

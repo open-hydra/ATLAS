@@ -2,6 +2,10 @@
 # RF-custom: a RealFluid of custom.py (a calorically perfect gas) against its closed form; the same fluid without a
 # speed of sound gets 500 m/s and a WARNING (usage: run.sh <ATLAS.sh>).
 atlas=$1
+# the checkers need numpy: the conda environment of ATLAS.sh, unless ATLAS_PYTHON names an interpreter
+if [ -z "${ATLAS_PYTHON:-}" ] && command -v conda >/dev/null 2>&1; then
+  eval "$(conda shell.bash hook)" && conda activate "${ATLAS_CONDA_ENV:-ct-env}" || exit 1
+fi
 py=${ATLAS_PYTHON:-python3}
 fail() { echo "[FAIL] $*"; exit 1; }
 

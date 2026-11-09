@@ -120,9 +120,12 @@ def _cantera_data_dirs():
     return [d for d in dirs if os.path.isdir(d)]
 
 
-def thermo_file(name, family="gas"):
+def thermo_file(name, family="gas", case_dir=None):
     """Path of the file GPB loads for database *name* in a phase of *family*,
-    or None when it cannot be found."""
+    or None when it cannot be found. The order is GPB's: burcat.yaml in the
+    case directory, database/thermo/external, database/thermo (config.py,
+    require_burcat); the other files through Cantera's search, which puts
+    external/ before database/thermo."""
     if name == "NASA7":
         filename = NASA7_FILES["gas" if family == "gas" else "condensed"]
         for directory in _cantera_data_dirs():
@@ -130,7 +133,10 @@ def thermo_file(name, family="gas"):
             if os.path.isfile(path):
                 return path
         return None
-    for directory in (THERMO_DIR, THERMO_EXTERNAL_DIR):
+    directories = [THERMO_EXTERNAL_DIR, THERMO_DIR]
+    if name == "Burcat":
+        directories.insert(0, case_dir or ".")
+    for directory in directories:
         path = os.path.join(directory, THERMO_FILES.get(name, ""))
         if os.path.isfile(path):
             return path
@@ -215,12 +221,12 @@ def database_states(name, family="gas", case_dir=None):
         # The substances of custom.py. A material has no state of its own: "condensed" goes with any condensed phase.
         state = "gas" if family == "gas" else "condensed"
         return [(n, state) for n in custom_substances(family, case_dir)]
-    key = (name, family)
-    if key in _state_cache:
-        return _state_cache[key]
-    path = thermo_file(name, family)
+    path = thermo_file(name, family, case_dir)
     if not path:
         return []      # not cached: the file (burcat.yaml) may be put in place while the GUI is open
+    key = (name, family, os.path.abspath(path))
+    if key in _state_cache:
+        return _state_cache[key]
     untagged = {"NASA9": "ordered", "NASA7": family}.get(name, "gas")
     _state_cache[key] = _scan_states(path, untagged)
     return _state_cache[key]

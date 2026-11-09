@@ -4,6 +4,10 @@
 # 2. a material with an absolute enthalpy (the column is named Enthalpy_abs)
 # 3. the refusals: mixed enthalpy data, an unknown material, a negative cp, a custom.py that fails
 atlas=$1
+# the checkers need numpy: the conda environment of ATLAS.sh, unless ATLAS_PYTHON names an interpreter
+if [ -z "${ATLAS_PYTHON:-}" ] && command -v conda >/dev/null 2>&1; then
+  eval "$(conda shell.bash hook)" && conda activate "${ATLAS_CONDA_ENV:-ct-env}" || exit 1
+fi
 py=${ATLAS_PYTHON:-python3}
 fail() { echo "[FAIL] $*"; exit 1; }
 

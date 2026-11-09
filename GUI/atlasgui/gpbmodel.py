@@ -272,6 +272,10 @@ class GPBPhase:
                 self.params = OrderedDict(
                     ("thermo" if key == "model" else key, value) for key, value in self.params.items())
                 notes.append("model is the former name of thermo: renamed")
+            elif self.params["model"].strip() == self.params["thermo"].strip():
+                # the same value twice: a later change of thermo would leave a model that differs, which GPB refuses
+                del self.params["model"]
+                notes.append("model is the former name of thermo, with the same value: removed")
         elif self.family in ("condensed", "solid") and self.params.get("thermo", "").strip() == "SP-database":
             self.params["thermo"] = "custom"
             notes.append("thermo = SP-database is the former name of thermo = custom: renamed")

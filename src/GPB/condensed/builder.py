@@ -63,10 +63,9 @@ def build(type,inifile,section,modeling=None):
     # Load the Thermo Model
     # ---------------------------------------------------
     if thermo_model is None: thermo_model = 'NASA9'
-    if thermo_model == 'Burcat':
-        require_burcat()
     if thermo_model in THERMO_FILES:
-        all_mat = ct.Species.list_from_file(THERMO_FILES[thermo_model])
+        thermo_file = require_burcat() if thermo_model == 'Burcat' else THERMO_FILES[thermo_model]
+        all_mat = ct.Species.list_from_file(thermo_file)
 
     # ---------------------------------------------------
     # Build the specific heat
