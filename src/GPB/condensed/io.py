@@ -29,7 +29,7 @@ def write_basics(type, name, mat_phases, groups, modeling=None, material_tokens=
 
 
 def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, enthalpy, conductivity, energy,
-                     enthalpy_absolute=False, psat=None):
+                     enthalpy_absolute=False, vapour=None):
 
     # Write the data to a file in Tecplot-readable format
     filename = outpath + name + "properties.dat"
@@ -45,11 +45,12 @@ def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, 
             # The NAME of column 4 tags the datum so a consumer can assert instead of assume:
             #   Enthalpy      relative: cp*T (fixed cp without h0) or the integral of cp of a custom material from Tmin
             #   Enthalpy_abs  absolute: formation enthalpy included (thermo tables, or fixed cp with h0)
-            # psat (material -> array, from psat-vapour) adds a 5th column "Psat" [Pa], zeros for an
-            # unpaired material, that the solvers find by name; a reader of 3 variables never reaches it.
+            # vapour (material -> {'psat', 'Lv', 'Mv', 'Cpv'} arrays, from psat-vapour) adds the columns "Psat" [Pa],
+            # "Lv" [J/kg], "Mv" [kg/kmol] and "Cpv" [J/(kg K)], zeros for an unpaired material, that the solvers find
+            # by name; a reader of 3 variables never reaches them.
             h_label = "Enthalpy_abs" if enthalpy_absolute else "Enthalpy"
-            psat_label = ", \"Psat\"" if psat is not None else ""
-            f.write(f"VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"{h_label}\"{psat_label}\n")
+            vapour_label = ", \"Psat\", \"Lv\", \"Mv\", \"Cpv\"" if vapour is not None else ""
+            f.write(f"VARIABLES = \"Temperature\", \"Cp\", \"Density\", \"{h_label}\"{vapour_label}\n")
             
             for species_name in species_names:
                 f.write(f"ZONE T=\"{species_name}\"\n")
@@ -59,8 +60,9 @@ def write_properties(type, name, T_low, T_max, species_names, mass_cp, density, 
                     h_mass = enthalpy[species_name][i]
                     rho = density[species_name][i]
                     row = f"{T} {cp_mass:.6f} {rho:.6f} {h_mass:.6f}"
-                    if psat is not None:
-                        row += f" {psat[species_name][i]:.6e}"
+                    if vapour is not None:
+                        v = vapour[species_name]
+                        row += f" {v['psat'][i]:.6e} {v['Lv'][i]:.6f} {v['Mv'][i]:.6f} {v['Cpv'][i]:.6f}"
                     f.write(row + "\n")
 
         else:

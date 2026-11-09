@@ -7,7 +7,7 @@
 set -u
 f=${1:-fromATLAStoSolver/part-properties.dat}
 rc=0
-sed -n 2p "$f" | grep -q '"Enthalpy_abs", "Psat"$' && echo "PASS header ends Enthalpy_abs, Psat" || { echo "FAIL header: $(sed -n 2p "$f")"; rc=1; }
+sed -n 2p "$f" | grep -q '"Enthalpy_abs", "Psat", "Lv", "Mv", "Cpv"$' && echo "PASS header ends Enthalpy_abs, Psat, Lv, Mv, Cpv" || { echo "FAIL header: $(sed -n 2p "$f")"; rc=1; }
 awk '
   NR > 4 && NF >= 5 { if (seen && $5 + 0 < last) dec = 1; last = $5 + 0; seen = 1; p[$1 + 0] = $5 }
   END {

@@ -1210,6 +1210,38 @@ set_tests_properties(DP-distribution-long-path PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : DP-chimera (the chimera payload in a dispersed-phase file) -------------
+# Two blocks of a planar half-annulus overlap through block 1's face 4 and block 2's face 3; the other faces of
+# the input are symmetries (the k faces are written 200: the slab's first node column lies on y = 0, and BCB
+# reads it as an axisymmetric wedge). The reference is BCB's own product, a regression witness; volume
+# fractions of sliver contacts: the numeric tolerance of IG-chimera.
+add_test(
+    NAME    DP-chimera
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-chimera"
+)
+set_tests_properties(DP-chimera PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : DP-chimera-pure2D (the chimera search on a pure-2D mesh) ---------------
+# DP-chimera's mesh as one node plane (make_mesh.py; pure 2D, a layer of unit depth inside ATLAS): five-integer
+# headers, four faces, and on every 102 facelet the donors and volume fractions of the single-layer deck, an
+# independent oracle (a volume fraction is a ratio of volumes of one receiver: the depth cancels). The search
+# reads the receiver's cell volume, which a pure-2D block must therefore have.
+add_test(
+    NAME    DP-chimera-pure2D
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_pure2d.py fromATLAStoSolver/bc.txt ../DP-chimera/reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-chimera-pure2D"
+)
+set_tests_properties(DP-chimera-pure2D PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : DP-axis-override (dispersed phase let out through the axis) -------------
 # 2Daxi nozzle (IG+CD's mesh). [ax] type = axisymmetric + partL-type = outlet:
 # gas-bc.txt keeps 200 on the axis face 3, partL-bc.txt carries 400 there; the
@@ -2203,10 +2235,12 @@ set_tests_properties(IG-mixture-cantera PROPERTIES
 # ---- GPB : CP-psat-water (psat-vapour -> Psat column from the database's liquid/vapour pair) -------
 # CP-fixmat-h0's water on 280..380 K plus `psat-vapour = H2O`: the table gains "Psat" [Pa] after
 # "Enthalpy_abs", p_sat = 1e5*exp(-(g_H2O - g_H2O(L))/(R T)) from nasa9.yaml. check_psat.sh holds it to
-# IAPWS at 300 and 350 K; the phase file stays CP-fixmat-h0's (the keys are not material-line tokens).
+# IAPWS at 300 and 350 K; the phase file stays CP-fixmat-h0's (the keys are not material-line tokens). The same pair
+# gives "Lv" [J/kg], "Mv" [kg/kmol] and "Cpv" [J/(kg K)] after "Psat": check_vapour.py holds Lv to the slope of the
+# Psat column (Clausius-Clapeyron on every 1-K interval), Mv to the atomic weights, Cpv and Lv to NIST-JANAF.
 add_test(
     NAME    CP-psat-water
-    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt ../CP-fixmat-h0/reference/part-phase.txt && bash check_psat.sh fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt ../CP-fixmat-h0/reference/part-phase.txt && bash check_psat.sh fromATLAStoSolver/part-properties.dat && python3 -B check_vapour.py fromATLAStoSolver/part-properties.dat && awk -v tol=1e-6 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/part-properties.dat fromATLAStoSolver/part-properties.dat"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-psat-water"
 )
 set_tests_properties(CP-psat-water PROPERTIES

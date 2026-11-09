@@ -49,7 +49,7 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `CP-Tvar-fallback` | GPB | `GPB/CP-Tvar-fallback` | A material missing from the database (`thermo = Burcat`) takes the `cp`, `rho`, `h0` of the INI, the others keep their tables, and `groups` reach the phase file in order. |
 | `CP-Tvar-missing` | GPB | `GPB/CP-Tvar-missing` | A material the database lacks, given no constants, stops GPB. |
 | `CP-Tvar-fallback-h0` | GPB | `GPB/CP-Tvar-fallback-h0` | A fallback material next to a database one without `h0` stops GPB: the phase would mix two enthalpy datums. |
-| `CP-psat-water` | GPB | `GPB/CP-psat-water` | `psat-vapour = H2O` adds the `Psat` column from the liquid/vapour pair of `nasa9.yaml`, held to IAPWS at 300 and 350 K. |
+| `CP-psat-water` | GPB | `GPB/CP-psat-water` | `psat-vapour = H2O` adds the columns `Psat`, `Lv`, `Mv`, `Cpv` from the liquid/vapour pair of `nasa9.yaml`: `Psat` held to the IAPWS saturation line at 300 and 350 K, `Lv` to the slope of `Psat` (Clausius–Clapeyron), `Mv` to the atomic weights, `Cpv` and `Lv` to NIST-JANAF; the phase file is that of `CP-fixmat-h0`. |
 | `CP-psat-water-eulerian` | GPB | `GPB/CP-psat-water-eulerian` | The same with `modeling = eulerian`: the `Psat` column does not change. |
 | `CP-psat-refuse` | GPB | `GPB/CP-psat-refuse` | `psat-vapour` naming a species of another composition (`O2` for water) stops GPB. |
 | `IG-fixgas` | GPB | `GPB/IG-fixgas` | Two species given by `gamma`, `mw`, `mil` and `kl` ([Fixed-Gas Mixture](../tutorials/gpb/fixed-gas.md)): the phase and composition files as in the reference, the thermo and transport tables on a sample. |
@@ -111,6 +111,8 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `DP-mixture-401` | BCB | `BCB/DP-mixture-401` | Three dispersed phases on shared inlet cells: the `401` records carry `krho/(1 - krho_tot)` and end with `G`, the mass flux of the `402` phase; a `krho` sum of 1 or more stops BCB naming the section, with no file; a negative `krho` stops it naming the section and the phase. |
 | `DP-distribution-missing` | BCB | `BCB/DP-distribution-missing` | A `distribution` file that does not exist stops BCB naming it, also with `sigmap = 0` (which turns only a law name into `Dirac`); nothing is written. |
 | `DP-distribution-long-path` | BCB | `BCB/DP-distribution-long-path` | A 40-character `distribution` path with `sigmap = 0` is written whole in column 8 of the `401` records: the `drop-bc.txt` of `DP-basic` with that path and `sigmap = 0`. |
+| `DP-chimera` | BCB | `BCB/DP-chimera` | Two blocks that overlap through one face each: the dispersed-phase file carries the 102 records with their donors and volume fractions (tolerance 1e-6, as `IG-chimera`). |
+| `DP-chimera-pure2D` | BCB | `BCB/DP-chimera-pure2D` | The mesh of `DP-chimera` as one node plane (pure 2D): five-integer headers on four faces, and on every 102 facelet the donors and volume fractions of `DP-chimera` (the depth cancels in a volume fraction). |
 | `DP-axis-override` | BCB | `BCB/DP-axis-override` | `<phase>-type = outlet` on an axisymmetric face: the dispersed-phase file carries 400 on the axis, the gas file keeps 200. |
 | `DP-axis-symmetry` | BCB | `BCB/DP-axis-symmetry` | `<phase>-type = symmetry` on an axisymmetric face: the dispersed-phase file carries 300 on the axis, the gas file keeps 200. |
 | `DP-axis-refused` | BCB | `BCB/DP-axis-refused` | Any other `<phase>-type` word on an axisymmetric face stops BCB naming the two accepted ones. |
