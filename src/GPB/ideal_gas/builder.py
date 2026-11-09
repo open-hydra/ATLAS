@@ -8,7 +8,8 @@ from .cea_compat import CEA
 from ini import *
 from PiNeR import get
 import os, sys, re
-from config import setup_cantera_dirs, chemistry_dirs, mechanism_copies, CEA_TRANS_FILE, ATLASDIR
+from config import setup_cantera_dirs, chemistry_dirs, mechanism_copies, require_burcat, CEA_TRANS_FILE, ATLASDIR
+import custom_support
 from cea_transport_records import index_records, RecordError
 
 setup_cantera_dirs()
@@ -172,13 +173,16 @@ def build(inifile,section):
         elif thermo_model == 'NASA9':
             all_species = ct.Species.list_from_file('nasa9.yaml')
         elif thermo_model == 'Burcat':
+            require_burcat()
             all_species = ct.Species.list_from_file('burcat.yaml')
+        elif thermo_model == 'custom':
+            all_species = custom_support.ideal_gas_species(section)   # the species coded in custom.py
         elif thermo_model is None:
             # No thermo selector: NASA9 database for the species that come from no reactions file (species list,
             # mixture); the species of a reactions file keep the records of the file (file_thermo below)
             all_species = ct.Species.list_from_file('nasa9.yaml')
         else:
-            print(f'[ERROR] GPB: thermo = {thermo_model} is not a database (allowed: NASA7, NASA9, Burcat)')
+            print(f'[ERROR] GPB: thermo = {thermo_model} is not a database (allowed: NASA7, NASA9, Burcat, custom)')
             sys.exit(1)
 
         # Force NASA9 if CEA is used (a thermo key that is ignored is said)
@@ -192,7 +196,7 @@ def build(inifile,section):
         file_thermo = reaction_model is not None and thermo_model is None and not CEA_equilibrium
         if file_thermo:
             print(f'[INFO] GPB: reactions = {reaction_model} without thermo: the thermo records of the file are used '
-                  f'(set thermo = NASA7, NASA9 or Burcat to replace them with a database)')
+                  f'(set thermo = NASA7, NASA9, Burcat or custom to replace them with a database)')
         elif reaction_model is not None and thermo_model is None:
             print(f'[INFO] GPB: reactions = {reaction_model} without thermo, with CEA-file: NASA9 database assumed '
                   f'(thermo = NASA9), as for the CEA equilibrium species')

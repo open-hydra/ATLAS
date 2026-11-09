@@ -4,7 +4,8 @@ from . import io as CP_IO
 from ini import *
 from ini.condensed import phase_header_word, CP_read_per_material
 import os, sys
-from config import setup_cantera_dirs, CEA_TRANS_FILE
+from config import setup_cantera_dirs, require_burcat, CEA_TRANS_FILE
+import custom_support
 
 setup_cantera_dirs()
 CEAtransdir = CEA_TRANS_FILE
@@ -21,6 +22,7 @@ class Material:
         self.thermal_conductivity = None
         self.h0 = None   # [J/kg] enthalpy at 298.15 K, fixed-cp materials only (optional [GPB-Phase*] h0)
         self.psat_pair = None   # (liquid, vapour) cantera Species giving p_sat(T) (optional psat-vapour)
+        self.custom = None      # the CondensedMaterial instance of custom.py (thermo = custom)
     
     def load_from_cantera(self, cantera_solution):
         """
@@ -61,6 +63,8 @@ def build(type,inifile,section,modeling=None):
     # Load the Thermo Model
     # ---------------------------------------------------
     if thermo_model is None: thermo_model = 'NASA9'
+    if thermo_model == 'Burcat':
+        require_burcat()
     if thermo_model in THERMO_FILES:
         all_mat = ct.Species.list_from_file(THERMO_FILES[thermo_model])
 
@@ -115,7 +119,7 @@ def build(type,inifile,section,modeling=None):
 
     # ---------------------------------------------------
     # T-constant material
-    if fix_cp is not None and not database:
+    if fix_cp is not None and not database and thermo_model != 'custom':
         print(' -- Found fixed properties materials')
         fix_h0 = CP_read_enthalpy_datum(inifile, section, len(fix_cp))
         for i in range(len(fix_cp)):
@@ -132,11 +136,18 @@ def build(type,inifile,section,modeling=None):
     # ---------------------------------------------------
 
     # ---------------------------------------------------
-    # T-constant material
-    if thermo_model == 'SP-database':
-        print(' -- Found T-varying properties materials from database')
-        for i in range(len(material_names)):
-            material = Material(name=material_names[i],type='SP-database')
+    # Materials coded in custom.py: each one gives cp, rho, k (and optionally the enthalpy and p_sat) as functions of T
+    if thermo_model == 'custom':
+        print(' -- Found T-varying properties materials from custom.py')
+        names = [material_names] if isinstance(material_names, str) else list(material_names)
+        h0_given = CP_read_enthalpy_datum(inifile, section, len(names)) is not None
+        ignored = [k for k, v in (('cp', fix_cp), ('rho', fix_rho), ('k', fix_k)) if v is not None]
+        ignored += ['h0'] if h0_given else []
+        if ignored:
+            print(f"[WARNING] [{section}] thermo = custom: {', '.join(ignored)} ignored (the material gives its own)")
+        for n in names:
+            material = Material(name=n, type='custom')
+            material.custom = custom_support.substance(section, 'material', 'condensed', n)
             material_group.append(material)
     # ---------------------------------------------------
 

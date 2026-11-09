@@ -1,5 +1,7 @@
 import math
 
+import custom_support
+
 # -----------------------------------------------------------------------
 # Model → Cantera YAML mapping
 # -----------------------------------------------------------------------
@@ -13,10 +15,13 @@ _CANTERA_MODELS = {
 # Public dispatcher
 # -----------------------------------------------------------------------
 def compute_properties(model, fluid, p, h):
-    """Compute real-fluid properties on a (p, h) grid.
+    """Compute real-fluid properties on a (p, h) grid. `fluid` is a name, or for model 'custom' the RealFluid
+    instance of custom.py.
 
     Returns  (thermo_rows, transport_rows, sound_speed_fallback)
     """
+    if model == 'custom':
+        return _compute_custom(fluid, p, h)
     if model == 'coolprop':
         return _compute_coolprop(fluid, p, h)
     yaml_file, suffix = _CANTERA_MODELS[model]
@@ -33,6 +38,10 @@ def enthalpy_bounds(model, fluid, Tmin, Tmax, pmin, pmax):
     reference state, making results independent of the model's
     internal reference convention.
     """
+    if model == 'custom':
+        hmin, s_ref = custom_support.guarded(fluid, 'reference', Tmin, pmin)
+        hmax, _ = custom_support.guarded(fluid, 'reference', Tmax, pmax)
+        return hmin, hmax, s_ref
     if model == 'coolprop':
         return _enthalpy_bounds_coolprop(fluid, Tmin, Tmax, pmin, pmax)
     yaml_file, suffix = _CANTERA_MODELS[model]
@@ -77,6 +86,28 @@ def _compute_coolprop(fluid, p, h):
 
             thermo.append([p[i], h[j], rho, T, drdT, drdh, cp, s, drdp, ss])
             transport.append([p[i], h[j], mu, k])
+
+    return thermo, transport, sound_speed_fallback
+
+
+# -----------------------------------------------------------------------
+# custom.py backend (a RealFluid)
+# -----------------------------------------------------------------------
+def _compute_custom(fluid, p, h):
+    thermo = []
+    transport = []
+    sound_speed_fallback = False
+
+    for j in range(len(h)):
+        for i in range(len(p)):
+            st = custom_support.guarded(fluid, 'checked_state', h[j], p[i])
+            ss = st['a']
+            if ss is None:
+                sound_speed_fallback = True
+                ss = 500.0
+            thermo.append([p[i], h[j], st['rho'], st['T'], st['drho_dT'], st['drho_dh'], st['cp'], st['s'],
+                           st['drho_dp'], ss])
+            transport.append([p[i], h[j], st['mu'], st['k']])
 
     return thermo, transport, sound_speed_fallback
 
