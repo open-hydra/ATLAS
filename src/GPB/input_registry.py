@@ -5,6 +5,7 @@ GPB tools and a helper to write a markdown reference table.
 """
 
 from dataclasses import dataclass
+from typing import List
 
 
 @dataclass(frozen=True)

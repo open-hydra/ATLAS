@@ -162,7 +162,8 @@ def compute_properties(type, name, T_low, T_max, all_materials):
             datum.add('absolute' if mat.custom.absolute_enthalpy else 'relative')
             if p['psat'] is not None:
                 if 'dispersed' in type:
-                    psat[mat.name] = p['psat']
+                    vapour[mat.name] = {'psat': p['psat'], **{key: np.zeros(len(temperatures))
+                                                              for key in ('Lv', 'Mv', 'Cpv')}}
                 else:
                     print(f' -- {mat.name}: psat is not written (a solid phase has no Psat column)')
 
