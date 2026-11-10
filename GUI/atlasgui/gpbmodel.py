@@ -216,7 +216,7 @@ MATERIAL_KEYS = [k for k, _ in MATERIAL_COLUMNS] + [k for k, _ in MODEL_COLUMNS]
 THERMO_DATABASES = ["NASA7", "NASA9", "Burcat", "custom"]
 CONDENSED_THERMO = ["NASA7", "NASA9", "Burcat", "custom"]
 TRANSPORT_SOURCES = ["CEA", "cantera"]
-REAL_FLUID_THERMO = ["coolprop", "redlich-kwong", "peng-robinson", "custom"]
+REAL_FLUID_THERMO = ["coolprop", "redlich-kwong", "peng-robinson", "custom", "constant"]
 MODELING = ["lagrangian", "eulerian"]
 
 BOOL_TRUE = ("true", "yes", "on", "1", "t")
@@ -581,6 +581,10 @@ class GPBDocument:
                     issues.append(("error", i, (
                         f"{tag}: thermo = {phase.get('thermo')} is not one of "
                         f"{', '.join(REAL_FLUID_THERMO)}")))
+                if phase.get("thermo") == "constant":
+                    for key in ("cp", "rho", "mu", "k"):
+                        if not phase.get(key):
+                            issues.append(("error", i, f"{tag}: {key} is required for thermo = constant"))
                 try:
                     if phase.get("pmin") and phase.get("pmax") and \
                             float(phase.get("pmin")) > float(phase.get("pmax")):

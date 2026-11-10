@@ -16,12 +16,14 @@ _CANTERA_MODELS = {
 # -----------------------------------------------------------------------
 def compute_properties(model, fluid, p, h):
     """Compute real-fluid properties on a (p, h) grid. `fluid` is a name, or for model 'custom' the RealFluid
-    instance of custom.py.
+    instance of custom.py, and for model 'constant' the tuple (cp, rho, mu, k, a) of the INI section.
 
     Returns  (thermo_rows, transport_rows, sound_speed_fallback)
     """
     if model == 'custom':
         return _compute_custom(fluid, p, h)
+    if model == 'constant':
+        return _compute_constant(fluid, p, h)
     if model == 'coolprop':
         return _compute_coolprop(fluid, p, h)
     yaml_file, suffix = _CANTERA_MODELS[model]
@@ -42,6 +44,9 @@ def enthalpy_bounds(model, fluid, Tmin, Tmax, pmin, pmax):
         hmin, s_ref = custom_support.guarded(fluid, 'checked_reference', Tmin, pmin)
         hmax, _ = custom_support.guarded(fluid, 'checked_reference', Tmax, pmax)
         return hmin, hmax, s_ref
+    if model == 'constant':
+        cp = fluid[0]
+        return cp * Tmin, cp * Tmax, cp * math.log(Tmin)
     if model == 'coolprop':
         return _enthalpy_bounds_coolprop(fluid, Tmin, Tmax, pmin, pmax)
     yaml_file, suffix = _CANTERA_MODELS[model]
@@ -108,6 +113,29 @@ def _compute_custom(fluid, p, h):
             thermo.append([p[i], h[j], st['rho'], st['T'], st['drho_dT'], st['drho_dh'], st['cp'], st['s'],
                            st['drho_dp'], ss])
             transport.append([p[i], h[j], st['mu'], st['k']])
+
+    return thermo, transport, sound_speed_fallback
+
+
+# -----------------------------------------------------------------------
+# Constant properties (thermo = constant)
+# -----------------------------------------------------------------------
+def _compute_constant(props, p, h):
+    """Density, cp, viscosity, conductivity and speed of sound do not depend on p and h, so the derivatives of the
+    density are zero. The temperature follows the enthalpy (h = cp T) and the entropy is cp ln(T): the reference
+    state is shifted away by the caller."""
+    cp, rho, mu, k, a = props
+    sound_speed_fallback = a is None
+    ss = 500.0 if a is None else a
+
+    thermo = []
+    transport = []
+    for j in range(len(h)):
+        T = h[j] / cp
+        s = cp * math.log(T)
+        for i in range(len(p)):
+            thermo.append([p[i], h[j], rho, T, 0.0, 0.0, cp, s, 0.0, ss])
+            transport.append([p[i], h[j], mu, k])
 
     return thermo, transport, sound_speed_fallback
 

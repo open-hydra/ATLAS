@@ -18,6 +18,8 @@ All notable changes to ATLAS are listed here. The format follows
 - External ORION and FiNeR clones: `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>`, `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>`
   (the configure stops if a clone does not fit; `-DATLAS_PIN_CHECK=WARNING` relaxes it). `ATLAS_FINER_DEPS` picks
   FiNeR's dependency versions, and `install.sh build --update-deps` the newest ORION 2.x (2.1.0 or later).
+- `thermo = constant` for a real fluid: `cp`, `rho`, `mu`, `k` (and `a`) given in the section, the same at every
+  pressure and enthalpy. See [Constant Properties](docs/user-guide/gpb/real-fluid.md#constant-properties).
 - `CHANGELOG.md`, and the release steps in the versioning guide.
 - The GUI covers the whole case: the Initial stage (ICB), the Run stage, a drawing of what every tool wrote,
   Review, and Settings.

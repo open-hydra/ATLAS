@@ -112,7 +112,12 @@ GPB_REALFLUID = [
     RegistryEntry('GPB-RealFluid', 'Tmax', '', '>0', True, 'Maximum temperature bound [K].'),
     RegistryEntry('GPB-RealFluid', 'NP', '200', '>=2', False, 'Number of pressure grid points.'),
     RegistryEntry('GPB-RealFluid', 'NH', '200', '>=2', False, 'Number of enthalpy grid points.'),
-    RegistryEntry('GPB-RealFluid', 'thermo', 'coolprop', 'coolprop,redlich-kwong,peng-robinson,custom', False, 'Source of the fluid thermodynamics: CoolProp, a Cantera cubic equation of state (redlich-kwong, peng-robinson) or custom (the RealFluid of custom.py named by fluid). model is the former name of thermo.'),
+    RegistryEntry('GPB-RealFluid', 'thermo', 'coolprop', 'coolprop,redlich-kwong,peng-robinson,custom,constant', False, 'Source of the fluid thermodynamics: CoolProp, a Cantera cubic equation of state (redlich-kwong, peng-robinson), custom (the RealFluid of custom.py named by fluid) or constant (the properties cp, rho, mu, k given in the section; fluid is then only a label). model is the former name of thermo.'),
+    RegistryEntry('GPB-RealFluid', 'cp', '', '>0', False, 'thermo = constant: specific heat [J/kg/K].'),
+    RegistryEntry('GPB-RealFluid', 'rho', '', '>0', False, 'thermo = constant: density [kg/m3].'),
+    RegistryEntry('GPB-RealFluid', 'mu', '', '>0', False, 'thermo = constant: dynamic viscosity [Pa s].'),
+    RegistryEntry('GPB-RealFluid', 'k', '', '>0', False, 'thermo = constant: thermal conductivity [W/m/K].'),
+    RegistryEntry('GPB-RealFluid', 'a', '500', '>0', False, 'thermo = constant: speed of sound [m/s]; without it 500 m/s and a WARNING.'),
 ]
 
 
