@@ -98,4 +98,9 @@
 | Tmax |  | >0 | yes | Maximum temperature bound [K]. |
 | NP | 200 | >=2 | no | Number of pressure grid points. |
 | NH | 200 | >=2 | no | Number of enthalpy grid points. |
-| thermo | coolprop | coolprop,redlich-kwong,peng-robinson,custom | no | Source of the fluid thermodynamics: CoolProp, a Cantera cubic equation of state (redlich-kwong, peng-robinson) or custom (the RealFluid of custom.py named by fluid). model is the former name of thermo. |
+| thermo | coolprop | coolprop,redlich-kwong,peng-robinson,custom,constant | no | Source of the fluid thermodynamics: CoolProp, a Cantera cubic equation of state (redlich-kwong, peng-robinson), custom (the RealFluid of custom.py named by fluid) or constant (the properties cp, rho, mu, k given in the section; fluid is then only a label). model is the former name of thermo. |
+| cp |  | >0 | no | thermo = constant: specific heat [J/kg/K]. |
+| rho |  | >0 | no | thermo = constant: density [kg/m3]. |
+| mu |  | >0 | no | thermo = constant: dynamic viscosity [Pa s]. |
+| k |  | >0 | no | thermo = constant: thermal conductivity [W/m/K]. |
+| a | 500 | >0 | no | thermo = constant: speed of sound [m/s]; without it 500 m/s and a WARNING. |

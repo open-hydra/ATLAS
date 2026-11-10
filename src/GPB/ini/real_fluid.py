@@ -4,7 +4,7 @@ from PiNeR import get
 # Real-fluid phase routines
 # -----------------------------------------------------------------------
 
-_VALID_THERMO = ('coolprop', 'redlich-kwong', 'peng-robinson', 'custom')
+_VALID_THERMO = ('coolprop', 'redlich-kwong', 'peng-robinson', 'custom', 'constant')
 
 def RF_read_params(ini_file, section):
     """Read real-fluid lookup-table parameters from the INI file."""
@@ -67,3 +67,19 @@ def RF_read_params(ini_file, section):
             f"Valid options: {', '.join(_VALID_THERMO)}")
 
     return name, fluid, pmin, pmax, Tmin, Tmax, NP, NH, thermo
+
+
+def RF_read_constants(ini_file, section):
+    """Read the constant properties of `thermo = constant`: (cp, rho, mu, k, a), `a` being None when not given."""
+    values = {}
+    for key, unit in (('cp', 'J/kg/K'), ('rho', 'kg/m3'), ('mu', 'Pa s'), ('k', 'W/m/K')):
+        value = get(ini_file, section, key, float)
+        if value is None:
+            raise RuntimeError(f"{key} [{unit}] not defined in section {section} (thermo = constant)")
+        if value <= 0.0:
+            raise RuntimeError(f"{key} = {value} in section {section} must be positive")
+        values[key] = value
+    a = get(ini_file, section, 'a', float)
+    if a is not None and a <= 0.0:
+        raise RuntimeError(f"a = {a} in section {section} must be positive")
+    return values['cp'], values['rho'], values['mu'], values['k'], a

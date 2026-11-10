@@ -1,6 +1,6 @@
 import numpy as np
 from config import setup_cantera_dirs
-from ini import RF_read_params
+from ini import RF_read_params, RF_read_constants
 import custom_support
 from . import properties as RF_properties
 from . import io as RF_IO
@@ -18,7 +18,12 @@ def _build(inifile, section):
      model) = RF_read_params(inifile, section)
 
     print(f" - Real-gas phase: {fluid}  (thermo: {model})")
-    source = custom_support.real_fluid(section, fluid) if model == 'custom' else fluid   # a name, or the RealFluid of custom.py
+    if model == 'custom':
+        source = custom_support.real_fluid(section, fluid)    # the RealFluid of custom.py
+    elif model == 'constant':
+        source = RF_read_constants(inifile, section)          # (cp, rho, mu, k, a)
+    else:
+        source = fluid                                        # a name
 
     # ----------------------------------------------------------
     # Convert T,p bounds to enthalpy bounds

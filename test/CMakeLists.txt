@@ -2818,6 +2818,18 @@ set_tests_properties(RF-custom PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : RF-constant (thermo = constant: cp, rho, mu, k and a given in the section, against the constants; without a: 500 m/s and a WARNING; missing or negative: refused) -------------
+add_test(
+    NAME    RF-constant
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/RF-constant"
+)
+set_tests_properties(RF-constant PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- GPB : RF-thermo-key (a real-fluid section selects its source with thermo; model, its former name, gives the same tables and a WARNING;
 # ----       thermo and model that differ are refused; Redlich-Kwong of Cantera on a 4 x 4 grid) -------------
 add_test(

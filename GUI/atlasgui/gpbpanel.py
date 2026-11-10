@@ -1033,6 +1033,22 @@ class GPBPanel(QWidget):
             "The table is built on a (p, h) grid between these bounds; "
             "CoolProp is the accurate backend, the cubic equations of state "
             "are quick checks."))
+
+        constants = QGridLayout()
+        constants.setHorizontalSpacing(10)
+        constants.setVerticalSpacing(8)
+        for i, (key, label) in enumerate([
+                ("cp", "cp [J/kg/K]"), ("rho", "rho [kg/m3]"),
+                ("mu", "mu [Pa s]"), ("k", "k [W/m/K]"),
+                ("a", "a [m/s]")]):
+            constants.addWidget(self._labelled(key, label), i // 2, (i % 2) * 2)
+            constants.addWidget(self._line(key, relist=False),
+                                i // 2, (i % 2) * 2 + 1)
+        card.body.addLayout(constants)
+        card.body.addWidget(kit.hint(
+            "Only for thermo = constant: the properties are the same at "
+            "every pressure and enthalpy (fluid is then just a label). "
+            "Without a, the speed of sound is 500 m/s."))
         return card
 
     # -- shared -----------------------------------------------------------

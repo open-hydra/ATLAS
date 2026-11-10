@@ -17,7 +17,9 @@ All notable changes to ATLAS are listed here. The format follows
   (`burcat.yaml`) and `database/chemistry/external/` (mechanisms). GPB, KAnT and the GUI search them.
 - External ORION and FiNeR clones: `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>`, `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>`
   (the configure stops if a clone does not fit; `-DATLAS_PIN_CHECK=WARNING` relaxes it). `ATLAS_FINER_DEPS` picks
-  FiNeR's dependency versions, and `install.sh build --update-deps` the newest ORION 2.x.
+  FiNeR's dependency versions, and `install.sh build --update-deps` the newest ORION 2.x (2.1.0 or later).
+- `thermo = constant` for a real fluid: `cp`, `rho`, `mu`, `k` (and `a`) given in the section, the same at every
+  pressure and enthalpy. See [Constant Properties](docs/user-guide/gpb/real-fluid.md#constant-properties).
 - `CHANGELOG.md`, and the release steps in the versioning guide.
 - The GUI covers the whole case: the Initial stage (ICB), the Run stage, a drawing of what every tool wrote,
   Review, and Settings.
@@ -32,7 +34,7 @@ All notable changes to ATLAS are listed here. The format follows
 - **Breaking.** `sp_custom.py` is replaced by the substances of `custom.py`, with the same seven materials and
   values. `thermo = SP-database` is read as `thermo = custom`, with a warning.
 - The real-fluid `model` key is now `thermo`, as in the other phase types. `model` still works, with a warning.
-- **Breaking.** ORION 2 is required, in place of the submodule `lib/ORION`. The configure checks it out in
+- **Breaking.** ORION 2.1 or a later 2.x is required, in place of the submodule `lib/ORION`. The configure checks it out in
   `lib/ORION`. Results are unchanged.
 - **Breaking.** `ORION_PATH` and `FINER_PATH` are removed: use `FETCHCONTENT_SOURCE_DIR_ORION` and
   `FETCHCONTENT_SOURCE_DIR_FINER`.
