@@ -76,7 +76,7 @@ hydra gives ATLAS (see [External clones](./build.md#external-clones)). So:
 build tree is used):
 
 ```cmake
-semver_dependency(ORION GIT_REPOSITORY https://github.com/MarcoGrossi92/ORION.git VERSION 2 SOURCE_DIR lib/ORION)
+semver_dependency(ORION GIT_REPOSITORY https://github.com/MarcoGrossi92/ORION.git VERSION 2.1 SOURCE_DIR lib/ORION)
 ```
 
 A `VERSION` requirement accepts the releases from its own up to the next change of its leftmost nonzero number,
@@ -92,9 +92,9 @@ the one that a release of the library may not change without breaking its users:
 Only the tags `vX.Y.Z` are releases; a tag with a suffix, such as `v2.2.0-rc1`, is never selected.
 
 ATLAS requires the oldest release that has everything it uses, and raises the requirement when it starts to use
-something newer, with a comment that says what. ORION: `2`, because ORION 2.0.0 removed
-`tec_read_points_multivars` and ATLAS reads the point files of GPB with `tec_read_structured_multiblock`; the
-test suite passes with 2.0.0 and 2.1.0.
+something newer, with a comment that says what. ORION: `2.1`, because ORION 2.0.0 removed
+`tec_read_points_multivars` and ATLAS reads the point files of GPB with `tec_read_structured_multiblock`; 2.1.0 is the
+release the test suite is run with.
 
 The libraries ATLAS accepts at one release each are git submodules, pinned by their commit: FiNeR (`lib/FiNeR`,
 v2.3.0, a third-party library), CEA (`lib/cea`) and PiNeR (`lib/PiNeR`). A gitlink is bumped together with the

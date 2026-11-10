@@ -83,7 +83,7 @@ See the [Quick Start](docs/getting-started/quick-start.md) for a full walkthroug
 
 ## Dependencies
 
-ATLAS uses companion libraries: FiNeR (v2.3.0), CEA and PiNeR are Git submodules; ORION (2.x) is required by
+ATLAS uses companion libraries: FiNeR (v2.3.0), CEA and PiNeR are Git submodules; ORION (2.1 or a later 2.x) is required by
 release and checked out by the configure. ORION and FiNeR can also be given as external clones (see
 [Versioning](docs/development/versioning.md#how-atlas-requires-its-libraries)):
 

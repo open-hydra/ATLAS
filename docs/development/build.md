@@ -211,7 +211,7 @@ See: [Testing](testing.md), [Project Structure](structure.md)
 ATLAS requires its libraries in two ways, described in [Versioning](./versioning.md#how-atlas-requires-its-libraries):
 
 - **ORION**, by a range of releases, with `semver_dependency` of `cmake/SemVerDeps.cmake` (the copy of FLINT's)
-  in `CMakeLists.txt`: its major version (`VERSION 2`: the newest 2.x). The configure checks it out in
+  in `CMakeLists.txt`: its major version (`VERSION 2.1`: the newest 2.x, 2.1.0 or later). The configure checks it out in
   `lib/ORION` (ignored by git, kept from a build to the next) and moves the checkout to another release when the
   requirement changes, if it has no changes of its own. The release selected is kept in `deps.lock` (not
   committed); `-DSEMVER_UPDATE=ORION` (or `./install.sh build --update-deps`) selects the newest one again.

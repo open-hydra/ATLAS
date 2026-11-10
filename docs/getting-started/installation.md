@@ -37,7 +37,7 @@ out; the Python tools run in the conda environment `ct-env`.
 | Library | Role | Used by | Source |
 |---------|------|---------|--------|
 | [CEA](https://github.com/nasa/cea) | NASA chemical equilibrium (Chemical Equilibrium with Applications) | GPB, BCB, ICB, MDB, STB | submodule `lib/cea` (v3.3.4) |
-| [ORION](https://github.com/MarcoGrossi92/ORION) | multi-block I/O: Tecplot, VTK, PLOT3D | BCB, ICB, MDB, STB | a 2.x release, checked out in `lib/ORION` by the configure |
+| [ORION](https://github.com/MarcoGrossi92/ORION) | multi-block I/O: Tecplot, VTK, PLOT3D | BCB, ICB, MDB, STB | 2.1.0 or a later 2.x release, checked out in `lib/ORION` by the configure |
 | [FiNeR](https://github.com/szaghi/FiNeR) | Fortran INI parser | BCB, ICB, MDB, STB | submodule `lib/FiNeR` (v2.3.0) |
 | [PiNeR](https://github.com/MarcoGrossi92/PiNeR) | Python INI parser | GPB, KAnT | submodule `lib/PiNeR`, installed in `ct-env` |
 | [Cantera](https://cantera.org) 3.0 or later | thermodynamics, transport and kinetics | GPB, KAnT | `ct-env` (tested with 3.0.1) |
