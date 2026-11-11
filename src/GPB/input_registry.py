@@ -58,7 +58,11 @@ GPB_IDEALGAS = [
     RegistryEntry('GPB-IdealGas', 'mw', '', '', False, 'Molecular weight array for fixed-gas species.'),
     RegistryEntry('GPB-IdealGas', 'mil', '', '', False, 'Dynamic viscosity array for fixed-gas species.'),
     RegistryEntry('GPB-IdealGas', 'kl', '', '', False, 'Thermal conductivity array for fixed-gas species.'),
-    RegistryEntry('GPB-IdealGas', 'Pr', '', '', False, 'Prandtl number array for fixed-gas species.'),
+    RegistryEntry('GPB-IdealGas', 'Pr', '', '', False, 'Prandtl number array for fixed-gas species: gives the missing one of mil and kl, or with mil-law = sutherland the conductivity k = mu cp/Pr.'),
+    RegistryEntry('GPB-IdealGas', 'mil-law', 'constant', 'constant,sutherland', False, 'Viscosity law of the fixed-gas species: constant (mil) or sutherland, mu = mil-ref (T/T-ref)^1.5 (T-ref + S-mil)/(T + S-mil), with the conductivity from Pr (k = mu cp/Pr) or the constant kl.'),
+    RegistryEntry('GPB-IdealGas', 'mil-ref', '', '>0', False, 'mil-law = sutherland: viscosity at T-ref [Pa s], one per fixed-gas species.'),
+    RegistryEntry('GPB-IdealGas', 'T-ref', '', '>0', False, 'mil-law = sutherland: temperature of mil-ref [K], one per fixed-gas species.'),
+    RegistryEntry('GPB-IdealGas', 'S-mil', '', '>0', False, 'mil-law = sutherland: Sutherland temperature [K], one per fixed-gas species.'),
 ]
 
 GPB_EQUILIBRIUM = [

@@ -74,6 +74,10 @@ def compute_properties(name, model, T_low, T_max, all_solutions, **kwargs):
                 elif (model=='constant'):
                     mu = kwargs['mil'][n]
                     k = kwargs['kl'][n]
+                elif (model=='sutherland' and kwargs.get('law') is not None):
+                    law = kwargs['law']
+                    mu = law['mil-ref'][n] * (T / law['T-ref'][n]) ** 1.5 * (law['T-ref'][n] + law['S-mil'][n]) / (T + law['S-mil'][n])
+                    k = mu * law['cp'][n] / law['Pr'][n] if law['Pr'] is not None else law['kl'][n]
 
                 if mu is not None:
                     species_found = True
