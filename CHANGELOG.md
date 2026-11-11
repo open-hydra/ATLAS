@@ -54,6 +54,7 @@ All notable changes to ATLAS are listed here. The format follows
 
 ### Fixed
 
+- GPB, a fixed gas given `mil` without `kl` or `Pr` stops with a message (it stopped with a Python error).
 - `JLR-nasuti-ct.yaml`, `JLR-frassoldati-ct.yaml` (the forms KAnT runs): the backward H2 step never acted. It is
   refitted, so burnt gas reaches the equilibrium temperature (it was up to 220 K too hot). Their phases are named
   `JLR-Nasuti-ct` and `JLR-Frassoldati-ct`.

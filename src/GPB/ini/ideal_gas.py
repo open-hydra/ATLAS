@@ -126,6 +126,9 @@ def IG_read_fixgas(ini_file,section):
 
   if (emil+ekl+ePr==0):
     exit('Too many thermo input data: mil, kl, Pr')
+  if (emil==0 and ekl+ePr==2):
+    print(f"[ERROR] key mil of section [{section}]: mil gives the viscosity of the fixed species; their conductivity needs kl or Pr as well")
+    sys.exit(1)
   # elif (emil+ekl+ePr==3):
   #   mil = 0.0; kl = 0.0
 
