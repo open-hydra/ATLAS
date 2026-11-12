@@ -38,7 +38,11 @@
 | mw |  |  | no | Molecular weight array for fixed-gas species. |
 | mil |  |  | no | Dynamic viscosity array for fixed-gas species. |
 | kl |  |  | no | Thermal conductivity array for fixed-gas species. |
-| Pr |  |  | no | Prandtl number array for fixed-gas species. |
+| Pr |  |  | no | Prandtl number array for fixed-gas species: gives the missing one of mil and kl, or with mil-law = sutherland the conductivity k = mu cp/Pr. |
+| mil-law | constant | constant,sutherland | no | Viscosity law of the fixed-gas species: constant (mil) or sutherland, mu = mil-ref (T/T-ref)^1.5 (T-ref + S-mil)/(T + S-mil), with the conductivity from Pr (k = mu cp/Pr) or the constant kl. |
+| mil-ref |  | >0 | no | mil-law = sutherland: viscosity at T-ref [Pa s], one per fixed-gas species. |
+| T-ref |  | >0 | no | mil-law = sutherland: temperature of mil-ref [K], one per fixed-gas species. |
+| S-mil |  | >0 | no | mil-law = sutherland: Sutherland temperature [K], one per fixed-gas species. |
 
 ## GPB-Equilibrium
 

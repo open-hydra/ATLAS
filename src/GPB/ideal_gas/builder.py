@@ -403,7 +403,7 @@ def build(inifile,section):
     # ---------------------------------------------------
     # Constant-Cp species
     if inputFixGas is not None:
-        fix_names, fix_cp, fix_mw, fix_mil, fix_kl = inputFixGas
+        fix_names, fix_cp, fix_mw, fix_mil, fix_kl, fix_law = inputFixGas
         dummy_species_list = []
         for i in range(len(fix_cp)):
             cp_molar = fix_cp[i] * fix_mw[i]
@@ -418,6 +418,7 @@ def build(inifile,section):
         fixgas_phase = ct.Solution(name='constant-cp species', thermo='ideal-gas', species=dummy_species_list)
         species_group.append(fixgas_phase)
         if fix_mil is not None: transport_model = 'constant'
+        if fix_law is not None: transport_model = 'sutherland'
     # ---------------------------------------------------
 
     # ---------------------------------------------------
@@ -499,12 +500,19 @@ def build(inifile,section):
             IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group, database=CEAdata)
         elif transport_model=='constant':
             IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group, mil=fix_mil, kl=fix_kl)
+        elif inputFixGas is not None and fix_law is not None:
+            # the law is a property of the fixed species: a section that also builds other species is refused
+            others = [sp for sol in species_group if sol.name != 'constant-cp species' for sp in sol.species_names]
+            if others:
+                print(f"[ERROR] key mil-law of section [{section}]: the section also builds {', '.join(others[:10])}: a viscosity law takes a section of fixed species only (a fixed species named like a database species is built twice: rename it)")
+                sys.exit(1)
+            IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group, law=fix_law)
         else:
             IG_transport.compute_properties(name=name, model=transport_model, T_low=T1, T_max=T2, all_solutions=species_group)
 
         # Binary diffusion coefficients (multicomponent diffusion model, optional output).
-        # Only meaningful for kinetic-theory transport; CEA/constant models have no pair data.
-        if transport_model not in ('CEA', 'constant'):
+        # Only meaningful for kinetic-theory transport; CEA/constant models and mil-law have no pair data.
+        if transport_model not in ('CEA', 'constant') and not (inputFixGas is not None and fix_law is not None):
             IG_transport.compute_binary_diffusion(name, T1, T2, species_group)
 
     # ---------------------------------------------------

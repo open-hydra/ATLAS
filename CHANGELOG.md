@@ -20,6 +20,8 @@ All notable changes to ATLAS are listed here. The format follows
   FiNeR's dependency versions, and `install.sh build --update-deps` the newest ORION 2.x (2.1.0 or later).
 - `thermo = constant` for a real fluid: `cp`, `rho`, `mu`, `k` (and `a`) given in the section, the same at every
   pressure and enthalpy. See [Constant Properties](docs/user-guide/gpb/real-fluid.md#constant-properties).
+- `mil-law = sutherland` for the fixed species of an ideal gas: a Sutherland viscosity, the conductivity from `Pr` or
+  `kl`. See [Viscosity law](docs/user-guide/gpb/ideal-gas.md#viscosity-law-of-the-fixed-species).
 - `CHANGELOG.md`, and the release steps in the versioning guide.
 - The GUI covers the whole case: the Initial stage (ICB), the Run stage, a drawing of what every tool wrote,
   Review, and Settings.
@@ -54,6 +56,7 @@ All notable changes to ATLAS are listed here. The format follows
 
 ### Fixed
 
+- GPB, a fixed gas given `mil` without `kl` or `Pr` stops with a message (it stopped with a Python error).
 - `JLR-nasuti-ct.yaml`, `JLR-frassoldati-ct.yaml` (the forms KAnT runs): the backward H2 step never acted. It is
   refitted, so burnt gas reaches the equilibrium temperature (it was up to 220 K too hot). Their phases are named
   `JLR-Nasuti-ct` and `JLR-Frassoldati-ct`.

@@ -2830,6 +2830,30 @@ set_tests_properties(RF-constant PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : IG-fixgas-mil-alone (a fixed species given mil without kl or Pr stops GPB naming the key; no product) -------------
+add_test(
+    NAME    IG-fixgas-mil-alone
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 && grep -q -F '[ERROR] key mil of section [GPB-Phase1]: mil gives the viscosity of the fixed species' gpb.log && test ! -e fromATLAStoSolver"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-fixgas-mil-alone"
+)
+set_tests_properties(IG-fixgas-mil-alone PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-fixgas-sutherland (mil-law = sutherland on two fixed species: the transport table against the law, with the conductivity from Pr and from kl; the check fails on the table of another S-mil; the refusals of the law's keys) -------------
+add_test(
+    NAME    IG-fixgas-sutherland
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-fixgas-sutherland"
+)
+set_tests_properties(IG-fixgas-sutherland PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- GPB : RF-thermo-key (a real-fluid section selects its source with thermo; model, its former name, gives the same tables and a WARNING;
 # ----       thermo and model that differ are refused; Redlich-Kwong of Cantera on a 4 x 4 grid) -------------
 add_test(
