@@ -28,6 +28,8 @@ All notable changes to ATLAS are listed here. The format follows
 - 26 tutorial pages, each on a case of the test suite (`ctest -L tutorial`), and tests for them, the GUI and the
   BCB refusals.
 - The documentation is built with Zensical (strict in CI), with a new home page and an INI Files page.
+- GPB, `[GPB-Pyrolysis<n>]`: the pyrolysis-gas tables of a charring ablator, `<phase>-pyrolysis.dat`, by
+  `treatment = gas-only` (the default) or `strip`. See [Pyrolysis-Gas Tables](docs/user-guide/gpb/pyrolysis.md).
 
 ### Changed
 
@@ -52,6 +54,9 @@ All notable changes to ATLAS are listed here. The format follows
   `Taf-file` and `SFgeo-file` are gone.
 - **Breaking.** BCB, `krho` of a dispersed phase is its share of the flow of the mixture; the `401` record carries
   `krho/(1 - krho_tot)` and ends with `G`. BCB stops on `krho_tot` of 1 or more, a negative `krho` or a negative `gp`.
+- **Breaking.** BCB, `506` is the pyrolysing ablator: `surface-reactions`, `pyrolysis-gas`, `phi`, `hv0` and `qrad`
+  give the record `pyro_id, surf, phi, hv0, qrad, eps`. `pyrolysis-model` with `surface-reactions` (the former
+  `506`, which no solver applied) stops BCB: keep one of the two.
 - The chemistry pages mention FLINT once, and the upkeep of its contract test is in Testing.
 
 ### Fixed

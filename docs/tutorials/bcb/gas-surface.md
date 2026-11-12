@@ -53,8 +53,8 @@ In `fromATLAStoSolver/bc.txt`, the 50 cells of face 4 are `505` records:
 ```
 
 The model code (`bradley` → `1`, an integer: the solvers read it as one), `qrad`, and the emissivity `eps`, 0 when not
-given. `505` is the only model that writes no mass fractions: the composition of what the surface releases comes from
-the reaction model.
+given. `505` and `506` write no mass fractions: the composition of what the surface releases comes from the reaction
+model, and for `506` that of the pyrolysis gas from a GPB table.
 
 The other models from the same section type:
 
@@ -63,7 +63,7 @@ The other models from the same section type:
 | `cp`, `dh`, `T` (melting temperature) and `qrad`; `Ti`, `y<species>` | melting | `503` |
 | `pyrolysis-model` and `qrad`; `y<species>` | pyrolysis (`HTPB`, `HDPB`, `PP`) | `504` |
 | `surface-reactions` and `qrad` | surface reactions | `505` |
-| `pyrolysis-model`, `surface-reactions` and `qrad`; `y<species>` | pyrolysis and surface reactions | `506` |
+| `surface-reactions`, `pyrolysis-gas`, `phi`, `hv0` and `qrad` | pyrolysing ablator: surface reactions of the char and the pyrolysis gas of a [GPB table](../../user-guide/gpb/pyrolysis.md) | `506` |
 | none of the sets above: `eq-CEA-file`, `a`, `n`, `pRef`, `rhoGrain`, `SF` | solid propellant, burning at r = a (p/pRef)ⁿ, its flame temperature and products from CEA | `502` |
 
 BCB tests the sets in this order and the first that matches wins. The solid propellant is what is left: a section
@@ -71,7 +71,8 @@ meant for another model that lacks a key (`qrad`, most often) is read as a prope
 burn-rate key.
 
 To see a melting and a pyrolysing surface, run the cases `test/BCB/IG-melting` and `test/BCB/IG-pyrolysis` in the same
-way: their `[grain]` sections give the keys of `503` and `504`.
+way: their `[grain]` sections give the keys of `503` and `504`. `test/BCB/IG-carbon-phenolic` is the pyrolysing
+ablator (`506`) on the same mesh.
 
 ## Try Next
 

@@ -20,6 +20,7 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `database-flint-contract` | GPB | `tools` | Every `database/chemistry` yaml whose phase name selects a compiled FLINT routine matches that routine in the copy of FLINT's contract file (`test/tools/flint_mechanism_contract.json`); the hooked names are pinned. |
 | `database-figure-current` | GPB | `tools` | The figure of the mechanism catalog (`docs/databases/chemistry/mechs.svg`) is what `database/chemistry/resume.py` gives for the mechanisms of the database now. After adding or changing a mechanism, run `python3 database/chemistry/resume.py` and commit the figure; a new file also needs a family in the script. |
 | `IG-reactions-without-thermo` | GPB | `GPB/IG-reactions-without-thermo` | `reactions =` without `thermo`: the thermo records of the file are used, said with an INFO line; `thermo.dat`, `chemistry-info.txt` and `chemistry-Arrhenius.dat` equal those of `phase =` on the same file. |
+| `PY-carbon-phenolic` | GPB | `GPB/PY-carbon-phenolic` | `[GPB-Pyrolysis<n>]`: the gas-only and strip tables of a carbon-phenolic makeup; rows sum to 1, gas-only keeps the makeup to 1e-10, both agree with the other engine (cea, Cantera) to 1e-6 and with the reference to 1e-8; every refusal of the section stops GPB with no product. |
 | `IG-strict-thermo` | GPB | `GPB/IG-strict-thermo` | `strict-thermo = true` refuses a database thermo record that differs from the file record by more than 1 kJ/mol. |
 | `IG-fixgas-gas-constant` | GPB | `GPB/IG-fixgas-gas-constant` | A species given by `gamma` and `mw`: `cp = gamma/(gamma-1) R_u/mw` with the exact `R_u`. |
 | `IG-fixgas-mil-alone` | GPB | `GPB/IG-fixgas-mil-alone` | A fixed species given `mil` without `kl` or `Pr` stops GPB naming the key; no product is left. |
@@ -87,6 +88,9 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `IG-linefile-sector-axis` | BCB | `BCB/IG-linefile-sector-axis` | A line-file strip over a quarter of the lap, `n-repeat = 4` and `axis = x`, on a face whose inward normal is -x: every face cell holds the closed-form law of the strip at 4 theta, the axial velocity enters the domain, one `[INFO]` line; `axis = y`, parallel to the face, stops BCB. |
 | `IG-multipatch-410-linefile` | BCB | `BCB/IG-multipatch-410-linefile` | A 410 inlet written from a line-file as the one patch of a multipatch face gives the `bc.txt` of the same face declared directly; two patches run. |
 | `IG-ablation` | BCB | `BCB/IG-ablation` | BC 505 (ablation, surface reactions): the model id is written as an integer, as the solver reads it. |
+| `IG-carbon-phenolic` | BCB | `BCB/IG-carbon-phenolic` | BC 506, the pyrolysing ablator: the record `pyro_id, surf, phi, hv0, qrad, eps`, `pyro_id` the position of the named table in `pyrolysis.dat`; the `bc.txt` of `IG-ablation` with that record on face 4. |
+| `IG-carbon-phenolic-profile` | BCB | `BCB/IG-carbon-phenolic-profile` | `phi-file` and `hv0-file` of BC 506: every record of the face holds the linear law of the files at its cell centre. |
+| `IG-carbon-phenolic-refused` | BCB | `BCB/IG-carbon-phenolic-refused` | BC 506 refusals: `pyrolysis-model` with `surface-reactions`, an unknown table, no table file, `phi` below 0, a `phi-file` value below 0 at a cell (named), no `hv0`, a `phi-file` that misses the first cells; no `bc.txt`. |
 | `IG-table-no-data` | BCB | `BCB/IG-table-no-data` | A table file without any row of two numbers is refused as a file without data rows, not as a missing file. |
 | `IG-multigrid-2D` | BCB | `BCB/IG-multigrid-2D` | `MG-levels = 3` on a pure-2D mesh: `bc2.txt` and `bc3.txt` are pure 2D, equal to `bc.txt` of the level meshes given directly. |
 | `BCB-direction-refused` | BCB | `BCB/IG-xtheta-variable-T` | A direction letter outside x, y, z, r, t, i, j, k (here `X`) stops BCB naming the key. |
@@ -259,6 +263,8 @@ BCB tests check that boundary-condition definitions are translated into correct 
 - `SP-wall-305`: validate the choice between the solid-wall records 304 and 305 and the order of the 305 payload.
 - `IG-melting`, `IG-pyrolysis`, `IG-ablation`: validate the gas-surface variants `503` (melting), `504` (pyrolysis,
   `pyrolysis-model = HTPB`) and `505` (surface reactions, `surface-reactions = bradley`).
+- `IG-carbon-phenolic`, `IG-carbon-phenolic-profile`, `IG-carbon-phenolic-refused`: validate `506`, the pyrolysing
+  ablator: its record, `phi` and `hv0` from files, and its refusals.
 - `IG-chimera+connection`, `IG-force-chimera`: validate chimera next to standard connections on a distorted 3-block
   layout, and `BC-force-chimera` on a partial interface (only the facelets that see the other block become chimera).
 - `IG-extrapolated-time-file`, `IG-xtheta-variable-T`, `IG-y-variable-massflux`: validate time tables interpolated and
@@ -270,6 +276,8 @@ BCB tests check that boundary-condition definitions are translated into correct 
 GPB tests check that phase-property builders generate physically consistent tables for different thermodynamic models.
 
 - `IG-fixgas`, `IG-party`: validate fixed ideal-gas workflows.
+- `PY-carbon-phenolic`: validate the pyrolysis-gas tables (`[GPB-Pyrolysis<n>]`, BC `506`) against the elemental
+  identity and a second equilibrium engine.
 - `IG-reactive`, `IG-ceafile-reactive-*`: validate reactive chemistry table generation from CEA/case inputs.
 - `IG-ceafile-frozen-mixing-HG`, `IG-mixture-HG`: validate heavy-gas and mixing assumptions.
 - `IG-ct-equilibrium`, `IG-ct-equilibrium-inerts`, `*-cantera`: validate Cantera-backed equilibrium/property paths (the equilibrium phase with inert mixing and added species).

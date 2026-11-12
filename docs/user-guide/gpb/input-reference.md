@@ -108,3 +108,19 @@
 | mu |  | >0 | no | thermo = constant: dynamic viscosity [Pa s]. |
 | k |  | >0 | no | thermo = constant: thermal conductivity [W/m/K]. |
 | a | 500 | >0 | no | thermo = constant: speed of sound [m/s]; without it 500 m/s and a WARNING. |
+
+## GPB-Pyrolysis*
+
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| name |  |  | yes | Name of the pyrolysis-gas table (one word, at most 64 characters): the key pyrolysis-gas of a BCB gsi section (BC 506) names it. |
+| phase |  |  | no | Name of the [GPB-Phase*] ideal-gas phase whose species the table follows (optional when the deck builds one ideal-gas phase); the product is <phase>-pyrolysis.dat, one table per section. |
+| elements |  |  | yes | Elements of the pyrolysis-gas makeup (symbols, case-sensitive: C H O). |
+| massf |  |  | yes | Mass fraction of each element, in the order of elements, each in (0, 1]; the sum must be 1 (within 1e-3 renormalised with a WARNING). |
+| p |  | >0 | no | Pressure levels [Pa], strictly ascending; or p-min, p-max and p-n. |
+| p-min |  | >0 | no | Lowest pressure level [Pa] (with p-max and p-n). |
+| p-max |  | >0 | no | Highest pressure level [Pa] (with p-min and p-n). |
+| p-n |  | >=1 | no | Number of pressure levels from p-min to p-max (1: one level, p-max = p-min). |
+| p-spacing | linear | linear,log | no | Spacing of the p-n levels. |
+| T |  |  | yes | Temperature grid [K]: T-min T-max T-step, (T-max - T-min)/T-step an integer (at least two levels). |
+| treatment | gas-only | gas-only,strip | no | gas-only: equilibrium of the gas species alone, graphite excluded (the elements of every row equal the makeup); strip: graphite allowed, removed, the gas renormalised (the thesis and RFRAR tables). |
