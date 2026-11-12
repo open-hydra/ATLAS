@@ -2,7 +2,8 @@
 
 submodule (bc_mod) special_bc_mod
   use bcb_config_mod, only: bcb_gsi_fluid_config_t, load_bcb_gsi_fluid_config, &
-                            bcb_manifold_config_t, load_bcb_manifold_config, gsi_variant, dp_inlet_key_given
+                            bcb_manifold_config_t, load_bcb_manifold_config, gsi_variant, dp_inlet_key_given, &
+                            check_gsi_keys
   use input_keys_mod, only: input_keys_strict
   use phase_mod, only: phase_t, species_t, define_composition
   use composition_check_mod, only: check_composition
@@ -11,6 +12,10 @@ submodule (bc_mod) special_bc_mod
   ! inlet keys of a dispersed phase on a manifold or a non-grain gsi face, under strict-keys = false: one
   ! WARNING per (section, key), the builder runs once per face cell
   character(len=200), allocatable, save :: warned_dp_keys(:)
+  ! BC 506: the <phase>-pyrolysis.dat last read and its table names in file order (pyrolysis_table_id; the builder
+  ! runs once per face cell)
+  character(len=:), allocatable, save :: pyro_file
+  character(len=64), allocatable, save :: pyro_tables(:)
 
 contains
 
@@ -41,6 +46,7 @@ contains
     real(R8) :: CEAT0, CEAp0
 
     call load_bcb_gsi_fluid_config(sourceini, section, cfg)
+    call check_gsi_keys(cfg, self%name)
 
     select case (gsi_variant(cfg))
 
@@ -79,19 +85,17 @@ contains
       allocate(self % ig_properties(1:self % ig_n))
       self % ig_properties(1:3) = [surface_model_name2value(cfg%surface_reactions_model), cfg%qrad, cfg%eps]
 
-    ! GSI - Pyrolysis + Surface reactions | pyrolysis model, reactions name, qrad, epsilon, and species mass fractions
+    ! GSI - Pyrolysing ablator | pyrolysis-gas table id, surface-reactions model, phi, hv0, qrad, epsilon; no mass
+    ! fractions: the solver takes the char products from the surface model and the pyrolysis gas from the table
     case (506)
       self % ig_id = 506
-      self % ig_species = phase % species
-      if (.not.allocated(self % ig_species % massf)) allocate(self % ig_species % massf(1:self % ig_species % n))
-      self % ig_species % massf = 1d-20
-      self % ig_n = 4 + self % ig_species % n
+      if (.not. cfg % has_phi) call missing_506_key('phi')
+      if (.not. cfg % has_hv0) call missing_506_key('hv0')
+      self % ig_n = 6
       allocate(self % ig_properties(1:self % ig_n))
-      CEAT0 = 0.0_R8; CEAp0 = 0.0_R8
-      call define_composition(sourceini, self%ig_species, CEAT0, CEAp0)
-      call check_composition(sourceini, section, self%ig_species, 'section ['//trim(self%name)//']')   ! composition-sum check on every gsi record
-      self % ig_properties(1:4) = [pyrolysis_model_name2value(cfg%pyrolysis_model), surface_model_name2value(cfg%surface_reactions_model), cfg%qrad, cfg%eps]
-      self % ig_properties(5:self % ig_n) = self % ig_species % massf
+      self % ig_properties(1:6) = [real(pyrolysis_table_id(phase, cfg % pyrolysis_gas, self % name), R8), &
+                                   surface_model_name2value(cfg % surface_reactions_model), cfg % phi, cfg % hv0, &
+                                   cfg % qrad, cfg % eps]
 
     case default
       ! GSI - Solid propellant (deferred subroutine to build ig_properties)
@@ -101,6 +105,17 @@ contains
 
   
   contains
+
+    !> phi and hv0 of a 506 cell: the constant of the section or the value a phi-file/hv0-file gives the cell. A cell
+    !> that the file's range does not reach, before any cell it reaches, has neither (build_face adds the key only
+    !> inside the range).
+    subroutine missing_506_key(key)
+      implicit none
+      character(*), intent(in) :: key
+      write(*,'(A)') '[ERROR] section ['//trim(self % name)//'] (gsi, BC 506): no '//key//' for a cell: give '//key// &
+        ' or a '//key//'-file whose range covers the face'
+      stop 1
+    end subroutine missing_506_key
 
 
     subroutine build_srm_ig
@@ -252,6 +267,7 @@ contains
 
     if (trim(self % definition) == trim(MARKER_GSI)) then
       call load_bcb_gsi_fluid_config(sourceini, section, cfg)
+      call check_gsi_keys(cfg, self % name)
       id = gsi_variant(cfg)
     else
       id = 501
@@ -367,6 +383,62 @@ contains
     end select
 
   end function surface_model_name2value
+
+  !> pyro_id of a 506 record: the position of the table *table* among the 'table <name>' lines of <phase>-pyrolysis.dat
+  !> (written by GPB, one table per [GPB-Pyrolysis<n>] that names the phase; MOSE reads INPUT/<prefix>pyrolysis.dat
+  !> and takes pyro_id as the 1-based index of its table blocks). The file is read from the case directory, else
+  !> from fromATLAStoSolver/, once (the names are kept for the next cells). GPB writes full-line comments and one-word names
+  !> only (DEC-3); a hand-edited 'table <name> # note' or a tab after 'table' is not read as FLINT reads it.
+  integer function pyrolysis_table_id(phase, table, section) result(id)
+    implicit none
+    type(phase_t), intent(in) :: phase
+    character(*),  intent(in) :: table, section
+    character(len=:), allocatable :: prefix, path, names
+    character(len=512) :: line
+    logical :: found
+    integer :: u, ios, i
+
+    prefix = ''
+    if (len_trim(phase % name) > 0) prefix = trim(adjustl(phase % name))//'-'
+    path = prefix//'pyrolysis.dat'
+    inquire(file=path, exist=found)
+    if (.not. found) path = outpath//prefix//'pyrolysis.dat'
+    if (.not. allocated(pyro_file)) pyro_file = ''
+    if (pyro_file /= path) then
+      open(newunit=u, file=path, status='old', action='read', iostat=ios)
+      if (ios /= 0) then
+        write(*,'(A)') '[ERROR] key pyrolysis-gas of section ['//trim(section)//']: '//prefix//'pyrolysis.dat is '// &
+          'neither in the case directory nor in '//outpath//': run GPB with a [GPB-Pyrolysis<n>] named '//trim(table)
+        stop 1
+      endif
+      if (allocated(pyro_tables)) deallocate(pyro_tables)
+      allocate(pyro_tables(0))
+      do
+        read(u, '(A)', iostat=ios) line
+        if (ios /= 0) exit
+        line = adjustl(line)
+        if (line(1:6) == 'table ') pyro_tables = [character(len=64) :: pyro_tables, adjustl(line(7:))]
+      enddo
+      close(u)
+      pyro_file = path
+    endif
+    id = 0
+    do i = 1, size(pyro_tables)
+      if (trim(pyro_tables(i)) == trim(adjustl(table))) then
+        id = i
+        exit
+      endif
+    enddo
+    if (id == 0) then
+      names = ''
+      do i = 1, size(pyro_tables)
+        names = names//' '//trim(pyro_tables(i))
+      enddo
+      write(*,'(A)') '[ERROR] key pyrolysis-gas of section ['//trim(section)//']: no table '//trim(adjustl(table))// &
+        ' in '//path//' (its tables:'//names//')'
+      stop 1
+    endif
+  end function pyrolysis_table_id
 
   function pyrolysis_model_name2value (name) result(value)
     implicit none

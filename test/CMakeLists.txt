@@ -1288,7 +1288,8 @@ set_tests_properties(DP-axis-refused PROPERTIES
 
 # ---- BCB : DP-gsi-manifold (a dispersed phase on the faces of the 500 family) ----------
 # IG-ablation's mesh with a gas phase and a dispersed phase (drop): face 1 a manifold drawing on face 2, faces 3
-# and 4 one patch per gsi variant (502 with and without drop's inlet keys, 503, 504, 505, 506). drop-bc.txt
+# and 4 one patch per gsi variant (502 with and without drop's inlet keys, 503, 504, 505, 506 the pyrolysing
+# ablator on the table MX4926 of gas-pyrolysis.dat). drop-bc.txt
 # carries 300 on the manifold and on every gsi patch but the grain that gives drop's keys, which injects drop as an
 # inlet does (401). gas-bc.txt is the fluid's file without drop -- what the BCB of 3fc73f4 writes for the deck
 # without drop and its keys (with drop that BCB stopped on the manifold, allocating its record twice) but for the
@@ -1314,7 +1315,7 @@ set_tests_properties(DP-gsi-manifold PROPERTIES
 # instead, refused alike.
 add_test(
     NAME    DP-gsi-keys-refused
-    COMMAND bash -c "rm -rf fromATLAStoSolver _run-lenient _run-manifold && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && mkdir _run-lenient && cp input.ini mesh.tec gas-phase.txt drop-phase.txt _run-lenient/ && cd _run-lenient && sed -i 's/^strict-keys = .*/strict-keys = false/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null) && test $(grep -c -F '[WARNING] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\") -eq 1 && diff fromATLAStoSolver/drop-bc.txt ../../DP-gsi-manifold/reference/drop-bc.txt && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../DP-gsi-manifold/reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-manifold && cp input.ini mesh.tec gas-phase.txt drop-phase.txt _run-manifold/ && cd _run-manifold && sed -i -e '/^drop-krho         = 0.2$/d' -e 's/^face  = 2$/face  = 2\\ndrop-krho = 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [man]: not honoured by BC 501 (manifold)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-lenient _run-manifold && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && mkdir _run-lenient && cp input.ini mesh.tec gas-phase.txt drop-phase.txt gas-pyrolysis.dat _run-lenient/ && cd _run-lenient && sed -i 's/^strict-keys = .*/strict-keys = false/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null) && test $(grep -c -F '[WARNING] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\") -eq 1 && diff fromATLAStoSolver/drop-bc.txt ../../DP-gsi-manifold/reference/drop-bc.txt && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../DP-gsi-manifold/reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-manifold && cp input.ini mesh.tec gas-phase.txt drop-phase.txt gas-pyrolysis.dat _run-manifold/ && cd _run-manifold && sed -i -e '/^drop-krho         = 0.2$/d' -e 's/^face  = 2$/face  = 2\\ndrop-krho = 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [man]: not honoured by BC 501 (manifold)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-gsi-keys-refused"
 )
 set_tests_properties(DP-gsi-keys-refused PROPERTIES
@@ -1617,6 +1618,49 @@ add_test(
 )
 set_tests_properties(IG-ablation PROPERTIES
     LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-carbon-phenolic -------------
+# BC 506, the pyrolysing ablator (surface-reactions, pyrolysis-gas, phi, hv0, qrad, eps) on the mesh and phase of
+# IG-ablation: the record pyro_id surf phi hv0 qrad eps, pyro_id 2 = the position of MX4926 in pyrolysis.dat. The
+# reference is IG-ablation's bc.txt with 506 and that payload on the 50 cells of face 4 (exact diff).
+add_test(
+    NAME    IG-carbon-phenolic
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-carbon-phenolic"
+)
+set_tests_properties(IG-carbon-phenolic PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-carbon-phenolic-profile -------------
+# The 506 wall with phi and hv0 from phi-file and hv0-file (linear in x): every record of face 4 holds the law at its
+# cell centre (check_profile.py, 1e-9 relative).
+add_test(
+    NAME    IG-carbon-phenolic-profile
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_profile.py fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-carbon-phenolic-profile"
+)
+set_tests_properties(IG-carbon-phenolic-profile PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-carbon-phenolic-refused -------------
+# The refusals of BC 506: the old pyrolysis-model + surface-reactions set, an unknown table, no table file, phi < 0,
+# a phi-file below 0 at a cell, no hv0, a phi-file that does not reach the first cells: rc 1, the message, no bc.txt.
+add_test(
+    NAME    IG-carbon-phenolic-refused
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-carbon-phenolic-refused"
+)
+set_tests_properties(IG-carbon-phenolic-refused PROPERTIES
+    LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )

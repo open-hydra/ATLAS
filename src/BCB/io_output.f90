@@ -118,7 +118,8 @@ module io_write_bc_mod
             case(501)
               write(unitfile,'(2(I8,A1))') nint(this % ig_properties(1)), ',', nint(this % ig_properties(2)), ','
             case(301:309, 502:506)
-              ! BC 504/505/506: MOSE reads the leading pyrolysis-model / surface-reaction ids list-directed
+              ! BC 504/505/506: MOSE reads the leading ids (504 pyrolysis model, 505 surface reactions, 506 pyrolysis-gas
+              ! table and surface reactions) list-directed
               ! into integers: they are written as integers like the 501 payload (gfortran refuses
               ! "0.100000E+01" for an integer item: iostat 5010, ids left 0)
               nid = 0

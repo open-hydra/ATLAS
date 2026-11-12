@@ -76,7 +76,7 @@ class FileRole:
 #: (``src/BCB/config.f90``, ``variable_file_keys``).
 VARYING = ("ks", "q", "T", "Tref", "hconv", "qrad", "eps", "alpha", "beta",
            "g", "krho", "a", "n", "pRef", "rhoGrain", "Taf", "SFgeo", "SF",
-           "mach", "p")
+           "mach", "p", "phi", "hv0")
 
 #: The time-series keys, with their 32-character limit.
 TIME_SERIES = {
