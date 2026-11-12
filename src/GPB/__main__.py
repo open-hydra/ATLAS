@@ -30,21 +30,27 @@ try:
     import ideal_gas
     import condensed
     import real_fluid
-    from ini import load_phase_definitions
+    import pyrolysis
+    from ini import load_phase_definitions, load_pyrolysis_definitions
 
     inifile = args.input_file
     phase_definitions = load_phase_definitions(inifile)
+    # [GPB-Pyrolysis<n>]: every key is checked here, before any phase is built
+    pyrolysis_definitions = load_pyrolysis_definitions(inifile)
 
+    gas_phases = []   # (name, species groups) of every ideal-gas phase built: the species lists of the pyrolysis tables
     for phase in phase_definitions:
         phase_type = phase.phase_type.lower()
         if ('ideal' in phase_type or 'heavy' in phase_type):
-            ideal_gas.build(inifile, phase.section)
+            gas_phases.append(ideal_gas.build(inifile, phase.section))
         elif ('dispersed' in phase_type or phase_type in ('solid', 'solid-bulk')):
             condensed.build(phase_type, inifile, phase.section, phase.phase_modeling)
         elif ('real' in phase_type):
             real_fluid.build(inifile, phase.section)
         else:
             raise SystemExit(f"[ERROR] [{phase.section}] type = '{phase.phase_type}' is not a GPB phase type")
+    if pyrolysis_definitions:
+        pyrolysis.build(pyrolysis_definitions, gas_phases)
     config.commit_output()   # every phase succeeded: each product replaces its namesake in fromATLAStoSolver/ (no other file is touched)
 finally:
     config.discard_output()  # removes the temporary directory (empty after a successful run)

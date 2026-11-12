@@ -2447,6 +2447,22 @@ set_tests_properties(IG-transport-CEA-falling-viscosity PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : PY-carbon-phenolic ([GPB-Pyrolysis<n>], the pyrolysis-gas tables of BC 506: the gas-only and strip tables of a
+# carbon-phenolic makeup against the row sums, the elemental identity of gas-only, the other engine (cea for gas-only,
+# Cantera for strip) at 1e-6 and the numbers of the brief at 5e-4 (check_pyrolysis.py), and the reference at 1e-8;
+# side decks: strip without a hydrocarbon, T-min below the polynomial range, an unnamed phase, log-spaced p; every
+# refusal of the section with rc 1, its message, no product and no staging directory) -------------
+add_test(
+    NAME    PY-carbon-phenolic
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/PY-carbon-phenolic"
+)
+set_tests_properties(PY-carbon-phenolic PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- GPB : CP-tmin-noninteger (a non-integer Tmin of a condensed phase is refused naming the key; the products of the ideal-gas phase before it, with an integer Tmin = 300, are not left behind) -------------
 add_test(
     NAME    CP-tmin-noninteger

@@ -1,0 +1,11 @@
+problem rocket equilibrium
+   p,bar=10.0
+   sup,ae/at=2.0
+react
+   fuel=C2H2,acetylene wt=30.0 t,k=298.15
+   oxid=O2 wt=60.0 t,k=298.15
+   oxid=N2 wt=10.0 t,k=298.15
+only
+ H C2H4 OH CO CO2 H2 H2O O2 O C2H2,acetylene N2
+output massf siunits
+end

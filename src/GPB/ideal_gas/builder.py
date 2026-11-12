@@ -544,3 +544,6 @@ def build(inifile,section):
             print(f"[WARNING] GPB: phase {mechanism.name}: the explicit orders of {len(skipped)} falloff reactions are not written (the chemistry tables carry orders for Arrhenius-type reactions only): {', '.join(skipped)}")
         with open(IG_IO.outpath + name + 'chemistry-info.txt', 'a') as f:
             f.write(f"\nReaction orders\n{len(rows)}\n" + ''.join(f"{ir} {s} {o}\n" for ir, s, o in rows))
+
+    # The species of <name>phase.txt, for the pyrolysis-gas tables of a [GPB-Pyrolysis<n>] that names this phase
+    return name, species_group
