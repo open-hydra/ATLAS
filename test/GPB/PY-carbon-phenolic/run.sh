@@ -1,8 +1,9 @@
 #!/bin/bash
 # PY-carbon-phenolic: [GPB-Pyrolysis<n>] (BC 506). The deck's two tables (gas-only, strip) against the identities and
 # the other engine (check_pyrolysis.py) and the reference at 1e-8; side decks: strip without a hydrocarbon in the gas
-# list, T-min below the polynomial range (WARNING), an unnamed gas phase (pyrolysis.dat), p-min/p-max/p-n with log
-# spacing; every refusal of the section: rc 1, the message, no product, no staging directory; a negative mass fraction
+# list, T-min below the polynomial range (WARNING), T-max above it (gas-only, INFO), an unnamed gas phase
+# (pyrolysis.dat), p-min/p-max/p-n with log spacing; every refusal of the section: rc 1, the message, no product, no
+# staging directory (the strip non-convergence below the 160 K floor of the cea library); a negative mass fraction
 # returned by the solve: refused naming (p, T, species) (D18, check_negative.py) (usage: run.sh <ATLAS.sh>).
 atlas=$1
 # the checker needs numpy, Cantera and cea: the conda environment of ATLAS.sh, unless ATLAS_PYTHON names an interpreter
@@ -35,6 +36,12 @@ grep -q '^table MX4926$' _run-noHC-strip/fromATLAStoSolver/gas-pyrolysis.dat || 
 deck _run-cold '/^\[GPB-Pyrolysis2\]$/,$d;s/^T         = 1500 3000 500$/T         = 100 400 100/'
 accepted _run-cold
 grep -q -F 'T-min = 100 K is below the polynomial range of 10 species' _run-cold/gpb.log || fail "_run-cold: no WARNING"
+# gas-only only: a strip table above 6600 K converges with the pinned cea (3.3.4) and stops with a cea before 3.3.1
+deck _run-hot '/^\[GPB-Pyrolysis2\]$/,$d;s/^T         = 1500 3000 500$/T         = 6000 7000 1000/'
+accepted _run-hot
+grep -q -F '[INFO] GPB: [GPB-Pyrolysis1]: T-max = 7000 K is above the polynomial range of 3 species (from 6000 K)' _run-hot/gpb.log \
+  || fail "_run-hot: no INFO"
+grep -q '^temperatures 2$' _run-hot/fromATLAStoSolver/gas-pyrolysis.dat || fail "_run-hot: no table"
 deck _run-unnamed '/^name      = gas$/d'
 accepted _run-unnamed
 test -f _run-unnamed/fromATLAStoSolver/pyrolysis.dat || fail "_run-unnamed: no pyrolysis.dat"
@@ -56,8 +63,8 @@ deck _run-phase 's/^name      = MX4926$/name      = MX4926\nphase     = air/'
 refused _run-phase "[ERROR] section [GPB-Pyrolysis1]: phase = air is not the name of an ideal-gas phase of this deck"
 deck _run-infeasible 's/^CEA-file  = species.inp$/CEA-file  = noHC.inp/'
 refused _run-infeasible "[ERROR] section [GPB-Pyrolysis1]: treatment = gas-only: no mixture of the species"
-deck _run-hot 's/^T         = 1500 3000 500$/T         = 6000 7000 1000/'
-refused _run-hot "[ERROR] section [GPB-Pyrolysis2]: treatment = strip: the CEA equilibrium did not converge at p = 100000 Pa, T = 7000 K"
+deck _run-cold-strip 's/^T         = 1500 3000 500$/T         = 100 400 100/'
+refused _run-cold-strip "[ERROR] section [GPB-Pyrolysis2]: treatment = strip: the CEA equilibrium did not converge at p = 100000 Pa, T = 100 K"
 deck _run-order 's/^p         = 1e5 4e6 6.1e6$/p         = 4e6 1e5/'
 refused _run-order "[ERROR] section [GPB-Pyrolysis1]: the pressures must be strictly ascending"
 deck _run-step 's/^T         = 1500 3000 500$/T         = 300 1000 300/'

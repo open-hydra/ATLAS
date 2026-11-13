@@ -89,5 +89,6 @@ carbon), gas list `H C2H4 OH CO CO2 H2 H2O O2 O C2H2,acetylene`.
 `thermo.dat`); `strip` with the CEA library of ATLAS (`lib/cea`), on its own database, with graphite `C(gr)`. The
 NASA-9 species are evaluated on a 1-bar standard state, the one CEA uses for the same coefficients (`nasa9.yaml` is
 read with Cantera's default of 1 atm elsewhere in GPB). A point that does not converge stops GPB with its pressure
-and temperature. Below the polynomial range of a species GPB writes a WARNING and Cantera extrapolates; CEA does not
-converge there, and a `strip` table then stops at that point.
+and temperature. Outside the polynomial range of a species GPB writes a WARNING (below it) or an INFO (above it), and
+both engines extrapolate its thermo: such rows are numerically clean but not physical, and that message is the only
+notice. CEA solves mixture temperatures from 160 K to 22000 K: a `strip` point below 160 K stops GPB.

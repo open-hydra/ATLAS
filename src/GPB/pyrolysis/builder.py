@@ -112,8 +112,8 @@ def _table(d, phase_name, group):
                     y, xc, warm = strip.solve(p, T, warm)
                 except EQ.NotConverged:
                     _refuse(d.section, f"treatment = strip: the CEA equilibrium did not converge at p = {p:g} Pa, "
-                                       f"T = {T:g} K (also from the previous point; outside the thermo range of a "
-                                       f"species of the CEA database the solve does not converge)")
+                                       f"T = {T:g} K (also from the previous point; lib/cea solves mixture "
+                                       f"temperatures from 160 K to 22000 K)")
                 _no_negative(d, names, p, T, y, xc)
                 rows.append(y)
                 xc_min, xc_max = min(xc_min, xc), max(xc_max, xc)
