@@ -1,0 +1,35 @@
+# hydra pyrolysis-gas composition table
+# fixture of the BCB tests (DP-gsi-manifold, DP-gsi-keys-refused): BCB reads only the table names; MX4926 is the
+# second table, so the 506 records carry pyro_id 2
+format 1
+tables 2
+table TACOT
+treatment gas-only
+elements 2 H 1.0000000000000001E-01 O 9.0000000000000002E-01
+condensed 0
+species 2
+O2
+H2
+pressures 1
+  1.0000000000000000E+05
+temperatures 2
+  3.0000000000000000E+02  4.0000000000000000E+03
+data
+  9.0000000000000002E-01  1.0000000000000001E-01
+  9.0000000000000002E-01  1.0000000000000001E-01
+end table
+table MX4926
+treatment gas-only
+elements 2 H 2.0000000000000001E-01 O 8.0000000000000004E-01
+condensed 0
+species 2
+O2
+H2
+pressures 1
+  1.0000000000000000E+05
+temperatures 2
+  3.0000000000000000E+02  4.0000000000000000E+03
+data
+  8.0000000000000004E-01  2.0000000000000001E-01
+  8.0000000000000004E-01  2.0000000000000001E-01
+end table

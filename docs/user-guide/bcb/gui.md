@@ -103,8 +103,8 @@ Boundary conditions come in two kinds, matching the INI format:
 
     For `gsi` the suggestion list spans every variant, since BCB selects the
     model from the keys you set — see [BC Types](./bc-types.md#gsi). Setting
-    `pyrolysis-model` or `surface-reactions` here is what picks the pyrolysis,
-    ablation or combined variant; leaving both unset and giving the burn-rate
+    `pyrolysis-model` or `surface-reactions` here is what picks the pyrolysis or
+    ablation variant (with `pyrolysis-gas`, the pyrolysing ablator); leaving both unset and giving the burn-rate
     keys builds a solid-propellant grain.
 
 !!! note "Files written with `type = srm`"

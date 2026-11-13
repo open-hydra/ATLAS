@@ -323,13 +323,13 @@ A grain applied as an inlet (`grain-wall = F`, the default) is also a `401` reco
 | `503` | Melting | `cp, Tm, Ti, dh, qrad, eps, massf(1:ns)` | `6 + ns` |
 | `504` | Pyrolysis | `pyro, qrad, eps, massf(1:ns)` | `3 + ns` |
 | `505` | Surface reactions | `surf, qrad, eps` | `3` |
-| `506` | Pyrolysis + surface reactions | `pyro, surf, qrad, eps, massf(1:ns)` | `4 + ns` |
+| `506` | Pyrolysing ablator | `pyro_id, surf, phi, hv0, qrad, eps` | `6` |
 
-Field key: `a·rhoGrain·SF` = the propellant mass flux at `pRef` [kg m⁻² s⁻¹], `a` the linear burn rate coefficient [m s⁻¹], `rhoGrain` the propellant grain density [kg m⁻³], `SF` the geometric scale factor (default 1) (times `1 − krho_tot` with dispersed phases); `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `Taf` = adiabatic flame temperature [K], of the `eq-CEA-file` (0 without it, which MOSE refuses), the total temperature of the products for the solver; `mode` = `1` (`grain-wall = T`), a wall that blows the products in, or `2` (`grain-wall = F`, the default), an inlet; `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below).
+Field key: `a·rhoGrain·SF` = the propellant mass flux at `pRef` [kg m⁻² s⁻¹], `a` the linear burn rate coefficient [m s⁻¹], `rhoGrain` the propellant grain density [kg m⁻³], `SF` the geometric scale factor (default 1) (times `1 − krho_tot` with dispersed phases); `n` = burn-rate pressure exponent; `pRef` = reference pressure [Pa]; `Taf` = adiabatic flame temperature [K], of the `eq-CEA-file` (0 without it, which MOSE refuses), the total temperature of the products for the solver; `mode` = `1` (`grain-wall = T`), a wall that blows the products in, or `2` (`grain-wall = F`, the default), an inlet; `cp` = surface specific heat [J kg⁻¹ K⁻¹]; `Tm` = melting temperature [K]; `Ti` = ignition (initial) temperature [K]; `dh` = heat of reaction [J kg⁻¹], negative when exothermic; `qrad` = radiative heat flux [W m⁻²]; `eps` = surface emissivity; `massf(1:ns)` = injected species mass fractions; `pyro`/`surf` = numeric model codes (see below); `pyro_id` = the table of `<phase>-pyrolysis.dat` (see below); `phi` = `mdot_pg/mdot_ch = rho_v/rho_ch − 1`, at least 0; `hv0` = enthalpy of the virgin material [J kg⁻¹].
 
 Only `502` in mode 2 (`grain-wall = F`, the default) carries a turbulence suffix, using the same layout as the inlet IDs
 (depends on `nrans`; 5 bands of a Reynolds-stress model on a 2D mesh, x,y file, as the inlets); in mode 1 the solver
-sets the wall values itself. `505` is the only GSI variant that writes **no** mass
+sets the wall values itself. `505` and `506` are the GSI variants that write **no** mass
 fractions.
 
 !!! note "Model codes"
@@ -341,6 +341,7 @@ fractions.
     |---|---|---|
     | `pyro` | `pyrolysis-model` | `HTPB` → `1`, `HDPB` → `2`, `PP` → `3` |
     | `surf` | `surface-reactions` | `bradley` → `1` |
+    | `pyro_id` (`506`) | `pyrolysis-gas` | the position of the named table among the `table` lines of `<phase>-pyrolysis.dat`, from `1` |
 
 Example (`id = 502`, single-species, no turbulence; `Taf` as the CEA file gives it, here 3420.53 K):
 
@@ -368,6 +369,14 @@ Example (`id = 505`, surface reactions, `bradley` → `1`, no mass fractions):
 ```
        1       1      20       1       4     505
        1,  1.0000000000000000E+06,  0.0000000000000000E+00,
+```
+
+Example (`id = 506`, pyrolysing ablator, the second table of `pyrolysis.dat`, `bradley`, `phi = 0.247342`,
+`hv0 = -8.44e5`, `qrad = 1e6`, `eps = 0.85`; `test/BCB/IG-carbon-phenolic`):
+
+```
+       1       1      20       1       4     506
+       2,       1,  2.4734200000000001E-01, -8.4400000000000000E+05,  1.0000000000000000E+06,  8.4999999999999998E-01,
 ```
 
 !!! note "Unset species"

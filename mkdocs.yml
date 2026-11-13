@@ -112,6 +112,7 @@ nav:
       - Ideal Gas: user-guide/gpb/ideal-gas.md
       - Real Fluid: user-guide/gpb/real-fluid.md
       - Condensed and Solid: user-guide/gpb/condensed-solid.md
+      - Pyrolysis-Gas Tables: user-guide/gpb/pyrolysis.md
       - Output Files: user-guide/gpb/output.md
       - Input Reference: user-guide/gpb/input-reference.md
     - Boundary Conditions Builder:
