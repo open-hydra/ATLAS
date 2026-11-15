@@ -2621,6 +2621,138 @@ set_tests_properties(CP-models-stale PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : CP-smoke-ice (the smoke record) -------------------------------------------------------
+add_test(
+    NAME    CP-smoke-ice
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-products.txt reference/part-products.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-ice"
+)
+set_tests_properties(CP-smoke-ice PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-igloo (the smoke record) -----------------------------------------------------
+add_test(
+    NAME    CP-smoke-igloo
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partE-products.txt reference/partE-products.txt && diff fromATLAStoSolver/partL-models.txt reference/partL-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-igloo"
+)
+set_tests_properties(CP-smoke-igloo PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-cap (the smoke record) -------------------------------------------------------
+add_test(
+    NAME    CP-smoke-cap
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partL-models.txt reference/partL-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-cap"
+)
+set_tests_properties(CP-smoke-cap PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-solid-below (the smoke record) -----------------------------------------------
+add_test(
+    NAME    CP-smoke-solid-below
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partE-products.txt reference/partE-products.txt && diff fromATLAStoSolver/partE-properties.dat reference/partE-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-solid-below"
+)
+set_tests_properties(CP-smoke-solid-below PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-no-family (refused) ----------------------------------------------------------
+add_test(
+    NAME    CP-smoke-no-family
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'no ICE family to receive the smoke' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-no-family"
+)
+set_tests_properties(CP-smoke-no-family PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-no-dsmoke (refused) ----------------------------------------------------------
+add_test(
+    NAME    CP-smoke-no-dsmoke
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'give d-smoke, the diameter of the smoke drops' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-no-dsmoke"
+)
+set_tests_properties(CP-smoke-no-dsmoke PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-dsmoke-unused (refused) ------------------------------------------------------
+add_test(
+    NAME    CP-smoke-dsmoke-unused
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'its reaction makes no smoke' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-dsmoke-unused"
+)
+set_tests_properties(CP-smoke-dsmoke-unused PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-two-phases (refused) ---------------------------------------------------------
+add_test(
+    NAME    CP-smoke-two-phases
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'a smoke must name one ICE family' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-two-phases"
+)
+set_tests_properties(CP-smoke-two-phases PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-melt-ice (refused) -----------------------------------------------------------
+add_test(
+    NAME    CP-smoke-melt-ice
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Set solidification = on for AL2O3(L) in [GPB-Phase2]' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-melt-ice"
+)
+set_tests_properties(CP-smoke-melt-ice PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-melt-igloo (refused) ---------------------------------------------------------
+add_test(
+    NAME    CP-smoke-melt-igloo
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Set solidification = on for AL2O3(L) in [GPB-Phase3]' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-melt-igloo"
+)
+set_tests_properties(CP-smoke-melt-igloo PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-melt-solid (refused) ---------------------------------------------------------
+add_test(
+    NAME    CP-smoke-melt-solid
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Name the smoke by AL2O3(L) with solidification = on, or set Tmax = 2327 or lower' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-melt-solid"
+)
+set_tests_properties(CP-smoke-melt-solid PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- GPB : database-figure-current (the figure of the mechanism catalog, docs/databases/chemistry/mechs.svg, is what database/chemistry/resume.py gives for the
 # ----       mechanisms of the database now: a mechanism added or changed without regenerating the figure fails; Cantera only) -------------
 add_test(
