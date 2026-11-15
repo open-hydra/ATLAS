@@ -14,6 +14,7 @@ if ATLASDIR is None:
 # Database paths
 # ------------------------------------------------------------------
 DATAPATH = os.path.join(ATLASDIR, "database")
+PARTICLE_MECH_DIR = os.path.join(DATAPATH, "particle-combustion")   # reaction files of burning condensed materials
 THERMO_DIR = os.path.join(DATAPATH, "thermo")
 # Thermo database files that ATLAS does not distribute (burcat.yaml): git ignores the content of this folder
 # (database/thermo/external/README.md)
@@ -85,10 +86,17 @@ def ensure_output_dir():
 
 # The products of a run are written into a temporary sibling directory and moved into OUTPATH only when every phase
 # of the deck succeeded; a refusal or a crash leaves nothing behind (the temporary directory is removed); files already
-# present in OUTPATH are never removed (a product of the same name is replaced). The temporary directory is a new one
+# present in OUTPATH are never removed (a product of the same name is replaced), but for a file a phase of this run
+# retires: its models file, when the deck gives it no constant any more. The temporary directory is a new one
 # for every run (.gpb-tmp-<random>): a directory left by a run killed from outside is never reused, so its files never
 # reach OUTPATH.
 FINAL_OUTPATH = OUTPATH
+RETIRED = []
+def retire_output(filename):
+    """A product this run no longer writes: commit_output removes it from FINAL_OUTPATH, so that a solver never reads
+    the file of an earlier deck."""
+    RETIRED.append(filename)
+
 def stage_output():
     """Redirect OUTPATH to the staging directory. Call before the builder modules are imported (they bind OUTPATH at import)."""
     global OUTPATH
@@ -103,6 +111,9 @@ def commit_output():
     for f in sorted(os.listdir(OUTPATH)):
         shutil.move(os.path.join(OUTPATH, f), os.path.join(FINAL_OUTPATH, f))
     os.rmdir(OUTPATH)
+    for f in RETIRED:
+        if os.path.exists(os.path.join(FINAL_OUTPATH, f)):
+            os.remove(os.path.join(FINAL_OUTPATH, f))
 
 def discard_output():
     """Remove the staging directory and whatever it holds (only files written by this run)."""

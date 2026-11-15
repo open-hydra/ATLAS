@@ -1,0 +1,5 @@
+name: water-vapour
+description: the liquid is handed to the gas as its vapour (a test of the file format, not a combustion mechanism)
+reference: none
+reactions:
+- equation: H2O(L) => H2O

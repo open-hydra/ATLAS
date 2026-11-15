@@ -30,6 +30,13 @@ All notable changes to ATLAS are listed here. The format follows
 - The documentation is built with Zensical (strict in CI), with a new home page and an INI Files page.
 - GPB, `[GPB-Pyrolysis<n>]`: the pyrolysis-gas tables of a charring ablator, `<phase>-pyrolysis.dat`, by
   `treatment = gas-only` (the default) or `strip`. See [Pyrolysis-Gas Tables](docs/user-guide/gpb/pyrolysis.md).
+- `<name>products.txt`: the gas species each dispersed material becomes per kg (evaporation, combustion, oxide cap
+  and release records), written beside the phase file for hydra-MI2. Reactions: `particle-mechanism`, from the case
+  directory or `database/particle-combustion/`.
+- The smoke of a burning material: a condensed product of its reaction that is a material of an eulerian phase is
+  born in that ICE family; `d-smoke` gives its diameter. A smoke whose table crosses its melting point (from the
+  database's other phases of the substance) needs `solidification = on`, or a table that ends below it.
+- New keys: `d-stop`, `d-burnout`, `d-smoke`, `T-burn`, `product`, `residue`, `d-residue`, `xi-law`, `xi-ox0`.
 
 ### Changed
 
@@ -58,6 +65,10 @@ All notable changes to ATLAS are listed here. The format follows
   give the record `pyro_id, surf, phi, hv0, qrad, eps`. `pyrolysis-model` with `surface-reactions` (the former
   `506`, which no solver applied) stops BCB: keep one of the two.
 - The chemistry pages mention FLINT once, and the upkeep of its contract test is in Testing.
+- **Breaking.** GPB, a burning dispersed material: the constants of its model (`K-burn`, `q-comb`, `d-stop`, ...)
+  leave the material line of `<name>phase.txt` for `<name>models.txt`, one row per material and kind; the line keeps
+  the model's word. A material with `combustion` needs its reaction in `particle-mechanism`, whose products are gas
+  species of the deck (and at most one smoke). `combustion` also takes `direct` and `none`.
 
 ### Fixed
 

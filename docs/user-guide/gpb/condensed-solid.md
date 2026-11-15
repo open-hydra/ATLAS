@@ -189,11 +189,16 @@ groups   = 3
 
 ### Per-material solver models
 
-Optional keys of `[GPB-Phase*]` that select, per material, the models the Lagrangian solver (IGLOO) applies
-to that material. Each key takes one value per entry of `material`, space-separated in the same order (a
-single value is broadcast to every material). GPB validates them and writes them as `key=value` tokens after
-`<material> <groups>` on the material line of `<name>-phase.txt`; the solvers consume the tokens, ATLAS's own
-readers (BCB/ICB) ignore them. An absent key emits no token and the solver's default applies.
+Optional keys of `[GPB-Phase*]` that select, per material, the models the solvers (IGLOO, ICE) apply to that
+material. Each key takes one value per entry of `material`, space-separated in the same order (a single value is
+broadcast to every material). GPB validates them and writes them in two places:
+
+- the model WORDS, and the constants of the models of the table below, as `key=value` tokens after
+  `<material> <groups>` on the material line of `<name>phase.txt`;
+- the CONSTANTS of the burning models in `<name>models.txt`, one row per material and kind (next section).
+
+The solvers consume both, ATLAS's own readers (BCB/ICB) ignore them. An absent key emits nothing and the solver's
+default applies.
 
 ```ini
 [GPB-Phase1]
@@ -219,18 +224,11 @@ H2O(L) 1 evaporation=ASM interface=LK alpha-e=1
 | `liquid-conduction` | word | `ITC`, `P2T` | Liquid-side conduction model (`ITC`) |
 | `interface` | word | `VLE`, `LK` | Interface model: equilibrium or Langmuir-Knudsen (`VLE`) |
 | `boiling` | word | `clamp`, `ZGR` | Boiling branch (`clamp`) |
-| `combustion` | word | `Beckstead` | Metal combustion model; presence switches the material to the metal track |
+| `combustion` | word | `Beckstead`, `direct`, `none` | Burning model of the material: the d^n law, or the d2 law of a drop held at its burning temperature; its constants go to `<name>models.txt` (the solver section's `combustion`) |
 | `solidification` | word | `on`, `off` | Solidification with supercooling and recalescence, and melting at `T-melt`, in IGLOO and ICE (`off`) |
 | `alpha-e` | real | | Langmuir-Knudsen accommodation coefficient, `interface = LK` (1.0) |
 | `k-liq` | real | | Liquid thermal conductivity [W/m/K], required with `liquid-conduction = P2T` (0) |
 | `mu-liq` | real | | Liquid viscosity [Pa s], `liquid-conduction = P2T` (0) |
-| `K-burn` | real | | Beckstead burn-rate coefficient at `X-eff` = 1 [m^n-burn/s], required > 0 with `combustion = Beckstead` (0) |
-| `n-burn` | real | | Beckstead burn-law diameter exponent (1.8) |
-| `X-eff` | real | | Effective oxidizer mole fraction C_O2 + 0.6 C_H2O + 0.22 C_CO2 (1.0) |
-| `beta-part` | real | | Heat-partition fraction of `q-comb` released to the particle (0) |
-| `xi-cap` | real | | Oxide-cap mass fraction retained on the burning particle (0) |
-| `T-ign` | real | | Ignition temperature [K]; the particle is inert below it (2350) |
-| `q-comb` | real | | Heat of combustion per unit Al mass [J/kg] (0) |
 | `T-melt` | real | | Melt temperature [K] (2327, alumina) |
 | `h-fus` | real | | Heat of fusion [J/kg], solidification (0) |
 | `T-nuc` | real | | Nucleation temperature [K]; absent or 0 = 0.8 `T-melt` (0) |
@@ -238,6 +236,60 @@ H2O(L) 1 evaporation=ASM interface=LK alpha-e=1
 
 A word outside the allowed set, a non-numeric real, or a value count that is neither 1 nor the number of
 materials stops GPB with `[ERROR] [GPB-Phase1] <key> ...`.
+
+### The constants of the burning models: `<name>models.txt`
+
+One row per material and kind, `<material> <kind> <model> key=value ...`, the keys in any order; lines that start
+with `#` are comments. The file is written only when a material of the phase has such constants. The material line
+keeps the word of each kind (`combustion=<model>`, `cap=<law>`) and none of the constants.
+
+```ini
+[GPB-Phase2]
+type       = condensed-dispersed
+material   = Al Mg
+rho        = 2700 1740
+cp         = 1177 1300
+h0         = 9.53e6 5.0e6
+combustion = Beckstead direct
+K-burn     = 1.39e-6
+n-burn     = 1.8
+X-eff      = 0.5
+beta-part  = 0.3
+T-ign      = 290
+T-burn     = 0 1363
+q-comb     = 1.0e6 9.53e6
+d-stop     = 6.0e-5 0
+d-burnout  = 0 1.0e-7
+```
+
+writes the material lines `Al 1 combustion=Beckstead` and `Mg 1 combustion=direct`, and the rows
+
+```
+Al combustion Beckstead K-burn=1.39e-06 n-burn=1.8 X-eff=0.5 beta-part=0.3 T-ign=290 q-comb=1000000 d-stop=6e-05 d-burnout=0
+Mg combustion direct T-burn=1363 q-comb=9530000 d-stop=0 d-burnout=1e-07
+```
+
+| kind | its model is named by | models | constants each model reads |
+|---|---|---|---|
+| `combustion` | `combustion` | `Beckstead` | `K-burn` [m^n-burn/s], `n-burn`, `X-eff`, `beta-part`, `T-ign` [K], `q-comb` [J/kg], `d-stop` [m], `d-burnout` [m] |
+| | | `direct` | `T-burn` [K], `q-comb` [J/kg], `d-stop` [m], `d-burnout` [m] |
+| `cap` (the oxide cap of a burning drop, IGLOO) | `xi-law` (absent: `constant`) | `constant` | `xi-cap`, `xi-ox0`, `product`, `residue` (`on`, `off`), `d-residue` [m] |
+| | | `Gallier21` | `xi-ox0`, `product`, `residue`, `d-residue` |
+
+- A constant goes in the row of each material whose model reads it. Where the model does not read it, a single
+  value given for all the materials is not written for that one, and an entry of a per-material list must be the
+  "not given" value (`0`; `none` for `product`; `off` for `residue`): GPB stops otherwise, and it stops on a
+  constant that no material's model reads.
+- A cap row is written for a material that asks for a cap: `xi-law = Gallier21`, or a cap constant that is not
+  the "not given" value. Its line then carries `cap=<law>`.
+- A material with `combustion = none`, and a combustion product (the material `product` names: 0 groups, never
+  injected), get no row. When the `combustion` key is absent, the constants given are written under the model `-`:
+  the solver's own section then names the model.
+- `d-burnout` is the one removal size ICE and IGLOO share; without it each keeps its own floor (a drop mass of
+  1e-20 kg). To compare a material in the two solvers give it, at about 0.1 of the injected diameter.
+- `combustion = direct` reads its latent heat in the `Lv` column of the properties table, at `T-burn`: give the
+  material its vapour pair (`psat-vapour`, above). Without the column the solver's own section must give a
+  constant.
 
 ## Solid Phase (`type = solid`)
 

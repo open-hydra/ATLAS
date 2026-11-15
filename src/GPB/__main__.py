@@ -51,6 +51,9 @@ try:
             raise SystemExit(f"[ERROR] [{phase.section}] type = '{phase.phase_type}' is not a GPB phase type")
     if pyrolysis_definitions:
         pyrolysis.build(pyrolysis_definitions, gas_phases)
-    config.commit_output()   # every phase succeeded: each product replaces its namesake in fromATLAStoSolver/ (no other file is touched)
+    # the gas species each dispersed material becomes, from the phase files of this run (still staged)
+    from condensed.products import write_products_maps
+    write_products_maps(inifile, phase_definitions)
+    config.commit_output()   # every phase succeeded: each product replaces its namesake in fromATLAStoSolver/; a retired models file is removed (no other file is touched)
 finally:
     config.discard_output()  # removes the temporary directory (empty after a successful run)

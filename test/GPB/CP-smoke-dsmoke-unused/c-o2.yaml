@@ -1,0 +1,5 @@
+name: c-o2
+description: graphite burns with oxygen to carbon dioxide
+reference: none (a test deck)
+reactions:
+- equation: C(gr) + O2 => CO2

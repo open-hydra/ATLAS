@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from config import OUTPATH, ensure_output_dir
+from config import OUTPATH, ensure_output_dir, retire_output
 from ini.condensed import phase_header_word
 
 outpath = OUTPATH
@@ -25,6 +25,23 @@ def write_basics(type, name, mat_phases, groups, modeling=None, material_tokens=
             if material_tokens and material_tokens[i]:
                 line += " " + " ".join(material_tokens[i])
             f.write(line + "\n")
+
+
+def write_models(name, rows):
+    """<name>models.txt: the constants of the materials' models, one row per material and kind,
+    '<material> <kind> <model> key=value ...'. Written only when a model that needs constants is named; otherwise the
+    name is retired: the file of an earlier run is removed when this run commits, so that a solver never reads
+    constants the deck no longer gives."""
+
+    filename = outpath + name + "models.txt"
+    if not rows:
+        retire_output(name + "models.txt")
+        return
+    with open(filename, 'w') as f:
+        f.write(f"# {name}models.txt  written by ATLAS GPB: the constants of each material's models\n")
+        f.write("# <material> <kind> <model> key=value ...\n\n")
+        for material, kind, model, items in rows:
+            f.write(" ".join([material, kind, model] + items) + "\n")
 
 
 
