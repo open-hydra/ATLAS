@@ -1,0 +1,3 @@
+condensed-dispersed modeling=lagrangian
+A 1 combustion=Beckstead cap=constant
+OX 0

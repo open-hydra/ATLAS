@@ -1,0 +1,5 @@
+name: a-mix
+description: the material A becomes the one species of the gas; its heat is the h0 of A less the enthalpy of mix
+reference: none (a test of the file format)
+reactions:
+- equation: A => mix

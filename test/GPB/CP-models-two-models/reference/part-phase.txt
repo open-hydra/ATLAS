@@ -1,0 +1,3 @@
+condensed-dispersed modeling=lagrangian
+Al 1 combustion=Beckstead
+Mg 1 combustion=direct

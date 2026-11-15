@@ -1,0 +1,5 @@
+# part-models.txt  written by ATLAS GPB: the constants of each material's models
+# <material> <kind> <model> key=value ...
+
+A combustion - q-comb=1000000 d-stop=1e-06
+B combustion - q-comb=1000000 d-stop=1e-06
