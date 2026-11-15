@@ -82,8 +82,9 @@ MATERIAL_REAL_KEYS = ('alpha-e', 'k-liq', 'mu-liq', 'T-melt', 'h-fus', 'T-nuc', 
 # A later kind is one more entry here: the file and its readers dispatch on the kind.
 MODEL_KINDS = {
   'combustion': ('combustion', None,
-                 {'Beckstead': ('K-burn', 'n-burn', 'X-eff', 'beta-part', 'T-ign', 'q-comb', 'd-stop', 'd-burnout'),
-                  'direct': ('T-burn', 'q-comb', 'd-stop', 'd-burnout')}),
+                 {'Beckstead': ('K-burn', 'n-burn', 'X-eff', 'beta-part', 'T-ign', 'q-comb', 'd-stop', 'd-burnout',
+                                'd-smoke'),
+                  'direct': ('T-burn', 'q-comb', 'd-stop', 'd-burnout', 'd-smoke')}),
   'cap': ('xi-law', 'constant',
           {'constant': ('xi-cap', 'xi-ox0', 'product', 'residue', 'd-residue'),
            'Gallier21': ('xi-ox0', 'product', 'residue', 'd-residue')}),
