@@ -18,6 +18,8 @@ All notable changes to ATLAS are listed here. The format follows
 - External ORION and FiNeR clones: `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>`, `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>`
   (the configure stops if a clone does not fit; `-DATLAS_PIN_CHECK=WARNING` relaxes it). `ATLAS_FINER_DEPS` picks
   FiNeR's dependency versions, and `install.sh build --update-deps` the newest ORION 2.x (2.1.0 or later).
+- External PiNeR clone: `install.sh build --include-piner=<path>` (`-DPINER_PATH`). The conda environment installs
+  the PiNeR and CEA given, so a superproject can pass every library it has already cloned.
 - `thermo = constant` for a real fluid: `cp`, `rho`, `mu`, `k` (and `a`) given in the section, the same at every
   pressure and enthalpy. See [Constant Properties](docs/user-guide/gpb/real-fluid.md#constant-properties).
 - `mil-law = sutherland` for the fixed species of an ideal gas: a Sutherland viscosity, the conductivity from `Pr` or
@@ -72,6 +74,7 @@ All notable changes to ATLAS are listed here. The format follows
 
 ### Fixed
 
+- An external ORION, FiNeR or CEA clone given by a relative path is taken from the ATLAS folder, not the build one.
 - GPB, a fixed gas given `mil` without `kl` or `Pr` stops with a message (it stopped with a Python error).
 - `JLR-nasuti-ct.yaml`, `JLR-frassoldati-ct.yaml` (the forms KAnT runs): the backward H2 step never acted. It is
   refitted, so burnt gas reaches the equilibrium temperature (it was up to 220 K too hot). Their phases are named

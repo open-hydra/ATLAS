@@ -84,7 +84,8 @@ General form:
 ./install.sh build \
   --include-cea=/path/to/cea \
   --include-orion=/path/to/ORION \
-  --include-finer=/path/to/FiNeR
+  --include-finer=/path/to/FiNeR \
+  --include-piner=/path/to/PiNeR
 
 # select again the newest release of ORION that ATLAS accepts (deps.lock)
 ./install.sh build --update-deps
@@ -95,7 +96,7 @@ Options of `build`:
 | Option | Effect |
 |---|---|
 | `--compilers=<gnu\|intel>` | `gfortran`/`g++` or `ifx`/`icpx`; without it CMake chooses |
-| `--include-cea=<path>`, `--include-orion=<path>`, `--include-finer=<path>` | build against that clone instead of the submodule or the release; ATLAS checks it is the version it requires |
+| `--include-cea=<path>`, `--include-orion=<path>`, `--include-finer=<path>`, `--include-piner=<path>` | build against that clone instead of the submodule or the release; ATLAS checks it is the version it requires |
 | `--update-deps` | select again the newest release of ORION that ATLAS accepts (`deps.lock`) |
 | `--use-openmp` | OpenMP in the Fortran tools |
 | `--use-tecio` | binary Tecplot input and output (TecIO is built on the first configure, a few minutes) |
@@ -140,7 +141,8 @@ conda env create -f ct-env.yaml
 ```
 
 The environment `ct-env` holds Python with NumPy, Cantera and CoolProp, PyQt, PyVista and pyvistaqt (the GUI),
-Matplotlib (KAnT plots), Ninja, and the editable installs of `lib/PiNeR` and `lib/cea`.
+Matplotlib (KAnT plots), Ninja, and the editable installs of PiNeR and CEA (`lib/PiNeR` and `lib/cea`, or the
+clones given with `--include-piner` and `--include-cea`).
 
 `ATLAS GPB`, `ATLAS KAnT` and `ATLAS GUI` activate it for the run. Two variables change that:
 

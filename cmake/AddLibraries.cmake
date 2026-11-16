@@ -102,8 +102,13 @@ endif()
 
 FetchContent_MakeAvailable(ORION FiNeR)
 
-# Pins: the submodules lib/cea and lib/PiNeR at the commit this ATLAS commit records
-foreach(_sm "${ATLAS_CEA_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/lib/PiNeR")
+# Pins: the submodules lib/cea and lib/PiNeR at the commit this ATLAS commit records (an external clone of either,
+# CEA_PATH or PINER_PATH, is outside this tree and not checked)
+set(_piner "${CMAKE_SOURCE_DIR}/lib/PiNeR")
+if (PINER_PATH)
+  set(_piner "${PINER_PATH}")
+endif()
+foreach(_sm "${ATLAS_CEA_SOURCE_DIR}" "${_piner}")
   atlas_check_submodule_pin("${_sm}")
 endforeach()
 
