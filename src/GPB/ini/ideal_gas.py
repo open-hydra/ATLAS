@@ -68,6 +68,59 @@ def IG_read_mixture(ini_file,section):
 
   return mix_string, mix_name
 
+# Keys of the viscosity law of the fixed species
+LAW_KEYS = ('mil-law', 'mil-ref', 'T-ref', 'S-mil')
+
+#
+def IG_read_per_species(ini_file, section, key, unit, n):
+  """One positive number per fixed species for key [unit], or None when the key is absent; anything else is refused
+  (PiNeR returns None for a value it cannot read, which would pass for an absent key)."""
+  raw = get(ini_file, section, key, str)
+  if raw is None:
+    return None
+  try:
+    values = np.array([float(x) for x in raw.split()])
+  except ValueError:
+    values = None
+  if values is None or values.size != n or np.any(values <= 0.0):
+    print(f"[ERROR] key {key} of section [{section}]: {key} = {raw} is not {n} positive number(s) [{unit}], one per fixed species")
+    sys.exit(1)
+  return values
+
+#
+def IG_read_viscosity_law(ini_file, section, n):
+  """mil-law of the n fixed species: None for constant (mil, kl and Pr as they are), else the Sutherland law
+  mu = mil-ref (T/T-ref)^1.5 (T-ref + S-mil)/(T + S-mil), with k = mu cp/Pr or the constant kl, as a dict."""
+  raw = get(ini_file, section, 'mil-law', str)
+  law = 'constant' if raw is None else raw.strip().lower()
+  if law not in ('constant', 'sutherland'):
+    print(f"[ERROR] key mil-law of section [{section}]: mil-law = {raw} is not a viscosity law (constant or sutherland)")
+    sys.exit(1)
+  coefficients = (('mil-ref', 'Pa s'), ('T-ref', 'K'), ('S-mil', 'K'))
+  given = [key for key, unit in coefficients if get(ini_file, section, key, str) is not None]
+  if law == 'constant':
+    if given:
+      print(f"[ERROR] key {given[0]} of section [{section}]: {', '.join(given)} given without mil-law = sutherland")
+      sys.exit(1)
+    return None
+  if get(ini_file, section, 'mil', str) is not None:
+    print(f"[ERROR] key mil of section [{section}]: mil and mil-law = sutherland both give the viscosity: give one of them")
+    sys.exit(1)
+  missing = [key for key, unit in coefficients if key not in given]
+  if missing:
+    print(f"[ERROR] key {missing[0]} of section [{section}]: mil-law = sutherland needs mil-ref, T-ref and S-mil ({', '.join(missing)} not given)")
+    sys.exit(1)
+  law = {key: IG_read_per_species(ini_file, section, key, unit, n) for key, unit in coefficients}
+  law['Pr'] = IG_read_per_species(ini_file, section, 'Pr', '-', n)
+  law['kl'] = IG_read_per_species(ini_file, section, 'kl', 'W/m/K', n)
+  if (law['Pr'] is None) == (law['kl'] is None):
+    print(f"[ERROR] section [{section}]: mil-law = sutherland takes the conductivity from one of Pr (k = mu cp/Pr) and kl (a constant k): {'both' if law['Pr'] is not None else 'neither'} given")
+    sys.exit(1)
+  transport = get(ini_file, section, 'transport', str)
+  if transport is not None:
+    print(f"[WARNING] key transport of section [{section}]: transport = {transport} is ignored: mil-law = sutherland gives the transport of the fixed species")
+  return law
+
 #
 def IG_read_fixgas(ini_file,section):
 
@@ -94,6 +147,10 @@ def IG_read_fixgas(ini_file,section):
     ew = 1
 
   if (ecp+ecv+egamma+eR+ew==5):
+    given = [key for key in LAW_KEYS if get(ini_file, section, key, str) is not None]
+    if given:
+      print(f"[ERROR] key {given[0]} of section [{section}]: a viscosity law is a property of fixed species, given by two of cp, cv, gamma, R, mw")
+      sys.exit(1)
     species = None
     return
 
@@ -124,8 +181,18 @@ def IG_read_fixgas(ini_file,section):
   if Pr is None:
     ePr = 1
 
+  law = IG_read_viscosity_law(ini_file, section, np.size(cp))
+  if law is not None:
+    law['cp'] = cp
+    if not species:
+      species = "ATLAS"
+    return species, cp, mw, None, None, law
+
   if (emil+ekl+ePr==0):
     exit('Too many thermo input data: mil, kl, Pr')
+  if (emil==0 and ekl+ePr==2):
+    print(f"[ERROR] key mil of section [{section}]: mil gives the viscosity of the fixed species; their conductivity needs kl or Pr as well")
+    sys.exit(1)
   # elif (emil+ekl+ePr==3):
   #   mil = 0.0; kl = 0.0
 
@@ -137,4 +204,4 @@ def IG_read_fixgas(ini_file,section):
   if not species:
     species = "ATLAS"
 
-  return species, cp, mw, mil, kl
+  return species, cp, mw, mil, kl, None

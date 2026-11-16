@@ -1,0 +1,6 @@
+name: two-mix
+description: each material becomes the one species of the gas (a test of the file format)
+reference: none
+reactions:
+- equation: Al => mix
+- equation: Mg => mix

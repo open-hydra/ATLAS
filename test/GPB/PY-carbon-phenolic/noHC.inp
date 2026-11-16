@@ -1,0 +1,11 @@
+problem rocket equilibrium
+   p,bar=10.0
+   sup,ae/at=2.0
+react
+   fuel=CO wt=40.0 t,k=298.15
+   fuel=H2 wt=10.0 t,k=298.15
+   oxid=O2 wt=50.0 t,k=298.15
+only
+ H OH CO CO2 H2 H2O O2 O
+output massf siunits
+end

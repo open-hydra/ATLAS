@@ -44,6 +44,34 @@ kl       = 0.25 0.30
 
 Each species needs two of `cp`, `cv`, `gamma`, `R`, `mw`; the others follow from the universal gas constant R<sub>u</sub> = 8314.46261815324 J/(kmol K), the exact SI value that Cantera also uses. The bundled NASA CEA library (CEA equilibrium, `CEA-file`) keeps its own constant, 8314.51 J/(kmol K).
 
+#### Viscosity law of the fixed species
+
+`mil` gives a constant viscosity. With `mil-law = sutherland` the viscosity of each fixed species follows the
+Sutherland law
+
+$$\mu(T) = \mu_{ref} \left(\frac{T}{T_{ref}}\right)^{3/2} \frac{T_{ref} + S}{T + S}$$
+
+with `mil-ref` = μ<sub>ref</sub> [Pa s], `T-ref` = T<sub>ref</sub> [K] and `S-mil` = S [K], one value per species, and
+the conductivity from `Pr` (k = μ c<sub>p</sub>/Pr) or the constant `kl`. `mil` is then not given.
+
+```ini
+[GPB-Phase1]
+name    = gas
+type    = ideal-gas
+species = mix
+cp      = 1070
+gamma   = 1.4
+mil-law = sutherland
+mil-ref = 1.716e-5
+T-ref   = 273.15
+S-mil   = 110.4
+Pr      = 0.72
+```
+
+The section holds the fixed species only: GPB stops when it also builds species of a database or a mechanism, or a
+fixed species named like a species of the thermo database, which would be added twice. The table has the 1 K step of
+the thermo table, from `Tmin` to `Tmax`.
+
 ### Thermally-perfect gas
 
 Specify species list along with thermodynamic and transport databases.

@@ -58,7 +58,11 @@ GPB_IDEALGAS = [
     RegistryEntry('GPB-IdealGas', 'mw', '', '', False, 'Molecular weight array for fixed-gas species.'),
     RegistryEntry('GPB-IdealGas', 'mil', '', '', False, 'Dynamic viscosity array for fixed-gas species.'),
     RegistryEntry('GPB-IdealGas', 'kl', '', '', False, 'Thermal conductivity array for fixed-gas species.'),
-    RegistryEntry('GPB-IdealGas', 'Pr', '', '', False, 'Prandtl number array for fixed-gas species.'),
+    RegistryEntry('GPB-IdealGas', 'Pr', '', '', False, 'Prandtl number array for fixed-gas species: gives the missing one of mil and kl, or with mil-law = sutherland the conductivity k = mu cp/Pr.'),
+    RegistryEntry('GPB-IdealGas', 'mil-law', 'constant', 'constant,sutherland', False, 'Viscosity law of the fixed-gas species: constant (mil) or sutherland, mu = mil-ref (T/T-ref)^1.5 (T-ref + S-mil)/(T + S-mil), with the conductivity from Pr (k = mu cp/Pr) or the constant kl.'),
+    RegistryEntry('GPB-IdealGas', 'mil-ref', '', '>0', False, 'mil-law = sutherland: viscosity at T-ref [Pa s], one per fixed-gas species.'),
+    RegistryEntry('GPB-IdealGas', 'T-ref', '', '>0', False, 'mil-law = sutherland: temperature of mil-ref [K], one per fixed-gas species.'),
+    RegistryEntry('GPB-IdealGas', 'S-mil', '', '>0', False, 'mil-law = sutherland: Sutherland temperature [K], one per fixed-gas species.'),
 ]
 
 GPB_EQUILIBRIUM = [
@@ -79,6 +83,7 @@ GPB_CONDENSED = [
     RegistryEntry('GPB-Condensed', 'h0', '', '', False, 'Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs).'),
     RegistryEntry('GPB-Condensed', 'psat-vapour', '', '', False, 'Vapour species of the thermo database (thermo = NASA9 or Burcat), one per material, none to skip one: adds the columns Psat [Pa], Lv [J/kg], Mv [kg/kmol] and Cpv [J/(kg K)] to <name>properties.dat, from the liquid/vapour pair: `p_sat = 1e5*exp(-(g_vap - g_liq)/(R*T))`, `Lv = (h_vap - h_liq)/Mv`, `Cpv = cp_vap/Mv` (dispersed phases only).'),
     RegistryEntry('GPB-Condensed', 'psat-liquid', '', '', False, 'Liquid species paired with psat-vapour, one per material; default = the material name.'),
+    RegistryEntry('GPB-Condensed', 'particle-mechanism', '', '', False, 'Reaction file of the burning materials of a dispersed phase: <stem>.yaml of the case directory, else of database/particle-combustion/. A reaction consumes one material: into gas species only (the combustion record of <name>products.txt), or into gas species and the one condensed product that product names (the cap record); a reaction that consumes a product gives its release record. Every gas species of a reaction is a species of the gas phase. hydra-MI2 reads the file; the burning rate stays the solver model named by combustion. A material with combustion and no reaction stops GPB.'),
     RegistryEntry('GPB-Condensed', 'cp', '', '', False, 'Fixed specific heat values for condensed materials.'),
     RegistryEntry('GPB-Condensed', 'k', '', '', False, 'Fixed thermal conductivity values for condensed materials.'),
     RegistryEntry('GPB-Condensed', 'rho', '', '', False, 'Density values for condensed materials.'),
@@ -86,7 +91,7 @@ GPB_CONDENSED = [
     RegistryEntry('GPB-Condensed', 'liquid-conduction', '', 'ITC,P2T', False, 'Per-material override of the liquid-side conduction model.'),
     RegistryEntry('GPB-Condensed', 'interface', '', 'VLE,LK', False, 'Per-material override of the interface model.'),
     RegistryEntry('GPB-Condensed', 'boiling', '', 'clamp,ZGR', False, 'Per-material override of the boiling branch.'),
-    RegistryEntry('GPB-Condensed', 'combustion', '', 'Beckstead', False, 'Metal combustion model; presence switches this material to the metal track (mutually exclusive with evaporation and breakup).'),
+    RegistryEntry('GPB-Condensed', 'combustion', '', 'Beckstead,direct,none', False, 'Burning model of the material: Beckstead (the d^n law) or direct (the d2 law of a drop held at its burning temperature), mutually exclusive with evaporation and breakup; none for a material that does not burn (it overrides the default of the solver section). Absent: no word is written and the solver section decides. A burning material needs its reaction (particle-mechanism).'),
     RegistryEntry('GPB-Condensed', 'solidification', '', 'on,off', False, 'Solidification of a molten particle with supercooling and recalescence, and melting of a solid particle at T-melt (IGLOO and ICE).'),
     RegistryEntry('GPB-Condensed', 'alpha-e', '', '', False, 'Langmuir-Knudsen evaporation accommodation coefficient (interface=LK).'),
     RegistryEntry('GPB-Condensed', 'k-liq', '', '', False, 'Liquid thermal conductivity [W/m/K] (required if liquid-conduction=P2T).'),
@@ -96,8 +101,17 @@ GPB_CONDENSED = [
     RegistryEntry('GPB-Condensed', 'X-eff', '', '', False, 'Effective oxidizer mole fraction C_O2 + 0.6 C_H2O + 0.22 C_CO2; weights K as X-eff (linear) [Beck05].'),
     RegistryEntry('GPB-Condensed', 'beta-part', '', '', False, 'Heat-partition fraction of q-comb released to the particle (weakly constrained; see theory/combustion).'),
     RegistryEntry('GPB-Condensed', 'xi-cap', '', '', False, 'Oxide-cap mass fraction retained on the burning particle.'),
+    RegistryEntry('GPB-Condensed', 'xi-law', '', 'constant,Gallier21', False, 'The retained fraction of the oxide cap: constant (xi-cap) or the deposition law of Gallier et al. 2021 (IGLOO).'),
+    RegistryEntry('GPB-Condensed', 'xi-ox0', '', '', False, 'Oxide mass fraction of the injected particle, [0, 1); needs the cap (IGLOO).'),
+    RegistryEntry('GPB-Condensed', 'product', '', '', False, 'The combustion product of a capped burning material: the name of a material of this phase with 0 groups, none for a material without one. Its line carries no key of the burning model; the cap reaction of particle-mechanism makes it.'),
+    RegistryEntry('GPB-Condensed', 'residue', '', 'on,off', False, 'on: at burnout the cap becomes a parcel of the product; off: it is handed to the gas, which needs the release reaction of the product in particle-mechanism (IGLOO).'),
+    RegistryEntry('GPB-Condensed', 'd-residue', '', '', False, 'Diameter [m] of the residue parcels of an oxide cap, the mass flow kept; 0: one residue per droplet (IGLOO).'),
     RegistryEntry('GPB-Condensed', 'T-ign', '', '', False, 'Ignition temperature [K]; the particle is inert (mdot=0) below it.'),
-    RegistryEntry('GPB-Condensed', 'q-comb', '', '', False, 'Heat of combustion per unit Al mass [J/kg]; particle heating term = beta-part*q-comb*abs(mdot).'),
+    RegistryEntry('GPB-Condensed', 'q-comb', '', '', False, 'Heat of combustion per unit mass of the material [J/kg], as the burning model uses it: Beckstead heats the particle by beta-part*q-comb*abs(mdot), direct takes it in its transfer number. The heat the gas receives is the reaction heat of particle-mechanism, not this key.'),
+    RegistryEntry('GPB-Condensed', 'd-stop', '', '', False, 'Diameter [m] of the residue a burning drop leaves: below it the drop no longer burns and stays, inert (both models, ICE and IGLOO). Absent or 0: the drop burns out.'),
+    RegistryEntry('GPB-Condensed', 'd-burnout', '', '', False, 'Diameter [m] at which a burning drop without residue is removed and handed whole to the gas (ICE and IGLOO). Absent or 0: the bound built into the solvers, a drop mass of 1e-20 kg.'),
+    RegistryEntry('GPB-Condensed', 'd-smoke', '', '', False, 'Diameter [m] of the smoke drops a burning material makes: required when its reaction makes a condensed product that is a material of an eulerian phase (the smoke, born in that ICE family), refused otherwise (both models, ICE and IGLOO).'),
+    RegistryEntry('GPB-Condensed', 'T-burn', '', '', False, 'Burning temperature [K] of combustion = direct: the drop burns at it and is held at it. Absent: the boiling temperature of the solver section. The latent heat of the model is the Lv column of the properties table (psat-vapour), evaluated at this temperature.'),
     RegistryEntry('GPB-Condensed', 'T-melt', '', '', False, 'Melt temperature [K] (default: alumina).'),
     RegistryEntry('GPB-Condensed', 'h-fus', '', '', False, 'Heat of fusion [J/kg] (solidification).'),
     RegistryEntry('GPB-Condensed', 'T-nuc', '', '', False, 'Nucleation (supercooling) temperature [K]; absent or 0 = 0.8*T-melt.'),
@@ -121,6 +135,21 @@ GPB_REALFLUID = [
 ]
 
 
+GPB_PYROLYSIS = [
+    RegistryEntry('GPB-Pyrolysis*', 'name', '', '', True, 'Name of the pyrolysis-gas table (one word, at most 64 characters): the key pyrolysis-gas of a BCB gsi section (BC 506) names it.'),
+    RegistryEntry('GPB-Pyrolysis*', 'phase', '', '', False, 'Name of the [GPB-Phase*] ideal-gas phase whose species the table follows (optional when the deck builds one ideal-gas phase); the product is <phase>-pyrolysis.dat, one table per section.'),
+    RegistryEntry('GPB-Pyrolysis*', 'elements', '', '', True, 'Elements of the pyrolysis-gas makeup (symbols, case-sensitive: C H O).'),
+    RegistryEntry('GPB-Pyrolysis*', 'massf', '', '', True, 'Mass fraction of each element, in the order of elements, each in (0, 1]; the sum must be 1 (within 1e-3 renormalised with a WARNING).'),
+    RegistryEntry('GPB-Pyrolysis*', 'p', '', '>0', False, 'Pressure levels [Pa], strictly ascending; or p-min, p-max and p-n.'),
+    RegistryEntry('GPB-Pyrolysis*', 'p-min', '', '>0', False, 'Lowest pressure level [Pa] (with p-max and p-n).'),
+    RegistryEntry('GPB-Pyrolysis*', 'p-max', '', '>0', False, 'Highest pressure level [Pa] (with p-min and p-n).'),
+    RegistryEntry('GPB-Pyrolysis*', 'p-n', '', '>=1', False, 'Number of pressure levels from p-min to p-max (1: one level, p-max = p-min).'),
+    RegistryEntry('GPB-Pyrolysis*', 'p-spacing', 'linear', 'linear,log', False, 'Spacing of the p-n levels.'),
+    RegistryEntry('GPB-Pyrolysis*', 'T', '', '', True, 'Temperature grid [K]: T-min T-max T-step, (T-max - T-min)/T-step an integer (at least two levels).'),
+    RegistryEntry('GPB-Pyrolysis*', 'treatment', 'gas-only', 'gas-only,strip', False, 'gas-only: equilibrium of the gas species alone, graphite excluded (the elements of every row equal the makeup); strip: graphite allowed, removed, the gas renormalised (the thesis and RFRAR tables).'),
+]
+
+
 # Combined, stable registry used by existing consumers
 REGISTRY_ENTRIES: List[RegistryEntry] = (
     GPB_GENERAL
@@ -129,6 +158,7 @@ REGISTRY_ENTRIES: List[RegistryEntry] = (
     + GPB_EQUILIBRIUM
     + GPB_CONDENSED
     + GPB_REALFLUID
+    + GPB_PYROLYSIS
 )
 
 

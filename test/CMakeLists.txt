@@ -1288,7 +1288,8 @@ set_tests_properties(DP-axis-refused PROPERTIES
 
 # ---- BCB : DP-gsi-manifold (a dispersed phase on the faces of the 500 family) ----------
 # IG-ablation's mesh with a gas phase and a dispersed phase (drop): face 1 a manifold drawing on face 2, faces 3
-# and 4 one patch per gsi variant (502 with and without drop's inlet keys, 503, 504, 505, 506). drop-bc.txt
+# and 4 one patch per gsi variant (502 with and without drop's inlet keys, 503, 504, 505, 506 the pyrolysing
+# ablator on the table MX4926 of gas-pyrolysis.dat). drop-bc.txt
 # carries 300 on the manifold and on every gsi patch but the grain that gives drop's keys, which injects drop as an
 # inlet does (401). gas-bc.txt is the fluid's file without drop -- what the BCB of 3fc73f4 writes for the deck
 # without drop and its keys (with drop that BCB stopped on the manifold, allocating its record twice) but for the
@@ -1314,7 +1315,7 @@ set_tests_properties(DP-gsi-manifold PROPERTIES
 # instead, refused alike.
 add_test(
     NAME    DP-gsi-keys-refused
-    COMMAND bash -c "rm -rf fromATLAStoSolver _run-lenient _run-manifold && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && mkdir _run-lenient && cp input.ini mesh.tec gas-phase.txt drop-phase.txt _run-lenient/ && cd _run-lenient && sed -i 's/^strict-keys = .*/strict-keys = false/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null) && test $(grep -c -F '[WARNING] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\") -eq 1 && diff fromATLAStoSolver/drop-bc.txt ../../DP-gsi-manifold/reference/drop-bc.txt && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../DP-gsi-manifold/reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-manifold && cp input.ini mesh.tec gas-phase.txt drop-phase.txt _run-manifold/ && cd _run-manifold && sed -i -e '/^drop-krho         = 0.2$/d' -e 's/^face  = 2$/face  = 2\\ndrop-krho = 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [man]: not honoured by BC 501 (manifold)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-lenient _run-manifold && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && mkdir _run-lenient && cp input.ini mesh.tec gas-phase.txt drop-phase.txt gas-pyrolysis.dat _run-lenient/ && cd _run-lenient && sed -i 's/^strict-keys = .*/strict-keys = false/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null) && test $(grep -c -F '[WARNING] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\") -eq 1 && diff fromATLAStoSolver/drop-bc.txt ../../DP-gsi-manifold/reference/drop-bc.txt && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../DP-gsi-manifold/reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-manifold && cp input.ini mesh.tec gas-phase.txt drop-phase.txt gas-pyrolysis.dat _run-manifold/ && cd _run-manifold && sed -i -e '/^drop-krho         = 0.2$/d' -e 's/^face  = 2$/face  = 2\\ndrop-krho = 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [man]: not honoured by BC 501 (manifold)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-gsi-keys-refused"
 )
 set_tests_properties(DP-gsi-keys-refused PROPERTIES
@@ -1617,6 +1618,49 @@ add_test(
 )
 set_tests_properties(IG-ablation PROPERTIES
     LABELS      "BCB;regression;tutorial"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-carbon-phenolic -------------
+# BC 506, the pyrolysing ablator (surface-reactions, pyrolysis-gas, phi, hv0, qrad, eps) on the mesh and phase of
+# IG-ablation: the record pyro_id surf phi hv0 qrad eps, pyro_id 2 = the position of MX4926 in pyrolysis.dat. The
+# reference is IG-ablation's bc.txt with 506 and that payload on the 50 cells of face 4 (exact diff).
+add_test(
+    NAME    IG-carbon-phenolic
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && diff fromATLAStoSolver/bc.txt reference/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-carbon-phenolic"
+)
+set_tests_properties(IG-carbon-phenolic PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-carbon-phenolic-profile -------------
+# The 506 wall with phi and hv0 from phi-file and hv0-file (linear in x): every record of face 4 holds the law at its
+# cell centre (check_profile.py, 1e-9 relative).
+add_test(
+    NAME    IG-carbon-phenolic-profile
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 -B check_profile.py fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-carbon-phenolic-profile"
+)
+set_tests_properties(IG-carbon-phenolic-profile PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : IG-carbon-phenolic-refused -------------
+# The refusals of BC 506: the old pyrolysis-model + surface-reactions set, an unknown table, no table file, phi < 0,
+# a phi-file below 0 at a cell, no hv0, a phi-file that does not reach the first cells: rc 1, the message, no bc.txt.
+add_test(
+    NAME    IG-carbon-phenolic-refused
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-carbon-phenolic-refused"
+)
+set_tests_properties(IG-carbon-phenolic-refused PROPERTIES
+    LABELS      "BCB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
@@ -2277,6 +2321,438 @@ set_tests_properties(CP-psat-refuse PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : CP-products-evap (the products file) ----------------------------------------------
+add_test(
+    NAME    CP-products-evap
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-products.txt reference/part-products.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-evap"
+)
+set_tests_properties(CP-products-evap PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-comb (the products file) ----------------------------------------------
+add_test(
+    NAME    CP-products-comb
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-products.txt reference/part-products.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-comb"
+)
+set_tests_properties(CP-products-comb PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-one-species (the products file) ---------------------------------------
+add_test(
+    NAME    CP-products-one-species
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-products.txt reference/part-products.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-one-species"
+)
+set_tests_properties(CP-products-one-species PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-cap (the products file) -----------------------------------------------
+add_test(
+    NAME    CP-products-cap
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-products.txt reference/part-products.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-cap"
+)
+set_tests_properties(CP-products-cap PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-mat-missing (refused) --------------------------------------------------
+add_test(
+    NAME    CP-products-mat-missing
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'is not a material of this phase' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-mat-missing"
+)
+set_tests_properties(CP-products-mat-missing PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-gas-missing (refused) --------------------------------------------------
+add_test(
+    NAME    CP-products-gas-missing
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'is not in the gas phase' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-gas-missing"
+)
+set_tests_properties(CP-products-gas-missing PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-cond-product (refused) -------------------------------------------------
+add_test(
+    NAME    CP-products-cond-product
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'condensed product' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-cond-product"
+)
+set_tests_properties(CP-products-cond-product PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-unbalanced (refused) ---------------------------------------------------
+add_test(
+    NAME    CP-products-unbalanced
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'not element-balanced' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-unbalanced"
+)
+set_tests_properties(CP-products-unbalanced PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-unknown-mech (refused) -------------------------------------------------
+add_test(
+    NAME    CP-products-unknown-mech
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'Available:' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-unknown-mech"
+)
+set_tests_properties(CP-products-unknown-mech PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-evap-no-vapour (refused) -----------------------------------------------
+add_test(
+    NAME    CP-products-evap-no-vapour
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'no vapour species' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-evap-no-vapour"
+)
+set_tests_properties(CP-products-evap-no-vapour PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-no-reaction (refused) --------------------------------------------------
+add_test(
+    NAME    CP-products-no-reaction
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'and no reaction consumes it' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-no-reaction"
+)
+set_tests_properties(CP-products-no-reaction PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-two-reactions (refused) ------------------------------------------------
+add_test(
+    NAME    CP-products-two-reactions
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'a second reaction consumes' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-two-reactions"
+)
+set_tests_properties(CP-products-two-reactions PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-fuel-no-h0 (refused) ---------------------------------------------------
+add_test(
+    NAME    CP-products-fuel-no-h0
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'is a constant-property material without h0' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-fuel-no-h0"
+)
+set_tests_properties(CP-products-fuel-no-h0 PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-product-groups (refused) -----------------------------------------------
+add_test(
+    NAME    CP-products-product-groups
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'give it 0 groups' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-product-groups"
+)
+set_tests_properties(CP-products-product-groups PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-products-cap-missing (refused) --------------------------------------------------
+add_test(
+    NAME    CP-products-cap-missing
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'and no reaction of particle-mechanism makes' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-cap-missing"
+)
+set_tests_properties(CP-products-cap-missing PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-two-models (the models file) -------------------------------------------
+add_test(
+    NAME    CP-models-two-models
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-two-models"
+)
+set_tests_properties(CP-models-two-models PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-cap (the models file) --------------------------------------------------
+add_test(
+    NAME    CP-models-cap
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-cap"
+)
+set_tests_properties(CP-models-cap PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-cap-law (the models file) ----------------------------------------------
+add_test(
+    NAME    CP-models-cap-law
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-cap-law"
+)
+set_tests_properties(CP-models-cap-law PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-no-word (the models file) ----------------------------------------------
+add_test(
+    NAME    CP-models-no-word
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-no-word"
+)
+set_tests_properties(CP-models-no-word PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-direct-lv (the models file) --------------------------------------------
+add_test(
+    NAME    CP-models-direct-lv
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt && grep -q Lv fromATLAStoSolver/part-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-direct-lv"
+)
+set_tests_properties(CP-models-direct-lv PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-absent (the models file) -----------------------------------------------
+add_test(
+    NAME    CP-models-absent
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && test ! -e fromATLAStoSolver/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-absent"
+)
+set_tests_properties(CP-models-absent PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-key-not-read (refused) -------------------------------------------------
+add_test(
+    NAME    CP-models-key-not-read
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'for material Mg: combustion = direct reads' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-key-not-read"
+)
+set_tests_properties(CP-models-key-not-read PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-key-inert (refused) ----------------------------------------------------
+add_test(
+    NAME    CP-models-key-inert
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'for material B: combustion = none reads no constant' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-key-inert"
+)
+set_tests_properties(CP-models-key-inert PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-no-reader (refused) ----------------------------------------------------
+add_test(
+    NAME    CP-models-no-reader
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'no material of this phase names a model that reads it' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-no-reader"
+)
+set_tests_properties(CP-models-no-reader PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-stale (a models file GPB no longer writes is removed) ------------------
+add_test(
+    NAME    CP-models-stale
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input burning.ini && test -f fromATLAStoSolver/part-models.txt && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB --input inert.ini && test ! -e fromATLAStoSolver/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-stale"
+)
+set_tests_properties(CP-models-stale PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-ice (the smoke record) -------------------------------------------------------
+add_test(
+    NAME    CP-smoke-ice
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-products.txt reference/part-products.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-ice"
+)
+set_tests_properties(CP-smoke-ice PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-igloo (the smoke record) -----------------------------------------------------
+add_test(
+    NAME    CP-smoke-igloo
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partE-products.txt reference/partE-products.txt && diff fromATLAStoSolver/partL-models.txt reference/partL-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-igloo"
+)
+set_tests_properties(CP-smoke-igloo PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-cap (the smoke record) -------------------------------------------------------
+add_test(
+    NAME    CP-smoke-cap
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partL-models.txt reference/partL-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-cap"
+)
+set_tests_properties(CP-smoke-cap PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-solid-below (the smoke record) -----------------------------------------------
+add_test(
+    NAME    CP-smoke-solid-below
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partE-products.txt reference/partE-products.txt && diff fromATLAStoSolver/partE-properties.dat reference/partE-properties.dat"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-solid-below"
+)
+set_tests_properties(CP-smoke-solid-below PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-no-family (refused) ----------------------------------------------------------
+add_test(
+    NAME    CP-smoke-no-family
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'no ICE family to receive the smoke' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-no-family"
+)
+set_tests_properties(CP-smoke-no-family PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-no-dsmoke (refused) ----------------------------------------------------------
+add_test(
+    NAME    CP-smoke-no-dsmoke
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'give d-smoke, the diameter of the smoke drops' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-no-dsmoke"
+)
+set_tests_properties(CP-smoke-no-dsmoke PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-dsmoke-unused (refused) ------------------------------------------------------
+add_test(
+    NAME    CP-smoke-dsmoke-unused
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'its reaction makes no smoke' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-dsmoke-unused"
+)
+set_tests_properties(CP-smoke-dsmoke-unused PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-two-phases (refused) ---------------------------------------------------------
+add_test(
+    NAME    CP-smoke-two-phases
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'a smoke must name one ICE family' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-two-phases"
+)
+set_tests_properties(CP-smoke-two-phases PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-melt-ice (refused) -----------------------------------------------------------
+add_test(
+    NAME    CP-smoke-melt-ice
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Set solidification = on for AL2O3(L) in [GPB-Phase2]' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-melt-ice"
+)
+set_tests_properties(CP-smoke-melt-ice PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-melt-igloo (refused) ---------------------------------------------------------
+add_test(
+    NAME    CP-smoke-melt-igloo
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Set solidification = on for AL2O3(L) in [GPB-Phase3]' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-melt-igloo"
+)
+set_tests_properties(CP-smoke-melt-igloo PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-smoke-melt-solid (refused) ---------------------------------------------------------
+add_test(
+    NAME    CP-smoke-melt-solid
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Name the smoke by AL2O3(L) with solidification = on, or set Tmax = 2327 or lower' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-melt-solid"
+)
+set_tests_properties(CP-smoke-melt-solid PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- GPB : database-figure-current (the figure of the mechanism catalog, docs/databases/chemistry/mechs.svg, is what database/chemistry/resume.py gives for the
 # ----       mechanisms of the database now: a mechanism added or changed without regenerating the figure fails; Cantera only) -------------
 add_test(
@@ -2442,6 +2918,22 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-transport-CEA-falling-viscosity"
 )
 set_tests_properties(IG-transport-CEA-falling-viscosity PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : PY-carbon-phenolic ([GPB-Pyrolysis<n>], the pyrolysis-gas tables of BC 506: the gas-only and strip tables of a
+# carbon-phenolic makeup against the row sums, the elemental identity of gas-only, the other engine (cea for gas-only,
+# Cantera for strip) at 1e-6 and the numbers of the brief at 5e-4 (check_pyrolysis.py), and the reference at 1e-8;
+# side decks: strip without a hydrocarbon, T-min below and T-max above the polynomial range, an unnamed phase,
+# log-spaced p; every refusal of the section with rc 1, its message, no product and no staging directory) -------------
+add_test(
+    NAME    PY-carbon-phenolic
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/PY-carbon-phenolic"
+)
+set_tests_properties(PY-carbon-phenolic PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -2825,6 +3317,30 @@ add_test(
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/RF-constant"
 )
 set_tests_properties(RF-constant PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-fixgas-mil-alone (a fixed species given mil without kl or Pr stops GPB naming the key; no product) -------------
+add_test(
+    NAME    IG-fixgas-mil-alone
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB > gpb.log 2>&1 && grep -q -F '[ERROR] key mil of section [GPB-Phase1]: mil gives the viscosity of the fixed species' gpb.log && test ! -e fromATLAStoSolver"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-fixgas-mil-alone"
+)
+set_tests_properties(IG-fixgas-mil-alone PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : IG-fixgas-sutherland (mil-law = sutherland on two fixed species: the transport table against the law, with the conductivity from Pr and from kl; the check fails on the table of another S-mil; the refusals of the law's keys) -------------
+add_test(
+    NAME    IG-fixgas-sutherland
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/IG-fixgas-sutherland"
+)
+set_tests_properties(IG-fixgas-sutherland PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

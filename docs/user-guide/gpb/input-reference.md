@@ -38,7 +38,11 @@
 | mw |  |  | no | Molecular weight array for fixed-gas species. |
 | mil |  |  | no | Dynamic viscosity array for fixed-gas species. |
 | kl |  |  | no | Thermal conductivity array for fixed-gas species. |
-| Pr |  |  | no | Prandtl number array for fixed-gas species. |
+| Pr |  |  | no | Prandtl number array for fixed-gas species: gives the missing one of mil and kl, or with mil-law = sutherland the conductivity k = mu cp/Pr. |
+| mil-law | constant | constant,sutherland | no | Viscosity law of the fixed-gas species: constant (mil) or sutherland, mu = mil-ref (T/T-ref)^1.5 (T-ref + S-mil)/(T + S-mil), with the conductivity from Pr (k = mu cp/Pr) or the constant kl. |
+| mil-ref |  | >0 | no | mil-law = sutherland: viscosity at T-ref [Pa s], one per fixed-gas species. |
+| T-ref |  | >0 | no | mil-law = sutherland: temperature of mil-ref [K], one per fixed-gas species. |
+| S-mil |  | >0 | no | mil-law = sutherland: Sutherland temperature [K], one per fixed-gas species. |
 
 ## GPB-Equilibrium
 
@@ -63,6 +67,7 @@
 | h0 |  |  | no | Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs). |
 | psat-vapour |  |  | no | Vapour species of the thermo database (thermo = NASA9 or Burcat), one per material, none to skip one: adds the columns Psat [Pa], Lv [J/kg], Mv [kg/kmol] and Cpv [J/(kg K)] to <name>properties.dat, from the liquid/vapour pair: `p_sat = 1e5*exp(-(g_vap - g_liq)/(R*T))`, `Lv = (h_vap - h_liq)/Mv`, `Cpv = cp_vap/Mv` (dispersed phases only). |
 | psat-liquid |  |  | no | Liquid species paired with psat-vapour, one per material; default = the material name. |
+| particle-mechanism |  |  | no | Reaction file of the burning materials of a dispersed phase: <stem>.yaml of the case directory, else of database/particle-combustion/. A reaction consumes one material: into gas species only (the combustion record of <name>products.txt), or into gas species and the one condensed product that product names (the cap record); a reaction that consumes a product gives its release record. Every gas species of a reaction is a species of the gas phase. hydra-MI2 reads the file; the burning rate stays the solver model named by combustion. A material with combustion and no reaction stops GPB. |
 | cp |  |  | no | Fixed specific heat values for condensed materials. |
 | k |  |  | no | Fixed thermal conductivity values for condensed materials. |
 | rho |  |  | no | Density values for condensed materials. |
@@ -70,7 +75,7 @@
 | liquid-conduction |  | ITC,P2T | no | Per-material override of the liquid-side conduction model. |
 | interface |  | VLE,LK | no | Per-material override of the interface model. |
 | boiling |  | clamp,ZGR | no | Per-material override of the boiling branch. |
-| combustion |  | Beckstead | no | Metal combustion model; presence switches this material to the metal track (mutually exclusive with evaporation and breakup). |
+| combustion |  | Beckstead,direct,none | no | Burning model of the material: Beckstead (the d^n law) or direct (the d2 law of a drop held at its burning temperature), mutually exclusive with evaporation and breakup; none for a material that does not burn (it overrides the default of the solver section). Absent: no word is written and the solver section decides. A burning material needs its reaction (particle-mechanism). |
 | solidification |  | on,off | no | Solidification of a molten particle with supercooling and recalescence, and melting of a solid particle at T-melt (IGLOO and ICE). |
 | alpha-e |  |  | no | Langmuir-Knudsen evaporation accommodation coefficient (interface=LK). |
 | k-liq |  |  | no | Liquid thermal conductivity [W/m/K] (required if liquid-conduction=P2T). |
@@ -80,8 +85,17 @@
 | X-eff |  |  | no | Effective oxidizer mole fraction C_O2 + 0.6 C_H2O + 0.22 C_CO2; weights K as X-eff (linear) [Beck05]. |
 | beta-part |  |  | no | Heat-partition fraction of q-comb released to the particle (weakly constrained; see theory/combustion). |
 | xi-cap |  |  | no | Oxide-cap mass fraction retained on the burning particle. |
+| xi-law |  | constant,Gallier21 | no | The retained fraction of the oxide cap: constant (xi-cap) or the deposition law of Gallier et al. 2021 (IGLOO). |
+| xi-ox0 |  |  | no | Oxide mass fraction of the injected particle, [0, 1); needs the cap (IGLOO). |
+| product |  |  | no | The combustion product of a capped burning material: the name of a material of this phase with 0 groups, none for a material without one. Its line carries no key of the burning model; the cap reaction of particle-mechanism makes it. |
+| residue |  | on,off | no | on: at burnout the cap becomes a parcel of the product; off: it is handed to the gas, which needs the release reaction of the product in particle-mechanism (IGLOO). |
+| d-residue |  |  | no | Diameter [m] of the residue parcels of an oxide cap, the mass flow kept; 0: one residue per droplet (IGLOO). |
 | T-ign |  |  | no | Ignition temperature [K]; the particle is inert (mdot=0) below it. |
-| q-comb |  |  | no | Heat of combustion per unit Al mass [J/kg]; particle heating term = beta-part*q-comb*abs(mdot). |
+| q-comb |  |  | no | Heat of combustion per unit mass of the material [J/kg], as the burning model uses it: Beckstead heats the particle by beta-part*q-comb*abs(mdot), direct takes it in its transfer number. The heat the gas receives is the reaction heat of particle-mechanism, not this key. |
+| d-stop |  |  | no | Diameter [m] of the residue a burning drop leaves: below it the drop no longer burns and stays, inert (both models, ICE and IGLOO). Absent or 0: the drop burns out. |
+| d-burnout |  |  | no | Diameter [m] at which a burning drop without residue is removed and handed whole to the gas (ICE and IGLOO). Absent or 0: the bound built into the solvers, a drop mass of 1e-20 kg. |
+| d-smoke |  |  | no | Diameter [m] of the smoke drops a burning material makes: required when its reaction makes a condensed product that is a material of an eulerian phase (the smoke, born in that ICE family), refused otherwise (both models, ICE and IGLOO). |
+| T-burn |  |  | no | Burning temperature [K] of combustion = direct: the drop burns at it and is held at it. Absent: the boiling temperature of the solver section. The latent heat of the model is the Lv column of the properties table (psat-vapour), evaluated at this temperature. |
 | T-melt |  |  | no | Melt temperature [K] (default: alumina). |
 | h-fus |  |  | no | Heat of fusion [J/kg] (solidification). |
 | T-nuc |  |  | no | Nucleation (supercooling) temperature [K]; absent or 0 = 0.8*T-melt. |
@@ -104,3 +118,19 @@
 | mu |  | >0 | no | thermo = constant: dynamic viscosity [Pa s]. |
 | k |  | >0 | no | thermo = constant: thermal conductivity [W/m/K]. |
 | a | 500 | >0 | no | thermo = constant: speed of sound [m/s]; without it 500 m/s and a WARNING. |
+
+## GPB-Pyrolysis*
+
+| Parameter | Default | Allowed | Required | Description |
+|-----------|---------|---------|----------|-------------|
+| name |  |  | yes | Name of the pyrolysis-gas table (one word, at most 64 characters): the key pyrolysis-gas of a BCB gsi section (BC 506) names it. |
+| phase |  |  | no | Name of the [GPB-Phase*] ideal-gas phase whose species the table follows (optional when the deck builds one ideal-gas phase); the product is <phase>-pyrolysis.dat, one table per section. |
+| elements |  |  | yes | Elements of the pyrolysis-gas makeup (symbols, case-sensitive: C H O). |
+| massf |  |  | yes | Mass fraction of each element, in the order of elements, each in (0, 1]; the sum must be 1 (within 1e-3 renormalised with a WARNING). |
+| p |  | >0 | no | Pressure levels [Pa], strictly ascending; or p-min, p-max and p-n. |
+| p-min |  | >0 | no | Lowest pressure level [Pa] (with p-max and p-n). |
+| p-max |  | >0 | no | Highest pressure level [Pa] (with p-min and p-n). |
+| p-n |  | >=1 | no | Number of pressure levels from p-min to p-max (1: one level, p-max = p-min). |
+| p-spacing | linear | linear,log | no | Spacing of the p-n levels. |
+| T |  |  | yes | Temperature grid [K]: T-min T-max T-step, (T-max - T-min)/T-step an integer (at least two levels). |
+| treatment | gas-only | gas-only,strip | no | gas-only: equilibrium of the gas species alone, graphite excluded (the elements of every row equal the makeup); strip: graphite allowed, removed, the gas renormalised (the thesis and RFRAR tables). |

@@ -58,3 +58,6 @@ fromATLAStoSolver/gasmix-composition.txt
 
 `gasmix-thermo.dat` holds the constant $c_p$ (with $h$ and $s$) of each species and `gasmix-transport.dat` the constant
 $\mu$ and $\lambda$, from 1 K to 5000 K with a 1 K step.
+
+A viscosity that follows the temperature: `mil-law = sutherland` with `mil-ref`, `T-ref` and `S-mil` in place of `mil`
+([Viscosity law of the fixed species](../../user-guide/gpb/ideal-gas.md#viscosity-law-of-the-fixed-species)).

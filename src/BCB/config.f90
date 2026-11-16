@@ -12,7 +12,7 @@ module bcb_config_mod
   private
 
   integer, parameter         :: max_faces = 6
-  integer, parameter, public :: n_variable_file_keys = 18
+  integer, parameter, public :: n_variable_file_keys = 20
 
   ! No Taf-file (the flame temperature of a grain comes from its eq-CEA-file only) and no SFgeo-file (the scale factor
   ! of a grain is SF): neither had a key read by a builder, the file was accepted and changed nothing
@@ -20,7 +20,7 @@ module bcb_config_mod
     'ks        ', 'q         ', 'T         ', 'Tref      ', 'hconv     ', &
     'qrad      ', 'eps       ', 'alpha     ', 'beta      ', 'g         ', &
     'krho      ', 'a         ', 'n         ', 'pRef      ', 'rhoGrain  ', &
-    'SF        ', 'mach      ', 'p         ' ]
+    'SF        ', 'mach      ', 'p         ', 'phi       ', 'hv0       ' ]
 
   type, public :: bcb_block_config_t
     logical             :: has_phase = .false.
@@ -103,6 +103,14 @@ module bcb_config_mod
     logical  :: has_dh = .false.
     character(len=32) :: surface_reactions_model = 'none'
     character(len=32) :: pyrolysis_model = 'none'
+    ! BC 506, the pyrolysing ablator: pyrolysis_gas names the table of a [GPB-Pyrolysis<n>] (GPB writes it into
+    ! <phase>-pyrolysis.dat), phi = mdot_pg/mdot_ch = rho_v/rho_ch - 1, hv0 the virgin-material enthalpy [J/kg]
+    character(len=64) :: pyrolysis_gas = ''
+    real(R8) :: phi = 0.0_R8
+    real(R8) :: hv0 = 0.0_R8
+    logical  :: has_pyrolysis_gas = .false.
+    logical  :: has_phi = .false.
+    logical  :: has_hv0 = .false.
     ! solid rocket propellant properties (APN law)
     real(R8) :: a = 0.0_R8
     real(R8) :: n = 0.0_R8
@@ -205,6 +213,7 @@ module bcb_config_mod
   public :: load_bcb_gsi_fluid_config
   public :: load_bcb_dp_boundary_config
   public :: gsi_variant
+  public :: check_gsi_keys
   public :: dp_inlet_key_given
   public :: load_bcb_unwrapped_config
   public :: write_bcb_registry_markdown
@@ -690,6 +699,18 @@ contains
     call sourceini%get(section_name=section, option_name='pyrolysis-model', val=cfg%pyrolysis_model, error=error)
     if (error /= 0) cfg%pyrolysis_model = 'none'
 
+    call sourceini%get(section_name=section, option_name='pyrolysis-gas', val=cfg%pyrolysis_gas, error=error)
+    cfg%has_pyrolysis_gas = error == 0 .and. len_trim(cfg%pyrolysis_gas) > 0
+    if (.not. cfg%has_pyrolysis_gas) cfg%pyrolysis_gas = ''
+
+    call sourceini%get(section_name=section, option_name='phi', val=cfg%phi, error=error)
+    cfg%has_phi = error == 0
+    if (.not. cfg%has_phi) cfg%phi = 0.0_R8
+
+    call sourceini%get(section_name=section, option_name='hv0', val=cfg%hv0, error=error)
+    cfg%has_hv0 = error == 0
+    if (.not. cfg%has_hv0) cfg%hv0 = 0.0_R8
+
     call sourceini%get(section_name=section, option_name='cp', val=cfg%cp, error=error)
     cfg%has_cp = error == 0
     if (.not. cfg%has_cp) cfg%cp = 0.0_R8
@@ -706,8 +727,10 @@ contains
 
   !> The gsi variant the keys of a section select, tested in this order: 503 melting (cp, dh, T and qrad),
   !> 504 pyrolysis (pyrolysis-model and qrad, no surface-reactions), 505 surface reactions (surface-reactions
-  !> and qrad, no pyrolysis-model), 506 pyrolysis + surface reactions (both models and qrad), else 502, the
-  !> solid-propellant grain. One rule for the record of a fluid phase and for a dispersed phase on the face.
+  !> and qrad, no pyrolysis-model, no pyrolysis-gas), 506 pyrolysing ablator (surface-reactions, pyrolysis-gas
+  !> and qrad, no pyrolysis-model), else 502, the solid-propellant grain. One rule for the record of a fluid phase
+  !> and for a dispersed phase on the face. phi and hv0 do not select: a cell that a phi-file does not reach stays a
+  !> 506 (and stops the builder). pyrolysis-model with surface-reactions is refused before (check_gsi_keys).
   pure integer function gsi_variant(cfg) result(id)
     implicit none
     type(bcb_gsi_fluid_config_t), intent(in) :: cfg
@@ -716,15 +739,33 @@ contains
       id = 503
     elseif (cfg%pyrolysis_model /= 'none' .and. cfg%has_qrad .and. cfg%surface_reactions_model == 'none') then
       id = 504
-    elseif (cfg%surface_reactions_model /= 'none' .and. cfg%has_qrad .and. cfg%pyrolysis_model == 'none') then
+    elseif (cfg%surface_reactions_model /= 'none' .and. cfg%has_qrad .and. cfg%pyrolysis_model == 'none' .and. &
+            .not. cfg%has_pyrolysis_gas) then
       id = 505
-    elseif (cfg%pyrolysis_model /= 'none' .and. cfg%surface_reactions_model /= 'none' .and. cfg%has_qrad) then
+    elseif (cfg%surface_reactions_model /= 'none' .and. cfg%has_qrad .and. cfg%pyrolysis_model == 'none' .and. &
+            cfg%has_pyrolysis_gas) then
       id = 506
     else
       id = 502
     endif
 
   end function gsi_variant
+
+  !> The gsi key set no variant takes, refused by every builder of a gsi face (fluid and dispersed phases) right after
+  !> load_bcb_gsi_fluid_config: pyrolysis-model with surface-reactions, the former BC 506 (Arrhenius pyrolysis plus
+  !> surface reactions with fixed mass fractions, applied by no solver), now the pyrolysing ablator with its own keys.
+  subroutine check_gsi_keys(cfg, name)
+    implicit none
+    type(bcb_gsi_fluid_config_t), intent(in) :: cfg
+    character(*), intent(in)                 :: name
+
+    if (cfg%pyrolysis_model /= 'none' .and. cfg%surface_reactions_model /= 'none') then
+      write(*,'(A)') '[ERROR] section ['//trim(name)//'] (gsi): pyrolysis-model and surface-reactions together are '// &
+        'no longer a variant: BC 506 is the pyrolysing ablator (surface-reactions, pyrolysis-gas, phi, hv0, qrad); '// &
+        'pyrolysis-model alone gives 504'
+      stop 1
+    endif
+  end subroutine check_gsi_keys
 
   !> True when the section gives an inlet key of the dispersed phase `phase`: one of the keys that
   !> load_bcb_dp_boundary_config reads, with the phase's name prefix, or its krho profile file
@@ -1233,6 +1274,14 @@ contains
     subroutine add_gsi_entries()
       call bcb_registry%add('bc-section', 'surface-reactions', gsi_cfg%surface_reactions_model, 'none', 'Surface-reactions model for GSI boundaries.', '', .false.)
       call bcb_registry%add('bc-section', 'pyrolysis-model', gsi_cfg%pyrolysis_model, 'none', 'Pyrolysis model for GSI boundaries.', '', .false.)
+      call bcb_registry%add('bc-section', 'pyrolysis-gas', gsi_cfg%pyrolysis_gas, '', 'Pyrolysing ablator (BC 506, with '// &
+        'surface-reactions and qrad): name of a [GPB-Pyrolysis<n>] table; the record carries its position in '// &
+        '<phase>-pyrolysis.dat (case directory, else fromATLAStoSolver/).', '', .false.)
+      call bcb_registry%add('bc-section', 'phi', gsi_cfg%phi, '0.0', 'Pyrolysing ablator (BC 506): mdot_pg/mdot_ch = '// &
+        'rho_v/rho_ch - 1, the pyrolysis-gas mass flux per unit char mass flux; required (or phi-file).', '>=0', .false.)
+      call bcb_registry%add('bc-section', 'hv0', gsi_cfg%hv0, '0.0', 'Pyrolysing ablator (BC 506): enthalpy of the virgin '// &
+        'material at the undisturbed temperature [J/kg], on the datum of the gas tables (elements 0 at 298.15 K); '// &
+        'required (or hv0-file).', '', .false.)
       call bcb_registry%add('bc-section', 'cp', gsi_cfg%cp, '0.0', 'GSI boundary specific heat.', '', .false.)
       call bcb_registry%add('bc-section', 'Ti', gsi_cfg%Ti, '0.0', 'GSI boundary ignition temperature.', '', .false.)
       call bcb_registry%add('bc-section', 'dh', gsi_cfg%dh, '0.0', 'GSI boundary heat of reaction.', '', .false.)

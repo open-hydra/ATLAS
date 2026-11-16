@@ -1,0 +1,5 @@
+name: c-o2
+description: a graphite particle burnt to CO2 (a test of the file format; the rate is the solver's)
+reference: stoichiometry only
+reactions:
+- equation: C(gr) + O2 => CO2

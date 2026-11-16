@@ -22,12 +22,23 @@ All notable changes to ATLAS are listed here. The format follows
   the PiNeR and CEA given, so a superproject can pass every library it has already cloned.
 - `thermo = constant` for a real fluid: `cp`, `rho`, `mu`, `k` (and `a`) given in the section, the same at every
   pressure and enthalpy. See [Constant Properties](docs/user-guide/gpb/real-fluid.md#constant-properties).
+- `mil-law = sutherland` for the fixed species of an ideal gas: a Sutherland viscosity, the conductivity from `Pr` or
+  `kl`. See [Viscosity law](docs/user-guide/gpb/ideal-gas.md#viscosity-law-of-the-fixed-species).
 - `CHANGELOG.md`, and the release steps in the versioning guide.
 - The GUI covers the whole case: the Initial stage (ICB), the Run stage, a drawing of what every tool wrote,
   Review, and Settings.
 - 26 tutorial pages, each on a case of the test suite (`ctest -L tutorial`), and tests for them, the GUI and the
   BCB refusals.
 - The documentation is built with Zensical (strict in CI), with a new home page and an INI Files page.
+- GPB, `[GPB-Pyrolysis<n>]`: the pyrolysis-gas tables of a charring ablator, `<phase>-pyrolysis.dat`, by
+  `treatment = gas-only` (the default) or `strip`. See [Pyrolysis-Gas Tables](docs/user-guide/gpb/pyrolysis.md).
+- `<name>products.txt`: the gas species each dispersed material becomes per kg (evaporation, combustion, oxide cap
+  and release records), written beside the phase file for hydra-MI2. Reactions: `particle-mechanism`, from the case
+  directory or `database/particle-combustion/`.
+- The smoke of a burning material: a condensed product of its reaction that is a material of an eulerian phase is
+  born in that ICE family; `d-smoke` gives its diameter. A smoke whose table crosses its melting point (from the
+  database's other phases of the substance) needs `solidification = on`, or a table that ends below it.
+- New keys: `d-stop`, `d-burnout`, `d-smoke`, `T-burn`, `product`, `residue`, `d-residue`, `xi-law`, `xi-ox0`.
 
 ### Changed
 
@@ -52,11 +63,19 @@ All notable changes to ATLAS are listed here. The format follows
   `Taf-file` and `SFgeo-file` are gone.
 - **Breaking.** BCB, `krho` of a dispersed phase is its share of the flow of the mixture; the `401` record carries
   `krho/(1 - krho_tot)` and ends with `G`. BCB stops on `krho_tot` of 1 or more, a negative `krho` or a negative `gp`.
+- **Breaking.** BCB, `506` is the pyrolysing ablator: `surface-reactions`, `pyrolysis-gas`, `phi`, `hv0` and `qrad`
+  give the record `pyro_id, surf, phi, hv0, qrad, eps`. `pyrolysis-model` with `surface-reactions` (the former
+  `506`, which no solver applied) stops BCB: keep one of the two.
 - The chemistry pages mention FLINT once, and the upkeep of its contract test is in Testing.
+- **Breaking.** GPB, a burning dispersed material: the constants of its model (`K-burn`, `q-comb`, `d-stop`, ...)
+  leave the material line of `<name>phase.txt` for `<name>models.txt`, one row per material and kind; the line keeps
+  the model's word. A material with `combustion` needs its reaction in `particle-mechanism`, whose products are gas
+  species of the deck (and at most one smoke). `combustion` also takes `direct` and `none`.
 
 ### Fixed
 
 - An external ORION, FiNeR or CEA clone given by a relative path is taken from the ATLAS folder, not the build one.
+- GPB, a fixed gas given `mil` without `kl` or `Pr` stops with a message (it stopped with a Python error).
 - `JLR-nasuti-ct.yaml`, `JLR-frassoldati-ct.yaml` (the forms KAnT runs): the backward H2 step never acted. It is
   refitted, so burnt gas reaches the equilibrium temperature (it was up to 220 K too hot). Their phases are named
   `JLR-Nasuti-ct` and `JLR-Frassoldati-ct`.

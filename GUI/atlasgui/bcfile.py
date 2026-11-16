@@ -58,7 +58,7 @@ _GAS = {
     503: ("melting surface", ["cp", "Tm", "Ti", "dh", "qrad", "eps", "massf"]),
     504: ("pyrolysis", ["pyro", "qrad", "eps", "massf"]),
     505: ("surface reactions", ["surf", "qrad", "eps"]),
-    506: ("pyrolysis and surface reactions", ["pyro", "surf", "qrad", "eps", "massf"]),
+    506: ("pyrolysing ablator", ["pyro-table", "surf", "phi", "hv0", "qrad", "eps"]),
 }
 _SOLID = dict(_GAS)
 _SOLID.update({

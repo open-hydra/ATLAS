@@ -62,6 +62,9 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s, rad), with two
 | nrans | 0 | >=0 |  no | Explicit turbulence model size override. |
 | surface-reactions | none |  |  no | Surface-reactions model for GSI boundaries. |
 | pyrolysis-model | none |  |  no | Pyrolysis model for GSI boundaries. |
+| pyrolysis-gas |  |  |  no | Pyrolysing ablator (BC 506, with surface-reactions and qrad): name of a [GPB-Pyrolysis<n>] table; the record carries its position in <phase>-pyrolysis.dat (case directory, else fromATLAStoSolver/). |
+| phi | 0.0 | >=0 |  no | Pyrolysing ablator (BC 506): mdot_pg/mdot_ch = rho_v/rho_ch - 1, the pyrolysis-gas mass flux per unit char mass flux; required (or phi-file). |
+| hv0 | 0.0 |  |  no | Pyrolysing ablator (BC 506): enthalpy of the virgin material at the undisturbed temperature [J/kg], on the datum of the gas tables (elements 0 at 298.15 K); required (or hv0-file). |
 | cp | 0.0 |  |  no | GSI boundary specific heat. |
 | Ti | 0.0 |  |  no | GSI boundary ignition temperature. |
 | dh | 0.0 |  |  no | GSI boundary heat of reaction. |
@@ -145,3 +148,5 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s, rad), with two
 | SF-file |  |  |  no | ASCII file providing varying values for SF. |
 | mach-file |  |  |  no | ASCII file providing varying values for mach. |
 | p-file |  |  |  no | ASCII file providing varying values for p. |
+| phi-file |  |  |  no | ASCII file providing varying values for phi. |
+| hv0-file |  |  |  no | ASCII file providing varying values for hv0. |

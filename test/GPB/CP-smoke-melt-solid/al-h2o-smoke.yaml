@@ -1,0 +1,5 @@
+name: al-h2o-smoke
+description: liquid aluminium burns with steam to liquid alumina and hydrogen
+reference: none (a test deck)
+reactions:
+- equation: 2 AL(L) + 3 H2O => AL2O3(a) + 3 H2

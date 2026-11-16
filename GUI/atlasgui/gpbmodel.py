@@ -191,7 +191,8 @@ GAS_SOURCES = OrderedDict([
 FIXED_GAS_COLUMNS = [
     ("cp", "cp [J/kg/K]"), ("cv", "cv [J/kg/K]"), ("gamma", "gamma"),
     ("R", "R [J/kg/K]"), ("mw", "mw [kg/kmol]"), ("mil", "mu [Pa s]"),
-    ("kl", "k [W/m/K]"), ("Pr", "Pr"),
+    ("kl", "k [W/m/K]"), ("Pr", "Pr"), ("mil-ref", "mu-ref [Pa s]"),
+    ("T-ref", "T-ref [K]"), ("S-mil", "S [K]"),
 ]
 
 # Per-material columns of a condensed/solid phase: property keys first, then

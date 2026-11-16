@@ -771,13 +771,14 @@ the keys present in the section, so the key set *is* the model selection.
 | [Solid propellant](#gsi-solid-propellant) | none of the combinations below (default fallback) | `502` |
 | [Melting](#gsi-melting) | `cp` **and** `dh` **and** `T` **and** `qrad` | `503` |
 | [Pyrolysis](#gsi-pyrolysis) | `pyrolysis-model` **and** `qrad`, no `surface-reactions` | `504` |
-| [Surface reactions](#gsi-surface-reactions) | `surface-reactions` **and** `qrad`, no `pyrolysis-model` | `505` |
-| [Pyrolysis + surface reactions](#gsi-pyrolysis-surface-reactions) | `pyrolysis-model` **and** `surface-reactions` **and** `qrad` | `506` |
+| [Surface reactions](#gsi-surface-reactions) | `surface-reactions` **and** `qrad`, no `pyrolysis-model`, no `pyrolysis-gas` | `505` |
+| [Pyrolysing ablator](#gsi-pyrolysing-ablator) | `surface-reactions` **and** `pyrolysis-gas` **and** `qrad`, no `pyrolysis-model` (`phi` and `hv0` required) | `506` |
 
-The variants are tested in the order above and the first match wins.
+The variants are tested in the order above and the first match wins. `pyrolysis-model` together with
+`surface-reactions` (what `506` was before: no solver applied it) stops BCB, naming the section.
 
-MOSE does not apply type `506`: it stops at set-up on a `bc.txt` with a record of this type; for MOSE use the pyrolysis (`504`)
-or the surface-reactions (`505`) variant.
+`506` needs a MOSE that reads the pyrolysis-gas tables (`INPUT/<phase>-pyrolysis.dat`); a MOSE without BC `506`
+stops at set-up on a `bc.txt` with a record of this type.
 
 #### Dispersed phase on a gsi face
 
@@ -832,8 +833,11 @@ the face stays a symmetry for that phase.
 
 | Key | Meaning |
 |---|---|
-| `pyrolysis-model` | Pyrolysis model name — selects the pyrolysis variants |
-| `surface-reactions` | Surface-reaction model name — selects the ablation variants |
+| `pyrolysis-model` | Pyrolysis model name — selects the pyrolysis variant (`504`) |
+| `surface-reactions` | Surface-reaction model name — selects the ablation variants (`505`, `506`) |
+| `pyrolysis-gas` | Pyrolysing ablator (`506`): name of a pyrolysis-gas table, the `name` of a `[GPB-Pyrolysis<n>]` |
+| `phi` | Pyrolysing ablator: `mdot_pg/mdot_ch = rho_v/rho_ch − 1`, at least 0; or `phi-file` |
+| `hv0` | Pyrolysing ablator: enthalpy of the virgin material [J/kg]; or `hv0-file` |
 | `qrad` | Radiative heat flux; required by every variant except solid propellant |
 | `eps` | Surface emissivity |
 | `cp` | Specific heat of the melting material |
@@ -961,7 +965,7 @@ yO2             = 0.7
 
 #### `gsi` — Surface reactions
 
-Heterogeneous surface chemistry (ablation). This is the only `gsi` variant that
+Heterogeneous surface chemistry (ablation). With the pyrolysing ablator, the `gsi` variant that
 writes **no** species mass fractions — the solver derives the products from the
 surface model.
 
@@ -972,21 +976,35 @@ surface-reactions = bradley
 qrad              = 1.0e6
 ```
 
-#### `gsi` — Pyrolysis + surface reactions
+#### `gsi` — Pyrolysing ablator
 
-Both mechanisms on the same face: pyrolysis gases injected with the prescribed
-composition, plus heterogeneous surface chemistry.
+A charring ablator (carbon-phenolic): the char reacts with the gas as in `505` and the pyrolysis gas of the
+decomposing virgin material is blown through it, `mdot_pg = phi mdot_ch`, with the composition of a table that GPB
+writes from the elemental makeup of the material ([Pyrolysis-Gas Tables](../gpb/pyrolysis.md)). Steady-state
+conduction: the energy the virgin material takes in is set by `hv0`.
 
 ```ini
-[grain]
+[nozzle-wall]
 type              = gsi
-pyrolysis-model   = HTPB
 surface-reactions = bradley
+pyrolysis-gas     = MX4926
+phi               = 0.247342
+hv0               = -8.44e5
 qrad              = 1.0e6
-eps               = 0.9
-yH2               = 0.3
-yO2               = 0.7
+eps               = 0.85
 ```
+
+| Key | Meaning |
+|---|---|
+| `pyrolysis-gas` | The table: the `name` of a `[GPB-Pyrolysis<n>]`. BCB reads `<phase>-pyrolysis.dat` from the case directory, else from `fromATLAStoSolver/`, and writes the position of the table in the file |
+| `phi` | `rho_v/rho_ch − 1`, the pyrolysis-gas mass per unit char mass, at least 0 (above 1 when the char keeps less than half the density of the virgin material): BCB stops on a negative value, the section's or one that a `phi-file` gives a cell |
+| `hv0` | Enthalpy of the virgin material at the undisturbed temperature [J/kg], on the datum of the gas tables |
+
+`phi` and `hv0` may vary along the wall: `phi-file` and `hv0-file` with `direction`, as the other
+[tables](../../tutorials/bcb/data-files.md). BCB visits the cells of a face row by row; a cell that the file does
+not cover takes the value of the last cell before it that the file covers, also on the next row of a face with several
+rows (a 3-D block). Only the cells of the first row that come before the range have no value: they stop BCB
+(`no phi for a cell`). Make the file cover the face.
 
 ## Next
 

@@ -10,7 +10,9 @@ i 26-50, face 4 (j = 20) melting i 1-12, pyrolysis 13-25, surface reactions 26-3
   gas-bc.txt   501 (payload: block 1, face 2), 300, 502 on all of face 3, 503/504/505/506 on face 4, 0; the 502
                record mdot_ref n pRef Taf mode and the three mass fractions: its first field, the propellant mass
                flux a*rhoGrain*SF = 0.0052 x 1750 x 1, times 1 - 0.2 on the grain with drop's keys, mode 1 (a wall
-               that blows the products in, grain-wall = T) and no turbulence variables
+               that blows the products in, grain-wall = T) and no turbulence variables; the 506 record 2, 1,
+               0.247342, -8.44e5, 1e4, 0 (pyro_id of MX4926, the second table of gas-pyrolysis.dat, bradley, phi,
+               hv0, qrad, eps)
   drop-bc.txt  300 on faces 1, 2 and 4 and on the grain without drop's keys, 401 on the grain with them
                (krho 0.2 as 0.2/(1 - 0.2), the mixture rule with drop the only phase of the cell, kV 0.9, normal
                direction, kT 1.0, rp 1e-5 from drop-dp 2e-5, sigmap 0, Dirac, ds 0, G 0: no 402/403), 0 on faces
@@ -76,6 +78,11 @@ def main(gas_path, dp_path):
                 bad += 1
             if len(t) != 5 + 3 or t[4] != 1.0:
                 print(f"[FAIL] 502 at i={i}: {len(t)} fields, mode {t[4] if len(t) > 4 else None}, expected 8, mode 1")
+                bad += 1
+        if cg == 506:
+            t = [v.strip() for v in pg[0].split(",") if v.strip()]
+            if t[:2] != ["2", "1"] or [float(v) for v in t[2:]] != [0.247342, -8.44e5, 1.0e4, 0.0]:
+                print(f"[FAIL] 506 payload at i={i}: {t}, expected 2, 1, 0.247342, -8.44e5, 1e4, 0")
                 bad += 1
         if cg == 501 and [int(v) for v in pg[0].replace(",", " ").split()] != [1, 2]:
             print(f"[FAIL] manifold payload {pg}")

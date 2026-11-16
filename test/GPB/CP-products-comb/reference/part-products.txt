@@ -1,0 +1,10 @@
+# ATLAS GPB: condensed material -> gas species. Generated: edit the INI and run ATLAS GPB again.
+# particle-mechanism: c-o2 (./c-o2.yaml)
+# record: material <name> <none|evaporation|combustion|cap|release> <terms> <none|latent|formation> <h298 [J/kg]>
+#         then <terms> lines: <gas species> <nu_mass [kg/kg material]> <nu_mole [mol/mol material]>
+#         a cap record ends with: <product material> <kg of it per kg of material> <its h298 [J/kg]>
+gas gas- 3
+# C(gr) + O2 => CO2
+material C(gr) combustion 2 formation 8.3099420337e-04
+  O2 -2.6640579469e+00 -1.0000000000e+00
+  CO2 3.6640579469e+00 1.0000000000e+00

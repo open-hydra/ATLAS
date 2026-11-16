@@ -162,6 +162,7 @@ contains
             if (file_present) then
               do f = 1, n_files
                 if (interp_linear_1d(bc_file(f), here(1), var)) then
+                  call check_file_value(bc_file(f)%var, var, m, n)
                   call ini_c%add(section_name='cell', &
                     option_name=trim(bc_file(f)%var), val=var)
                 endif
@@ -230,6 +231,7 @@ contains
             if (file_present) then
               do f = 1, n_files
                 if (interp_bilinear_2d(bc_file(f), here(1), here(2), var)) then
+                  call check_file_value(bc_file(f)%var, var, m, n)
                   call ini_c%add(section_name='cell', &
                     option_name=trim(bc_file(f)%var), val=var)
                 endif
@@ -398,6 +400,7 @@ contains
           if (file_present) then
             do f = 1, n_files
               if (interp_linear_1d(bc_file(f), here(1), var)) then
+                call check_file_value(bc_file(f)%var, var, m, n)
                 call ini_c%add(section_name='cell', &
                   option_name=trim(bc_file(f)%var), val=var)
               endif
@@ -424,6 +427,7 @@ contains
             if (file_present) then
               do f = 1, n_files
                 if (interp_bilinear_2d(bc_file(f), here(1), here(2), var)) then
+                  call check_file_value(bc_file(f)%var, var, m, n)
                   call ini_c%add(section_name='cell', &
                     option_name=trim(bc_file(f)%var), val=var)
                 endif
@@ -447,6 +451,36 @@ contains
       if (.not. allocated(face%patch_of)) return
       free = face%patch_of(m,n) == 0 .or. face%patch_of(m,n) == patch
     end function free
+
+
+    !> D16 (BC 506): the value that a phi-file or hv0-file gives the cell (m, n), checked before the cell takes it: phi =
+    !> rho_v/rho_ch - 1 at least 0, hv0 finite (check_range sees the section's own keys only, never these values).
+    !> Every cell the file covers is checked, also one the patch does not build: its value would carry over to the next
+    !> cells (D-A3). The other file keys are not checked here.
+    subroutine check_file_value(key, value, m, n)
+      character(len=*), intent(in) :: key
+      real(R8),         intent(in) :: value
+      integer,          intent(in) :: m, n
+      character(len=24)             :: txt
+      character(len=96)             :: cell_txt
+      character(len=:), allocatable :: rule
+
+      select case (trim(key))
+      case ('phi')
+        if (value >= 0.0_R8) return
+        rule = 'phi = rho_v/rho_ch - 1 is 0 or positive'
+      case ('hv0')
+        if (abs(value) <= huge(value)) return
+        rule = 'hv0 is a finite enthalpy [J/kg]'
+      case default
+        return
+      end select
+      write(txt,'(ES24.16)') value
+      write(cell_txt,'(A,I0,A,I0,A,I0,A,I0)') 'cell (m, n) = (', m, ', ', n, ') of face ', if, ' of block ', ib
+      write(*,'(A)') '[ERROR] section ['//trim(cell_name)//'] ('//trim(key)//'-file): '//trim(key)//' = '// &
+        trim(adjustl(txt))//' at the '//trim(cell_txt)//': '//rule
+      stop 1
+    end subroutine check_file_value
 
 
     subroutine claim(m, n)

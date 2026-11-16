@@ -2,7 +2,7 @@ import cantera as ct
 from . import properties as CP_properties
 from . import io as CP_IO
 from ini import *
-from ini.condensed import phase_header_word, CP_read_per_material
+from ini.condensed import phase_header_word, CP_read_per_material, CP_read_model_rows
 import os, sys
 from config import setup_cantera_dirs, require_burcat, CEA_TRANS_FILE
 import custom_support
@@ -171,17 +171,21 @@ def build(type,inifile,section,modeling=None):
                                                                      THERMO_FILES[thermo_model])
 
     # ---------------------------------------------------
-    # Per-material solver model tokens: validated here so a bad key
-    # fails GPB, aligned with material_group (its length = number of
-    # materials), written as key=value after '<name> <groups>' on the
-    # material line of <name>phase.txt (IGLOO reads them there).
+    # Per-material solver models: validated here so a bad key fails GPB,
+    # aligned with material_group (its length = number of materials). The
+    # words go after '<name> <groups>' on the material line of
+    # <name>phase.txt, the constants of the burning models in the rows of
+    # <name>models.txt (the solvers read both).
     # ---------------------------------------------------
     material_tokens = CP_read_material_models(inifile, section, len(material_group))
+    material_tokens, model_rows = CP_read_model_rows(inifile, section, [m.name for m in material_group], groups,
+                                                     material_tokens)
 
     # ---------------------------------------------------
     # Write materials name and groups number
     # ---------------------------------------------------
     CP_IO.write_basics(type, name, material_group, groups, modeling, material_tokens=material_tokens)
+    CP_IO.write_models(name, model_rows)
 
     # ---------------------------------------------------
     # Build physical and thermal properties

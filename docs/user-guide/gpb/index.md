@@ -105,6 +105,9 @@ type = condensed-dispersed
 
 See [Input Reference](./input-reference.md) for full per-type information.
 
+The pyrolysis-gas tables of a charring ablator (BC `506`) are given by `[GPB-Pyrolysis1]`, `[GPB-Pyrolysis2]`, ...
+beside the phases: see [Pyrolysis-Gas Tables](./pyrolysis.md).
+
 ## Output
 
 Property files are written to `fromATLAStoSolver/`.
