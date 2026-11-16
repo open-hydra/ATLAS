@@ -50,7 +50,8 @@ Options of the script:
 # external clones in place of the release of ORION and the submodules (checked against what ATLAS requires)
 ./install.sh build --include-cea=/path/to/cea \
                    --include-orion=/path/to/ORION \
-                   --include-finer=/path/to/FiNeR
+                   --include-finer=/path/to/FiNeR \
+                   --include-piner=/path/to/PiNeR
 
 # select again the newest release of ORION that ATLAS accepts (deps.lock)
 ./install.sh build --update-deps
@@ -230,16 +231,23 @@ tests.
 
 ### External clones
 
-A parent project such as hydra gives ATLAS its own clones of ORION and FiNeR:
+ATLAS is always built on its own, for its programs. A parent project such as hydra that has already cloned
+some of ATLAS's libraries passes them, so that ATLAS does not clone them again; each one is optional:
 
-```bash
-cmake -B build -DFETCHCONTENT_SOURCE_DIR_ORION=/path/to/ORION -DFETCHCONTENT_SOURCE_DIR_FINER=/path/to/FiNeR
-# or: ./install.sh build --include-orion=/path/to/ORION --include-finer=/path/to/FiNeR
-```
+| Library | `install.sh build` | CMake |
+|---|---|---|
+| ORION | `--include-orion=<path>` | `-DFETCHCONTENT_SOURCE_DIR_ORION=<path>` |
+| FiNeR | `--include-finer=<path>` | `-DFETCHCONTENT_SOURCE_DIR_FINER=<path>` |
+| CEA | `--include-cea=<path>` | `-DCEA_PATH=<path>` |
+| PiNeR | `--include-piner=<path>` | `-DPINER_PATH=<path>` |
+
+`install.sh` does not initialize the submodule of a library given so, and installs the PiNeR and CEA given in
+the conda environment. A relative path is taken from the ATLAS folder.
 
 A clone is built as it is, uncommitted changes included, and nothing in it is moved or fetched. It must
 satisfy ATLAS's requirement, or the configure **stops with an error**: ORION's version is the newest `vX.Y.Z`
-tag in the history of its HEAD (an ORION 1.7.0 clone is refused), FiNeR's the content of its `VERSION` file.
+tag in the history of its HEAD (an ORION 1.7.0 clone is refused), FiNeR's the content of its `VERSION` file,
+CEA's the one its `project()` declares. PiNeR is not checked.
 FiNeR's dependencies must be in the clone's `src/third_party` (`fobis fetch --no-build`), and with
 `ATLAS_FINER_DEPS=BACKUP` at their backup releases. To build a clone that does not satisfy the requirement on
 purpose (an ORION branch under test), configure with `-DATLAS_PIN_CHECK=WARNING`; `-UFETCHCONTENT_SOURCE_DIR_ORION`

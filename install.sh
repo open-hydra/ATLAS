@@ -24,9 +24,10 @@ Global Options:
 Commands:
   build                     Perform a full build
     --compilers=<name>      Set compilers suite (intel,gnu)
-    --include-cea=<path>    Set external CEA path
+    --include-cea=<path>    Build an external CEA clone instead of the submodule lib/cea
     --include-orion=<path>  Build an external ORION clone instead of the release ATLAS selects
     --include-finer=<path>  Build an external FiNeR clone instead of the submodule lib/FiNeR
+    --include-piner=<path>  Use an external PiNeR clone instead of the submodule lib/PiNeR
     --update-deps           Select again the newest release of ORION (deps.lock)
     --use-openmp            Use OpenMP
     --use-tecio             Use TecIO
@@ -88,6 +89,9 @@ function write_presets() {
   if [[ -n $FINER_PATH ]]; then
     sources+="        \"FETCHCONTENT_SOURCE_DIR_FINER\": \"${FINER_PATH}\","$'\n'
   fi
+  if [[ -n $PINER_PATH ]]; then
+    sources+="        \"PINER_PATH\": \"${PINER_PATH}\","$'\n'
+  fi
 
   cat <<EOF > CMakePresets.json
 {
@@ -121,9 +125,11 @@ EOF
 COMMAND=""
 COMPILERS=""
 CEA_PATH=$(pwd)'/lib/cea/'
-# ORION and FiNeR: the release ATLAS selects and the submodule (see CMakeLists.txt), or external clones
+# ORION, FiNeR and PiNeR: the release ATLAS selects and the submodules (see CMakeLists.txt), or external clones
+# (a superproject such as hydra passes the ones it has already cloned)
 ORION_PATH=""
 FINER_PATH=""
+PINER_PATH=""
 UPDATE_DEPS="false"
 USE_OPENMP="false"
 USE_TECIO="false"
@@ -133,7 +139,7 @@ BUILD_TYPE="RELEASE"
 
 # Define allowed options for each command using regular arrays
 CMD=("build")
-CMD_OPTIONS_build=("--include-cea --include-orion --include-finer --update-deps --compilers --use-openmp --use-tecio --no-conda")
+CMD_OPTIONS_build=("--include-cea --include-orion --include-finer --include-piner --update-deps --compilers --use-openmp --use-tecio --no-conda")
 
 # Parse global options
 while getopts "v-:" opt; do
@@ -169,7 +175,8 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --include-cea=*)
           [[ "$COMMAND" == "build" ]] || { error " --include-cea is only valid for 'build' command"; exit 1; }
-          CEA_PATH="${1#*=}"
+          # absolute: CMake takes the folder from the build directory, conda from the folder of the environment file
+          CEA_PATH=$(cd "${1#*=}" && pwd) || { error "No folder ${1#*=}"; exit 1; }
           ;;
         --include-orion=*)
             [[ "$COMMAND" == "build" ]] || { error " --include-orion is only valid for 'build' command"; exit 1; }
@@ -180,6 +187,11 @@ while [[ $# -gt 0 ]]; do
             [[ "$COMMAND" == "build" ]] || { error " --include-finer is only valid for 'build' command"; exit 1; }
             # absolute: CMake takes the folder from the build directory
             FINER_PATH=$(cd "${1#*=}" && pwd) || { error "No folder ${1#*=}"; exit 1; }
+            ;;
+        --include-piner=*)
+            [[ "$COMMAND" == "build" ]] || { error " --include-piner is only valid for 'build' command"; exit 1; }
+            # absolute: CMake takes the folder from the build directory, conda from the folder of the environment file
+            PINER_PATH=$(cd "${1#*=}" && pwd) || { error "No folder ${1#*=}"; exit 1; }
             ;;
         --update-deps)
             [[ "$COMMAND" == "build" ]] || { error " --update-deps is only valid for 'build' command"; exit 1; }
@@ -225,7 +237,7 @@ case "$COMMAND" in
         git submodule sync --quiet
         [[ $CEA_PATH == $(pwd)'/lib/cea/' ]] && git submodule update --init lib/cea
         [[ -z $FINER_PATH ]] && git submodule update --init lib/FiNeR
-        git submodule update --init lib/PiNeR
+        [[ -z $PINER_PATH ]] && git submodule update --init lib/PiNeR
 
         task "Configuring and building $project"
         if [[ $COMPILERS == "intel" ]]; then 
@@ -242,6 +254,7 @@ case "$COMMAND" in
         log "CEA path: $CEA_PATH"
         log "ORION: ${ORION_PATH:-release}"
         log "FiNeR: ${FINER_PATH:-lib/FiNeR}"
+        log "PiNeR: ${PINER_PATH:-lib/PiNeR}"
         log "Update ORION: $UPDATE_DEPS"
         log "Use TecIO: $USE_TECIO"
         log "Use OpenMP: $USE_OPENMP"
@@ -257,6 +270,9 @@ case "$COMMAND" in
         fi
         if [[ -n $FINER_PATH ]]; then
           CMAKE_ARGS+=(-DFETCHCONTENT_SOURCE_DIR_FINER="$FINER_PATH")
+        fi
+        if [[ -n $PINER_PATH ]]; then
+          CMAKE_ARGS+=(-DPINER_PATH="$PINER_PATH")
         fi
         if [[ $UPDATE_DEPS == true ]]; then
           CMAKE_ARGS+=(-DSEMVER_UPDATE=ALL)
@@ -284,7 +300,10 @@ case "$COMMAND" in
             exit 1
           fi
           #conda env remove --name ct-env --yes
-          conda env create -f ct-env.yaml
+          # with the PiNeR and CEA of this build: the submodules, or the external clones given
+          sed -e "s|-e lib/PiNeR|-e ${PINER_PATH:-$DIR/lib/PiNeR}|" -e "s|-e lib/cea|-e ${CEA_PATH%/}|" \
+              ct-env.yaml > "$BUILD_DIR/ct-env.yaml"
+          conda env create -f "$BUILD_DIR/ct-env.yaml"
           log "[OK] Conda environment created"
         fi
 

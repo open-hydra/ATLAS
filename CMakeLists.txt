@@ -26,7 +26,8 @@ set(ATLAS_FINER_BACKUP_PINS   # the releases MOSE, ICE and GROOT share
   "FACE=v1.1.17"
   "FLAP=v2.5.3"
   "BeFoR64=v1.2.4")
-# - CEA and PiNeR. Directly pinned, the submodules lib/cea (or CEA_PATH) and lib/PiNeR; the release of CEA is checked
+# - CEA and PiNeR. Directly pinned, the submodules lib/cea and lib/PiNeR, or external clones (CEA_PATH, PINER_PATH:
+# PiNeR is installed in the Python environment, CMake only checks the pin of lib/PiNeR); the release of CEA is checked
 # against the CEA configured (bump the gitlink and the version together).
 set(ATLAS_CEA_VERSION "3.3.4")
 
@@ -50,7 +51,7 @@ INCLUDE(${CMAKE_MODULE_PATH}/SetParallelizationLibrary.cmake)
 #####################################################
 
 # An external clone given by a relative path is taken from the source folder
-foreach(_name FETCHCONTENT_SOURCE_DIR_ORION FETCHCONTENT_SOURCE_DIR_FINER CEA_PATH)
+foreach(_name FETCHCONTENT_SOURCE_DIR_ORION FETCHCONTENT_SOURCE_DIR_FINER CEA_PATH PINER_PATH)
   if (${_name})
     get_filename_component(${_name} "${${_name}}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
   endif()
