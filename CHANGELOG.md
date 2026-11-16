@@ -54,6 +54,7 @@ All notable changes to ATLAS are listed here. The format follows
 
 ### Fixed
 
+- An external ORION, FiNeR or CEA clone given by a relative path is taken from the ATLAS folder, not the build one.
 - `JLR-nasuti-ct.yaml`, `JLR-frassoldati-ct.yaml` (the forms KAnT runs): the backward H2 step never acted. It is
   refitted, so burnt gas reaches the equilibrium temperature (it was up to 220 K too hot). Their phases are named
   `JLR-Nasuti-ct` and `JLR-Frassoldati-ct`.
