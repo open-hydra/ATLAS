@@ -303,8 +303,8 @@ combustion record: what the cap does not retain is handed to the gas as that smo
 A burning material with a smoke needs `d-smoke` (the diameter of the smoke drops, [m]) on its row; a material
 without one that is given `d-smoke` is refused, and a material with a population in two eulerian phases is refused
 (a smoke is born in exactly one ICE family). The reaction itself, written out, appears as a comment above the
-material's record of `<name>products.txt`, whose combustion record (or `release`, for a capped product handed
-whole to the gas as smoke) then ends in the eulerian phase's output prefix: see
+material's record of `<name>products.txt`, whose combustion record (or `release`, for the oxide a cap born as
+smoke whole hands to the gas) then ends in the eulerian phase's output prefix: see
 [Output Files](./output.md#prefixproductstxt), which hydra-MI2 reads to route the smoke into that ICE family.
 
 ```ini
@@ -323,6 +323,7 @@ thermo     = NASA9
 material   = AL(L) AL2O3(L)
 groups     = 1 1
 rho        = 1540 2606
+Tmax       = 4000
 particle-mechanism = al-h2o-smoke    ; 2 AL(L) + 3 H2O => AL2O3(L) + 3 H2
 combustion = Beckstead none
 K-burn     = 1.39e-6
@@ -332,20 +333,27 @@ T-ign      = 2300
 beta-part  = 0.02
 q-comb     = 1.49e7
 d-smoke    = 1.0e-6 0
+; AL2O3(L)'s table crosses its melting point, 2327 K, below Tmax: solidification = on with the database's own
+; T-melt, h-fus and cp-solid there (next paragraph)
+solidification = off on
+T-melt         = 0 2327
+h-fus          = 0 1.092578e6
+cp-solid       = 0 1433.17
+T-nuc          = 0 1861.6
 ```
 
 AL2O3(L), the second material of the same eulerian phase, is AL(L)'s smoke (it has a population, `groups = 1`,
 in the same `[GPB-Phase2]`); this writes AL(L)'s row of `part-models.txt` with `d-smoke=1e-06` and ends the
 combustion record of `part-products.txt` with the output prefix of `[GPB-Phase2]` (`part-`).
 
-A database species whose fit crosses its own substance's melting point inside the phase's `[Tmin, Tmax]` carries no
-heat of fusion past that point (the table is its own fit, extended at constant `cp` beyond where it ends): GPB
-checks every smoke this way. Named by the liquid species (as `AL2O3(L)` above), the smoke needs
-`solidification = on` with `T-melt`, `h-fus` and `cp-solid` set to the database's own values at the melting point,
-so ICE's solidification model, not the flat extension, carries the latent heat; GPB names the melting point and
-these values when it stops. Named by a solid species whose fit is extended past where the liquid begins, GPB asks
-for the liquid species instead (or `Tmax` capped at the melting point): `solidification = on` cannot fix a solid
-extended past its own melting point.
+A smoke whose database table crosses its substance's melting point inside the phase's `[Tmin, Tmax]` holds no
+heat of fusion there. Named by the liquid species (as `AL2O3(L)` above), the table below the melting point is the
+liquid's own fit: the smoke needs `solidification = on`, else GPB stops, naming the melting point and the
+database's own `h-fus` and `cp-solid` there (GPB checks only the word; it does not itself check `h-fus` or
+`cp-solid` against the database, and warns, rather than stops, when `T-melt` is more than 0.5 K off the database's
+value). Named by a solid species whose fit is extended, at constant `cp`, past where the liquid begins,
+`solidification = on` cannot fix it: GPB asks for the liquid species instead, or `Tmax` capped at the melting
+point.
 
 ## Solid Phase (`type = solid`)
 
