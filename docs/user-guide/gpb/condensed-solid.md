@@ -271,8 +271,8 @@ Mg combustion direct T-burn=1363 q-comb=9530000 d-stop=0 d-burnout=1e-07
 
 | kind | its model is named by | models | constants each model reads |
 |---|---|---|---|
-| `combustion` | `combustion` | `Beckstead` | `K-burn` [m^n-burn/s], `n-burn`, `X-eff`, `beta-part`, `T-ign` [K], `q-comb` [J/kg], `d-stop` [m], `d-burnout` [m] |
-| | | `direct` | `T-burn` [K], `q-comb` [J/kg], `d-stop` [m], `d-burnout` [m] |
+| `combustion` | `combustion` | `Beckstead` | `K-burn` [m^n-burn/s], `n-burn`, `X-eff`, `beta-part`, `T-ign` [K], `q-comb` [J/kg], `d-stop` [m], `d-burnout` [m], `d-smoke` [m] |
+| | | `direct` | `T-burn` [K], `q-comb` [J/kg], `d-stop` [m], `d-burnout` [m], `d-smoke` [m] |
 | `cap` (the oxide cap of a burning drop, IGLOO) | `xi-law` (absent: `constant`) | `constant` | `xi-cap`, `xi-ox0`, `product`, `residue` (`on`, `off`), `d-residue` [m] |
 | | | `Gallier21` | `xi-ox0`, `product`, `residue`, `d-residue` |
 
@@ -290,6 +290,62 @@ Mg combustion direct T-burn=1363 q-comb=9530000 d-stop=0 d-burnout=1e-07
 - `combustion = direct` reads its latent heat in the `Lv` column of the properties table, at `T-burn`: give the
   material its vapour pair (`psat-vapour`, above). Without the column the solver's own section must give a
   constant.
+
+### The smoke of a burning material
+
+`particle-mechanism`'s reaction for a burning material may give, besides gas species, one condensed product.
+GPB resolves that product as one of two things (any other condensed product stops GPB): the oxide a `cap`
+retains (`product=`, above), or a **smoke** — a material of an *eulerian* dispersed phase with a population
+(`groups >= 1` there), born in that phase's ICE family. A capped material whose `product=` material is itself
+declared as a smoke (its own line asks for a population in an eulerian phase) gets both a `cap` record and a
+combustion record: what the cap does not retain is handed to the gas as that smoke, in the same reaction.
+
+A burning material with a smoke needs `d-smoke` (the diameter of the smoke drops, [m]) on its row; a material
+without one that is given `d-smoke` is refused, and a material with a population in two eulerian phases is refused
+(a smoke is born in exactly one ICE family). The reaction itself, written out, appears as a comment above the
+material's record of `<name>products.txt`, whose combustion record (or `release`, for a capped product handed
+whole to the gas as smoke) then ends in the eulerian phase's output prefix: see
+[Output Files](./output.md#prefixproductstxt), which hydra-MI2 reads to route the smoke into that ICE family.
+
+```ini
+[GPB-Phase1]
+type    = ideal-gas
+name    = gas
+species = N2 H2O H2
+thermo  = NASA9
+Tmax    = 4000
+
+[GPB-Phase2]
+type       = condensed-dispersed
+modeling   = eulerian
+name       = part
+thermo     = NASA9
+material   = AL(L) AL2O3(L)
+groups     = 1 1
+rho        = 1540 2606
+particle-mechanism = al-h2o-smoke    ; 2 AL(L) + 3 H2O => AL2O3(L) + 3 H2
+combustion = Beckstead none
+K-burn     = 1.39e-6
+n-burn     = 1.8
+X-eff      = 0.5
+T-ign      = 2300
+beta-part  = 0.02
+q-comb     = 1.49e7
+d-smoke    = 1.0e-6 0
+```
+
+AL2O3(L), the second material of the same eulerian phase, is AL(L)'s smoke (it has a population, `groups = 1`,
+in the same `[GPB-Phase2]`); this writes AL(L)'s row of `part-models.txt` with `d-smoke=1e-06` and ends the
+combustion record of `part-products.txt` with the output prefix of `[GPB-Phase2]` (`part-`).
+
+A database species whose fit crosses its own substance's melting point inside the phase's `[Tmin, Tmax]` carries no
+heat of fusion past that point (the table is its own fit, extended at constant `cp` beyond where it ends): GPB
+checks every smoke this way. Named by the liquid species (as `AL2O3(L)` above), the smoke needs
+`solidification = on` with `T-melt`, `h-fus` and `cp-solid` set to the database's own values at the melting point,
+so ICE's solidification model, not the flat extension, carries the latent heat; GPB names the melting point and
+these values when it stops. Named by a solid species whose fit is extended past where the liquid begins, GPB asks
+for the liquid species instead (or `Tmax` capped at the melting point): `solidification = on` cannot fix a solid
+extended past its own melting point.
 
 ## Solid Phase (`type = solid`)
 
