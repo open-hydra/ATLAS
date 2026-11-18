@@ -2621,6 +2621,102 @@ set_tests_properties(CP-models-stale PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- GPB : CP-models-breakup (the breakup rows: two models, a shared key, NoBreakup) ------------
+add_test(
+    NAME    CP-models-breakup
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup"
+)
+set_tests_properties(CP-models-breakup PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-breakup-no-word (breakup constants under the model -) -----------------------
+add_test(
+    NAME    CP-models-breakup-no-word
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup-no-word"
+)
+set_tests_properties(CP-models-breakup-no-word PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-breakup-noburn (combustion = none keeps the breakup row) ---------------------
+add_test(
+    NAME    CP-models-breakup-noburn
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup-noburn"
+)
+set_tests_properties(CP-models-breakup-noburn PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-breakup-product (a combustion product loses the breakup word) --------------
+add_test(
+    NAME    CP-models-breakup-product
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup-product"
+)
+set_tests_properties(CP-models-breakup-product PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-breakup-key-not-read (refused) ------------------------------------------------
+add_test(
+    NAME    CP-models-breakup-key-not-read
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'for material A: breakup = TAB reads' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup-key-not-read"
+)
+set_tests_properties(CP-models-breakup-key-not-read PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-breakup-off (refused) ---------------------------------------------------------
+add_test(
+    NAME    CP-models-breakup-off
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'for material B: breakup = NoBreakup reads no constant' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup-off"
+)
+set_tests_properties(CP-models-breakup-off PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-breakup-no-reader (refused) -------------------------------------------------
+add_test(
+    NAME    CP-models-breakup-no-reader
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'B1 = 40: no material of this phase names a model that reads it' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup-no-reader"
+)
+set_tests_properties(CP-models-breakup-no-reader PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- GPB : CP-models-breakup-word (refused) --------------------------------------------------------
+add_test(
+    NAME    CP-models-breakup-word
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q \"breakup = 'Foo': expected one of\" gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup-word"
+)
+set_tests_properties(CP-models-breakup-word PROPERTIES
+    LABELS      "GPB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- GPB : CP-smoke-ice (the smoke record) -------------------------------------------------------
 add_test(
     NAME    CP-smoke-ice
