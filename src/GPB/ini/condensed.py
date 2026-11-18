@@ -62,7 +62,7 @@ def phase_header_word(type):
 
 # -----------------------------------------------------------------------
 # Per-material solver models. The material line of <name>phase.txt carries
-# the WORD of each model (evaporation=CEM, combustion=Beckstead, cap=constant)
+# the WORD of each model (evaporation=CEM, combustion=Beckstead, cap=constant, breakup=TAB)
 # and, as key=value tokens, the constants of the models that have no kind in
 # MODEL_KINDS yet. The constants of a kind go to <name>models.txt, one row
 # per material and kind: '<material> <kind> <model> key=value ...'.
@@ -75,7 +75,8 @@ MATERIAL_WORD_KEYS = {'evaporation': ('d2-law', 'CEM', 'CEM-B', 'ASM', 'TC'),
                       'interface': ('VLE', 'LK'),
                       'boiling': ('clamp', 'ZGR'),
                       'combustion': ('Beckstead', 'direct', 'none'),
-                      'solidification': ('on', 'off')}
+                      'solidification': ('on', 'off'),
+                      'breakup': ('Pilch-Erdman', 'Reitz-Diawakar', 'Reitz-KHRT', 'TAB', 'ETAB', 'NoBreakup')}
 MATERIAL_REAL_KEYS = ('alpha-e', 'k-liq', 'mu-liq', 'T-melt', 'h-fus', 'T-nuc', 'cp-solid')
 
 # kind -> (the section key that names its model, the model when that key is absent, {model: the constants it reads}).
@@ -88,7 +89,15 @@ MODEL_KINDS = {
   'cap': ('xi-law', 'constant',
           {'constant': ('xi-cap', 'xi-ox0', 'product', 'residue', 'd-residue'),
            'Gallier21': ('xi-ox0', 'product', 'residue', 'd-residue')}),
+  'breakup': ('breakup', None,
+              {'Pilch-Erdman': ('Cd', 'B'),
+               'Reitz-Diawakar': ('WeBag', 'Cb', 'Cstrip', 'Cs'),
+               'Reitz-KHRT': ('B0', 'B1', 'Ctau', 'CRT', 'mShedLim', 'WeLimit'),
+               'TAB': ('Comega', 'Cmu', 'WeCrit', 'method', 'n'),
+               'ETAB': ('k1', 'k2', 'WeCrit', 'WeTrans', 'Comega', 'Cmu')}),
 }
+# kind -> (the key, the word) that switches the kind off for a material: no row, and an explicit constant stops GPB.
+MODEL_OFF = {'combustion': ('combustion', 'none'), 'cap': ('combustion', 'none'), 'breakup': ('breakup', 'NoBreakup')}
 # The constants that are words, with the value that stands for "not given" (the reals: 0).
 MODEL_WORD_CONSTANTS = {'product': 'none', 'residue': 'off'}
 MODEL_WORD_VALUES = {'residue': ('on', 'off')}
@@ -145,9 +154,10 @@ def CP_read_model_rows(ini_file, section, names, groups, tokens):
   A constant goes in the row of each material whose model reads it. Where the model does not read it, a single value
   given for all the materials is not written for that one, and an entry of a per-material list must be the "not
   given" value (0, none, off), else GPB stops; a constant that no material's model reads stops GPB too. A material
-  that names no model of a kind whose key is absent (combustion: the solver's section decides) gets its constants
-  under the model '-'. A material with combustion = none gets no row, and neither does a combustion product (the
-  material `product` names): it is a material of the phase with 0 groups, never injected."""
+  that names no model of a kind whose key is absent (combustion, breakup: the solver's section decides) gets its
+  constants under the model '-'. A material with combustion = none gets no combustion or cap row, one with
+  breakup = NoBreakup no breakup row, and a combustion product (the material `product` names) none: it is a material
+  of the phase with 0 groups, never injected, and its line loses the combustion= and breakup= words."""
   nmat = len(names)
   given = {}                                             # constant -> (one value per material, explicit)
   for kind, (word_key, default, models) in MODEL_KINDS.items():
@@ -179,13 +189,16 @@ def CP_read_model_rows(ini_file, section, names, groups, tokens):
     if int(groups[i]) != 0:
       raise SystemExit(f"[ERROR] [{section}] product = {p}: a combustion product is never injected: give it 0 groups "
                        f"(groups holds {int(groups[i])} for it)")
-    tokens[i] = [t for t in tokens[i] if not t.startswith('combustion=')]
-  burn, _ = _per_material(ini_file, section, 'combustion', nmat)
-  inert = [m in products or (burn is not None and burn[i] == 'none') for i, m in enumerate(names)]
+    tokens[i] = [t for t in tokens[i] if not t.startswith(('combustion=', 'breakup='))]
+  off = {}                                               # kind -> per material: its word switches the kind off
+  for kind, (key, word) in MODEL_OFF.items():
+    vals, _ = _per_material(ini_file, section, key, nmat)
+    off[kind] = [vals is not None and vals[i] == word for i in range(nmat)]
 
   rows = []
   for kind, (word_key, default, models) in MODEL_KINDS.items():
     words, _ = _per_material(ini_file, section, word_key, nmat)
+    inert = [m in products or off[kind][i] for i, m in enumerate(names)]
     union = [k for keys in models.values() for k in keys]
     union = [k for n, k in enumerate(union) if k not in union[:n]]
     model = []                    # per material: a model, '-' (none named: the solver's section decides), None (no row)
@@ -209,7 +222,8 @@ def CP_read_model_rows(ini_file, section, names, groups, tokens):
         if i in readers or not explicit or null(k, vals[i]):
           continue
         who = (f"{word_key} = {model[i]} reads {', '.join(models[model[i]])}" if model[i] is not None else
-               'a combustion product reads no constant' if m in products else 'combustion = none reads no constant')
+               'a combustion product reads no constant' if m in products else
+               f"{MODEL_OFF[kind][0]} = {MODEL_OFF[kind][1]} reads no constant")
         raise SystemExit(f"[ERROR] [{section}] {k} = {vals[i]} for material {m}: {who}; in a list, give "
                          f"{MODEL_WORD_CONSTANTS.get(k, '0')} for this material")
       if not readers and any(not null(k, v) for v in vals):

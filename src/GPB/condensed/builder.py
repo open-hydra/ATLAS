@@ -174,8 +174,8 @@ def build(type,inifile,section,modeling=None):
     # Per-material solver models: validated here so a bad key fails GPB,
     # aligned with material_group (its length = number of materials). The
     # words go after '<name> <groups>' on the material line of
-    # <name>phase.txt, the constants of the burning models in the rows of
-    # <name>models.txt (the solvers read both).
+    # <name>phase.txt, the constants of the burning and breakup models in the
+    # rows of <name>models.txt (the solvers read both).
     # ---------------------------------------------------
     material_tokens = CP_read_material_models(inifile, section, len(material_group))
     material_tokens, model_rows = CP_read_model_rows(inifile, section, [m.name for m in material_group], groups,
