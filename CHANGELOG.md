@@ -39,6 +39,8 @@ All notable changes to ATLAS are listed here. The format follows
   born in that ICE family; `d-smoke` gives its diameter. A smoke whose table crosses its melting point (from the
   database's other phases of the substance) needs `solidification = on`, or a table that ends below it.
 - New keys: `d-stop`, `d-burnout`, `d-smoke`, `T-burn`, `product`, `residue`, `d-residue`, `xi-law`, `xi-ox0`.
+- GPB, a dispersed material's breakup model (`breakup`) and its constants, as rows of `<name>models.txt` for IGLOO.
+  See [the models file](docs/user-guide/gpb/condensed-solid.md#the-constants-of-the-models-namemodelstxt).
 
 ### Changed
 

@@ -100,6 +100,27 @@
 | h-fus |  |  | no | Heat of fusion [J/kg] (solidification). |
 | T-nuc |  |  | no | Nucleation (supercooling) temperature [K]; absent or 0 = 0.8*T-melt. |
 | cp-solid |  |  | no | Solid-phase specific heat [J/kg/K] (solidification). |
+| breakup |  | Pilch-Erdman,Reitz-Diawakar,Reitz-KHRT,TAB,ETAB,NoBreakup | no | Breakup model of the material (IGLOO); its constants go to <name>models.txt, each optional (absent: the default given below). NoBreakup for a material that does not break (it overrides the default of the solver section). Absent: no word is written and the solver section decides. ICE has no breakup model: it ignores the word and a breakup row with a warning; give it to a phase IGLOO solves. |
+| Cd |  |  | no | Pilch-Erdman drag constant (default 1.0). |
+| B |  |  | no | Pilch-Erdman breakup constant (default 0.116). |
+| WeBag |  |  | no | Reitz-Diawakar bag-breakup Weber threshold (default 6). |
+| Cb |  |  | no | Reitz-Diawakar bag time constant (default pi). |
+| Cstrip |  |  | no | Reitz-Diawakar stripping Weber threshold constant (default 0.5). |
+| Cs |  |  | no | Reitz-Diawakar stripping time constant (default 20; 8 Ranger-Nicholls, sqrt(3) O'Rourke-Amsden). |
+| B0 |  |  | no | Reitz-KHRT KH child-size constant (default 0.61). |
+| B1 |  |  | no | Reitz-KHRT KH breakup-time constant (default 20). |
+| Ctau |  |  | no | Reitz-KHRT RT time constant (default 1). |
+| CRT |  |  | no | Reitz-KHRT RT wavelength constant (default 0.1). |
+| mShedLim |  |  | no | Reitz-KHRT shed-mass fraction limit (default 0.03). |
+| WeLimit |  |  | no | Reitz-KHRT Weber limit (default 6). |
+| Comega |  |  | no | TAB and ETAB oscillation frequency constant (default 8). |
+| Cmu |  |  | no | TAB and ETAB oscillation damping constant (default 5). |
+| WeCrit |  |  | no | TAB and ETAB critical Weber number (default 6; IGLOO doubles it). |
+| method |  | 1,2 | no | TAB product-size law: 1 chi-square, 2 Rosin-Rammler (default 2). |
+| n |  |  | no | TAB Rosin-Rammler spread parameter of method 2 (default 3.5). |
+| k1 |  |  | no | ETAB bag-regime rate constant (default 0.2222). |
+| k2 |  |  | no | ETAB stripping-regime rate constant (default 0.2222). |
+| WeTrans |  |  | no | ETAB bag-to-stripping transition Weber number (default 80). |
 
 ## GPB-RealFluid
 
