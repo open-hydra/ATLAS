@@ -1,0 +1,5 @@
+# part-models.txt  written by ATLAS GPB: the constants of each material's models
+# <material> <kind> <model> key=value ...
+
+A breakup TAB Comega=10 method=1
+B breakup ETAB WeTrans=60 Comega=10

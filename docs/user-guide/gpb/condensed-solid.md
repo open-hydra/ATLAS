@@ -195,7 +195,7 @@ broadcast to every material). GPB validates them and writes them in two places:
 
 - the model WORDS, and the constants of the models of the table below, as `key=value` tokens after
   `<material> <groups>` on the material line of `<name>phase.txt`;
-- the CONSTANTS of the burning models in `<name>models.txt`, one row per material and kind (next section).
+- the CONSTANTS of the burning and breakup models in `<name>models.txt`, one row per material and kind (next section).
 
 The solvers consume both, ATLAS's own readers (BCB/ICB) ignore them. An absent key emits nothing and the solver's
 default applies.
@@ -226,6 +226,7 @@ H2O(L) 1 evaporation=ASM interface=LK alpha-e=1
 | `boiling` | word | `clamp`, `ZGR` | Boiling branch (`clamp`) |
 | `combustion` | word | `Beckstead`, `direct`, `none` | Burning model of the material: the d^n law, or the d2 law of a drop held at its burning temperature; its constants go to `<name>models.txt` (the solver section's `combustion`) |
 | `solidification` | word | `on`, `off` | Solidification with supercooling and recalescence, and melting at `T-melt`, in IGLOO and ICE (`off`) |
+| `breakup` | word | `Pilch-Erdman`, `Reitz-Diawakar`, `Reitz-KHRT`, `TAB`, `ETAB`, `NoBreakup` | Breakup model of the material, IGLOO only; its constants go to `<name>models.txt` (the solver section's `breakup`) |
 | `alpha-e` | real | | Langmuir-Knudsen accommodation coefficient, `interface = LK` (1.0) |
 | `k-liq` | real | | Liquid thermal conductivity [W/m/K], required with `liquid-conduction = P2T` (0) |
 | `mu-liq` | real | | Liquid viscosity [Pa s], `liquid-conduction = P2T` (0) |
@@ -237,11 +238,11 @@ H2O(L) 1 evaporation=ASM interface=LK alpha-e=1
 A word outside the allowed set, a non-numeric real, or a value count that is neither 1 nor the number of
 materials stops GPB with `[ERROR] [GPB-Phase1] <key> ...`.
 
-### The constants of the burning models: `<name>models.txt`
+### The constants of the models: `<name>models.txt`
 
 One row per material and kind, `<material> <kind> <model> key=value ...`, the keys in any order; lines that start
 with `#` are comments. The file is written only when a material of the phase has such constants. The material line
-keeps the word of each kind (`combustion=<model>`, `cap=<law>`) and none of the constants.
+keeps the word of each kind (`combustion=<model>`, `cap=<law>`, `breakup=<model>`) and none of the constants.
 
 ```ini
 [GPB-Phase2]
@@ -275,6 +276,11 @@ Mg combustion direct T-burn=1363 q-comb=9530000 d-stop=0 d-burnout=1e-07
 | | | `direct` | `T-burn` [K], `q-comb` [J/kg], `d-stop` [m], `d-burnout` [m], `d-smoke` [m] |
 | `cap` (the oxide cap of a burning drop, IGLOO) | `xi-law` (absent: `constant`) | `constant` | `xi-cap`, `xi-ox0`, `product`, `residue` (`on`, `off`), `d-residue` [m] |
 | | | `Gallier21` | `xi-ox0`, `product`, `residue`, `d-residue` |
+| `breakup` (IGLOO) | `breakup` | `Pilch-Erdman` | `Cd`, `B` |
+| | | `Reitz-Diawakar` | `WeBag`, `Cb`, `Cstrip`, `Cs` |
+| | | `Reitz-KHRT` | `B0`, `B1`, `Ctau`, `CRT`, `mShedLim`, `WeLimit` |
+| | | `TAB` | `Comega`, `Cmu`, `WeCrit`, `method` (1, 2), `n` |
+| | | `ETAB` | `k1`, `k2`, `WeCrit`, `WeTrans`, `Comega`, `Cmu` |
 
 - A constant goes in the row of each material whose model reads it. Where the model does not read it, a single
   value given for all the materials is not written for that one, and an entry of a per-material list must be the
@@ -282,9 +288,36 @@ Mg combustion direct T-burn=1363 q-comb=9530000 d-stop=0 d-burnout=1e-07
   constant that no material's model reads.
 - A cap row is written for a material that asks for a cap: `xi-law = Gallier21`, or a cap constant that is not
   the "not given" value. Its line then carries `cap=<law>`.
-- A material with `combustion = none`, and a combustion product (the material `product` names: 0 groups, never
-  injected), get no row. When the `combustion` key is absent, the constants given are written under the model `-`:
-  the solver's own section then names the model.
+- A material with `combustion = none` gets no `combustion` or `cap` row, one with `breakup = NoBreakup` no `breakup`
+  row, and a combustion product (the material `product` names: 0 groups, never injected) no row and no
+  `combustion=` or `breakup=` word. When the `combustion` or `breakup` key is absent, the constants given are written
+  under the model `-`: the solver's own section then names the model.
+- The breakup constants are optional: one absent from the row takes IGLOO's default (in the
+  [GPB key reference](input-reference.md)); `WeCrit` is the critical Weber number as written, which IGLOO doubles.
+  Breakup is IGLOO's: ICE, which has no breakup model, ignores the `breakup=` word of a material line and a
+  `breakup` row with one warning each, so give the breakup keys to a phase IGLOO solves (`modeling = lagrangian`).
+  GPB does not check that, as it does not for `cap` (which ICE refuses).
+
+```ini
+[GPB-Phase1]
+type     = condensed-dispersed
+modeling = lagrangian
+name     = part
+material = A B C
+rho      = 1000 1000 1000
+cp       = 4182 4182 4182
+breakup  = TAB ETAB NoBreakup
+Comega   = 10
+WeTrans  = 0 60 0
+method   = 1 0 0
+```
+
+writes the material lines `A 1 breakup=TAB`, `B 1 breakup=ETAB`, `C 1 breakup=NoBreakup` and the rows
+
+```
+A breakup TAB Comega=10 method=1
+B breakup ETAB WeTrans=60 Comega=10
+```
 - `d-burnout` is the one removal size ICE and IGLOO share; without it each keeps its own floor (a drop mass of
   1e-20 kg). To compare a material in the two solvers give it, at about 0.1 of the injected diameter.
 - `combustion = direct` reads its latent heat in the `Lv` column of the properties table, at `T-burn`: give the
