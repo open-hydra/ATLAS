@@ -104,6 +104,12 @@ blocks = 1 4
 
 Output ID: `201`.
 
+Cell (m, n) of one face takes cell (m, n) of the other face, with the orientation `1 0 0 1`: the two faces must have
+the same cells, and one must be the image of the other by a rotation and/or a translation, node on node, in the same
+index order. BCB fits that motion, prints it (`Periodic faces: block … face … <- block … face …: rotation … deg about
+(…), t = (…) m, misfit … half cell`) and stops when a node lands farther than 10⁻³ of the half cell from the image of
+its partner: nodes distributed differently on the two faces, cells in another order, or faces that do not match.
+
 !!! warning "`faces` is silently required"
     If `faces` is missing, the section is skipped and **no periodic connection is
     built** — with no error and no diagnostic. The faces keep whatever BC they

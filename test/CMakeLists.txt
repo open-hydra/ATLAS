@@ -3571,6 +3571,23 @@ set_tests_properties(IG-periodic PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-periodic-rotated -------------
+# One 60-degree sector of a helical annulus about x (make-mesh.py): the two periodic faces are helicoids turned by the
+# sector angle, with cells 3 times longer along the axis than along the radius. Each cell takes the cell of the other
+# face with the same face indices and the identity orientation 1 0 0 1; the products of the bases of the two turned
+# faces would round to steps of -3 to 3 along the face. In not-images/ (make-mesh.py --not-images) the radial nodes of
+# face 2 are graded differently: the faces are not images by a rigid motion, and BCB stops without writing bc.txt.
+add_test(
+    NAME    IG-periodic-rotated
+    COMMAND bash -c "rm -rf fromATLAStoSolver not-images/fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && diff fromATLAStoSolver/bc.txt reference/bc.txt && grep -q -F 'Periodic faces: block 1 face 1 <- block 1 face 2: rotation   60.000000 deg' bcb.log && cd not-images && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB > bcb.log 2>&1 && grep -q -F '[ERROR] periodic faces: block 1 face 1 and block 1 face 2 are not images by a rigid motion' bcb.log && test ! -e fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-periodic-rotated"
+)
+set_tests_properties(IG-periodic-rotated PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : tutorial-reservoir-inlets (tutorial Inlets From Reservoir Conditions: the three inlets of one reservoir,
 # ----       401, 405 and 420, on the mesh and table of IG-nozzle-arearatio) -------------
 add_test(
