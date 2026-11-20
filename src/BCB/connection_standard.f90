@@ -84,6 +84,9 @@ contains
       enddo
     enddo
 
+    ! The cells are paired by their face indices: right only when the two faces are images of each other
+    call check_periodic_images(blk)
+
     ! parte sperimentale per la determinazione degli indici delle
     ! celle adiacenti a quella a cui e'connessa
     ! questa parte e' necessaria nel caso di flag VISC attivo
@@ -241,6 +244,13 @@ contains
             blk(b1)%face(f1)%center(m1,n1)%bc%connection(3) = NINT(dumji)
             blk(b1)%face(f1)%center(m1,n1)%bc%connection(4) = NINT(dumjj)
 
+            ! The cells of the two faces are paired with the same indices on the face (m2 = m1, n2 = n1, above): the
+            ! orientation is the identity, as AFUS sets it for its periodic BC (type 6, find_connect.F). The products of
+            ! the two bases are not: the faces of a sector are turned by its angle, and with cells longer along one
+            ! direction of the face than along the other a few degrees round the cross products to nonzero steps (up to
+            ! 6 on the side faces of the 66 channels of a cooling jacket, 5.45 deg apart)
+            blk(b1)%face(f1)%center(m1,n1)%bc%connection(1:4) = [1, 0, 0, 1]
+
           endif
         enddo
       enddo
@@ -249,6 +259,228 @@ contains
     enddo
 
   end subroutine find_periodic
+
+
+  !> Geometric check of the periodic pairs (201). find_periodic pairs cell (m, n) of a face with cell (m, n) of the
+  !> other face, which is right only when one face is the image of the other by a rigid motion x -> R x + t, with the
+  !> nodes in the same index order: the solvers take the cells of the other face as ghost cells moved by that motion
+  !> (FUSS fits it at set-up and makes the same check). For each periodic face (b1, f1) <- (b2, f2) the motion is fitted
+  !> to the corners of the paired cells (least squares, B. K. P. Horn, J. Opt. Soc. Am. A 4, 1987), printed, and BCB
+  !> stops when
+  !>  - the two faces do not have the same numbers of cells along them;
+  !>  - a corner lands farther than PERIODIC_MISFIT_MAX of the smallest half cell (across face f1) from the image of
+  !>    its partner: nodes that do not coincide (another distribution along the face, cells in another order) or faces
+  !>    that are not images of each other.
+  subroutine check_periodic_images(blk)
+    implicit none
+    type(BC_block), intent(in) :: blk(:)
+    real(8), parameter :: PERIODIC_MISFIT_MAX = 1d-3
+    integer  :: b1, f1, b2, f2, m1, n1, dm, dn, c, np, kf
+    logical  :: found, failed
+    real(8)  :: pc(3), qc(3), S(3,3), R(3,3), t(3), misfit, hmin, ang, w(3), ax(3)
+    real(8), allocatable :: p(:,:), q(:,:)
+
+    kf = 5                                   ! index of the partner face in ci_properties (b, i, j, k, f)
+    if (mesh_cfg%meshType == -2) kf = 4      ! 2-D records: b, i, j, f
+    failed = .false.
+
+    do b1 = 1, size(blk)
+      do f1 = 1, blk(b1)%nfaces
+
+        ! The periodic cells of the face and their partner face
+        np = 0
+        found = .false.
+        b2 = 0; f2 = 0
+        do n1 = 1, blk(b1)%face(f1)%Nn
+          do m1 = 1, blk(b1)%face(f1)%Nm
+            associate (bc => blk(b1)%face(f1)%center(m1,n1)%bc)
+              if (bc%gp_id == 201 .and. bc%adj_assigned) then
+                if (.not. found) then
+                  b2 = bc%ci_properties(1)
+                  f2 = bc%ci_properties(kf)
+                  found = .true.
+                endif
+                np = np + 1
+              endif
+            end associate
+          enddo
+        enddo
+        if (np == 0) cycle
+
+        if (blk(b2)%face(f2)%Nm /= blk(b1)%face(f1)%Nm .or. blk(b2)%face(f2)%Nn /= blk(b1)%face(f1)%Nn) then
+          write(*,'(*(g0))') '[ERROR] periodic faces: block ', b1, ' face ', f1, ' (', blk(b1)%face(f1)%Nm, ' x ', &
+            blk(b1)%face(f1)%Nn, ' cells) and block ', b2, ' face ', f2, ' (', blk(b2)%face(f2)%Nm, ' x ', &
+            blk(b2)%face(f2)%Nn, ' cells) do not have the same cells along them'
+          failed = .true.
+          cycle
+        endif
+
+        ! Corners of the paired cells: q on face f1, p the same corner on face f2
+        allocate(p(3,4*np), q(3,4*np))
+        c = 0
+        hmin = huge(1d0)
+        do n1 = 1, blk(b1)%face(f1)%Nn
+          do m1 = 1, blk(b1)%face(f1)%Nm
+            if (blk(b1)%face(f1)%center(m1,n1)%bc%gp_id /= 201 .or. &
+                .not. blk(b1)%face(f1)%center(m1,n1)%bc%adj_assigned) cycle
+            do dn = 0, 1
+              do dm = 0, 1
+                c = c + 1
+                q(:,c) = face_node(blk(b1), f1, m1-1+dm, n1-1+dn, 0)
+                p(:,c) = face_node(blk(b2), f2, m1-1+dm, n1-1+dn, 0)
+                hmin = min(hmin, 0.5d0*norm2(face_node(blk(b1), f1, m1-1+dm, n1-1+dn, 1) - q(:,c)))
+              enddo
+            enddo
+          enddo
+        enddo
+
+        ! Rigid motion q ~ R p + t and the largest distance of a corner from the image of its partner
+        pc = sum(p, dim=2) / c
+        qc = sum(q, dim=2) / c
+        S = matmul(p - spread(pc, 2, c), transpose(q - spread(qc, 2, c)))
+        call horn_rotation(S, R)
+        t = qc - matmul(R, pc)
+        misfit = maxval(norm2(matmul(R, p) + spread(t, 2, c) - q, dim=1))
+
+        ang = acos(max(-1d0, min(1d0, 0.5d0*(R(1,1) + R(2,2) + R(3,3) - 1d0)))) * 180d0 / acos(-1d0)
+        w = [R(3,2) - R(2,3), R(1,3) - R(3,1), R(2,1) - R(1,2)]
+        ax = 0d0
+        if (norm2(w) > 0d0) ax = w / norm2(w)
+        write(*,'(A,I0,A,I0,A,I0,A,I0,A,F11.6,A,3F9.5,A,3ES11.3,A,ES9.2,A)') '  Periodic faces: block ', b1, &
+          ' face ', f1, ' <- block ', b2, ' face ', f2, ': rotation ', ang, ' deg about (', ax, '), t = (', t, &
+          ') m, misfit ', misfit / hmin, ' half cell'
+
+        if (misfit > PERIODIC_MISFIT_MAX * hmin) then
+          write(*,'(A,I0,A,I0,A,I0,A,I0,A,ES10.3,A,ES10.3,A)') '[ERROR] periodic faces: block ', b1, ' face ', f1, &
+            ' and block ', b2, ' face ', f2, ' are not images by a rigid motion (misfit ', misfit, ' m, half cell ', &
+            hmin, ' m)'
+          write(*,'(A)') '        the nodes of the two faces must coincide, one face turned or moved onto the other, '// &
+            'with the cells in the same index order'
+          failed = .true.
+        endif
+        deallocate(p, q)
+
+      enddo
+    enddo
+
+    if (failed) stop 1
+
+  end subroutine check_periodic_images
+
+
+  !> Node (mm, nn) (0 to Nm, 0 to Nn) of face f of a block, or with `inward` = 1 the node one layer inside the block.
+  function face_node(b, f, mm, nn, inward) result(x)
+    implicit none
+    type(BC_block), intent(in) :: b
+    integer,        intent(in) :: f, mm, nn, inward
+    real(8) :: x(3)
+    integer :: i, j, k, nd
+
+    call fmn2ijk(f, mm, nn, b%dim(1), b%dim(2), b%dim(3), i, j, k)
+    select case (f)            ! the plane of nodes of the face: 0 on the faces 1, 3, 5, dim on 2, 4, 6
+      case (1); i = inward
+      case (2); i = b%dim(1) - inward
+      case (3); j = inward
+      case (4); j = b%dim(2) - inward
+      case (5); k = inward
+      case (6); k = b%dim(3) - inward
+    end select
+    x = 0d0
+    nd = min(3, size(b%node(i,j,k)%c))
+    x(1:nd) = b%node(i,j,k)%c(1:nd)
+
+  end function face_node
+
+
+  !> Rotation R that best takes the set p onto the set q (q - qc ~ R (p - pc)), from their cross-covariance
+  !> S(a,c) = sum (p_a - pc_a)(q_c - qc_c) (Horn 1987): the unit quaternion of the largest eigenvalue of the symmetric
+  !> matrix N(S).
+  subroutine horn_rotation(S, R)
+    implicit none
+    real(8), intent(in)  :: S(3,3)
+    real(8), intent(out) :: R(3,3)
+    real(8) :: N(4,4), V(4,4), lam(4), e(4)
+    integer :: m(1)
+
+    N(1,1) = S(1,1) + S(2,2) + S(3,3)
+    N(1,2) = S(2,3) - S(3,2) ; N(1,3) = S(3,1) - S(1,3) ; N(1,4) = S(1,2) - S(2,1)
+    N(2,2) = S(1,1) - S(2,2) - S(3,3)
+    N(2,3) = S(1,2) + S(2,1) ; N(2,4) = S(3,1) + S(1,3)
+    N(3,3) = - S(1,1) + S(2,2) - S(3,3)
+    N(3,4) = S(2,3) + S(3,2)
+    N(4,4) = - S(1,1) - S(2,2) + S(3,3)
+    N(2,1) = N(1,2) ; N(3,1) = N(1,3) ; N(4,1) = N(1,4) ; N(3,2) = N(2,3) ; N(4,2) = N(2,4) ; N(4,3) = N(3,4)
+
+    call jacobi_eigen4(N, lam, V)
+    m = maxloc(lam)
+    e = V(:,m(1)) / norm2(V(:,m(1)))     ! (w, x, y, z)
+    R(1,1) = e(1)**2 + e(2)**2 - e(3)**2 - e(4)**2
+    R(1,2) = 2d0 * (e(2)*e(3) - e(1)*e(4))
+    R(1,3) = 2d0 * (e(2)*e(4) + e(1)*e(3))
+    R(2,1) = 2d0 * (e(2)*e(3) + e(1)*e(4))
+    R(2,2) = e(1)**2 - e(2)**2 + e(3)**2 - e(4)**2
+    R(2,3) = 2d0 * (e(3)*e(4) - e(1)*e(2))
+    R(3,1) = 2d0 * (e(2)*e(4) - e(1)*e(3))
+    R(3,2) = 2d0 * (e(3)*e(4) + e(1)*e(2))
+    R(3,3) = e(1)**2 - e(2)**2 - e(3)**2 + e(4)**2
+
+  end subroutine horn_rotation
+
+
+  !> Eigenvalues lam and eigenvectors (columns of V) of a symmetric 4x4 matrix A0: cyclic Jacobi rotations until the
+  !> off-diagonal part is below 1e-15 of the norm of A0 (W. H. Press et al., Numerical Recipes, sec. 11.1).
+  subroutine jacobi_eigen4(A0, lam, V)
+    implicit none
+    real(8), intent(in)  :: A0(4,4)
+    real(8), intent(out) :: lam(4), V(4,4)
+    real(8) :: A(4,4), off, nrm, theta, tt, cc, ss, apq, app, aqq, akp, akq
+    integer :: sweep, ip, iq, k
+
+    A = A0
+    V = 0d0
+    do k = 1, 4
+      V(k,k) = 1d0
+    enddo
+    nrm = sqrt(sum(A**2))
+    do sweep = 1, 100
+      off = 0d0
+      do ip = 1, 3
+        do iq = ip + 1, 4
+          off = off + A(ip,iq)**2
+        enddo
+      enddo
+      if (sqrt(off) <= 1d-15 * nrm .or. nrm == 0d0) exit
+      do ip = 1, 3
+        do iq = ip + 1, 4
+          apq = A(ip,iq)
+          if (apq == 0d0) cycle
+          app = A(ip,ip) ; aqq = A(iq,iq)
+          theta = (aqq - app) / (2d0 * apq)
+          tt = sign(1d0, theta) / (abs(theta) + sqrt(theta**2 + 1d0))
+          cc = 1d0 / sqrt(tt**2 + 1d0)
+          ss = tt * cc
+          do k = 1, 4
+            if (k == ip .or. k == iq) cycle
+            akp = A(k,ip) ; akq = A(k,iq)
+            A(k,ip) = cc * akp - ss * akq ; A(ip,k) = A(k,ip)
+            A(k,iq) = ss * akp + cc * akq ; A(iq,k) = A(k,iq)
+          enddo
+          A(ip,ip) = app - tt * apq
+          A(iq,iq) = aqq + tt * apq
+          A(ip,iq) = 0d0 ; A(iq,ip) = 0d0
+          do k = 1, 4
+            akp = V(k,ip) ; akq = V(k,iq)
+            V(k,ip) = cc * akp - ss * akq
+            V(k,iq) = ss * akp + cc * akq
+          enddo
+        enddo
+      enddo
+    enddo
+    do k = 1, 4
+      lam(k) = A(k,k)
+    enddo
+
+  end subroutine jacobi_eigen4
 
 
 
@@ -581,7 +813,9 @@ contains
       do n1 = 1, blk(b1)%face(f1)%Nn
         do m1 = 1, blk(b1)%face(f1)%Nm
 
-          if (blk(b1)%face(f1)%center(m1,n1)%bc%adj_assigned) then
+          ! The periodic faces (201) keep the orientation of find_periodic, the identity of their index map
+          if (blk(b1)%face(f1)%center(m1,n1)%bc%adj_assigned .and. &
+              blk(b1)%face(f1)%center(m1,n1)%bc%gp_id /= 201) then
 
             if1 = f1; ib1 = b1
             call fmn2ijk(f1,m1,n1,nx(b1),ny(b1),nz(b1),i1,j1,k1)
@@ -702,6 +936,13 @@ contains
             j = i + (n1-1)*blk(b1)%face(f1)%Nm + m1
             if ((def(j)==101 .or. def(j)==103) .and. adj(j)) &
               blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1) = blk(prop(j,1))%id
+            ! Periodic faces (201, find_periodic): the partner block is the number of the mesh (the blocks key of the
+            ! section), which the loop above has used as an index; the BC file of the phase numbers its own blocks
+            ! (blk%id), as for the connections. With the blocks of more than one phase in the mesh the two differ
+            if (def(j)==201 .and. adj(j)) then
+              blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1) = &
+                blk(blk(b1)%face(f1)%center(m1,n1)%bc%ci_properties(1))%id
+            endif
           enddo
         enddo
         !$omp end parallel

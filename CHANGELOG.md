@@ -88,6 +88,8 @@ All notable changes to ATLAS are listed here. The format follows
 - BCB, ICB and MDB guides: units, inflow angles, zones, tables and file names now match the code.
 - GPB, `transport = CEA` below the lowest bound of a record (200–1000 K): viscosity and conductivity were held at
   the bound, and now follow the record's slope there. Rows at or above the bounds are unchanged.
+- BCB, `periodic`: faces turned by the sector angle got orientation steps other than 1 0 0 1, and the partner block
+  of another phase its mesh number; BCB now stops when the two faces are not images by a rigid motion.
 
 ### Removed
 
