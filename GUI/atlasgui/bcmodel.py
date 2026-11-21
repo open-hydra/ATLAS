@@ -43,7 +43,7 @@ TYPED_BCS = OrderedDict([
                   "file-direction", "center", "axis", "n-repeat",
                   "strip-j-face", "yN2", "yO2", "yH2", "yCH4", "yH2O", "yCO2"]),
     ("outlet",   ["p", "rf", "pRef"]),
-    ("manifold", ["p0", "T0", "p", "T", "block"]),
+    ("manifold", ["outlet", "inlet", "K", "rf", "mdot-ratio", "p0-ratio", "dh0"]),
     ("gsi",      ["surface-reactions", "pyrolysis-model", "pyrolysis-gas", "phi", "hv0", "qrad", "eps",
                   "cp", "T", "Ti", "dh", "eq-CEA-section", "eq-OG",
                   "yN2", "yO2", "yH2", "yH2O", "yCO2",

@@ -113,10 +113,11 @@ module io_write_bc_mod
 
             select case (print_id)
             ! 300-series -> wall | 500-series -> Special boundary conditions (manifold, GSI)
-            ! BC 501 (manifold): the payload is the source block and face, two integers that the
-            ! solvers read as integers (they were written as E16.6 reals until 2026-09)
+            ! BC 501 (manifold): the group id and the role of the face (1 outlet, 2 inlet), two integers that the
+            ! solvers read as integers, then K, rf, mdot-ratio, p0-ratio, dh0 of the group (builder_500)
             case(501)
-              write(unitfile,'(2(I8,A1))') nint(this % ig_properties(1)), ',', nint(this % ig_properties(2)), ','
+              write(unitfile,'(2(I8,A1),5(ES24.16,A1))') nint(this % ig_properties(1)), ',', &
+                nint(this % ig_properties(2)), ',', (this % ig_properties(i), ',', i = 3, 7)
             case(301:309, 502:506)
               ! BC 504/505/506: MOSE reads the leading ids (504 pyrolysis model, 505 surface reactions, 506 pyrolysis-gas
               ! table and surface reactions) list-directed

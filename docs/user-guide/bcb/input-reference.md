@@ -37,8 +37,12 @@ Units: every value is SI (Pa, K, J/kg, kg m^-2 s^-1 for `g`, m/s, rad), with two
 | range<n> | 0.0 |  |  no | Sub-patch limits associated with patch<n>. |
 | blocks | 0 |  |  no | Periodic source and destination block indices. |
 | faces | 0 |  |  no | Periodic source and destination face indices. |
-| block | 0 |  |  no | Connected block index for manifold. |
-| face | 0 |  |  no | Connected face index for manifold. |
+| outlet |  |  |  no | Manifold: the faces where the gas leaves the domain into it, as block:face pairs (deck block numbers; e.g. 1:2, 3:2). Required. |
+| inlet |  |  |  no | Manifold: the faces where the gas comes back in, as block:face pairs. Required. |
+| K | 0.0 | >=0 |  no | Manifold: loss coefficient on the dynamic head of the outlet faces (p0_in = p0-ratio (p0_out - K q_out)). |
+| mdot-ratio | 1.0 |  |  no | Manifold: mass flow of the inlet faces over that of the outlet faces (one element out of N, a bleed). |
+| p0-ratio | 1.0 |  |  no | Manifold: total pressure of the inlet faces over that of the outlet faces (a turbine between them). |
+| dh0 | 0.0 |  |  no | Manifold: total enthalpy taken out between the outlet and the inlet faces [J/kg] (the specific work of a turbine). |
 | file-direction |  |  |  no | Coordinate or index directions used by varying BC files. |
 | range-file |  |  |  no | File of the injector plate patches (with inner-patch and outer-patch). |
 | inner-patch |  |  |  no | Section applied inside the range-file patches. |

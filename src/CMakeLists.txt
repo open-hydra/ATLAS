@@ -32,11 +32,13 @@ target_include_directories(ICB PRIVATE
 file(GLOB BCB_SOURCES "BCB/*.f90")
 list(REMOVE_ITEM BCB_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/BCB/bc_names.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/BCB/manifold_groups.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/BCB/config.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/BCB/types_bc.f90"
 )
 list(PREPEND BCB_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/BCB/bc_names.f90"
+  "${CMAKE_CURRENT_SOURCE_DIR}/BCB/manifold_groups.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/BCB/config.f90"
   "${CMAKE_CURRENT_SOURCE_DIR}/BCB/types_bc.f90"
 )

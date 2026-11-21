@@ -1,0 +1,8 @@
+s/^face1 = inflow$/face1 = turn/|[ERROR] [turn] (manifold): face 1 of block 2 names the section but is in neither its outlet nor its inlet list
+s/^inlet      = 3:1$/inlet      = 3:1, 2:1/|[ERROR] [turn] (manifold): lists face 1 of block 2, which does not name the section: give face1 = turn in [BCB-Block2]
+s/^inlet      = 3:1$/inlet      = 3:1, 1:2/|[ERROR] [turn] (manifold): face 2 of block 1 is in both the outlet and the inlet list: a face has one role
+/^inlet      = 3:1$/d|[ERROR] [turn] (manifold): inlet is required: the faces where the gas comes back in, as block:face pairs (inlet = 4:2)
+s/^outlet     = 1:2$/outlet     = 1-2/|[ERROR] [turn] (manifold): outlet has the pair "1-2", which is not block:face (two integers)
+s/^inlet      = 3:1$/inlet      = 3:7/|[ERROR] [turn] (manifold): inlet has the pair "3:7": the face is 1 to 6
+s/^K          = 0.5$/K          = -1.0/|[ERROR] key K of section [turn]: value -1.0 outside the allowed range >=0
+s/^rf         = 0.8$/rf         = 1.5/|[ERROR] [turn] (manifold): rf must be in (0, 1]

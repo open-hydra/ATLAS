@@ -53,7 +53,7 @@ _GAS = {
     410: ("inlet, state from a file", ["time-file", "periodic"]),
     420: ("inlet, injector nozzle", ["T0", "p0", "psub", "psup", "g", "rf", "massf"]),
     421: ("inlet, Borda injector", ["T0", "p0", "A1/A3", "rf", "massf"]),
-    501: ("manifold", ["block", "face"]),
+    501: ("manifold", ["gid", "role", "K", "rf", "mdot-ratio", "p0-ratio", "dh0"]),
     502: ("solid propellant", ["Taf", "a", "n", "pRef", "rhoGrain", "SF", "massf"]),
     503: ("melting surface", ["cp", "Tm", "Ti", "dh", "qrad", "eps", "massf"]),
     504: ("pyrolysis", ["pyro", "qrad", "eps", "massf"]),

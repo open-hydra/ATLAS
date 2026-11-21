@@ -85,6 +85,7 @@ program BCB
 
     ! BC computation
     call build_BC(phase,sourceini,blk)
+    call check_manifold_groups(blk)
 
     ! Multiblock operations. Faces declared 'connection' are always resolved by
     ! face-center matching; chimera only claims the faces declared 'chimera'.

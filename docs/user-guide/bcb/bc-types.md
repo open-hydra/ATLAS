@@ -18,7 +18,7 @@ This page covers the full BC roster with reference tables and INI syntax for eve
 | `wall` | yes | Wall model depends on phase and provided keys. |
 | `inlet` | yes | Inlet model is selected from provided keys. |
 | `outlet` | no | Can be used directly by naming section `outlet`, or via `type = outlet`. |
-| `manifold` | yes | Special manifold BC. |
+| `manifold` | yes | A lumped plenum joining outlet faces to inlet faces (BC 501). |
 | `gsi` | yes | Gas-surface interaction boundary. Covers solid-propellant burning, melting, pyrolysis and surface reactions; the variant is selected from the provided keys. |
 
 
@@ -736,24 +736,56 @@ Output ID: `406` for a fluid phase, `400` for a dispersed phase.
 
 ### `manifold`
 
-Draws its conditions from another block face rather than from prescribed values,
-so one boundary can mirror the state of another.
+A lumped plenum that joins faces of the domain: the gas that leaves through the section's **outlet** faces comes
+back in through its **inlet** faces. The solver carries across the mass flow, the total enthalpy and the
+mass-flow-weighted mean of every transported scalar (species, turbulence), spread uniformly over the inlet faces,
+and sets the outlet faces at the static pressure that makes the total pressure equal on the two sides (a perfectly
+mixed, loss-free plenum, as the 1-D network models assume). The turn-around between the two channels of a
+counter-flow element, where the mesh has no volume for the turn, is the first use.
 
-| Key | Required | Meaning |
-|---|---|---|
-| `block` | yes | Source block index |
-| `face` | yes | Source face index |
+One section per manifold, named by **every** face it joins; the two lists give each face its role, which no sign of
+the flow ever changes (a cell of an outlet face where the gas happens to move inward is a slip wall for that stage,
+as on an [outlet](#outlet)). Any number of faces on either side: two outlets into one inlet sum their flows; several
+inlets share the flow by area.
+
+| Key | Required | Default | Meaning |
+|---|---|---|---|
+| `outlet` | yes | | The faces where the gas leaves the domain, as `block:face` pairs (the deck's block numbers, faces 1–6), apart by commas or blanks |
+| `inlet` | yes | | The faces where it comes back in, the same form |
+| `K` | no | 0 | Loss coefficient on the dynamic head of the outlet faces, $\Delta p_0 = K\,q_\text{out}$ with $q = \tfrac12 \rho u^2$ (mass-weighted) |
+| `rf` | no | 1 | Relaxation factor of the faces, with the meaning MOSE gives it on `403`–`408` and `406`: the face takes `rf` × (the manifold's value) + (1 − `rf`) × (its own cell's value); the converged state does not depend on it |
+| `mdot-ratio` | no | 1 | Mass flow of the inlet faces over that of the outlet faces (one element simulated out of N, a bleed) |
+| `p0-ratio` | no | 1 | Total pressure of the inlet faces over that of the outlet faces (a turbine between them) |
+| `dh0` | no | 0 | Total enthalpy taken out between the outlet and the inlet faces, J/kg (the specific work of a turbine) |
+
+With $\dot m$, $h_0$, $p_0$ the mass-flow-weighted means over the faces of each side, the link imposes
+$\dot m_\text{in} = \texttt{mdot-ratio}\;\dot m_\text{out}$,
+$p_{0,\text{in}} = \texttt{p0-ratio}\,(p_{0,\text{out}} - K\,q_\text{out})$ and
+$h_{0,\text{in}} = h_{0,\text{out}} - \texttt{dh0}$. At the defaults mass and energy cross the manifold exactly.
+`K` is a capital: `k` is the turbulent kinetic energy of an inlet.
 
 ```ini
-[manifold_link]
-type  = manifold
-block = 3
-face  = 2
+[BCB-Block1]
+face2 = turn          ; the central channel's end
+[BCB-Block4]
+face2 = turn          ; the annulus' end
+
+[turn]
+type   = manifold
+outlet = 1:2
+inlet  = 4:2
 ```
 
-Output ID: `501`; the payload is the source `block, face` pair, written as two integers.
+Output ID: `501`; the payload is the group id and the role of the face (`1` outlet, `2` inlet), two integers, then
+`K`, `rf`, `mdot-ratio`, `p0-ratio`, `dh0`, the same on every record of the group. The groups are numbered in the
+order the faces are built (block by block, face by face). The solvers group the records by id and sum over the faces
+of a group wherever they lie, so [MDB](../mdb/index.md) copies the record through any split: a manifold face may be
+cut, and the two sides may sit on different ranks.
 
-MOSE does not apply type `501`: it stops at set-up on a `bc.txt` with a record of this type.
+BCB refuses, naming the section: a face that names the section but is in neither list; a listed face that does not
+name the section (or a block or face the grid does not have); a face in both lists; a missing or empty list; a pair
+that is not `block:face`; a face outside 1–6; `K` < 0; `rf` outside (0, 1]; a ratio not above 0. Which solver
+applies `501`, and how, is in that solver's guide; a MOSE older than its manifold stops at set-up on the record.
 
 A dispersed phase does not follow the manifold: its `<phase>-bc.txt` carries `300` (symmetry, no payload) on
 the face, where the fluid's file keeps `501`. An inlet key of the dispersed phase in the section is refused as on

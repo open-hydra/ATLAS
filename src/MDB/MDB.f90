@@ -251,9 +251,8 @@ contains
     call load_block_directions(sourceini, nb, cfg%directions, allow)
 
     ! ── Fine-level boundary conditions ───────────────────────────────────────
-    ! Read once before anything is cut: a manifold (BC 501) ties two whole
-    ! faces together and MOSE refuses the pair on two ranks, so the
-    ! decomposition is checked against those records before it is written.
+    ! Read once before anything is cut: the cost objective prices the faces of
+    ! a candidate piece by the type of their cells.
     call bc_scan_fine(bc_name(trim(cfg%phase(ip)%bc_in), 1, trim(cfg%phase(ip)%prefix)), nb, pdim, &
                       cfg%phase(ip)%dispersed, scan(ip), err)
     if (err /= 0) stop 1
@@ -287,9 +286,6 @@ contains
     own(ip)%r = owner
     call report_decomposition(dec(ip), cfg%phase(ip)%ranks, owner, orig_cells, trim(cfg%objective), &
                               cfg%halo_weight, scan(ip), cfg%cost)
-
-    call check_manifold_pairs(scan(ip), dec(ip), owner, err)
-    if (err /= 0) stop 1
 
     call dec_write_map(dec(ip), trim(cfg%phase(ip)%map_file), owner)
     call append_face_map(trim(cfg%phase(ip)%map_file), dec(ip))

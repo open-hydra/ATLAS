@@ -1287,7 +1287,7 @@ set_tests_properties(DP-axis-refused PROPERTIES
 )
 
 # ---- BCB : DP-gsi-manifold (a dispersed phase on the faces of the 500 family) ----------
-# IG-ablation's mesh with a gas phase and a dispersed phase (drop): face 1 a manifold drawing on face 2, faces 3
+# IG-ablation's mesh with a gas phase and a dispersed phase (drop): faces 1 and 2 the inlet and the outlet of one manifold, faces 3
 # and 4 one patch per gsi variant (502 with and without drop's inlet keys, 503, 504, 505, 506 the pyrolysing
 # ablator on the table MX4926 of gas-pyrolysis.dat). drop-bc.txt
 # carries 300 on the manifold and on every gsi patch but the grain that gives drop's keys, which injects drop as an
@@ -1315,12 +1315,45 @@ set_tests_properties(DP-gsi-manifold PROPERTIES
 # instead, refused alike.
 add_test(
     NAME    DP-gsi-keys-refused
-    COMMAND bash -c "rm -rf fromATLAStoSolver _run-lenient _run-manifold && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && mkdir _run-lenient && cp input.ini mesh.tec gas-phase.txt drop-phase.txt gas-pyrolysis.dat _run-lenient/ && cd _run-lenient && sed -i 's/^strict-keys = .*/strict-keys = false/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null) && test $(grep -c -F '[WARNING] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\") -eq 1 && diff fromATLAStoSolver/drop-bc.txt ../../DP-gsi-manifold/reference/drop-bc.txt && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../DP-gsi-manifold/reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-manifold && cp input.ini mesh.tec gas-phase.txt drop-phase.txt gas-pyrolysis.dat _run-manifold/ && cd _run-manifold && sed -i -e '/^drop-krho         = 0.2$/d' -e 's/^face  = 2$/face  = 2\\ndrop-krho = 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [man]: not honoured by BC 501 (manifold)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt"
+    COMMAND bash -c "rm -rf fromATLAStoSolver _run-lenient _run-manifold && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt && mkdir _run-lenient && cp input.ini mesh.tec gas-phase.txt drop-phase.txt gas-pyrolysis.dat _run-lenient/ && cd _run-lenient && sed -i 's/^strict-keys = .*/strict-keys = false/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null) && test $(grep -c -F '[WARNING] key drop-krho of section [abl]: not honoured by BC 505 (gsi)' <<< \"$out\") -eq 1 && diff fromATLAStoSolver/drop-bc.txt ../../DP-gsi-manifold/reference/drop-bc.txt && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk ../../DP-gsi-manifold/reference/gas-bc.txt fromATLAStoSolver/gas-bc.txt && cd .. && mkdir _run-manifold && cp input.ini mesh.tec gas-phase.txt drop-phase.txt gas-pyrolysis.dat _run-manifold/ && cd _run-manifold && sed -i -e '/^drop-krho         = 0.2$/d' -e 's/^inlet  = 1:1$/inlet  = 1:1\\ndrop-krho = 0.2/' input.ini && out=$(${CMAKE_SOURCE_DIR}/ATLAS.sh BCB 2>&1 < /dev/null); rc=$?; echo \"$out\" | tail -n 1; test $rc -eq 1 && grep -q -F '[ERROR] key drop-krho of section [man]: not honoured by BC 501 (manifold)' <<< \"$out\" && test ! -e fromATLAStoSolver/drop-bc.txt"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/DP-gsi-keys-refused"
 )
 set_tests_properties(DP-gsi-keys-refused PROPERTIES
     LABELS      "BCB;regression"
     TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : manifold-groups (two manifolds, five faces: the 501 group records) ----------
+# The three-block mesh of MDB/manifold-split. [turn] joins face 2 of block 1 (outlet) to face 1 of block 3 (inlet)
+# with K, rf, mdot-ratio, p0-ratio and dh0 given; [merge] joins two outlets (face 2 of blocks 2 and 3) to one inlet
+# (face 1 of block 1) at the defaults. Every record of a group carries the group id, the role of its face (1 outlet,
+# 2 inlet) and the five parameters: check_manifold.py pins them per face independently of the reference;
+# reference/bc.txt is the whole file (numdiff 1e-12).
+add_test(
+    NAME    manifold-groups
+    COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/bc.txt && python3 -B check_manifold.py fromATLAStoSolver/bc.txt && awk -v tol=1e-12 -f ${CMAKE_SOURCE_DIR}/test/numdiff.awk reference/bc.txt fromATLAStoSolver/bc.txt"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/manifold-groups"
+)
+set_tests_properties(manifold-groups PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     300
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
+# ---- BCB : manifold-refused (the bad forms of a manifold section) ----------
+# manifold-groups' deck edited into one bad form at a time (variants.txt): a face naming a section that lists it in
+# neither role, a listed face that does not name the section, a face in both lists, a missing list, a pair that is
+# not block:face, a face outside 1-6, K < 0, rf outside (0, 1]. Each stops BCB with exit 1 and the message of
+# variants.txt, and writes nothing.
+add_test(
+    NAME    manifold-refused
+    COMMAND bash run.sh ${CMAKE_SOURCE_DIR}
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/manifold-refused"
+)
+set_tests_properties(manifold-refused PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     600
     ENVIRONMENT "${_TEST_ENV}"
 )
 
@@ -1923,52 +1956,22 @@ set_tests_properties(grid-p3d-3D PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- MDB : manifold-remap (a BC 501 payload survives the split) -------------
-# A manifold names a whole block face, not a cell (MOSE's BC_Manifold averages
-# the entire source face and scales the mass flux by the entire target face),
-# and MOSE aborts when the two blocks of a pair sit on different ranks.
-# check-manifold.py holds the split file against the original one and the map:
-# the payload renumbered to the piece that inherited the source face entire,
-# both faces whole, both pieces on one rank. Copying the payload raw, as MDB did
-# until 2026-09, leaves it pointing at a block whose face is now a cut.
+# ---- MDB : manifold-split (a BC 501 record through the split) ----------------
+# Block 1 restricted to j cuts (halo-weight 0 so that the cut is kept), so that
+# its face 2 -- the outlet of the manifold -- is shared by two new blocks, which
+# the LPT puts on two ranks. The 501 payload names no block or cell (the group
+# id, the role of the face and the group's parameters; the solvers sum over the
+# faces of a group wherever they lie), so MDB copies it as it is:
+# check-manifold.py holds the split file against the original one and the map,
+# every record verbatim from its parent cell and the same count. Until 2026-11
+# MDB refused the cut and the two ranks (manifold-remap, manifold-face-cut,
+# manifold-split-ranks), for the MOSE of 2025 that averaged one whole face.
 add_test(
-    NAME    manifold-remap
+    NAME    manifold-split
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-manifold.py fromATLAStoSolver/bc.txt fromATLAStoSolver/INPUT-split/bc.txt fromATLAStoSolver/decomposition.map && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-remap"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-split"
 )
-set_tests_properties(manifold-remap PROPERTIES
-    LABELS      "MDB;regression"
-    TIMEOUT     300
-    ENVIRONMENT "${_TEST_ENV}"
-)
-
-# ---- MDB : manifold-split-ranks (a BC 501 pair LPT puts on two ranks) --------
-# The same mesh on 3 ranks: the solver's own LPT separates the two blocks of the
-# manifold, which MOSE refuses at start-up (abort_if_split). MDB has to say so
-# with the decomposition in front of the user instead of writing the files.
-# `!` inverts the status and the grep pins the reason (WILL_FAIL would accept
-# any crash).
-add_test(
-    NAME    manifold-split-ranks
-    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'MOSE aborts at start-up when the two blocks of a manifold' mdb.log && test ! -e fromATLAStoSolver/INPUT-split/bc.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-split-ranks"
-)
-set_tests_properties(manifold-split-ranks PROPERTIES
-    LABELS      "MDB;regression"
-    TIMEOUT     300
-    ENVIRONMENT "${_TEST_ENV}"
-)
-
-# ---- MDB : manifold-face-cut (a BC 501 source face cut tangentially) ---------
-# The same mesh with block 1 restricted to j cuts, so its face 2 -- the source
-# of the manifold -- is shared by two new blocks. A 501 payload cannot name half
-# a face: MDB refuses and names the direction that keeps it whole.
-add_test(
-    NAME    manifold-face-cut
-    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB 2>&1 | tee mdb.log && grep -q 'draws from block 1 face 2, which is cut across new blocks' mdb.log && grep -q 'split-directions = i' mdb.log && test ! -e fromATLAStoSolver/INPUT-split/bc.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/MDB/manifold-face-cut"
-)
-set_tests_properties(manifold-face-cut PROPERTIES
+set_tests_properties(manifold-split PROPERTIES
     LABELS      "MDB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
