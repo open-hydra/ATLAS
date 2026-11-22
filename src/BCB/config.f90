@@ -501,12 +501,9 @@ contains
 
   end subroutine load_bcb_face_runtime_config
 
-  !> A manifold section (BC 501): the faces it joins, by role, and the parameters of the group. `outlet = b:f, ...`
-  !> lists the faces where the gas leaves the domain into the manifold, `inlet = b:f, ...` those where it comes
-  !> back (the deck's block numbers, faces 1-6, the pairs apart by commas or blanks); both lists are required. K is
-  !> the loss on the dynamic head of the outlet faces (default 0), rf the relaxation factor of the faces (default
-  !> 1), mdot-ratio, p0-ratio and dh0 the mass flow, total pressure and total enthalpy of the inlet faces against
-  !> those of the outlet faces (defaults 1, 1, 0 J/kg: a loss-free plenum). Refused, naming the section and the key:
+  !> A manifold section (BC 501): the faces it joins by role, `outlet = b:f, ...` and `inlet = b:f, ...` (the deck's
+  !> block numbers, faces 1-6, the pairs apart by commas or blanks; both lists required), and the parameters of the
+  !> group, K, rf, mdot-ratio, p0-ratio, dh0 (defaults 0, 1, 1, 1, 0 J/kg). Refused, naming the section and the key:
   !> a missing or empty list, a pair not of the form block:face, a block below 1, a face outside 1-6, a face in both
   !> lists, K < 0, rf outside (0, 1], a ratio not above 0.
   subroutine load_bcb_manifold_config(sourceini, section, name, g)

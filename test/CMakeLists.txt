@@ -1287,7 +1287,7 @@ set_tests_properties(DP-axis-refused PROPERTIES
 )
 
 # ---- BCB : DP-gsi-manifold (a dispersed phase on the faces of the 500 family) ----------
-# IG-ablation's mesh with a gas phase and a dispersed phase (drop): faces 1 and 2 the inlet and the outlet of one manifold, faces 3
+# IG-ablation's mesh with a gas phase and a dispersed phase (drop): faces 1 and 2 the two sides of a manifold, faces 3
 # and 4 one patch per gsi variant (502 with and without drop's inlet keys, 503, 504, 505, 506 the pyrolysing
 # ablator on the table MX4926 of gas-pyrolysis.dat). drop-bc.txt
 # carries 300 on the manifold and on every gsi patch but the grain that gives drop's keys, which injects drop as an
@@ -1963,9 +1963,7 @@ set_tests_properties(grid-p3d-3D PROPERTIES
 # id, the role of the face and the group's parameters; the solvers sum over the
 # faces of a group wherever they lie), so MDB copies it as it is:
 # check-manifold.py holds the split file against the original one and the map,
-# every record verbatim from its parent cell and the same count. Until 2026-11
-# MDB refused the cut and the two ranks (manifold-remap, manifold-face-cut,
-# manifold-split-ranks), for the MOSE of 2025 that averaged one whole face.
+# every record verbatim from its parent cell and the same count.
 add_test(
     NAME    manifold-split
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh BCB MDB && python3 ${CMAKE_SOURCE_DIR}/scripts/check-split.py mesh.tec fromATLAStoSolver/mesh-split.tec fromATLAStoSolver/decomposition.map && python3 ${CMAKE_SOURCE_DIR}/scripts/check-bc.py fromATLAStoSolver/INPUT-split/bc.txt && python3 ${CMAKE_SOURCE_DIR}/scripts/check-manifold.py fromATLAStoSolver/bc.txt fromATLAStoSolver/INPUT-split/bc.txt fromATLAStoSolver/decomposition.map && diff fromATLAStoSolver/decomposition.map reference/decomposition.map && diff fromATLAStoSolver/INPUT-split/bc.txt reference/bc.txt"

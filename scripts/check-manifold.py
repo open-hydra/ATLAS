@@ -86,7 +86,8 @@ def main(orig_path, split_path, map_path):
         if len(payload) != 7:
             bad += 1
             if bad < 4:
-                print(f'  [FAIL] {(p,i,j,k,f)}: {len(payload)} payload fields, expected 7 (gid role K rf mdot-ratio p0-ratio dh0)')
+                print(f'  [FAIL] {(p,i,j,k,f)}: {len(payload)} payload fields, expected 7 '
+                      '(gid role K rf mdot-ratio p0-ratio dh0)')
             continue
         where[(int(payload[0]), int(payload[1]))].add((p, rank))
     if bad:

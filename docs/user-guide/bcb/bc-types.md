@@ -740,8 +740,8 @@ A lumped plenum that joins faces of the domain: the gas that leaves through the 
 back in through its **inlet** faces. The solver carries across the mass flow, the total enthalpy and the
 mass-flow-weighted mean of every transported scalar (species, turbulence), spread uniformly over the inlet faces,
 and sets the outlet faces at the static pressure that makes the total pressure equal on the two sides (a perfectly
-mixed, loss-free plenum, as the 1-D network models assume). The turn-around between the two channels of a
-counter-flow element, where the mesh has no volume for the turn, is the first use.
+mixed, loss-free plenum). A typical use is the turn-around between the two channels of a counter-flow element,
+where the mesh has no volume for the turn.
 
 One section per manifold, named by **every** face it joins; the two lists give each face its role, which no sign of
 the flow ever changes (a cell of an outlet face where the gas happens to move inward is a slip wall for that stage,
@@ -753,7 +753,7 @@ inlets share the flow by area.
 | `outlet` | yes | | The faces where the gas leaves the domain, as `block:face` pairs (the deck's block numbers, faces 1–6), apart by commas or blanks |
 | `inlet` | yes | | The faces where it comes back in, the same form |
 | `K` | no | 0 | Loss coefficient on the dynamic head of the outlet faces, $\Delta p_0 = K\,q_\text{out}$ with $q = \tfrac12 \rho u^2$ (mass-weighted) |
-| `rf` | no | 1 | Relaxation factor of the faces, with the meaning MOSE gives it on `403`–`408` and `406`: the face takes `rf` × (the manifold's value) + (1 − `rf`) × (its own cell's value); the converged state does not depend on it |
+| `rf` | no | 1 | Relaxation factor of the faces, with the meaning MOSE gives it on `403`–`408`: the face takes `rf` × (the manifold's value) + (1 − `rf`) × (its own cell's value); the converged state does not depend on it |
 | `mdot-ratio` | no | 1 | Mass flow of the inlet faces over that of the outlet faces (one element simulated out of N, a bleed) |
 | `p0-ratio` | no | 1 | Total pressure of the inlet faces over that of the outlet faces (a turbine between them) |
 | `dh0` | no | 0 | Total enthalpy taken out between the outlet and the inlet faces, J/kg (the specific work of a turbine) |

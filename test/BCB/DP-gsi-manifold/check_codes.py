@@ -3,8 +3,8 @@
 
     check_codes.py <gas-bc.txt> <drop-bc.txt>
 
-The mesh is one block of 50 x 20 cells and one layer (IG-ablation's): faces 1 (i = 1) and 2 (i = 50) the two sides
-of the manifold [man] (face 2 its outlet, face 1 its inlet), face 3 (j = 1) the grain with drop's keys for i 1-25 and without them for
+The mesh is one block of 50 x 20 cells and one layer (IG-ablation's): faces 1 (i = 1) and 2 (i = 50) the manifold
+[man] (face 2 its outlet, face 1 its inlet), face 3 (j = 1) the grain with drop's keys for i 1-25 and without them for
 i 26-50, face 4 (j = 20) melting i 1-12, pyrolysis 13-25, surface reactions 26-37, both 38-50; faces 5 and 6
 (the layer's planes) are null. Expected:
   gas-bc.txt   501 on faces 1 and 2 (payload: group 1, role 2 on face 1 and 1 on face 2, then K 0, rf 1,

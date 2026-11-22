@@ -51,7 +51,7 @@ def main(path):
                 continue
             got = [float(v) for v in payload[0].replace(",", " ").split()]
             want = list(EXPECTED[(b, f)])
-            if len(got) != 7 or got[:2] != want[:2] or got[2:] != want[2:]:
+            if got != want:
                 print(f"[FAIL] block {b} face {f} cell ({i},{j},{k}): payload {got}, expected {want}")
                 bad += 1
             count[(b, f)] = count.get((b, f), 0) + 1

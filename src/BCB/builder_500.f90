@@ -20,13 +20,10 @@ submodule (bc_mod) special_bc_mod
 
 contains
 
-  !> A manifold (BC 501): the record of one face of the group that the section defines. The section lists the
-  !> faces it joins by role (load_bcb_manifold_config); the face being built -- its block and face, which build_BC
-  !> puts in the source -- must be in one of the lists, else the section is named by a face it does not list. The
-  !> group is registered on first sight (manifold_register: one id per section, in the order the faces are built).
-  !> Payload: the group id and the role of the face (1 outlet, 2 inlet), then K, rf, mdot-ratio, p0-ratio and dh0
-  !> of the group, the same on every record of the group (io_output). The faces a section lists must all name it:
-  !> check_manifold_groups, once every block is built.
+  !> A manifold (BC 501): the record of one face of the group of the section (manifold_register). The face being
+  !> built -- its block and face, which build_BC puts in the source -- must be in one of the section's lists; the
+  !> other way round, a listed face that does not name the section, is check_manifold_groups. Payload: the group
+  !> id and the role of the face (1 outlet, 2 inlet), then K, rf, mdot-ratio, p0-ratio and dh0 of the group.
   module procedure build_manifold
     implicit none
     type(manifold_group_t) :: g

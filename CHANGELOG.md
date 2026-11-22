@@ -44,10 +44,8 @@ All notable changes to ATLAS are listed here. The format follows
 
 ### Changed
 
-- **Breaking.** A `manifold` section lists the faces it joins by role, `outlet` and `inlet` as `block:face` pairs
-  (any number on either side), instead of one `block`/`face` source, and takes `K`, `rf`, `mdot-ratio`, `p0-ratio`,
-  `dh0`; the `501` record carries the group id, the role and those five, and MDB copies it through any split. See
-  [manifold](docs/user-guide/bcb/bc-types.md#manifold).
+- **Breaking.** A `manifold` section lists its faces by role, `outlet` and `inlet`, instead of `block`/`face`, and
+  takes `K`, `rf`, `mdot-ratio`, `p0-ratio`, `dh0`: rewrite it as in [manifold](docs/user-guide/bcb/bc-types.md#manifold).
 - **Breaking.** `burcat.yaml` is no longer distributed: its licence does not allow it in GPL software. Put it in
   `database/thermo/external/` (see the README there); `thermo = Burcat` stops without it.
 - **Breaking.** `sp_custom.py` is replaced by the substances of `custom.py`, with the same seven materials and

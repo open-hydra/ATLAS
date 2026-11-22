@@ -267,10 +267,8 @@ contains
                   enddo
 
                 case default
-                  ! Every other property line is copied as it is. A manifold (501) too: its payload names
-                  ! no block or cell (group id, role of the face, the group's parameters), and the solvers
-                  ! sum over the faces of a group wherever the split puts them, so a cut face or two ranks
-                  ! change nothing in the record.
+                  ! Every other property line is copied as it is, a manifold (501) too: its payload
+                  ! names no block or cell (group id, role of the face, the group's parameters)
                   do c = 1, rec_np(r)
                     call put_raw(rec_hdr(r)+c)
                   enddo

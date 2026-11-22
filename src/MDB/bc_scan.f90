@@ -3,10 +3,7 @@
 !> canonical ordinal split_bc_mod uses.
 !>
 !> One consumer: the cost objective needs the type of every boundary cell to
-!> price the faces of a candidate piece. A manifold (501) record names no block
-!> or cell (its payload is the group id, the role of the face and the group's
-!> parameters: the solvers sum over the faces of a group wherever they lie), so
-!> the split needs nothing from it: it is copied like any other property line.
+!> price the faces of a candidate piece.
 module bc_scan_mod
   use decomposition_mod
   implicit none
