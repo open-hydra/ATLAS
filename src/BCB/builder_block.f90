@@ -141,6 +141,7 @@ contains
         call faceini%free
         call faceini%add(section_name='face')
         call faceini%add(section_name='face', option_name='face', val=ff)
+        call faceini%add(section_name='face', option_name='block', val=b)   ! the face being built, for the manifold roles
         do while (sini%loop(section_name=trim(blk%face(ff)%bc%name), option_pairs=option_pairs))
           call faceini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
         enddo
@@ -163,6 +164,7 @@ contains
               call patchini%add(section_name='face')
               call patchini%add(section_name='face', option_name='name', val=patchname)
               call patchini%add(section_name='face', option_name='face', val=ff)   ! the face of the patch (line-file mapping)
+              call patchini%add(section_name='face', option_name='block', val=b)
               do while (sini%loop(section_name=patchname, option_pairs=option_pairs))
                 call patchini%add(section_name='face', option_name=option_pairs(1), val=option_pairs(2))
               enddo
@@ -201,6 +203,55 @@ contains
       endassociate
     enddo
   end subroutine build_BC
+
+
+  !> Every face a manifold section lists must name that section: a listed face whose cells do not carry the 501
+  !> record of the group (the face names another section, or the block or face does not exist) would leave the
+  !> group with a role the solvers never see. Checked once every block is built (BCB, after build_BC); the other
+  !> way round -- a face naming a section that does not list it -- is refused as the face is built (build_manifold).
+  subroutine check_manifold_groups(blocks)
+    use bc_block_mod
+    use manifold_groups_mod, only: manifold_group_t, manifold_ngroups, manifold_group
+    implicit none
+    type(BC_block), intent(in) :: blocks(:)
+    type(manifold_group_t) :: g
+    integer :: gid, i, b, f, m, n
+    logical :: found
+
+    do gid = 1, manifold_ngroups()
+      g = manifold_group(gid)
+      do i = 1, g%n_out + g%n_in
+        if (i <= g%n_out) then
+          b = g%out_bf(1,i); f = g%out_bf(2,i)
+        else
+          b = g%in_bf(1,i-g%n_out); f = g%in_bf(2,i-g%n_out)
+        endif
+        if (b > size(blocks)) then
+          write(*,'(A,I0,A,I0,A,I0,A)') '[ERROR] ['//trim(g%name)//'] (manifold): lists face ', f, ' of block ', b, &
+            ', and the grid has ', size(blocks), ' blocks'
+          stop 1
+        endif
+        if (f > blocks(b)%nfaces) then
+          write(*,'(A,I0,A,I0,A,I0,A)') '[ERROR] ['//trim(g%name)//'] (manifold): lists face ', f, ' of block ', b, &
+            ', which has ', blocks(b)%nfaces, ' faces'
+          stop 1
+        endif
+        found = .false.
+        do n = 1, size(blocks(b)%face(f)%center, 2)
+          do m = 1, size(blocks(b)%face(f)%center, 1)
+            associate (c => blocks(b)%face(f)%center(m,n)%bc)
+              if (c%gp_id == 501 .and. allocated(c%ig_properties)) found = found .or. nint(c%ig_properties(1)) == gid
+            end associate
+          enddo
+        enddo
+        if (.not. found) then
+          write(*,'(A,I0,A,I0,A,I0,A,I0,A)') '[ERROR] ['//trim(g%name)//'] (manifold): lists face ', f, ' of block ', b, &
+            ', which does not name the section: give face', f, ' = '//trim(g%name)//' in [BCB-Block', b, ']'
+          stop 1
+        endif
+      enddo
+    enddo
+  end subroutine check_manifold_groups
 
 
   !> Stop on face cells that no declaration has given a BC, once the connections and the chimera

@@ -2,8 +2,9 @@
 
 submodule (bc_mod) special_bc_mod
   use bcb_config_mod, only: bcb_gsi_fluid_config_t, load_bcb_gsi_fluid_config, &
-                            bcb_manifold_config_t, load_bcb_manifold_config, gsi_variant, dp_inlet_key_given, &
+                            load_bcb_manifold_config, gsi_variant, dp_inlet_key_given, &
                             check_gsi_keys
+  use manifold_groups_mod, only: manifold_group_t, manifold_register, manifold_role
   use input_keys_mod, only: input_keys_strict
   use phase_mod, only: phase_t, species_t, define_composition
   use composition_check_mod, only: check_composition
@@ -19,23 +20,38 @@ submodule (bc_mod) special_bc_mod
 
 contains
 
+  !> A manifold (BC 501): the record of one face of the group of the section (manifold_register). The face being
+  !> built -- its block and face, which build_BC puts in the source -- must be in one of the section's lists; the
+  !> other way round, a listed face that does not name the section, is check_manifold_groups. Payload: the group
+  !> id and the role of the face (1 outlet, 2 inlet), then K, rf, mdot-ratio, p0-ratio and dh0 of the group.
   module procedure build_manifold
     implicit none
-    type(bcb_manifold_config_t) :: cfg
+    type(manifold_group_t) :: g
+    integer :: gid, role, b, f, error
 
     self%gp_id = 501
-    call load_bcb_manifold_config(sourceini, section, cfg)
     ! Q2D (the only reader of the x,y deck format) refuses BC 501 at its pre-scan: refused here (same meshType gate as 408/410/421)
     call refuse_on_2d_mesh(self, 501, 'manifold', 'use 101 or 401-407')
+    call load_bcb_manifold_config(sourceini, section, trim(self % name), g)
+    gid = manifold_register(g)
 
-    self % ig_n = 2
+    b = 0; f = 0
+    call sourceini%get(section_name=section, option_name='block', val=b, error=error)
+    call sourceini%get(section_name=section, option_name='face',  val=f, error=error)
+    role = manifold_role(gid, b, f)
+    if (role == 0) then
+      write(*,'(A,I0,A,I0,A)') '[ERROR] ['//trim(self % name)//'] (manifold): face ', f, ' of block ', b, &
+        ' names the section but is in neither its outlet nor its inlet list'
+      stop 1
+    endif
+
+    self % ig_n = 7
     allocate(self % ig_properties(1:self % ig_n))
     allocate(self % ig_time(1:self % ig_n))
     allocate(self % ig_time_file(1:self % ig_n))   ! copied by broadcast_uniform_bc whenever ig_time is
-    self % ig_properties = 0.0_R8
     self % IG_time = .false.
     self % IG_time_file = 'none'
-    self%ig_properties = [cfg%block, cfg%face]
+    self%ig_properties = [real(gid, R8), real(role, R8), g%K, g%rf, g%mdot_ratio, g%p0_ratio, g%dh0]
 
   end procedure build_manifold
 

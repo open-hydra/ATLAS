@@ -2,18 +2,14 @@
 !> is cut: what every boundary cell of the original mesh carries, keyed by the
 !> canonical ordinal split_bc_mod uses.
 !>
-!> Two consumers. The manifold check needs the type-501 pairs before the
-!> decomposition is fixed: MOSE aborts at start-up when the two blocks of a
-!> manifold land on different ranks (MOSE_Mod_Allocate_Data::abort_if_split),
-!> and its BC_Manifold integrates over both faces whole, so neither may be cut
-!> tangentially. The cost objective needs the type of every boundary cell to
+!> One consumer: the cost objective needs the type of every boundary cell to
 !> price the faces of a candidate piece.
 module bc_scan_mod
   use decomposition_mod
   implicit none
   private
 
-  public :: bc_scan_fine, check_manifold_pairs, prop_lines, ordinal_layout
+  public :: bc_scan_fine, prop_lines, ordinal_layout
 
   integer, parameter :: MAXLINE = 8192
 
@@ -25,8 +21,6 @@ module bc_scan_mod
     integer, allocatable :: cell(:,:)       !< (4,ntot) block,i,j,k of every boundary cell
     integer, allocatable :: donor(:,:)      !< (4,ntot) donor block,i,j,k of a 101/103/201 record, the first
                                             !< donor of a 102/104 one, 0 otherwise
-    integer              :: nman = 0        !< distinct manifold pairs
-    integer, allocatable :: man(:,:)        !< (4,nman) target block, target face, source block, source face
   end type bc_scan_t
 
 contains
@@ -107,11 +101,10 @@ contains
     if (.not. ex) return
 
     call ordinal_layout(nb, dim, scan%obase, scan%fbase, scan%pnm, scan%pnn, scan%ntot)
-    allocate(scan%ctype(scan%ntot), scan%cell(4,scan%ntot), scan%donor(4,scan%ntot), scan%man(4,8))
+    allocate(scan%ctype(scan%ntot), scan%cell(4,scan%ntot), scan%donor(4,scan%ntot))
     scan%ctype = 0
     scan%cell  = 0
     scan%donor = 0
-    scan%nman  = 0
 
     open(newunit=u, file=infile, status='old', action='read', iostat=ios)
     if (ios /= 0) then
@@ -182,17 +175,6 @@ contains
             scan%donor(:,ord) = d
             np = np - 1
           endif
-        case(501)
-          read(u,'(A)',iostat=ios) line
-          il = il + 1
-          if (ios == 0) read(line,*,iostat=ios) d(1:2)
-          if (ios /= 0) then
-            write(*,'(A,I0)') ' [ERROR] malformed manifold record at line ', il
-            write(*,'(A)')    '         (the solvers read two integers: source block, source face)'
-            ierr = 1; exit
-          endif
-          call add_manifold(scan, h(1), h(5), d(1), d(2))
-          np = np - 1
         end select
       endif
 
@@ -206,95 +188,5 @@ contains
     scan%ok = (ierr == 0)
 
   end subroutine bc_scan_fine
-
-
-  subroutine add_manifold(scan, bm, fm, bs, fs)
-    type(bc_scan_t), intent(inout) :: scan
-    integer,         intent(in)    :: bm, fm, bs, fs
-    integer, allocatable :: tmp(:,:)
-    integer :: m
-
-    do m = 1, scan%nman
-      if (all(scan%man(:,m) == [bm, fm, bs, fs])) return
-    enddo
-    if (scan%nman == size(scan%man, 2)) then
-      allocate(tmp(4, 2*scan%nman))
-      tmp(:,1:scan%nman) = scan%man(:,1:scan%nman)
-      call move_alloc(tmp, scan%man)
-    endif
-    scan%nman = scan%nman + 1
-    scan%man(:,scan%nman) = [bm, fm, bs, fs]
-
-  end subroutine add_manifold
-
-
-  !> A manifold (BC 501) names a whole source face, not a cell: BC_Manifold
-  !> averages the state over the entire source face and scales the mass flux
-  !> by the entire target face, so a cut tangential to either face changes the
-  !> answer. And MOSE refuses the two blocks on different ranks (abort_if_split),
-  !> so the decomposition is checked here, with the same LPT the solver applies,
-  !> rather than discovered at the first time step.
-  subroutine check_manifold_pairs(scan, dec, owner, ierr)
-    type(bc_scan_t),       intent(in)  :: scan
-    type(decomposition_t), intent(in)  :: dec
-    integer,               intent(in)  :: owner(:)
-    integer,               intent(out) :: ierr
-    integer :: m, bm, fm, bs, fs, pm, ps
-
-    ierr = 0
-    do m = 1, scan%nman
-      bm = scan%man(1,m); fm = scan%man(2,m)
-      bs = scan%man(3,m); fs = scan%man(4,m)
-
-      if (bs < 1 .or. bs > dec%nparent .or. fs < 1 .or. fs > NFACES) then
-        write(*,'(A,I0,A,I0,A,I0,A,I0)') ' [ERROR] manifold (BC 501) on block ', bm, ' face ', fm, &
-          ' draws from block ', bs, ' face ', fs
-        write(*,'(A)') '         which the grid does not have: the BC file does not belong to this grid'
-        ierr = 1; cycle
-      endif
-
-      pm = face_piece(dec, bm, fm)
-      ps = face_piece(dec, bs, fs)
-      if (pm == 0) then
-        write(*,'(A,I0,A,I0,A)') ' [ERROR] manifold (BC 501) on block ', bm, ' face ', fm, &
-          ' is cut across new blocks: MOSE''s BC_Manifold scales the'
-        write(*,'(A)') '         mass flux by the whole target face, so that face must stay inside one block.'
-        write(*,'(A,I0,A,A)') '         Forbid the cuts tangential to it with [MDB-Block', bm, &
-          '] split-directions = ', dirname(face_dir(fm))
-        ierr = 1
-      endif
-      if (ps == 0) then
-        write(*,'(A,I0,A,I0,A,I0,A,I0,A)') ' [ERROR] manifold (BC 501) on block ', bm, ' face ', fm, &
-          ' draws from block ', bs, ' face ', fs, ', which is cut across new blocks:'
-        write(*,'(A)') '         MOSE''s BC_Manifold averages the whole source face, so it must stay inside one block.'
-        write(*,'(A,I0,A,A)') '         Forbid the cuts tangential to it with [MDB-Block', bs, &
-          '] split-directions = ', dirname(face_dir(fs))
-        ierr = 1
-      endif
-      if (pm == 0 .or. ps == 0) cycle
-
-      if (owner(pm) /= owner(ps)) then
-        write(*,'(A,I0,A,I0,A,I0,A,I0,A)') ' [ERROR] manifold (BC 501): block ', bm, ' face ', fm, &
-          ' (new block ', pm, ', rank ', owner(pm), ')'
-        write(*,'(A,I0,A,I0,A,I0,A,I0,A)') '         draws from block ', bs, ' face ', fs, &
-          ' (new block ', ps, ', rank ', owner(ps), ').'
-        write(*,'(A)') '         MOSE aborts at start-up when the two blocks of a manifold sit on different ranks'
-        write(*,'(A)') '         (abort_if_split): change ranks, or restrict the cuts with [MDB-Block#] split-directions'
-        ierr = 1
-      endif
-    enddo
-
-  end subroutine check_manifold_pairs
-
-
-  pure function dirname(d) result(s)
-    integer, intent(in) :: d
-    character(len=1) :: s
-    select case(d)
-    case(1);      s = 'i'
-    case(2);      s = 'j'
-    case default; s = 'k'
-    end select
-  end function dirname
 
 end module bc_scan_mod

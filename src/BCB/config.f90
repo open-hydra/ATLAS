@@ -4,6 +4,7 @@ module bcb_config_mod
   use finer,           only: file_ini
   use global_mod,      only: llen
   use phase_mod,       only: phase_t
+  use manifold_groups_mod, only: manifold_group_t
   use ini_values_mod,  only: get_population_reals, get_population_words
   use bc_names_mod
   use config_shared_mod
@@ -63,11 +64,6 @@ module bcb_config_mod
     integer :: faces(2) = 0
     logical :: has_connection = .false.
   end type bcb_periodic_config_t
-
-  type, public :: bcb_manifold_config_t
-    integer :: block = 0
-    integer :: face = 0
-  end type bcb_manifold_config_t
 
   type, public :: bcb_connection_config_t
     real(R8) :: ks = 0.0_R8
@@ -505,21 +501,107 @@ contains
 
   end subroutine load_bcb_face_runtime_config
 
-  subroutine load_bcb_manifold_config(sourceini, section, cfg)
+  !> A manifold section (BC 501): the faces it joins by role, `outlet = b:f, ...` and `inlet = b:f, ...` (the deck's
+  !> block numbers, faces 1-6, the pairs apart by commas or blanks; both lists required), and the parameters of the
+  !> group, K, rf, mdot-ratio, p0-ratio, dh0 (defaults 0, 1, 1, 1, 0 J/kg). Refused, naming the section and the key:
+  !> a missing or empty list, a pair not of the form block:face, a block below 1, a face outside 1-6, a face in both
+  !> lists, K < 0, rf outside (0, 1], a ratio not above 0.
+  subroutine load_bcb_manifold_config(sourceini, section, name, g)
     implicit none
-    type(file_ini), intent(in)               :: sourceini
-    character(*), intent(in)                 :: section
-    type(bcb_manifold_config_t), intent(out) :: cfg
+    type(file_ini),         intent(in)  :: sourceini
+    character(*),           intent(in)  :: section, name
+    type(manifold_group_t), intent(out) :: g
 
-    integer :: error
+    integer :: i, j
 
-    cfg%block = 0
-    cfg%face = 0
+    g%name = name
+    call get_pairs('outlet', g%out_bf, g%n_out)
+    call get_pairs('inlet',  g%in_bf,  g%n_in)
+    do i = 1, g%n_out
+      do j = 1, g%n_in
+        if (all(g%out_bf(:,i) == g%in_bf(:,j))) then
+          write(*,'(A,I0,A,I0,A)') '[ERROR] ['//trim(name)//'] (manifold): face ', g%out_bf(2,i), ' of block ', &
+            g%out_bf(1,i), ' is in both the outlet and the inlet list: a face has one role'
+          stop 1
+        endif
+      enddo
+    enddo
 
-    call sourceini%get(section_name=section, option_name='block', val=cfg%block, error=error)
-    if (error /= 0) cfg%block = 0
-    call sourceini%get(section_name=section, option_name='face', val=cfg%face, error=error)
-    if (error /= 0) cfg%face = 0
+    call get_real('K',          g%K,          0.0_R8)
+    call get_real('rf',         g%rf,         1.0_R8)
+    call get_real('mdot-ratio', g%mdot_ratio, 1.0_R8)
+    call get_real('p0-ratio',   g%p0_ratio,   1.0_R8)
+    call get_real('dh0',        g%dh0,        0.0_R8)
+    if (g%K < 0.0_R8) call refuse('K', 'must be 0 or positive: the loss on the dynamic head of the outlet faces')
+    if (g%rf <= 0.0_R8 .or. g%rf > 1.0_R8) call refuse('rf', 'must be in (0, 1]')
+    if (g%mdot_ratio <= 0.0_R8) call refuse('mdot-ratio', 'must be positive: the mass flow in over the mass flow out')
+    if (g%p0_ratio <= 0.0_R8) call refuse('p0-ratio', 'must be positive: the total pressure in over the total pressure out')
+
+  contains
+
+    subroutine get_real(key, val, default)
+      character(*), intent(in)  :: key
+      real(R8),     intent(out) :: val
+      real(R8),     intent(in)  :: default
+      integer :: error
+      val = default
+      call sourceini%get(section_name=section, option_name=key, val=val, error=error)
+      if (error /= 0) val = default
+    end subroutine get_real
+
+    subroutine refuse(key, why)
+      character(*), intent(in) :: key, why
+      write(*,'(A)') '[ERROR] ['//trim(name)//'] (manifold): '//key//' '//why
+      stop 1
+    end subroutine refuse
+
+    !> The block:face pairs of the list `key`
+    subroutine get_pairs(key, bf, n)
+      character(*),         intent(in)  :: key
+      integer, allocatable, intent(out) :: bf(:,:)
+      integer,              intent(out) :: n
+      integer, parameter :: NMAX = 64
+      character(len=1024) :: txt
+      character(len=64)   :: tok
+      integer :: error, p, c, ios, b, f, pairs(2,NMAX)
+
+      txt = ''
+      call sourceini%get(section_name=section, option_name=key, val=txt, error=error)
+      if (error /= 0) txt = ''
+      do p = 1, len_trim(txt)
+        if (txt(p:p) == ',') txt(p:p) = ' '
+      enddo
+      if (len_trim(txt) == 0) then
+        if (key == 'outlet') then
+          call refuse(key, 'is required: the faces where the gas leaves the domain, as block:face pairs (outlet = 1:2)')
+        else
+          call refuse(key, 'is required: the faces where the gas comes back in, as block:face pairs (inlet = 4:2)')
+        endif
+      endif
+
+      n = 0
+      txt = adjustl(txt)
+      do while (len_trim(txt) > 0)
+        p = index(txt, ' ')
+        tok = txt(1:p-1)
+        txt = adjustl(txt(p:))
+        c = index(tok, ':')
+        ios = 1
+        if (c > 1 .and. c < len_trim(tok)) then
+          read(tok(1:c-1), *, iostat=ios) b
+          if (ios == 0) read(tok(c+1:), *, iostat=ios) f
+        endif
+        if (ios /= 0) call refuse(key, 'has the pair "'//trim(tok)//'", which is not block:face (two integers)')
+        if (b < 1) call refuse(key, 'has the pair "'//trim(tok)//'": the block number starts at 1')
+        if (f < 1 .or. f > 6) call refuse(key, 'has the pair "'//trim(tok)//'": the face is 1 to 6')
+        if (n == NMAX) call refuse(key, 'lists more than 64 faces')
+        n = n + 1
+        pairs(:,n) = [b, f]
+      enddo
+      allocate(bf(2,n))
+      bf = pairs(:,1:n)
+    end subroutine get_pairs
+
   end subroutine load_bcb_manifold_config
 
   subroutine load_bcb_connection_config(sourceini, section, cfg)
@@ -1090,8 +1172,8 @@ contains
     real(R8), target :: patch_range(4)
     integer, target :: periodic_blocks(2)
     integer, target :: periodic_faces(2)
-    integer, target :: manifold_block
-    integer, target :: manifold_face
+    character(len=llen), target :: manifold_faces
+    real(R8), target :: manifold_real
     integer, target :: unwrapped_int
     character(len=7), target :: file_direction
     type(bcb_wall_fluid_config_t), target :: wall_fluid_cfg
@@ -1124,8 +1206,8 @@ contains
     patch_range = 0.0_R8
     periodic_blocks = 0
     periodic_faces = 0
-    manifold_block = 0
-    manifold_face = 0
+    manifold_faces = ''
+    manifold_real = 0.0_R8
     unwrapped_int = 1
     file_direction = ''
     wall_fluid_cfg = bcb_wall_fluid_config_t()
@@ -1161,8 +1243,18 @@ contains
     call bcb_registry%add('bc-section', 'range<n>', patch_range, '0.0', 'Sub-patch limits associated with patch<n>.', '', .false.)
     call bcb_registry%add('bc-section', 'blocks', periodic_blocks, '0', 'Periodic source and destination block indices.', '', .false.)
     call bcb_registry%add('bc-section', 'faces', periodic_faces, '0', 'Periodic source and destination face indices.', '', .false.)
-    call bcb_registry%add('bc-section', 'block', manifold_block, '0', 'Connected block index for manifold.', '', .false.)
-    call bcb_registry%add('bc-section', 'face', manifold_face, '0', 'Connected face index for manifold.', '', .false.)
+    call bcb_registry%add('bc-section', 'outlet', manifold_faces, '', 'Manifold: the faces where the gas leaves the'// &
+                          ' domain into it, as block:face pairs (deck block numbers; e.g. 1:2, 3:2). Required.', '', .false.)
+    call bcb_registry%add('bc-section', 'inlet', manifold_faces, '', 'Manifold: the faces where the gas comes back'// &
+                          ' in, as block:face pairs. Required.', '', .false.)
+    call bcb_registry%add('bc-section', 'K', manifold_real, '0.0', 'Manifold: loss coefficient on the dynamic head'// &
+                          ' of the outlet faces (p0_in = p0-ratio (p0_out - K q_out)).', '>=0', .false.)
+    call bcb_registry%add('bc-section', 'mdot-ratio', manifold_real, '1.0', 'Manifold: mass flow of the inlet faces'// &
+                          ' over that of the outlet faces (one element out of N, a bleed).', '', .false.)
+    call bcb_registry%add('bc-section', 'p0-ratio', manifold_real, '1.0', 'Manifold: total pressure of the inlet'// &
+                          ' faces over that of the outlet faces (a turbine between them).', '', .false.)
+    call bcb_registry%add('bc-section', 'dh0', manifold_real, '0.0', 'Manifold: total enthalpy taken out between'// &
+                          ' the outlet and the inlet faces [J/kg] (the specific work of a turbine).', '', .false.)
     call bcb_registry%add('bc-section', 'file-direction', file_direction, '','Coordinate or index directions used by varying BC files.', '', .false.)
     call bcb_registry%add('bc-section', 'range-file', patch_name, '', 'File of the injector plate patches (with inner-patch and outer-patch).', '', .false.)
     call bcb_registry%add('bc-section', 'inner-patch', patch_name, '', 'Section applied inside the range-file patches.', '', .false.)

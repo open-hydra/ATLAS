@@ -42,7 +42,7 @@ It supports simple single-patch boundaries, multipatch definitions, periodic lin
     ---
 
     `gsi`: solid-propellant burning, melting, pyrolysis and surface reactions, selected from the keys of the
-    section; `manifold` draws its state from another face.
+    section; `manifold` joins outlet faces to inlet faces through a lumped plenum.
 
     [:octicons-arrow-right-24: gsi](bc-types.md#gsi), [manifold](bc-types.md#manifold)
 

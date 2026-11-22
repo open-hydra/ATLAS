@@ -3,11 +3,12 @@
 
     check_codes.py <gas-bc.txt> <drop-bc.txt>
 
-The mesh is one block of 50 x 20 cells and one layer (IG-ablation's): face 1 (i = 1) the manifold [man]
-drawing on face 2, face 2 a symmetry, face 3 (j = 1) the grain with drop's keys for i 1-25 and without them for
+The mesh is one block of 50 x 20 cells and one layer (IG-ablation's): faces 1 (i = 1) and 2 (i = 50) the manifold
+[man] (face 2 its outlet, face 1 its inlet), face 3 (j = 1) the grain with drop's keys for i 1-25 and without them for
 i 26-50, face 4 (j = 20) melting i 1-12, pyrolysis 13-25, surface reactions 26-37, both 38-50; faces 5 and 6
 (the layer's planes) are null. Expected:
-  gas-bc.txt   501 (payload: block 1, face 2), 300, 502 on all of face 3, 503/504/505/506 on face 4, 0; the 502
+  gas-bc.txt   501 on faces 1 and 2 (payload: group 1, role 2 on face 1 and 1 on face 2, then K 0, rf 1,
+               mdot-ratio 1, p0-ratio 1, dh0 0), 502 on all of face 3, 503/504/505/506 on face 4, 0; the 502
                record mdot_ref n pRef Taf mode and the three mass fractions: its first field, the propellant mass
                flux a*rhoGrain*SF = 0.0052 x 1750 x 1, times 1 - 0.2 on the grain with drop's keys, mode 1 (a wall
                that blows the products in, grain-wall = T) and no turbulence variables; the 506 record 2, 1,
@@ -41,10 +42,8 @@ def records(path, payload):
 
 
 def expected_gas(i, f):
-    if f == 1:
+    if f in (1, 2):
         return 501
-    if f == 2:
-        return 300
     if f == 3:
         return 502
     if f == 4:
@@ -84,9 +83,12 @@ def main(gas_path, dp_path):
             if t[:2] != ["2", "1"] or [float(v) for v in t[2:]] != [0.247342, -8.44e5, 1.0e4, 0.0]:
                 print(f"[FAIL] 506 payload at i={i}: {t}, expected 2, 1, 0.247342, -8.44e5, 1e4, 0")
                 bad += 1
-        if cg == 501 and [int(v) for v in pg[0].replace(",", " ").split()] != [1, 2]:
-            print(f"[FAIL] manifold payload {pg}")
-            bad += 1
+        if cg == 501:
+            t = [float(v) for v in pg[0].replace(",", " ").split()]
+            want = [1.0, 2.0 if f == 1 else 1.0, 0.0, 1.0, 1.0, 1.0, 0.0]
+            if t != want:
+                print(f"[FAIL] manifold payload on face {f}: {t}, expected {want}")
+                bad += 1
         if cd == 401:
             t = pd[0].replace(",", " ").split()
             want = [0.2 / (1.0 - 0.2), 0.9, "normal", "normal", 1.0, 1.0e-5, 0.0, "Dirac", 0.0, 0.0]

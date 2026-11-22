@@ -29,7 +29,8 @@ TYPE_HINTS = {
              "supersonic state, optionally from a time series.",
     "outlet": "Pressure outflow: p and rf. A face named 'outlet' needs no "
               "section at all.",
-    "manifold": "Plenum shared with another block.",
+    "manifold": "Plenum joining faces: outlet and inlet lists of block:face "
+                "pairs, loss K, rf, and the ratios of a lumped link.",
     "gsi": "Gas-surface interaction: burning propellant, pyrolysis, "
            "melting or surface reactions.",
     "periodic": "Periodic pair: blocks and faces give the two sides.",

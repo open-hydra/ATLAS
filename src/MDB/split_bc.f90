@@ -266,32 +266,9 @@ contains
                     call put(trim(line)//NL)
                   enddo
 
-                case(501)
-                  ! Manifold: the payload names the source block and face whole,
-                  ! not a cell (MOSE_Lib_BC_Fluxes_Manifold averages over the
-                  ! entire face), so the source is the piece that inherited that
-                  ! face entire. A cut through either face was refused at stage 1;
-                  ! the check here only guards the file against a stale decomposition.
-                  call get_line(rec_hdr(r)+1, line)
-                  read(line,*,iostat=ierr) cn(1:2)
-                  if (ierr /= 0) then
-                    write(*,'(A,I0)') ' [ERROR] malformed manifold record at line ', rec_hdr(r)+1
-                    write(*,'(A)')    '         (the solvers read two integers: source block, source face)'
-                    call finish(); return
-                  endif
-                  q = face_piece(dec, cn(1), cn(2))
-                  if (q == 0) then
-                    write(*,'(A,2(X,I0),A)') ' [ERROR] manifold source face', cn(1:2), ' is cut across new blocks'
-                    ierr = 1; call finish(); return
-                  endif
-                  if (face_piece(dec, b, f) /= p) then
-                    write(*,'(A,2(X,I0),A)') ' [ERROR] manifold target face', b, f, ' is cut across new blocks'
-                    ierr = 1; call finish(); return
-                  endif
-                  write(line,'(2(I8,A1))') q, ',', cn(2), ','
-                  call put(trim(line)//NL)
-
                 case default
+                  ! Every other property line is copied as it is, a manifold (501) too: its payload
+                  ! names no block or cell (group id, role of the face, the group's parameters)
                   do c = 1, rec_np(r)
                     call put_raw(rec_hdr(r)+c)
                   enddo
