@@ -753,7 +753,7 @@ inlets share the flow by area.
 | `outlet` | yes | | The faces where the gas leaves the domain, as `block:face` pairs (the deck's block numbers, faces 1–6), apart by commas or blanks |
 | `inlet` | yes | | The faces where it comes back in, the same form |
 | `K` | no | 0 | Loss coefficient on the dynamic head of the outlet faces, $\Delta p_0 = K\,q_\text{out}$ with $q = \tfrac12 \rho u^2$ (mass-weighted) |
-| `rf` | no | 1 | Relaxation factor of the faces, with the meaning MOSE gives it on `403`–`408`: the face takes `rf` × (the manifold's value) + (1 − `rf`) × (its own cell's value); the converged state does not depend on it |
+| `rf` | no | 1 | Relaxation factor of the outlet faces, as on an outlet `406`: their static pressure is `rf` × (the manifold's) + (1 − `rf`) × (their own cell's); the inlet faces take the manifold's values as they are; the converged state does not depend on it |
 | `mdot-ratio` | no | 1 | Mass flow of the inlet faces over that of the outlet faces (one element simulated out of N, a bleed) |
 | `p0-ratio` | no | 1 | Total pressure of the inlet faces over that of the outlet faces (a turbine between them) |
 | `dh0` | no | 0 | Total enthalpy taken out between the outlet and the inlet faces, J/kg (the specific work of a turbine) |
