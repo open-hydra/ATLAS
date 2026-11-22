@@ -237,8 +237,8 @@ contains
           stop 1
         endif
         found = .false.
-        do n = 1, size(blocks(b)%face(f)%center, 2)
-          do m = 1, size(blocks(b)%face(f)%center, 1)
+        do n = 1, blocks(b)%face(f)%Nn
+          do m = 1, blocks(b)%face(f)%Nm
             associate (c => blocks(b)%face(f)%center(m,n)%bc)
               if (c%gp_id == 501 .and. allocated(c%ig_properties)) found = found .or. nint(c%ig_properties(1)) == gid
             end associate
