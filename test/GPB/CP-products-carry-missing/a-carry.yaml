@@ -1,0 +1,6 @@
+name: a-carry
+description: A burns to CO2 in the gas; it carries the condensed OX; OX handed to the gas ends as CO2
+reference: none (a test of the file format; the mass ratio OX/A is alumina's to aluminium)
+reactions:
+- equation: A + O2 => CO2
+- equation: OX + 0.6661328 O2 => CO2

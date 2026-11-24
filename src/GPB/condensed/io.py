@@ -29,7 +29,7 @@ def write_basics(type, name, mat_phases, groups, modeling=None, material_tokens=
 
 def write_models(name, rows):
     """<name>models.txt: the constants of the materials' models, one row per material and kind,
-    '<material> <kind> <model> key=value ...' (kinds combustion, cap, breakup). Written only when a model's constants
+    '<material> <kind> <model> key=value ...' (kinds combustion, carry, breakup). Written only when a model's constants
     are given; otherwise the
     name is retired: the file of an earlier run is removed when this run commits, so that a solver never reads
     constants the deck no longer gives."""

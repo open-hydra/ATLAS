@@ -1,8 +1,8 @@
 # ATLAS GPB: condensed material -> gas species. Generated: edit the INI and run ATLAS GPB again.
 # particle-mechanism: al-h2o-gen (./al-h2o-gen.yaml)
-# record: material <name> <none|evaporation|combustion|cap|release> <terms> <none|latent|formation> <h298 [J/kg]>
+# record: material <name> <none|evaporation|combustion|carry|release> <terms> <none|latent|formation> <h298 [J/kg]>
 #         then <terms> lines: <gas species> <nu_mass [kg/kg material]> <nu_mole [mol/mol material]>
-#         a cap record ends with: <product material> <kg of it per kg of material> <its h298 [J/kg]>
+#         a carry record ends with: <carried material> <kg of it per kg of material> <its h298 [J/kg]>
 gas gas- 3
 # 2 AL(L) + 3 H2O => AL2O3(a) + 3 H2
 material AL(L) combustion 2 formation 3.2133040798e+05 AL2O3(a) 1.8894415005e+00 -1.6434770400e+07 partE-

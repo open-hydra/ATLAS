@@ -208,7 +208,7 @@ MODEL_COLUMNS = [
     ("combustion", "combustion"), ("solidification", "solidification"),
     ("alpha-e", "alpha-e"), ("k-liq", "k-liq [W/m/K]"), ("mu-liq", "mu-liq [Pa s]"),
     ("K-burn", "K-burn"), ("n-burn", "n-burn"), ("X-eff", "X-eff"),
-    ("beta-part", "beta-part"), ("xi-cap", "xi-cap"), ("T-ign", "T-ign [K]"),
+    ("beta-part", "beta-part"), ("share", "share"), ("T-ign", "T-ign [K]"),
     ("q-comb", "q-comb [J/kg]"), ("T-melt", "T-melt [K]"), ("h-fus", "h-fus [J/kg]"),
     ("T-nuc", "T-nuc [K]"), ("cp-solid", "cp-solid [J/kg/K]"),
 ]

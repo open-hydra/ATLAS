@@ -242,7 +242,7 @@ materials stops GPB with `[ERROR] [GPB-Phase1] <key> ...`.
 
 One row per material and kind, `<material> <kind> <model> key=value ...`, the keys in any order; lines that start
 with `#` are comments. The file is written only when a material of the phase has such constants. The material line
-keeps the word of each kind (`combustion=<model>`, `cap=<law>`, `breakup=<model>`) and none of the constants.
+keeps the word of each kind (`combustion=<model>`, `carry=<law>`, `breakup=<model>`) and none of the constants.
 
 ```ini
 [GPB-Phase2]
@@ -274,8 +274,8 @@ Mg combustion direct T-burn=1363 q-comb=9530000 d-stop=0 d-burnout=1e-07
 |---|---|---|---|
 | `combustion` | `combustion` | `Beckstead` | `K-burn` [m^n-burn/s], `n-burn`, `X-eff`, `beta-part`, `T-ign` [K], `q-comb` [J/kg], `d-stop` [m], `d-burnout` [m], `d-gen` [m] |
 | | | `direct` | `T-burn` [K], `q-comb` [J/kg], `d-stop` [m], `d-burnout` [m], `d-gen` [m] |
-| `cap` (the oxide cap of a burning drop, IGLOO) | `xi-law` (absent: `constant`) | `constant` | `xi-cap`, `xi-ox0`, `product`, `residue` (`on`, `off`), `d-residue` [m] |
-| | | `Gallier21` | `xi-ox0`, `product`, `residue`, `d-residue` |
+| `carry` (the material a burning drop carries, IGLOO) | `carry` (absent: `constant`) | `constant` | `share`, `carried`, `carried-0`, `residue` (`on`, `off`), `d-residue` [m] |
+| | | `Gallier21` | `carried`, `carried-0`, `residue`, `d-residue` |
 | `breakup` (IGLOO) | `breakup` | `Pilch-Erdman` | `Cd`, `B` |
 | | | `Reitz-Diawakar` | `WeBag`, `Cb`, `Cstrip`, `Cs` |
 | | | `Reitz-KHRT` | `B0`, `B1`, `Ctau`, `CRT`, `mShedLim`, `WeLimit` |
@@ -284,19 +284,20 @@ Mg combustion direct T-burn=1363 q-comb=9530000 d-stop=0 d-burnout=1e-07
 
 - A constant goes in the row of each material whose model reads it. Where the model does not read it, a single
   value given for all the materials is not written for that one, and an entry of a per-material list must be the
-  "not given" value (`0`; `none` for `product`; `off` for `residue`): GPB stops otherwise, and it stops on a
+  "not given" value (`0`; `none` for `carried`; `off` for `residue`): GPB stops otherwise, and it stops on a
   constant that no material's model reads.
-- A cap row is written for a material that asks for a cap: `xi-law = Gallier21`, or a cap constant that is not
-  the "not given" value. Its line then carries `cap=<law>`.
-- A material with `combustion = none` gets no `combustion` or `cap` row, one with `breakup = NoBreakup` no `breakup`
-  row, and a combustion product (the material `product` names: 0 groups, never injected) no row and no
+- A carry row is written for a material that carries one: `carry = Gallier21`, or a carry constant that is not
+  the "not given" value. Its line then holds `carry=<law>`, and the row gains `yield`, the kg of the carried material
+  formed per kg burnt, which GPB takes from the carry reaction of `particle-mechanism` (the deck does not give it).
+- A material with `combustion = none` gets no `combustion` or `carry` row, one with `breakup = NoBreakup` no `breakup`
+  row, and a carried material (the material `carried` names: 0 groups, never injected) no row and no
   `combustion=` or `breakup=` word. When the `combustion` or `breakup` key is absent, the constants given are written
   under the model `-`: the solver's own section then names the model.
 - The breakup constants are optional: one absent from the row takes IGLOO's default (in the
   [GPB key reference](input-reference.md)); `WeCrit` is the critical Weber number as written, which IGLOO doubles.
   Breakup is IGLOO's: ICE, which has no breakup model, ignores the `breakup=` word of a material line and a
   `breakup` row with one warning each, so give the breakup keys to a phase IGLOO solves (`modeling = lagrangian`).
-  GPB does not check that, as it does not for `cap` (which ICE refuses).
+  GPB does not check that, as it does not for `carry` (which ICE refuses).
 
 ```ini
 [GPB-Phase1]
@@ -327,17 +328,17 @@ B breakup ETAB WeTrans=60 Comega=10
 ### The mass a burning material generates
 
 `particle-mechanism`'s reaction for a burning material may give, besides gas species, one condensed product.
-GPB resolves that product as one of two things (any other condensed product stops GPB): the oxide a `cap`
-retains (`product=`, above), or a **generated mass** — a material of an *eulerian* dispersed phase with a population
-(`groups >= 1` there), born in that phase's ICE family. A capped material whose `product=` material is itself
-declared as a generated mass (its own line asks for a population in an eulerian phase) gets both a `cap` record and a
-combustion record: what the cap does not retain is handed to the gas as that generated mass, in the same reaction.
+GPB resolves that product as one of two things (any other condensed product stops GPB): the material the drop
+carries (`carried`, above), or a **generated mass** — a material of an *eulerian* dispersed phase with a population
+(`groups >= 1` there), born in that phase's ICE family. A carrying material whose `carried` material is itself
+declared as a generated mass (its own line asks for a population in an eulerian phase) gets both a `carry` record and a
+combustion record: what the drop does not carry is handed to the gas as that generated mass, in the same reaction.
 
 A burning material that generates mass needs `d-gen` (the diameter of the generated drops, [m]) on its row; a material
 without one that is given `d-gen` is refused, and a material with a population in two eulerian phases is refused
 (a generated mass is born in exactly one ICE family). The reaction itself, written out, appears as a comment above the
-material's record of `<name>products.txt`, whose combustion record (or `release`, for the oxide a cap born as
-generated mass whole hands to the gas) then ends in the eulerian phase's output prefix: see
+material's record of `<name>products.txt`, whose combustion record (or `release`, for the carried mass that, born as
+generated mass whole, goes to the gas) then ends in the eulerian phase's output prefix: see
 [Output Files](./output.md#prefixproductstxt), which hydra-MI2 reads to route the generated mass into that ICE family.
 
 ```ini

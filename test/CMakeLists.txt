@@ -2358,13 +2358,13 @@ set_tests_properties(CP-products-one-species PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-products-cap (the products file) -----------------------------------------------
+# ---- GPB : CP-products-carry (the products file) -----------------------------------------------
 add_test(
-    NAME    CP-products-cap
+    NAME    CP-products-carry
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-products.txt reference/part-products.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-cap"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-carry"
 )
-set_tests_properties(CP-products-cap PROPERTIES
+set_tests_properties(CP-products-carry PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -2478,25 +2478,25 @@ set_tests_properties(CP-products-fuel-no-h0 PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-products-product-groups (refused) -----------------------------------------------
+# ---- GPB : CP-products-carried-groups (refused) -----------------------------------------------
 add_test(
-    NAME    CP-products-product-groups
+    NAME    CP-products-carried-groups
     COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'give it 0 groups' gpb.log"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-product-groups"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-carried-groups"
 )
-set_tests_properties(CP-products-product-groups PROPERTIES
+set_tests_properties(CP-products-carried-groups PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-products-cap-missing (refused) --------------------------------------------------
+# ---- GPB : CP-products-carry-missing (refused) --------------------------------------------------
 add_test(
-    NAME    CP-products-cap-missing
+    NAME    CP-products-carry-missing
     COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q 'and no reaction of particle-mechanism makes' gpb.log"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-cap-missing"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-products-carry-missing"
 )
-set_tests_properties(CP-products-cap-missing PROPERTIES
+set_tests_properties(CP-products-carry-missing PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -2514,25 +2514,25 @@ set_tests_properties(CP-models-two-models PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-models-cap (the models file) --------------------------------------------------
+# ---- GPB : CP-models-carry (the models file) --------------------------------------------------
 add_test(
-    NAME    CP-models-cap
+    NAME    CP-models-carry
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-cap"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-carry"
 )
-set_tests_properties(CP-models-cap PROPERTIES
+set_tests_properties(CP-models-carry PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-models-cap-law (the models file) ----------------------------------------------
+# ---- GPB : CP-models-carry-law (the models file) ----------------------------------------------
 add_test(
-    NAME    CP-models-cap-law
+    NAME    CP-models-carry-law
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-cap-law"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-carry-law"
 )
-set_tests_properties(CP-models-cap-law PROPERTIES
+set_tests_properties(CP-models-carry-law PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -2658,13 +2658,13 @@ set_tests_properties(CP-models-breakup-noburn PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-models-breakup-product (a combustion product loses the breakup word) --------------
+# ---- GPB : CP-models-breakup-carried (a carried material loses the breakup word) --------------
 add_test(
-    NAME    CP-models-breakup-product
+    NAME    CP-models-breakup-carried
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-phase.txt reference/part-phase.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup-product"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-models-breakup-carried"
 )
-set_tests_properties(CP-models-breakup-product PROPERTIES
+set_tests_properties(CP-models-breakup-carried PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
@@ -2742,13 +2742,13 @@ set_tests_properties(CP-gen-igloo PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-gen-cap (the generated mass record) -------------------------------------------------------
+# ---- GPB : CP-gen-carry (the generated mass record) -------------------------------------------------------
 add_test(
-    NAME    CP-gen-cap
+    NAME    CP-gen-carry
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partL-models.txt reference/partL-models.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-cap"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-carry"
 )
-set_tests_properties(CP-gen-cap PROPERTIES
+set_tests_properties(CP-gen-carry PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

@@ -1,7 +1,0 @@
-name: a-cap
-description: A burns to CO2 in the gas; its cap retains the condensed OX; OX handed to the gas ends as CO2
-reference: none (a test of the file format; the mass ratio OX/A is alumina's to aluminium)
-reactions:
-- equation: A + O2 => CO2
-- equation: A + 0.3338672 O2 => OX
-- equation: OX + 0.6661328 O2 => CO2

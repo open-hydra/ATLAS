@@ -1,5 +1,0 @@
-# part-models.txt  written by ATLAS GPB: the constants of each material's models
-# <material> <kind> <model> key=value ...
-
-A combustion Beckstead K-burn=2e-06 T-ign=900 q-comb=30000000
-A cap constant xi-cap=0.2 product=OX residue=on

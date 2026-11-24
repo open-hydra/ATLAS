@@ -6,10 +6,12 @@ One record per process GPB can resolve for a material; the coupler keeps the rec
   combustion   the reaction of particle-mechanism that consumes it and gives gas species, and at most one generated
                mass: a material of an eulerian dispersed phase with a population, born in that ICE family (the record
                ends with it); a material that generates mass gives d-gen in its combustion row
-  cap          the reaction that consumes it and gives one condensed product, the material that product= names on
-               its line (the oxide a cap retains): the gas species it draws and frees, per kg of the material
-  release      the reaction that consumes a product material and gives gas species only (a cap handed to the gas);
-               a product that is also a generated material needs none: its cap is born as generated mass whole
+  carry        the reaction that consumes it and gives one condensed product, the material that carried= names in
+               its carry row (the material the drop carries): the gas species it draws and frees, per kg of the
+               material; its mass of product per kg of material is the yield= GPB adds to that row
+  release      the reaction that consumes a carried material and gives gas species only (the carried mass handed to
+               the gas); a carried material that is also a generated material needs none: it is born as generated
+               mass whole
 The three reaction records carry the energy word "formation": the heat of reaction is in the formation enthalpies of
 the species, so every gas species of a reaction is a species of the gas phase. A material that burns (combustion= on
 its line) and that no reaction consumes stops GPB."""
@@ -28,7 +30,7 @@ T_REF = 298.15
 CONDENSED_SUFFIX = re.compile(r'\([^()]+\)$')    # (L), (cr), (gr), (a), (II), ...: how the databases mark a condensed species
 TERM = re.compile(r'^\s*(?:(\d*\.?\d+(?:[eE][-+]?\d+)?)\s+)?(\S+)\s*$')   # '[coefficient ]species'
 BAD_CHARS = (',', '/')    # a name is one blank-separated token of the file, read by a Fortran list-directed read
-ORDER = {'combustion': 0, 'cap': 1, 'release': 2}   # a molar mass a reaction fixes is known to the kinds after it
+ORDER = {'combustion': 0, 'carry': 1, 'release': 2}   # a molar mass a reaction fixes is known to the kinds after it
 
 
 def _phase_prefix(ini, section):
@@ -42,14 +44,14 @@ def _read_phase_file(path):
     return lines[0], lines[1:]
 
 
-def _read_products_of(path):
-    """material -> its combustion product, from the cap rows of <name>models.txt (no file: no capped material)."""
+def _read_carried_of(path):
+    """material -> the material it carries, from the carry rows of <name>models.txt (no file: none carries)."""
     out = {}
     if os.path.exists(path):
         with open(path) as f:
             for r in (l.split() for l in f if l.strip() and not l.lstrip().startswith('#')):
-                if r[1] == 'cap':
-                    out.update({r[0]: t.split('=', 1)[1] for t in r[3:] if t.startswith('product=')})
+                if r[1] == 'carry':
+                    out.update({r[0]: t.split('=', 1)[1] for t in r[3:] if t.startswith('carried=')})
     return out
 
 
@@ -62,6 +64,27 @@ def _read_row_keys(path, kind, key):
                 if r[1] == kind:
                     out.update({r[0]: t.split('=', 1)[1] for t in r[3:] if t.startswith(key + '=')})
     return out
+
+
+def _add_yields(path, yields):
+    """Each carry row of <name>models.txt gains yield=, the kg of the carried material formed per kg of the material
+    burnt, from its carry reaction: chemistry, which the deck does not repeat (written before carried=)."""
+    if not yields:
+        return
+    with open(path) as f:
+        lines = f.readlines()
+    for n, l in enumerate(lines):
+        r = l.split()
+        if l.lstrip().startswith('#') or len(r) < 3 or r[1] != 'carry' or r[0] not in yields:
+            continue
+        if any(t.startswith('yield=') for t in r[3:]):
+            raise SystemExit(f"[ERROR] {os.path.basename(path)}: the carry row of {r[0]} holds yield= already: "
+                             "GPB writes it from the carry reaction")
+        y = f"yield={yields[r[0]]!r}"
+        k = next((i for i, t in enumerate(r) if i >= 3 and t.startswith('carried=')), len(r))
+        lines[n] = ' '.join(r[:k] + [y] + r[k:]) + '\n'
+    with open(path, 'w') as f:
+        f.writelines(lines)
 
 
 def _phase_materials(ini, phase):
@@ -359,8 +382,9 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, gens, fusion):
     stem = CP_read_particle_mechanism(ini, sec)
     mech_label = 'none'
     done = set()                                     # (material, kind) a reaction already gave
-    product_of = _read_products_of(config.OUTPATH + name + 'models.txt')
+    carried_of = _read_carried_of(config.OUTPATH + name + 'models.txt')
     dgen = _read_row_keys(config.OUTPATH + name + 'models.txt', 'combustion', 'd-gen')
+    yields = {}                                      # material -> kg of the material it carries formed per kg burnt
     gen_of = {}                                    # material -> the generated mass its combustion record ends with
     if stem:
         mname, mpath, reactions = load_particle_mechanism(stem, sec)
@@ -390,24 +414,24 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, gens, fusion):
             made = [s for s in rhs if s in materials or s in gens or CONDENSED_SUFFIX.search(s)]
             if len(made) > 1:
                 raise SystemExit(f"{where}: {len(made)} condensed products ({' '.join(made)}): a reaction gives gas "
-                                 "species, and at most one condensed product: the oxide a cap retains, or a generated "
+                                 "species, and at most one condensed product: the material the drop carries, or a generated "
                                  "mass")
             kinds = []
             if made:
-                if product_of.get(fuel) == made[0]:
-                    kinds.append('cap')
-                    if made[0] in gens:            # what the cap does not retain leaves the drop as generated mass
+                if carried_of.get(fuel) == made[0]:
+                    kinds.append('carry')
+                    if made[0] in gens:            # what the drop does not carry leaves it as generated mass
                         kinds.append('combustion')
                 elif made[0] in gens:
-                    kinds.append('release' if fuel in product_of.values() else 'combustion')
+                    kinds.append('release' if fuel in carried_of.values() else 'combustion')
                 else:
-                    raise SystemExit(f"{where}: condensed product {made[0]}: neither the oxide a cap of {fuel} "
-                                     f"retains (product of {fuel}: {product_of.get(fuel, 'none')}) nor a generated "
+                    raise SystemExit(f"{where}: condensed product {made[0]}: neither the material {fuel} "
+                                     f"carries (carried by {fuel}: {carried_of.get(fuel, 'none')}) nor a generated "
                                      "mass, a material with a population of an eulerian dispersed phase: no ICE family "
                                      f"to receive the generated mass. Declare {made[0]} in the eulerian phase that "
                                      "receives it")
             else:
-                kinds.append('release' if fuel in product_of.values() else 'combustion')
+                kinds.append('release' if fuel in carried_of.values() else 'combustion')
             for kind in kinds:
                 if (fuel, kind) in done:
                     raise SystemExit(f"{where}: a second reaction consumes {fuel}" +
@@ -452,7 +476,7 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, gens, fusion):
             total = sum(t[1] for t in terms) + nu_prod
             if abs(total - 1.0) > 1e-8:
                 raise SystemExit(f"{where}: mass coefficients sum to {total:.12g}, not 1")
-            gen = prod is not None and kind != 'cap'      # the product is born in an ICE family
+            gen = prod is not None and kind != 'carry'    # the product is born in an ICE family
             hf = h298(materials.index(fuel))
             if gen and (prod not in materials or gens[prod][2] is not None):
                 hp = gens[prod][2]
@@ -473,16 +497,18 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, gens, fusion):
                 tail += f" {gens[prod][0]}"
                 gen_of[fuel] = prod
             records[fuel].append((kind, 'formation', hf, terms, eq, tail))
-        # a capped material's product that is also a generated mass and that no reaction consumes: its cap, handed to
+            if kind == 'carry':
+                yields[fuel] = nu_prod
+        # a carried material that is also a generated mass and that no reaction consumes: the carried mass, handed to
         # the gas, is born as generated mass whole
-        for fuel, prod in product_of.items():
+        for fuel, prod in carried_of.items():
             if prod in gens and (prod, 'release') not in done and prod in materials:
                 hp = h298(materials.index(prod))
                 hs = gens[prod][2] if gens[prod][2] is not None else hp
                 if hp is None:
-                    raise SystemExit(f"[ERROR] [{sec}] material {prod}: a constant-property product without h0")
+                    raise SystemExit(f"[ERROR] [{sec}] material {prod}: a constant-property carried material without h0")
                 records[prod].append(('release', 'formation', hp, [],
-                                      f'{prod} -> generated mass {prod} (the cap born as generated mass)',
+                                      f'{prod} -> generated mass {prod} (the carried mass born as generated mass)',
                                       f" {prod} {1.0:.10e} {hs:.10e} {gens[prod][0]}"))
                 done.add((prod, 'release'))
 
@@ -499,19 +525,20 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, gens, fusion):
         if m in dgen and m not in gen_of:
             raise SystemExit(f"[ERROR] [{sec}] material {m}: d-gen = {dgen[m]} and its reaction generates no mass "
                              "(no condensed product that is a material of an eulerian phase with a population)")
-        if m in product_of and (m, 'cap') not in done:
-            raise SystemExit(f"[ERROR] [{sec}] material {m}: product={product_of[m]} and no reaction of "
-                             f"particle-mechanism makes {product_of[m]} from it: add '{m} [+ gas species] => "
-                             f"{product_of[m]} [+ gas species]'")
+        if m in carried_of and (m, 'carry') not in done:
+            raise SystemExit(f"[ERROR] [{sec}] material {m}: carried={carried_of[m]} and no reaction of "
+                             f"particle-mechanism makes {carried_of[m]} from it: add '{m} [+ gas species] => "
+                             f"{carried_of[m]} [+ gas species]'")
 
+    _add_yields(config.OUTPATH + name + 'models.txt', yields)
     path = config.OUTPATH + name + 'products.txt'
     with open(path, 'w') as f:
         f.write("# ATLAS GPB: condensed material -> gas species. Generated: edit the INI and run ATLAS GPB again.\n")
         f.write(f"# particle-mechanism: {mech_label}\n")
-        f.write("# record: material <name> <none|evaporation|combustion|cap|release> <terms> <none|latent|formation> "
+        f.write("# record: material <name> <none|evaporation|combustion|carry|release> <terms> <none|latent|formation> "
                 "<h298 [J/kg]>\n")
         f.write("#         then <terms> lines: <gas species> <nu_mass [kg/kg material]> <nu_mole [mol/mol material]>\n")
-        f.write("#         a cap record ends with: <product material> <kg of it per kg of material> <its h298 [J/kg]>\n")
+        f.write("#         a carry record ends with: <carried material> <kg of it per kg of material> <its h298 [J/kg]>\n")
         f.write(f"gas {gprefix or '-'} {len(gas_W)}\n")
         for m in materials:
             if not records[m]:
