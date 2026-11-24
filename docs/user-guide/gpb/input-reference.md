@@ -94,7 +94,7 @@
 | q-comb |  |  | no | Heat of combustion per unit mass of the material [J/kg], as the burning model uses it: Beckstead heats the particle by beta-part*q-comb*abs(mdot), direct takes it in its transfer number. The heat the gas receives is the reaction heat of particle-mechanism, not this key. |
 | d-stop |  |  | no | Diameter [m] of the residue a burning drop leaves: below it the drop no longer burns and stays, inert (both models, ICE and IGLOO). Absent or 0: the drop burns out. |
 | d-burnout |  |  | no | Diameter [m] at which a burning drop without residue is removed and handed whole to the gas (ICE and IGLOO). Absent or 0: the bound built into the solvers, a drop mass of 1e-20 kg. |
-| d-smoke |  |  | no | Diameter [m] of the smoke drops a burning material makes: required when its reaction makes a condensed product that is a material of an eulerian phase (the smoke, born in that ICE family), refused otherwise (both models, ICE and IGLOO). |
+| d-gen |  |  | no | Diameter [m] of the generated drops a burning material makes: required when its reaction makes a condensed product that is a material of an eulerian phase (the generated mass, born in that ICE family), refused otherwise (both models, ICE and IGLOO). |
 | T-burn |  |  | no | Burning temperature [K] of combustion = direct: the drop burns at it and is held at it. Absent: the boiling temperature of the solver section. The latent heat of the model is the Lv column of the properties table (psat-vapour), evaluated at this temperature. |
 | T-melt |  |  | no | Melt temperature [K] (default: alumina). |
 | h-fus |  |  | no | Heat of fusion [J/kg] (solidification). |

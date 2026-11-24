@@ -2718,133 +2718,133 @@ set_tests_properties(CP-models-breakup-word PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-ice (the smoke record) -------------------------------------------------------
+# ---- GPB : CP-gen-ice (the generated mass record) -------------------------------------------------------
 add_test(
-    NAME    CP-smoke-ice
+    NAME    CP-gen-ice
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/part-products.txt reference/part-products.txt && diff fromATLAStoSolver/part-models.txt reference/part-models.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-ice"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-ice"
 )
-set_tests_properties(CP-smoke-ice PROPERTIES
+set_tests_properties(CP-gen-ice PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-igloo (the smoke record) -----------------------------------------------------
+# ---- GPB : CP-gen-igloo (the generated mass record) -----------------------------------------------------
 add_test(
-    NAME    CP-smoke-igloo
+    NAME    CP-gen-igloo
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partE-products.txt reference/partE-products.txt && diff fromATLAStoSolver/partL-models.txt reference/partL-models.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-igloo"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-igloo"
 )
-set_tests_properties(CP-smoke-igloo PROPERTIES
+set_tests_properties(CP-gen-igloo PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-cap (the smoke record) -------------------------------------------------------
+# ---- GPB : CP-gen-cap (the generated mass record) -------------------------------------------------------
 add_test(
-    NAME    CP-smoke-cap
+    NAME    CP-gen-cap
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partL-models.txt reference/partL-models.txt"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-cap"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-cap"
 )
-set_tests_properties(CP-smoke-cap PROPERTIES
+set_tests_properties(CP-gen-cap PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-solid-below (the smoke record) -----------------------------------------------
+# ---- GPB : CP-gen-solid-below (the generated mass record) -----------------------------------------------
 add_test(
-    NAME    CP-smoke-solid-below
+    NAME    CP-gen-solid-below
     COMMAND bash -c "rm -rf fromATLAStoSolver && ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB && diff fromATLAStoSolver/partL-products.txt reference/partL-products.txt && diff fromATLAStoSolver/partE-products.txt reference/partE-products.txt && diff fromATLAStoSolver/partE-properties.dat reference/partE-properties.dat"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-solid-below"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-solid-below"
 )
-set_tests_properties(CP-smoke-solid-below PROPERTIES
+set_tests_properties(CP-gen-solid-below PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-no-family (refused) ----------------------------------------------------------
+# ---- GPB : CP-gen-no-family (refused) ----------------------------------------------------------
 add_test(
-    NAME    CP-smoke-no-family
-    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'no ICE family to receive the smoke' gpb.log"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-no-family"
+    NAME    CP-gen-no-family
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'no ICE family to receive the generated mass' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-no-family"
 )
-set_tests_properties(CP-smoke-no-family PROPERTIES
+set_tests_properties(CP-gen-no-family PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-no-dsmoke (refused) ----------------------------------------------------------
+# ---- GPB : CP-gen-no-dgen (refused) ----------------------------------------------------------
 add_test(
-    NAME    CP-smoke-no-dsmoke
-    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'give d-smoke, the diameter of the smoke drops' gpb.log"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-no-dsmoke"
+    NAME    CP-gen-no-dgen
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'give d-gen, the diameter of the generated drops' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-no-dgen"
 )
-set_tests_properties(CP-smoke-no-dsmoke PROPERTIES
+set_tests_properties(CP-gen-no-dgen PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-dsmoke-unused (refused) ------------------------------------------------------
+# ---- GPB : CP-gen-dgen-unused (refused) ------------------------------------------------------
 add_test(
-    NAME    CP-smoke-dsmoke-unused
-    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'its reaction makes no smoke' gpb.log"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-dsmoke-unused"
+    NAME    CP-gen-dgen-unused
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'its reaction generates no mass' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-dgen-unused"
 )
-set_tests_properties(CP-smoke-dsmoke-unused PROPERTIES
+set_tests_properties(CP-gen-dgen-unused PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-two-phases (refused) ---------------------------------------------------------
+# ---- GPB : CP-gen-two-phases (refused) ---------------------------------------------------------
 add_test(
-    NAME    CP-smoke-two-phases
-    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'a smoke must name one ICE family' gpb.log"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-two-phases"
+    NAME    CP-gen-two-phases
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'a generated mass must name one ICE family' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-two-phases"
 )
-set_tests_properties(CP-smoke-two-phases PROPERTIES
+set_tests_properties(CP-gen-two-phases PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-melt-ice (refused) -----------------------------------------------------------
+# ---- GPB : CP-gen-melt-ice (refused) -----------------------------------------------------------
 add_test(
-    NAME    CP-smoke-melt-ice
+    NAME    CP-gen-melt-ice
     COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Set solidification = on for AL2O3(L) in [GPB-Phase2]' gpb.log"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-melt-ice"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-melt-ice"
 )
-set_tests_properties(CP-smoke-melt-ice PROPERTIES
+set_tests_properties(CP-gen-melt-ice PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-melt-igloo (refused) ---------------------------------------------------------
+# ---- GPB : CP-gen-melt-igloo (refused) ---------------------------------------------------------
 add_test(
-    NAME    CP-smoke-melt-igloo
+    NAME    CP-gen-melt-igloo
     COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Set solidification = on for AL2O3(L) in [GPB-Phase3]' gpb.log"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-melt-igloo"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-melt-igloo"
 )
-set_tests_properties(CP-smoke-melt-igloo PROPERTIES
+set_tests_properties(CP-gen-melt-igloo PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"
 )
 
-# ---- GPB : CP-smoke-melt-solid (refused) ---------------------------------------------------------
+# ---- GPB : CP-gen-melt-solid (refused) ---------------------------------------------------------
 add_test(
-    NAME    CP-smoke-melt-solid
-    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Name the smoke by AL2O3(L) with solidification = on, or set Tmax = 2327 or lower' gpb.log"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-smoke-melt-solid"
+    NAME    CP-gen-melt-solid
+    COMMAND bash -c "set -o pipefail && rm -rf fromATLAStoSolver && ! ${CMAKE_SOURCE_DIR}/ATLAS.sh GPB 2>&1 | tee gpb.log && grep -q -F 'Name the generated mass by AL2O3(L) with solidification = on, or set Tmax = 2327 or lower' gpb.log"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/GPB/CP-gen-melt-solid"
 )
-set_tests_properties(CP-smoke-melt-solid PROPERTIES
+set_tests_properties(CP-gen-melt-solid PROPERTIES
     LABELS      "GPB;regression"
     TIMEOUT     300
     ENVIRONMENT "${_TEST_ENV}"

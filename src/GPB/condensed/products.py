@@ -3,13 +3,13 @@ of ICE and for the phase of IGLOO). Run after every [GPB-Phase*] is built: it re
 
 One record per process GPB can resolve for a material; the coupler keeps the records of the processes the solver runs:
   evaporation  the material's vapour (psat-vapour), energy word "latent"
-  combustion   the reaction of particle-mechanism that consumes it and gives gas species, and at most one smoke: a
-               material of an eulerian dispersed phase with a population, born in that ICE family (the record ends
-               with it); a material that makes a smoke gives d-smoke in its combustion row
+  combustion   the reaction of particle-mechanism that consumes it and gives gas species, and at most one generated
+               mass: a material of an eulerian dispersed phase with a population, born in that ICE family (the record
+               ends with it); a material that generates mass gives d-gen in its combustion row
   cap          the reaction that consumes it and gives one condensed product, the material that product= names on
                its line (the oxide a cap retains): the gas species it draws and frees, per kg of the material
   release      the reaction that consumes a product material and gives gas species only (a cap handed to the gas);
-               a product that is also a smoke material needs none: its cap is born as smoke whole
+               a product that is also a generated material needs none: its cap is born as generated mass whole
 The three reaction records carry the energy word "formation": the heat of reaction is in the formation enthalpies of
 the species, so every gas species of a reaction is a species of the gas phase. A material that burns (combustion= on
 its line) and that no reaction consumes stops GPB."""
@@ -121,7 +121,7 @@ def _melting_point(m, db, T1, T2):
             'hfus': _h_table(liq, Tm) - _h_table(sol, Tm), 'cps': sol.thermo.cp(Tm) / sol.molecular_weight}
 
 
-def _smoke_fusion(ini, phase):
+def _gen_fusion(ini, phase):
     """The materials of an eulerian phase, taken from the database, whose table crosses a melting point
     (_melting_point): material -> its section, table range, melting point, the other phase, and what its line of
     <name>phase.txt says of solidification and T-melt."""
@@ -148,26 +148,27 @@ def _smoke_fusion(ini, phase):
     return out
 
 
-def _require_fusion(smoke, fuel, fusion):
-    """A smoke whose table crosses its substance's melting point gives the gas the heat of fusion only through ICE's
-    solidification model (the liquid's table and h-fus): the liquid with solidification = on, else GPB stops."""
-    f = fusion.get(smoke)
+def _require_fusion(gen, fuel, fusion):
+    """A generated mass whose table crosses its substance's melting point gives the gas the heat of fusion only through
+    ICE's solidification model (the liquid's table and h-fus): the liquid with solidification = on, else GPB stops."""
+    f = fusion.get(gen)
     if f is None:
         return
     sec, Tm = f['section'], f['Tm']
-    where = f"[ERROR] [{sec}] material {smoke}, the smoke of {fuel}: its table, {f['T1']}-{f['T2']} K, crosses {Tm:g} K"
+    where = (f"[ERROR] [{sec}] material {gen}, the generated mass of {fuel}: its table, {f['T1']}-{f['T2']} K, "
+             f"crosses {Tm:g} K")
     if not f['liquid']:
-        raise SystemExit(f"{where}, where {smoke} of {f['file']} ends and {f['other']} begins; above it the table is "
-                         f"{smoke}'s extended, without the heat of fusion. Name the smoke by {f['other']} with "
+        raise SystemExit(f"{where}, where {gen} of {f['file']} ends and {f['other']} begins; above it the table is "
+                         f"{gen}'s extended, without the heat of fusion. Name the generated mass by {f['other']} with "
                          f"solidification = on, or set Tmax = {Tm:g} or lower in [{sec}]")
     if f['word'] != 'on':
         raise SystemExit(f"{where}, the end of {f['other']} of {f['file']}; below it the table is the liquid's, without "
-                         f"the heat of fusion. Set solidification = on for {smoke} in [{sec}], with T-melt = {Tm:g}, "
-                         f"h-fus (the database gives {f['hfus']:.6g} J/kg, h({smoke}) - h({f['other']}) at T-melt) and "
+                         f"the heat of fusion. Set solidification = on for {gen} in [{sec}], with T-melt = {Tm:g}, "
+                         f"h-fus (the database gives {f['hfus']:.6g} J/kg, h({gen}) - h({f['other']}) at T-melt) and "
                          f"cp-solid (cp of {f['other']} at T-melt: {f['cps']:.6g} J/(kg K))")
     if f['tmelt'] is not None and abs(float(f['tmelt']) - Tm) > 0.5:
-        print(f" [WARNING] [{sec}] material {smoke}: T-melt = {f['tmelt']} K, the database's melting point is {Tm:g} K")
-    print(f" -- {smoke}: the smoke of {fuel} freezes below {Tm:g} K (solidification = on)")
+        print(f" [WARNING] [{sec}] material {gen}: T-melt = {f['tmelt']} K, the database's melting point is {Tm:g} K")
+    print(f" -- {gen}: the generated mass of {fuel} freezes below {Tm:g} K (solidification = on)")
 
 
 def _resolve_vapour(material, pair, db, from_db):
@@ -282,25 +283,27 @@ def write_products_maps(ini, phase_definitions):
     gprefix = _phase_prefix(ini, gas[0].section)
     _, grows = _read_phase_file(config.OUTPATH + gprefix + 'phase.txt')
     gas_W = {r[0]: float(r[1]) for r in grows}
-    # the smokes: the materials with a population of every eulerian dispersed phase, each born in its ICE family
-    smokes, fusion = {}, {}
+    # the generated masses: the materials with a population of every eulerian dispersed phase, each born in its ICE
+    # family
+    gens, fusion = {}, {}
     for p in dispersed:
         if p.phase_modeling != 'eulerian':
             continue
-        fusion.update(_smoke_fusion(ini, p))
+        fusion.update(_gen_fusion(ini, p))
         sprefix, mats = _phase_materials(ini, p)
         for m, (groups, Wm, hm, cm) in mats.items():
             if groups < 1:
                 continue
-            if m in smokes:
+            if m in gens:
                 raise SystemExit(f"[ERROR] [{p.section}] material {m}: a material of two eulerian phases with a "
-                                 f"population ({smokes[m][0]}, {sprefix or '-'}): a smoke must name one ICE family")
-            smokes[m] = (sprefix or '-', Wm, hm, cm)
+                                 f"population ({gens[m][0]}, {sprefix or '-'}): "
+                                 "a generated mass must name one ICE family")
+            gens[m] = (sprefix or '-', Wm, hm, cm)
     for p in dispersed:
-        _write_one(ini, p, gas[0].section, gprefix, gas_W, smokes, fusion)
+        _write_one(ini, p, gas[0].section, gprefix, gas_W, gens, fusion)
 
 
-def _write_one(ini, phase, gas_section, gprefix, gas_W, smokes, fusion):
+def _write_one(ini, phase, gas_section, gprefix, gas_W, gens, fusion):
     sec = phase.section
     name, _, _, thermo = CP_read_models(ini, sec)
     # as the builder: the materials are the database's when no cp is given, or when thermo is given beside cp
@@ -357,8 +360,8 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, smokes, fusion):
     mech_label = 'none'
     done = set()                                     # (material, kind) a reaction already gave
     product_of = _read_products_of(config.OUTPATH + name + 'models.txt')
-    dsmoke = _read_row_keys(config.OUTPATH + name + 'models.txt', 'combustion', 'd-smoke')
-    smoke_of = {}                                    # material -> the smoke its combustion record ends with
+    dgen = _read_row_keys(config.OUTPATH + name + 'models.txt', 'combustion', 'd-gen')
+    gen_of = {}                                    # material -> the generated mass its combustion record ends with
     if stem:
         mname, mpath, reactions = load_particle_mechanism(stem, sec)
         mech_label = f"{mname} ({mpath})"
@@ -369,7 +372,7 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, smokes, fusion):
         for m in materials:
             if from_db(m):
                 W[m], comp[m] = db[m].molecular_weight, _composition(db[m])
-        for s, (_, Ws, _, cs) in smokes.items():
+        for s, (_, Ws, _, cs) in gens.items():
             if s not in W and Ws is not None:
                 W[s] = Ws
             if s not in comp and cs is not None:
@@ -384,23 +387,25 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, smokes, fusion):
             if fuel not in materials:
                 raise SystemExit(f"{where}: the condensed reactant {fuel} is not a material of this phase "
                                  f"({' '.join(materials)})")
-            made = [s for s in rhs if s in materials or s in smokes or CONDENSED_SUFFIX.search(s)]
+            made = [s for s in rhs if s in materials or s in gens or CONDENSED_SUFFIX.search(s)]
             if len(made) > 1:
                 raise SystemExit(f"{where}: {len(made)} condensed products ({' '.join(made)}): a reaction gives gas "
-                                 "species, and at most one condensed product: the oxide a cap retains, or a smoke")
+                                 "species, and at most one condensed product: the oxide a cap retains, or a generated "
+                                 "mass")
             kinds = []
             if made:
                 if product_of.get(fuel) == made[0]:
                     kinds.append('cap')
-                    if made[0] in smokes:            # what the cap does not retain leaves the drop as smoke
+                    if made[0] in gens:            # what the cap does not retain leaves the drop as generated mass
                         kinds.append('combustion')
-                elif made[0] in smokes:
+                elif made[0] in gens:
                     kinds.append('release' if fuel in product_of.values() else 'combustion')
                 else:
                     raise SystemExit(f"{where}: condensed product {made[0]}: neither the oxide a cap of {fuel} "
-                                     f"retains (product of {fuel}: {product_of.get(fuel, 'none')}) nor a smoke, a "
-                                     "material with a population of an eulerian dispersed phase: no ICE family to "
-                                     f"receive the smoke. Declare {made[0]} in the eulerian phase that receives it")
+                                     f"retains (product of {fuel}: {product_of.get(fuel, 'none')}) nor a generated "
+                                     "mass, a material with a population of an eulerian dispersed phase: no ICE family "
+                                     f"to receive the generated mass. Declare {made[0]} in the eulerian phase that "
+                                     "receives it")
             else:
                 kinds.append('release' if fuel in product_of.values() else 'combustion')
             for kind in kinds:
@@ -447,10 +452,10 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, smokes, fusion):
             total = sum(t[1] for t in terms) + nu_prod
             if abs(total - 1.0) > 1e-8:
                 raise SystemExit(f"{where}: mass coefficients sum to {total:.12g}, not 1")
-            smoke = prod is not None and kind != 'cap'      # the product is born in an ICE family
+            gen = prod is not None and kind != 'cap'      # the product is born in an ICE family
             hf = h298(materials.index(fuel))
-            if smoke and (prod not in materials or smokes[prod][2] is not None):
-                hp = smokes[prod][2]
+            if gen and (prod not in materials or gens[prod][2] is not None):
+                hp = gens[prod][2]
             else:
                 hp = h298(materials.index(prod)) if prod else 0.0
             for s, h in ((fuel, hf), (prod, hp)):
@@ -463,21 +468,22 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, smokes, fusion):
             Qr = hf - nu_prod * hp - sum(nm * (_h_table(db[s], T_REF) if s in db else gas_h[s]) for s, nm, _ in terms)
             print(f" -- {fuel}: '{eq}', heat of reaction {Qr/1e6:.4f} MJ/kg at {T_REF} K")
             tail = f" {prod} {nu_prod:.10e} {hp:.10e}" if prod else ''
-            if smoke:
+            if gen:
                 _require_fusion(prod, fuel, fusion)
-                tail += f" {smokes[prod][0]}"
-                smoke_of[fuel] = prod
+                tail += f" {gens[prod][0]}"
+                gen_of[fuel] = prod
             records[fuel].append((kind, 'formation', hf, terms, eq, tail))
-        # a capped material's product that is also a smoke and that no reaction consumes: its cap, handed to the gas,
-        # is born as smoke whole
+        # a capped material's product that is also a generated mass and that no reaction consumes: its cap, handed to
+        # the gas, is born as generated mass whole
         for fuel, prod in product_of.items():
-            if prod in smokes and (prod, 'release') not in done and prod in materials:
+            if prod in gens and (prod, 'release') not in done and prod in materials:
                 hp = h298(materials.index(prod))
-                hs = smokes[prod][2] if smokes[prod][2] is not None else hp
+                hs = gens[prod][2] if gens[prod][2] is not None else hp
                 if hp is None:
                     raise SystemExit(f"[ERROR] [{sec}] material {prod}: a constant-property product without h0")
-                records[prod].append(('release', 'formation', hp, [], f'{prod} -> smoke {prod} (the cap born as smoke)',
-                                      f" {prod} {1.0:.10e} {hs:.10e} {smokes[prod][0]}"))
+                records[prod].append(('release', 'formation', hp, [],
+                                      f'{prod} -> generated mass {prod} (the cap born as generated mass)',
+                                      f" {prod} {1.0:.10e} {hs:.10e} {gens[prod][0]}"))
                 done.add((prod, 'release'))
 
     # --- a material told to burn names its reaction: the gas holds what it becomes ------------------------------
@@ -487,11 +493,11 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, smokes, fusion):
             raise SystemExit(f"[ERROR] [{sec}] material {m}: combustion={word} and no reaction consumes it: give "
                              f"particle-mechanism = <stem>, the file of the reaction '{m} [+ gas species] => gas "
                              f"species'. Every gas species of it must be a species of the gas phase ({gas_list})")
-        if m in smoke_of and m not in dsmoke:
-            raise SystemExit(f"[ERROR] [{sec}] material {m}: its reaction makes the smoke {smoke_of[m]}, born in an "
-                             f"ICE family: give d-smoke, the diameter of the smoke drops, in [{sec}]")
-        if m in dsmoke and m not in smoke_of:
-            raise SystemExit(f"[ERROR] [{sec}] material {m}: d-smoke = {dsmoke[m]} and its reaction makes no smoke "
+        if m in gen_of and m not in dgen:
+            raise SystemExit(f"[ERROR] [{sec}] material {m}: its reaction makes the generated mass {gen_of[m]}, born "
+                             f"in an ICE family: give d-gen, the diameter of the generated drops, in [{sec}]")
+        if m in dgen and m not in gen_of:
+            raise SystemExit(f"[ERROR] [{sec}] material {m}: d-gen = {dgen[m]} and its reaction generates no mass "
                              "(no condensed product that is a material of an eulerian phase with a population)")
         if m in product_of and (m, 'cap') not in done:
             raise SystemExit(f"[ERROR] [{sec}] material {m}: product={product_of[m]} and no reaction of "
@@ -522,5 +528,6 @@ def _write_one(ini, phase, gas_section, gprefix, gas_W, smokes, fusion):
         for proc, energy, _, terms, _, tail in records[m]:
             kept = f"; condensed product {tail.split()[0]} {float(tail.split()[1]):+.5f}" if tail else ''
             if len(tail.split()) == 4:
-                kept = f"; smoke {tail.split()[0]} {float(tail.split()[1]):+.5f}, born in the phase {tail.split()[3]}"
+                kept = (f"; generated mass {tail.split()[0]} {float(tail.split()[1]):+.5f}, "
+                        f"born in the phase {tail.split()[3]}")
             print(f"    {m} [{proc}, {energy}]: " + ', '.join(f"{s} {nm:+.5f}" for s, nm, _ in terms) + kept)
