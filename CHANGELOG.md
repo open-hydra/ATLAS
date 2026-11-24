@@ -32,18 +32,20 @@ All notable changes to ATLAS are listed here. The format follows
 - The documentation is built with Zensical (strict in CI), with a new home page and an INI Files page.
 - GPB, `[GPB-Pyrolysis<n>]`: the pyrolysis-gas tables of a charring ablator, `<phase>-pyrolysis.dat`, by
   `treatment = gas-only` (the default) or `strip`. See [Pyrolysis-Gas Tables](docs/user-guide/gpb/pyrolysis.md).
-- `<name>products.txt`: the gas species each dispersed material becomes per kg (evaporation, combustion, oxide cap
+- `<name>products.txt`: the gas species each dispersed material becomes per kg (evaporation, combustion, carry
   and release records), written beside the phase file for hydra-MI2. Reactions: `particle-mechanism`, from the case
   directory or `database/particle-combustion/`.
-- The smoke of a burning material: a condensed product of its reaction that is a material of an eulerian phase is
-  born in that ICE family; `d-smoke` gives its diameter. A smoke whose table crosses its melting point (from the
+- The generated mass of a burning material: a condensed product of its reaction that is a material of an eulerian phase is
+  born in that ICE family; `d-gen` gives its diameter. A generated mass whose table crosses its melting point (from the
   database's other phases of the substance) needs `solidification = on`, or a table that ends below it.
-- New keys: `d-stop`, `d-burnout`, `d-smoke`, `T-burn`, `product`, `residue`, `d-residue`, `xi-law`, `xi-ox0`.
+- New keys: `d-stop`, `d-burnout`, `d-gen`, `T-burn`, `carry`, `carried`, `carried-0`, `residue`, `d-residue`.
 - GPB, a dispersed material's breakup model (`breakup`) and its constants, as rows of `<name>models.txt` for IGLOO.
   See [the models file](docs/user-guide/gpb/condensed-solid.md#the-constants-of-the-models-namemodelstxt).
 
 ### Changed
 
+- **Breaking.** GPB, the oxide cap is now a carried material, as IGLOO names it: `xi-cap` is `share`; rows of kind
+  `carry` gain `yield` from the carry reaction. See [the models file](docs/user-guide/gpb/condensed-solid.md#the-constants-of-the-models-namemodelstxt).
 - **Breaking.** A `manifold` section lists its faces by role, `outlet` and `inlet`, instead of `block`/`face`, and
   takes `K`, `rf`, `mdot-ratio`, `p0-ratio`, `dh0`: rewrite it as in [manifold](docs/user-guide/bcb/bc-types.md#manifold).
 - **Breaking.** `burcat.yaml` is no longer distributed: its licence does not allow it in GPL software. Put it in
@@ -74,7 +76,7 @@ All notable changes to ATLAS are listed here. The format follows
 - **Breaking.** GPB, a burning dispersed material: the constants of its model (`K-burn`, `q-comb`, `d-stop`, ...)
   leave the material line of `<name>phase.txt` for `<name>models.txt`, one row per material and kind; the line keeps
   the model's word. A material with `combustion` needs its reaction in `particle-mechanism`, whose products are gas
-  species of the deck (and at most one smoke). `combustion` also takes `direct` and `none`.
+  species of the deck (and at most one generated mass). `combustion` also takes `direct` and `none`.
 
 ### Fixed
 

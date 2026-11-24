@@ -62,7 +62,7 @@ def phase_header_word(type):
 
 # -----------------------------------------------------------------------
 # Per-material solver models. The material line of <name>phase.txt carries
-# the WORD of each model (evaporation=CEM, combustion=Beckstead, cap=constant, breakup=TAB)
+# the WORD of each model (evaporation=CEM, combustion=Beckstead, carry=constant, breakup=TAB)
 # and, as key=value tokens, the constants of the models that have no kind in
 # MODEL_KINDS yet. The constants of a kind go to <name>models.txt, one row
 # per material and kind: '<material> <kind> <model> key=value ...'.
@@ -84,11 +84,11 @@ MATERIAL_REAL_KEYS = ('alpha-e', 'k-liq', 'mu-liq', 'T-melt', 'h-fus', 'T-nuc', 
 MODEL_KINDS = {
   'combustion': ('combustion', None,
                  {'Beckstead': ('K-burn', 'n-burn', 'X-eff', 'beta-part', 'T-ign', 'q-comb', 'd-stop', 'd-burnout',
-                                'd-smoke'),
-                  'direct': ('T-burn', 'q-comb', 'd-stop', 'd-burnout', 'd-smoke')}),
-  'cap': ('xi-law', 'constant',
-          {'constant': ('xi-cap', 'xi-ox0', 'product', 'residue', 'd-residue'),
-           'Gallier21': ('xi-ox0', 'product', 'residue', 'd-residue')}),
+                                'd-gen'),
+                  'direct': ('T-burn', 'q-comb', 'd-stop', 'd-burnout', 'd-gen')}),
+  'carry': ('carry', 'constant',
+            {'constant': ('share', 'carried', 'carried-0', 'residue', 'd-residue'),
+             'Gallier21': ('carried', 'carried-0', 'residue', 'd-residue')}),
   'breakup': ('breakup', None,
               {'Pilch-Erdman': ('Cd', 'B'),
                'Reitz-Diawakar': ('WeBag', 'Cb', 'Cstrip', 'Cs'),
@@ -97,9 +97,9 @@ MODEL_KINDS = {
                'ETAB': ('k1', 'k2', 'WeCrit', 'WeTrans', 'Comega', 'Cmu')}),
 }
 # kind -> (the key, the word) that switches the kind off for a material: no row, and an explicit constant stops GPB.
-MODEL_OFF = {'combustion': ('combustion', 'none'), 'cap': ('combustion', 'none'), 'breakup': ('breakup', 'NoBreakup')}
+MODEL_OFF = {'combustion': ('combustion', 'none'), 'carry': ('combustion', 'none'), 'breakup': ('breakup', 'NoBreakup')}
 # The constants that are words, with the value that stands for "not given" (the reals: 0).
-MODEL_WORD_CONSTANTS = {'product': 'none', 'residue': 'off'}
+MODEL_WORD_CONSTANTS = {'carried': 'none', 'residue': 'off'}
 MODEL_WORD_VALUES = {'residue': ('on', 'off')}
 
 
@@ -150,13 +150,13 @@ def CP_read_material_models(ini_file, section, nmat):
 
 def CP_read_model_rows(ini_file, section, names, groups, tokens):
   """The rows of <name>models.txt, (material, kind, model, ['key=value', ...]), and the tokens with the word of each
-  kind that has no word key of its own on the line (cap=<law>; combustion=<model> is a token already).
+  kind whose word is not a token of the line already (carry=<law>; combustion=<model> is one).
   A constant goes in the row of each material whose model reads it. Where the model does not read it, a single value
   given for all the materials is not written for that one, and an entry of a per-material list must be the "not
   given" value (0, none, off), else GPB stops; a constant that no material's model reads stops GPB too. A material
   that names no model of a kind whose key is absent (combustion, breakup: the solver's section decides) gets its
-  constants under the model '-'. A material with combustion = none gets no combustion or cap row, one with
-  breakup = NoBreakup no breakup row, and a combustion product (the material `product` names) none: it is a material
+  constants under the model '-'. A material with combustion = none gets no combustion or carry row, one with
+  breakup = NoBreakup no breakup row, and a carried material (the material `carried` names) none: it is a material
   of the phase with 0 groups, never injected, and its line loses the combustion= and breakup= words."""
   nmat = len(names)
   given = {}                                             # constant -> (one value per material, explicit)
@@ -181,13 +181,13 @@ def CP_read_model_rows(ini_file, section, names, groups, tokens):
   def null(key, v):
     return v == MODEL_WORD_CONSTANTS[key] if key in MODEL_WORD_CONSTANTS else float(v) == 0.0
 
-  products = sorted(set(v for v in given.get('product', ([], False))[0] if v != 'none'))
-  for p in products:
+  carried = sorted(set(v for v in given.get('carried', ([], False))[0] if v != 'none'))
+  for p in carried:
     if p not in names:
-      raise SystemExit(f"[ERROR] [{section}] product = {p}: not a material of this phase ({' '.join(names)})")
+      raise SystemExit(f"[ERROR] [{section}] carried = {p}: not a material of this phase ({' '.join(names)})")
     i = names.index(p)
     if int(groups[i]) != 0:
-      raise SystemExit(f"[ERROR] [{section}] product = {p}: a combustion product is never injected: give it 0 groups "
+      raise SystemExit(f"[ERROR] [{section}] carried = {p}: a carried material is never injected: give it 0 groups "
                        f"(groups holds {int(groups[i])} for it)")
     tokens[i] = [t for t in tokens[i] if not t.startswith(('combustion=', 'breakup='))]
   off = {}                                               # kind -> per material: its word switches the kind off
@@ -198,7 +198,7 @@ def CP_read_model_rows(ini_file, section, names, groups, tokens):
   rows = []
   for kind, (word_key, default, models) in MODEL_KINDS.items():
     words, _ = _per_material(ini_file, section, word_key, nmat)
-    inert = [m in products or off[kind][i] for i, m in enumerate(names)]
+    inert = [m in carried or off[kind][i] for i, m in enumerate(names)]
     union = [k for keys in models.values() for k in keys]
     union = [k for n, k in enumerate(union) if k not in union[:n]]
     model = []                    # per material: a model, '-' (none named: the solver's section decides), None (no row)
@@ -208,8 +208,8 @@ def CP_read_model_rows(ini_file, section, names, groups, tokens):
         w = None
       elif w is not None and w not in models:
         raise SystemExit(f"[ERROR] [{section}] {word_key} = '{w}': expected one of {tuple(models)}")
-      elif kind == 'cap' and w != 'Gallier21' and not any(k in given and not null(k, given[k][0][i]) for k in union):
-        w = None                                         # no cap is asked for this material
+      elif kind == 'carry' and w != 'Gallier21' and not any(k in given and not null(k, given[k][0][i]) for k in union):
+        w = None                                         # this material carries nothing
       elif w is None:
         w = '-'
       model.append(w)
@@ -222,7 +222,7 @@ def CP_read_model_rows(ini_file, section, names, groups, tokens):
         if i in readers or not explicit or null(k, vals[i]):
           continue
         who = (f"{word_key} = {model[i]} reads {', '.join(models[model[i]])}" if model[i] is not None else
-               'a combustion product reads no constant' if m in products else
+               'a carried material reads no constant' if m in carried else
                f"{MODEL_OFF[kind][0]} = {MODEL_OFF[kind][1]} reads no constant")
         raise SystemExit(f"[ERROR] [{section}] {k} = {vals[i]} for material {m}: {who}; in a list, give "
                          f"{MODEL_WORD_CONSTANTS.get(k, '0')} for this material")
@@ -233,7 +233,7 @@ def CP_read_model_rows(ini_file, section, names, groups, tokens):
       if model[i] is None:
         continue
       items = [f"{k}={given[k][0][i]}" for k in (union if model[i] == '-' else models[model[i]]) if k in given]
-      if kind != word_key:
+      if kind not in MATERIAL_WORD_KEYS:
         tokens[i].append(f"{kind}={model[i]}")
       if items:
         rows.append((i, m, kind, model[i], items))

@@ -21,11 +21,12 @@ one GPB stops. A reaction is one of three kinds, told apart by its condensed spe
 | kind | reaction | record |
 |---|---|---|
 | combustion | the material, with gas species, gives gas species only | `combustion` of the material |
-| cap | the material, with gas species, gives one condensed product: the material that `product =` names for it, a line of 0 groups of the same phase | `cap` of the material |
-| release | a product material, with gas species, gives gas species only | `release` of the product |
+| carry | the material, with gas species, gives one condensed product: the material that `carried =` names for it, a line of 0 groups of the same phase | `carry` of the material |
+| release | a carried material, with gas species, gives gas species only | `release` of the carried material |
 
-A material that grows an oxide cap (`xi-cap`, `xi-law`, with `product`) needs its combustion and its cap reaction;
-`residue = off`, which hands the cap to the gas at burnout, needs the release reaction of the product as well.
+A material that carries another (`share` or `carry`, with `carried`) needs its combustion and its carry reaction;
+`residue = off`, which hands the carried mass to the gas at burnout, needs the release reaction of the carried
+material as well. The carry reaction also gives IGLOO its `yield`, the kg carried per kg burnt.
 
 Rules, each checked by GPB:
 

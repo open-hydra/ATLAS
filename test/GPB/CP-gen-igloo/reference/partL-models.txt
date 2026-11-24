@@ -1,0 +1,4 @@
+# partL-models.txt  written by ATLAS GPB: the constants of each material's models
+# <material> <kind> <model> key=value ...
+
+AL(L) combustion Beckstead K-burn=1.39e-06 n-burn=1.8 X-eff=0.5 beta-part=0.02 T-ign=2300 q-comb=14900000 d-gen=1e-06

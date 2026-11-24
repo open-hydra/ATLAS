@@ -67,7 +67,7 @@
 | h0 |  |  | no | Optional enthalpy at 298.15 K [J/kg], one per fixed-cp material; makes the Enthalpy column absolute (`h = cp*T + h0 - cp*298.15`, header Enthalpy_abs). |
 | psat-vapour |  |  | no | Vapour species of the thermo database (thermo = NASA9 or Burcat), one per material, none to skip one: adds the columns Psat [Pa], Lv [J/kg], Mv [kg/kmol] and Cpv [J/(kg K)] to <name>properties.dat, from the liquid/vapour pair: `p_sat = 1e5*exp(-(g_vap - g_liq)/(R*T))`, `Lv = (h_vap - h_liq)/Mv`, `Cpv = cp_vap/Mv` (dispersed phases only). |
 | psat-liquid |  |  | no | Liquid species paired with psat-vapour, one per material; default = the material name. |
-| particle-mechanism |  |  | no | Reaction file of the burning materials of a dispersed phase: <stem>.yaml of the case directory, else of database/particle-combustion/. A reaction consumes one material: into gas species only (the combustion record of <name>products.txt), or into gas species and the one condensed product that product names (the cap record); a reaction that consumes a product gives its release record. Every gas species of a reaction is a species of the gas phase. hydra-MI2 reads the file; the burning rate stays the solver model named by combustion. A material with combustion and no reaction stops GPB. |
+| particle-mechanism |  |  | no | Reaction file of the burning materials of a dispersed phase: <stem>.yaml of the case directory, else of database/particle-combustion/. A reaction consumes one material: into gas species only (the combustion record of <name>products.txt), or into gas species and the one condensed product that carried names (the carry record); a reaction that consumes a carried material gives its release record. Every gas species of a reaction is a species of the gas phase. hydra-MI2 reads the file; the burning rate stays the solver model named by combustion. A material with combustion and no reaction stops GPB. |
 | cp |  |  | no | Fixed specific heat values for condensed materials. |
 | k |  |  | no | Fixed thermal conductivity values for condensed materials. |
 | rho |  |  | no | Density values for condensed materials. |
@@ -84,17 +84,17 @@
 | n-burn |  |  | no | Beckstead burn-law diameter exponent (nominal 1.8, range 1.5-1.8). |
 | X-eff |  |  | no | Effective oxidizer mole fraction C_O2 + 0.6 C_H2O + 0.22 C_CO2; weights K as X-eff (linear) [Beck05]. |
 | beta-part |  |  | no | Heat-partition fraction of q-comb released to the particle (weakly constrained; see theory/combustion). |
-| xi-cap |  |  | no | Oxide-cap mass fraction retained on the burning particle. |
-| xi-law |  | constant,Gallier21 | no | The retained fraction of the oxide cap: constant (xi-cap) or the deposition law of Gallier et al. 2021 (IGLOO). |
-| xi-ox0 |  |  | no | Oxide mass fraction of the injected particle, [0, 1); needs the cap (IGLOO). |
-| product |  |  | no | The combustion product of a capped burning material: the name of a material of this phase with 0 groups, none for a material without one. Its line carries no key of the burning model; the cap reaction of particle-mechanism makes it. |
-| residue |  | on,off | no | on: at burnout the cap becomes a parcel of the product; off: it is handed to the gas, which needs the release reaction of the product in particle-mechanism (IGLOO). |
-| d-residue |  |  | no | Diameter [m] of the residue parcels of an oxide cap, the mass flow kept; 0: one residue per droplet (IGLOO). |
+| carry |  | constant,Gallier21 | no | The share of the product a burning drop keeps: constant (share) or the deposition law of Gallier et al. 2021 (IGLOO). Its constants go to the carry row of <name>models.txt, with yield, the kg of the carried material formed per kg burnt, which GPB takes from the carry reaction of particle-mechanism. |
+| share |  |  | no | carry = constant: the part of the product formed that the burning drop keeps, [0, 1] (IGLOO). |
+| carried |  |  | no | The material a burning material carries: the name of a material of this phase with 0 groups, none for a material that carries nothing. Its line carries no key of the burning model; the carry reaction of particle-mechanism makes it. |
+| carried-0 |  |  | no | Carried mass fraction of the injected particle, [0, 1); needs a carried material (IGLOO). |
+| residue |  | on,off | no | on: at burnout the carried mass becomes a parcel of the carried material; off: it is handed to the gas, which needs the release reaction of the carried material in particle-mechanism (IGLOO). |
+| d-residue |  |  | no | Diameter [m] of the residue parcels of a carried material, the mass flow kept; 0: one residue per droplet (IGLOO). |
 | T-ign |  |  | no | Ignition temperature [K]; the particle is inert (mdot=0) below it. |
 | q-comb |  |  | no | Heat of combustion per unit mass of the material [J/kg], as the burning model uses it: Beckstead heats the particle by beta-part*q-comb*abs(mdot), direct takes it in its transfer number. The heat the gas receives is the reaction heat of particle-mechanism, not this key. |
 | d-stop |  |  | no | Diameter [m] of the residue a burning drop leaves: below it the drop no longer burns and stays, inert (both models, ICE and IGLOO). Absent or 0: the drop burns out. |
 | d-burnout |  |  | no | Diameter [m] at which a burning drop without residue is removed and handed whole to the gas (ICE and IGLOO). Absent or 0: the bound built into the solvers, a drop mass of 1e-20 kg. |
-| d-smoke |  |  | no | Diameter [m] of the smoke drops a burning material makes: required when its reaction makes a condensed product that is a material of an eulerian phase (the smoke, born in that ICE family), refused otherwise (both models, ICE and IGLOO). |
+| d-gen |  |  | no | Diameter [m] of the generated drops a burning material makes: required when its reaction makes a condensed product that is a material of an eulerian phase (the generated mass, born in that ICE family), refused otherwise (both models, ICE and IGLOO). |
 | T-burn |  |  | no | Burning temperature [K] of combustion = direct: the drop burns at it and is held at it. Absent: the boiling temperature of the solver section. The latent heat of the model is the Lv column of the properties table (psat-vapour), evaluated at this temperature. |
 | T-melt |  |  | no | Melt temperature [K] (default: alumina). |
 | h-fus |  |  | no | Heat of fusion [J/kg] (solidification). |
