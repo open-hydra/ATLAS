@@ -94,6 +94,8 @@ All notable changes to ATLAS are listed here. The format follows
   the bound, and now follow the record's slope there. Rows at or above the bounds are unchanged.
 - BCB, `periodic`: faces turned by the sector angle got orientation steps other than 1 0 0 1, and the partner block
   of another phase its mesh number; BCB now stops when the two faces are not images by a rigid motion.
+- The cell volume of BCB, ICB and STB is the trilinear one of MOSE and ICE (five tetrahedra before, exact on plane faces
+  only): on twisted cells the volumes of `chimera.log` and STB's 3-D remap change, the chimera weights do not.
 
 ### Removed
 

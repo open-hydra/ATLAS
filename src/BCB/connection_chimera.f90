@@ -602,9 +602,9 @@ contains
     enddo
 
     ! Overlap volumes by clipping the two cells split into tetrahedra, as the fraction
-    ! of the receiver each donor covers times its volume (block%vol, the 5-tetrahedron
-    ! volume of the solver: the weights are ratios, so the factor cancels). Exact for
-    ! planar faces, a consistent planar model of warped ones, accurate on thin overlaps.
+    ! of the receiver each donor covers times its volume (block%vol: the trilinear volume
+    ! of the solvers, which the 24 tetrahedra enclose too, so vr/vr_tet only undoes fs^3).
+    ! Exact for planar faces, a consistent planar model of warped ones, accurate on thin overlaps.
     vr = block(br)%vol(ir,jr,kr)
     do n = 1, nd
       m = keep(n)

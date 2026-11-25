@@ -1816,6 +1816,36 @@ set_tests_properties(qvol-3D-conservative PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- common : cell-volume -------------
+# compute_volume of src/common/grid.f90, which BCB (the chimera weights), ICB and STB (the 3D remap) share, against
+# volumes the program computes itself: the trilinear volume of the solvers by a Gauss quadrature of the Jacobian on
+# twisted cells and on a block of jittered nodes that must tile its box, closed forms on plane-faced cells, the same
+# volumes on the mirrored (left-handed) block and none on a flat cell.
+add_executable(cell_volume_check common/cell_volume_check.f90 ${CMAKE_SOURCE_DIR}/src/common/grid.f90)
+target_link_libraries(cell_volume_check PRIVATE ORION)
+if(USE_OPENMP)
+  find_package(OpenMP REQUIRED COMPONENTS Fortran)
+  target_link_libraries(cell_volume_check PRIVATE OpenMP::OpenMP_Fortran)
+endif()
+if(USE_TECIO)
+  target_link_libraries(cell_volume_check PRIVATE -pthread)
+endif()
+# Linked by the Fortran driver, as the tools (src/CMakeLists.txt): ORION's TecIO is C++, and the C++ driver gives an
+# Intel Fortran main program no entry point.
+set_target_properties(cell_volume_check PROPERTIES
+    LINKER_LANGUAGE Fortran
+    Fortran_MODULE_DIRECTORY "${CMAKE_Fortran_MODULE_DIRECTORY}/cell_volume_check"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+target_include_directories(cell_volume_check BEFORE PRIVATE
+    $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}/cell_volume_check>
+    $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
+add_test(NAME cell-volume COMMAND cell_volume_check)
+set_tests_properties(cell-volume PROPERTIES
+    LABELS      "BCB;ICB;STB;regression"
+    TIMEOUT     60
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---------------------------------------------------------------------------
 #  MDB : mesh decomposition
 # ---------------------------------------------------------------------------

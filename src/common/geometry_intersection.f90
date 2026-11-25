@@ -32,8 +32,8 @@ contains
     real(8), dimension(3)     :: centroid
 
     ! Reference volume with the SAME face-pyramid decomposition used for P, evaluated
-    ! at the centroid. A 5/6-tetrahedron cell volume differs from it by the
-    ! volume swept by the non-planar (bilinear) faces: on the cells of a curved mesh
+    ! at the centroid. Another volume of the cell (block%vol, or 5/6 tetrahedra) differs
+    ! from it by the volume swept by the non-planar (bilinear) faces: on the cells of a curved mesh
     ! that difference exceeds the tolerance below by orders of magnitude (1e-6..1e-2
     ! relative on an aerospike grid), and every point, the cell centre included,
     ! tested as outside, leaving chimera facelets without donors.
