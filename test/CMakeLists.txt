@@ -1827,7 +1827,13 @@ if(USE_OPENMP)
   find_package(OpenMP REQUIRED COMPONENTS Fortran)
   target_link_libraries(cell_volume_check PRIVATE OpenMP::OpenMP_Fortran)
 endif()
+if(USE_TECIO)
+  target_link_libraries(cell_volume_check PRIVATE -pthread)
+endif()
+# Linked by the Fortran driver, as the tools (src/CMakeLists.txt): ORION's TecIO is C++, and the C++ driver gives an
+# Intel Fortran main program no entry point.
 set_target_properties(cell_volume_check PROPERTIES
+    LINKER_LANGUAGE Fortran
     Fortran_MODULE_DIRECTORY "${CMAKE_Fortran_MODULE_DIRECTORY}/cell_volume_check"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 target_include_directories(cell_volume_check BEFORE PRIVATE
