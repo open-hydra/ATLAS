@@ -146,7 +146,7 @@ jobs:
           ASAN_OPTIONS: detect_leaks=0
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
         run: |
-          for t in ORION FiNeR cea_core ICB BCB MDB STB compile_databases; do cmake --build build --target $t -j 2; done
+          for t in ORION FiNeR cea_core ICB BCB MDB STB compile_databases cell_volume_check; do cmake --build build --target $t -j 2; done
 
       - name: Run tests (OpenMP build, sanitizers, single-threaded tests)
         env:
