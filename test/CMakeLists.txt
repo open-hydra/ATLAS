@@ -944,6 +944,24 @@ set_tests_properties(IG-chimera-warped PROPERTIES
     ENVIRONMENT "${_TEST_ENV}"
 )
 
+# ---- BCB : IG-chimera-scale (the boundary conditions do not depend on the size of the mesh) ---------------
+# check_scale.py writes three blocks (two overlapping through chimera faces, donor fractions 0.3 and 0.7, a third
+# connected to the first) as a plane 2-D, a 3-D, a 3-D of 1 m thickness and a 1-degree wedge mesh at cells of 1 m,
+# 1 mm, 10 um, 1 um and 0.1 um, runs BCB on each in _run-<mesh>-<size>, and requires the records, donors, fractions
+# (1e-12), chimera.log verdicts and scaled volumes (1e-10) and WARNING/LOG lines of 1 m at every size; on a fifth
+# mesh the ghost cells behind a chimera face have no volume: they take no donor, at 1 m and at 0.1 um alike. The
+# oracle is the 1 m run.
+add_test(
+    NAME    IG-chimera-scale
+    COMMAND python3 -B check_scale.py ${CMAKE_SOURCE_DIR}/ATLAS.sh
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/test/BCB/IG-chimera-scale"
+)
+set_tests_properties(IG-chimera-scale PROPERTIES
+    LABELS      "BCB;regression"
+    TIMEOUT     600
+    ENVIRONMENT "${_TEST_ENV}"
+)
+
 # ---- BCB : IG-force-chimera (partial interface, BC-force-chimera) ------------
 # A small fine block overlaps only a strip of a large coarse block. The large
 # block's face and the small block's lateral faces are declared symmetry; with

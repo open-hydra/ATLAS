@@ -125,6 +125,7 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `IG+SP-chimera-ks` | BCB | `BCB/IG+SP-chimera-ks` | Chimera between two phases (104) with wall roughness: the donors are found in the other phase, the gas records carry `ks` at the end of the donor-count line, the solid ones none. |
 | `IG+SP-chimera-corner` | BCB | `BCB/IG+SP-chimera-corner` | A 104 interface along an L-shaped wall: the ghost cells that touch the corner block with zero volume stay 104. |
 | `IG-chimera-warped` | BCB | `BCB/IG-chimera-warped` | Chimera on warped cells: every fully covered receiver closes (no `division failed` in `chimera.log`) and the thin donors are kept. |
+| `IG-chimera-scale` | BCB | `BCB/IG-chimera-scale` | The same chimera and connection set-up (donor fractions 0.3 and 0.7) as a plane 2-D, a 3-D, a 3-D of 1 m thickness and a 1-degree wedge mesh at cells of 1 m down to 0.1 um: every size gives the records, donors, fractions, `chimera.log` verdicts and messages of 1 m; ghost cells without volume take no donor at any size. |
 | `DP-population-list` | BCB | `BCB/DP-population-list` | A per-population key takes one value per (material, population) pair, in the order of the phase file. |
 | `DP-population-count` | BCB | `BCB/DP-population-count` | A per-population key with a count other than 1 or one per pair stops BCB. |
 | `DP-population-forms` | BCB | `BCB/DP-population-forms` | The value forms of a per-population key (`450, 460, 470`, `0.01/ 0.02, 0.03`, `3*345.0`) give the BC file of DP-population-list. |
