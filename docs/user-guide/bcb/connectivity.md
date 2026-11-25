@@ -57,7 +57,7 @@ Enabled with `BC-chimera = true`. For every receiver facelet BCB takes the
 - Each donor's weight is its intersection volume divided by the total
   intersection volume of that ghost cell, so the weights of one ghost layer
   **sum to 1**. Donors contributing less than `1e-6` of the receiver cell volume
-  are dropped.
+  are dropped, at every mesh scale; a receiver cell without volume takes no donor.
 - The intersection volumes come from clipping the two cells split into 24
   tetrahedra each, through their centroid and face centres: exact for planar
   faces and for thin overlaps, and a consistent planar model of warped (bilinear)

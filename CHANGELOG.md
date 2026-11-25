@@ -80,6 +80,8 @@ All notable changes to ATLAS are listed here. The format follows
 
 ### Fixed
 
+- BCB, `chimera`: donors below `1e-6` of the receiver volume were also dropped below 1e-18 m3, so cells of a few
+  micrometres lost theirs. The threshold is relative only; a receiver without volume takes no donor.
 - An external ORION, FiNeR or CEA clone given by a relative path is taken from the ATLAS folder, not the build one.
 - GPB, a fixed gas given `mil` without `kl` or `Pr` stops with a message (it stopped with a Python error).
 - `JLR-nasuti-ct.yaml`, `JLR-frassoldati-ct.yaml` (the forms KAnT runs): the backward H2 step never acted. It is
