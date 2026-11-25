@@ -379,95 +379,58 @@ contains
   end subroutine compute_norm_area
 
 
-  !@brief: Compute the volume of each cell in the block with 2nd order accuracy.
+  !@brief: Volume of each cell, the integral of det J of the trilinear map of its nodes as in MOSE and ICE, exact on
+  ! twisted faces (the cells tile the block): V = 1/12 sum_d e_d . (X_d- + X_d+), mean edges e, diagonal x diagonal X.
   subroutine compute_volume( self, gc )
     implicit none
     class(block_type), intent(inout) :: self
     integer, intent(in) :: gc(:)
     ! Local
-    real(kind=8) :: vol
+    real(kind=8) :: vol, r(3,8), ea(3,3)
+    real(kind=8), volatile :: rv(3,8)   ! nodes relative to node 1, rounded as written even under reassociating flags
     integer      :: i, j, k, im, jm, km
-    real(kind=8) :: vx(8), vy(8), vz(8)
 
-    ! Peliminary operations
     im = self%dim(1)
     jm = self%dim(2)
     km = self%dim(3)
 
     allocate(self%vol(1-gc(1):im+gc(1),1-gc(2):jm+gc(2),1-gc(3):km+gc(3)))
-    ! a cell skipped below holds 0, not an undefined value
-    self%vol = 0d0
 
-    ! cell volume computation
-    !$omp parallel private(vx,vy,vz,vol,i,j,k)
+    !$omp parallel private(rv,r,ea,vol,i,j,k)
     !$omp do collapse(3)
     do k = 1-gc(3), km+gc(3) ; do j = 1-gc(2), jm+gc(2) ; do i = 1-gc(1), im+gc(1)
-
-      vx(1)=self%node(i-1,j-1,k-1)%c(1)
-      vy(1)=self%node(i-1,j-1,k-1)%c(2)
-      vz(1)=self%node(i-1,j-1,k-1)%c(3)
-
-      vx(2)=self%node(i  ,j-1,k-1)%c(1)
-      vy(2)=self%node(i  ,j-1,k-1)%c(2)
-      vz(2)=self%node(i  ,j-1,k-1)%c(3)
-
-      vx(3)=self%node(i-1,j  ,k-1)%c(1)
-      vy(3)=self%node(i-1,j  ,k-1)%c(2)
-      vz(3)=self%node(i-1,j  ,k-1)%c(3)
-
-      vx(4)=self%node(i  ,j  ,k-1)%c(1)
-      vy(4)=self%node(i  ,j  ,k-1)%c(2)
-      vz(4)=self%node(i  ,j  ,k-1)%c(3)
-
-      vx(5)=self%node(i-1,j-1,k  )%c(1)
-      vy(5)=self%node(i-1,j-1,k  )%c(2)
-      vz(5)=self%node(i-1,j-1,k  )%c(3)
-
-      vx(6)=self%node(i  ,j-1,k  )%c(1)
-      vy(6)=self%node(i  ,j-1,k  )%c(2)
-      vz(6)=self%node(i  ,j-1,k  )%c(3)
-
-      vx(7)=self%node(i-1,j  ,k  )%c(1)
-      vy(7)=self%node(i-1,j  ,k  )%c(2)
-      vz(7)=self%node(i-1,j  ,k  )%c(3)
-
-      vx(8)=self%node(i  ,j  ,k  )%c(1)
-      vy(8)=self%node(i  ,j  ,k  )%c(2)
-      vz(8)=self%node(i  ,j  ,k  )%c(3)
-
-
-      vol = tvol(vx,vy,vz,1,2,3,5) + tvol(vx,vy,vz,2,4,3,8) &
-          + tvol(vx,vy,vz,5,8,6,2) + tvol(vx,vy,vz,5,7,8,3) &
-          + tvol(vx,vy,vz,5,8,2,3)
-
-      if( vol <= 0d0 ) then
-        !write(*,*) 'Negative volume in i,j,k', i, j, k
-        cycle
-      endif
-
-      !% Assign computed volume to metrics object
-      self%vol(i,j,k) = vol
+      ! node 1 + a + 2 b + 4 c is node (i-1+a, j-1+b, k-1+c)
+      rv(:,1) = 0d0
+      rv(:,2) = self%node(i  ,j-1,k-1)%c(1:3) - self%node(i-1,j-1,k-1)%c(1:3)
+      rv(:,3) = self%node(i-1,j  ,k-1)%c(1:3) - self%node(i-1,j-1,k-1)%c(1:3)
+      rv(:,4) = self%node(i  ,j  ,k-1)%c(1:3) - self%node(i-1,j-1,k-1)%c(1:3)
+      rv(:,5) = self%node(i-1,j-1,k  )%c(1:3) - self%node(i-1,j-1,k-1)%c(1:3)
+      rv(:,6) = self%node(i  ,j-1,k  )%c(1:3) - self%node(i-1,j-1,k-1)%c(1:3)
+      rv(:,7) = self%node(i-1,j  ,k  )%c(1:3) - self%node(i-1,j-1,k-1)%c(1:3)
+      rv(:,8) = self%node(i  ,j  ,k  )%c(1:3) - self%node(i-1,j-1,k-1)%c(1:3)
+      r = rv
+      ea(:,1) = 0.25d0 * ( r(:,2) + ( r(:,6) - r(:,5) ) + ( r(:,4) - r(:,3) ) + ( r(:,8) - r(:,7) ) )
+      ea(:,2) = 0.25d0 * ( r(:,3) + ( r(:,7) - r(:,5) ) + ( r(:,4) - r(:,2) ) + ( r(:,8) - r(:,6) ) )
+      ea(:,3) = 0.25d0 * ( r(:,5) + ( r(:,7) - r(:,3) ) + ( r(:,6) - r(:,2) ) + ( r(:,8) - r(:,4) ) )
+      ! (3rd - 1st) x (4th - 2nd) of the nodes in the order that turns about +d:
+      ! i faces 1 3 7 5 and 2 4 8 6, j faces 1 5 6 2 and 3 7 8 4, k faces 1 2 4 3 and 5 6 8 7
+      vol =       dot_product(ea(:,1), cross(r(:,7), r(:,5) - r(:,3)) + cross(r(:,8) - r(:,2), r(:,6) - r(:,4)))
+      vol = vol + dot_product(ea(:,2), cross(r(:,6), r(:,2) - r(:,5)) + cross(r(:,8) - r(:,3), r(:,4) - r(:,7)))
+      vol = vol + dot_product(ea(:,3), cross(r(:,4), r(:,3) - r(:,2)) + cross(r(:,8) - r(:,5), r(:,7) - r(:,6)))
+      self%vol(i,j,k) = abs(vol / 12d0)
     end do ; end do ; end do
-
     !$omp end parallel
 
   contains
 
-    pure function tvol(vx, vy, vz, i1, i2, i3, i4) result(volume)
+    pure function cross(u, v) result(w)
       implicit none
-      real(kind=8), intent(in)  :: vx(8), vy(8), vz(8)
-      integer, intent(in)       :: i1, i2, i3, i4
-      real(kind=8)              :: volume
+      real(kind=8), intent(in) :: u(3), v(3)
+      real(kind=8)             :: w(3)
 
-      volume = abs(((vx(i2)-vx(i1))* &
-        ((vy(i3)-vy(i1))*(vz(i4)-vz(i1))-(vy(i4)-vy(i1))*(vz(i3)-vz(i1)))+ &
-                                (vy(i2)-vy(i1))* &
-        ((vx(i4)-vx(i1))*(vz(i3)-vz(i1))-(vx(i3)-vx(i1))*(vz(i4)-vz(i1)))+ &
-                                (vz(i2)-vz(i1))* &
-        ((vx(i3)-vx(i1))*(vy(i4)-vy(i1))-(vx(i4)-vx(i1))*(vy(i3)-vy(i1)))) &
-        /6.d0)
+      w = [ u(2)*v(3) - u(3)*v(2), u(3)*v(1) - u(1)*v(3), u(1)*v(2) - u(2)*v(1) ]
 
-    end function tvol
+    end function cross
 
   end subroutine compute_volume
 

@@ -66,7 +66,9 @@ clipping of the two cells split into tetrahedra, as the chimera search uses), wi
   meet (a fuel boundary on a symmetry plane): STB prints the power mapped under both rules, so the difference is known
   (4 % on the 30-degree sector of a HALEU fuel element, 0.13 mm donor cells);
 - the value written is the received power over the cell volume, in W/m3, for a 3-D mesh with three coordinates (a
-  2-D `(x, y)` mesh has no cell volumes: refused);
+  2-D `(x, y)` mesh has no cell volumes: refused); the cell volumes, of the receivers and of the donors, are the
+  trilinear volumes the solvers use (the integral of the Jacobian of the map of the eight nodes, exact on twisted
+  faces too);
 - the blocks that name the same file are remapped together, so a donor cell shared by two blocks is split between
   them, not counted twice; the result does not depend on the number of threads;
 - STB prints the donor power and the mapped power, how many donor cells are covered in part, and warns when donor

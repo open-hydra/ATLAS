@@ -61,9 +61,10 @@ Enabled with `BC-chimera = true`. For every receiver facelet BCB takes the
 - The intersection volumes come from clipping the two cells split into 24
   tetrahedra each, through their centroid and face centres: exact for planar
   faces and for thin overlaps, and a consistent planar model of warped (bilinear)
-  faces, whose 24 tetrahedra have exactly the trilinear volume of the cell. The
-  weights are ratios of these volumes, so the 5-tetrahedron volume the solver uses
-  for the cell does not enter them.
+  faces, whose 24 tetrahedra have exactly the trilinear volume of the cell: the
+  volume BCB and the solvers give the cell (the integral of the Jacobian of the
+  trilinear map of its nodes, exact on twisted faces too). The weights are ratios
+  of these volumes.
 - The `i` and `j` faces are always searched; the `k` faces only on a full 3-D
   mesh.
 - `chimera.log` (`chimera<m>.log` on multigrid level `m > 1`, named like
