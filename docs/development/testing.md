@@ -232,6 +232,7 @@ tool. The tests labelled `tutorial` hold the [Tutorials](../tutorials/index.md):
 | `dispersed-populations` | BCB + MDB | `MDB/dispersed-populations` | A dispersed phase with two materials, one of them in two populations, on two multigrid levels: the per-(material, population) tables are split block by block. |
 | `coupled-phases-ks` | BCB + MDB | `MDB/coupled-phases-ks` | `coupled-phases` with a uniform roughness `ks` on the gas connection: MDB carries it through the split; the solid files are unchanged. |
 | `coupled-phases-ksfile` | BCB + MDB | `MDB/coupled-phases-ksfile` | The same interface with a real-fluid gas and `ks` read from a file along x: each 103 record gets the value at its own centre. |
+| `cell-volume` | BCB, ICB, STB | `common` | The cell volume of `grid.f90` (`compute_volume`, the program `cell_volume_check`) is the trilinear volume of the solvers, against a Gauss quadrature of the Jacobian, to 1e-12: on 1200 twisted cells; on a block of jittered nodes inside a box, whose volumes sum to the box to 1e-13, and its mirror image (left-handed), whose volumes are the same; on plane-faced cells (affine, frustum, wedge) against their closed forms, to 1e-13; zero on a flat cell. |
 
 ## Test Families And Their Intent
 
