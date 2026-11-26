@@ -34,7 +34,7 @@ Output files are written to `fromATLAStoSolver/`, next to the phase files.
 !!! note
     BCB auto-detects the mesh format by file extension. The search order is `.tec` → `.p3d` → `.szplt`.
     Write the coordinates with full double precision (15–16 significant digits): block connections match face
-    centres within `1e-7`, and the axisymmetric test compares node angles to `1e-5` rad.
+    centres within `1e-3` of the facelet spacing, and the axisymmetric test compares node angles to `1e-5` rad.
 
 ---
 

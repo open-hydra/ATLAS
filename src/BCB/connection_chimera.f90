@@ -753,7 +753,11 @@ contains
     i1  = rec_off(key+1) - 1
     volume = 0.d0
     ni_per_receiver = 0
-    vol_tol = max(1d-18, 1d-6*block(br)%vol(ir,jr,kr))
+    ! Donors below 1e-6 of the receiver are dropped, whatever the size of the cells; a receiver
+    ! without volume takes none (its fractions would be ratios of round-off).
+    vr = block(br)%vol(ir,jr,kr)
+    if (.not. vr > 0.d0) return
+    vol_tol = 1d-6*vr
     t = 0
     nodeinside_local = .false.
     allocate(volb(size(block)))
@@ -823,7 +827,6 @@ contains
     ! B8), so their sum reaches 2 V_r while every weight is right. The receiver closes
     ! when the sum, or with several donor blocks the largest per-block sum, is within
     ! 1e-3 of its volume; the per-block sums are logged whenever more than one block donates.
-    vr     = block(br)%vol(ir,jr,kr)
     vmax   = maxval(volb)
     nbdon  = count(volb > 0.d0)
     closed = abs(volume-vr) <= 1d-3*vr

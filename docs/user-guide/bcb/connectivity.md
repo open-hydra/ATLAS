@@ -22,9 +22,11 @@ the limits are.
 
 ## `connection`
 
-Two facelets are connected when their **face centers coincide within `1e-7`**
-(Euclidean distance, in mesh units — the tolerance is absolute, so it is a real
-constraint on how you write the mesh file). The orientation map `c1..c4` in the
+Two facelets are connected when their **face centers coincide within `1e-3` of
+the facelet spacing** (Euclidean distance; the spacing of a facelet is the
+distance from its center to the nearest center of its own face, and the smaller
+of the two is taken), so the rule is the same at every mesh scale. The
+orientation map `c1..c4` in the
 output is then derived from the covariant/contravariant bases of the two faces,
 so the blocks may be rotated or index-reversed with respect to each other.
 
@@ -57,7 +59,7 @@ Enabled with `BC-chimera = true`. For every receiver facelet BCB takes the
 - Each donor's weight is its intersection volume divided by the total
   intersection volume of that ghost cell, so the weights of one ghost layer
   **sum to 1**. Donors contributing less than `1e-6` of the receiver cell volume
-  are dropped.
+  are dropped, at every mesh scale; a receiver cell without volume takes no donor.
 - The intersection volumes come from clipping the two cells split into 24
   tetrahedra each, through their centroid and face centres: exact for planar
   faces and for thin overlaps, and a consistent planar model of warped (bilinear)
@@ -155,7 +157,7 @@ failed on are handed to the overset search.
 ## Checklist for mesh generation
 
 - Conforming interface? Use `connection`, and write the shared nodes so the face
-  centers agree to better than `1e-7`.
+  centers agree to better than `1e-3` of the facelet spacing.
 - Overlapping grids? Give at least two receiver cells of overlap, plus margin
   where the boundary is curved or stretched.
 - Ending an overlap part-way across a face? Align the rim with a cell boundary

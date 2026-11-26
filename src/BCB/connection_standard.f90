@@ -567,7 +567,7 @@ contains
     type(BC_block), intent(inout) :: blk(:)
     logical, intent(in) :: force_connect
     logical, intent(in), optional :: skip_chimera
-    real(8), allocatable  :: x(:), y(:), z(:)
+    real(8), allocatable  :: x(:), y(:), z(:), lf(:)
     integer, allocatable :: b(:), f(:), n(:), m(:), def(:), prop(:,:), match(:)
     integer, allocatable :: def0(:)
     logical, allocatable :: adj(:), usable(:), declared(:)
@@ -623,7 +623,7 @@ contains
         nbound = nbound+(blk(b1)%face(f1)%Nm*blk(b1)%face(f1)%Nn)
       enddo
     enddo
-    allocate(x(1:nbound)); allocate(y(1:nbound)); allocate(z(1:nbound))
+    allocate(x(1:nbound)); allocate(y(1:nbound)); allocate(z(1:nbound)); allocate(lf(1:nbound))
     allocate(b(1:nbound)); allocate(f(1:nbound)); allocate(m(1:nbound))
     allocate(n(1:nbound)); allocate(def(1:nbound)); allocate(adj(1:nbound))
     allocate(usable(1:nbound)); allocate(declared(1:nbound))
@@ -649,6 +649,22 @@ contains
             x(i) = this%c(1)
             y(i) = this%c(2)
             z(i) = this%c(3)
+            ! spacing of the facelet: the distance to the nearest centre of its own face (alone on the face, its
+            ! length on a pure-2D mesh, where area holds it, else the root of its area)
+            lf(i) = huge(1d0)
+            associate( cs => blk(b1)%face(f1)%center )
+            if (m1 > 1)                     lf(i) = min(lf(i), norm2(this%c(1:3) - cs(m1-1,n1)%c(1:3)))
+            if (m1 < blk(b1)%face(f1)%Nm)   lf(i) = min(lf(i), norm2(this%c(1:3) - cs(m1+1,n1)%c(1:3)))
+            if (n1 > 1)                     lf(i) = min(lf(i), norm2(this%c(1:3) - cs(m1,n1-1)%c(1:3)))
+            if (n1 < blk(b1)%face(f1)%Nn)   lf(i) = min(lf(i), norm2(this%c(1:3) - cs(m1,n1+1)%c(1:3)))
+            endassociate
+            if (lf(i) == huge(1d0)) then
+              if (mesh_cfg%meshType == -2) then
+                lf(i) = this%area
+              else
+                lf(i) = sqrt(this%area)
+              endif
+            endif
             m(i) = m1
             n(i) = n1
             f(i) = f1
@@ -673,8 +689,9 @@ contains
       do j = sum(nboundb(1:blocal))+1, nbound
         if (.not.usable(j)) cycle
         if (adj(j)) cycle
+        ! the same face: centres within 1e-3 of the smaller spacing, whatever the size of the cells
         dum1 = (x(i)-x(j))**2 + (y(i)-y(j))**2 + (z(i)-z(j))**2
-        if (sqrt(dum1)<1d-7) then
+        if (sqrt(dum1) <= 1d-3*min(lf(i), lf(j))) then
           match(i) = j
           exit
         endif
